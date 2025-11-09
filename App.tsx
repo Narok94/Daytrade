@@ -38,13 +38,13 @@ const App: React.FC = () => {
         const stored = localStorage.getItem('tradeSettings');
         if (stored) return JSON.parse(stored);
         return {
-            initialBalance: 100,
+            initialBalance: 0,
             entryMode: 'percentage' as const,
-            entryValue: 2,
-            payoutPercentage: 85,
-            dailyGoalPercentage: 5,
-            stopLossPercentage: 5,
-            stopGainPercentage: 10,
+            entryValue: 0,
+            payoutPercentage: 0,
+            dailyGoalPercentage: 0,
+            stopLossPercentage: 0,
+            stopGainPercentage: 0,
         };
     });
     const [records, setRecords] = useState<AppRecord[]>(() => {
@@ -59,7 +59,7 @@ const App: React.FC = () => {
     });
     const [usdToBrlRate, setUsdToBrlRate] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(() => !localStorage.getItem('tradeSettings'));
     const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
     const [transactionType, setTransactionType] = useState<'deposit' | 'withdrawal' | null>(null);
     const [activeTab, setActiveTab] = useState<'dashboard' | 'analysis' | 'goal'>('dashboard');
@@ -341,95 +341,111 @@ const App: React.FC = () => {
     const isToday = selectedDateString === formatDateISO(now);
 
     return (
-        <div className="min-h-screen p-4 sm:p-6 lg:p-8 font-sans">
-            <header className="flex flex-wrap justify-between items-center mb-6 gap-4">
-                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Desempenho Daytrade</h1>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => { setTransactionType('deposit'); setIsTransactionModalOpen(true); }} className="px-3 py-2 text-sm bg-emerald-500 hover:bg-emerald-600 text-white rounded-md transition-colors">Depositar</button>
-                    <button onClick={() => { setTransactionType('withdrawal'); setIsTransactionModalOpen(true); }} className="px-3 py-2 text-sm bg-rose-500 hover:bg-rose-600 text-white rounded-md transition-colors">Retirar</button>
-                    <input 
-                        type="date"
-                        value={selectedDateString}
-                        onChange={(e) => setSelectedDate(new Date(e.target.value + 'T00:00:00'))}
-                        className="bg-white border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    />
-                    <button onClick={() => setIsSettingsOpen(true)} className="p-2 rounded-full hover:bg-slate-200 transition-colors">
-                        <SettingsIcon className="w-6 h-6"/>
-                    </button>
-                </div>
-            </header>
-
-            <nav className="mb-8">
-                <div className="flex border-b border-slate-200">
-                    <TabButton name="Painel" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-                    <TabButton name="Análise" active={activeTab === 'analysis'} onClick={() => setActiveTab('analysis')} />
-                    <TabButton name="Meta" active={activeTab === 'goal'} onClick={() => setActiveTab('goal')} />
-                </div>
-            </nav>
-
-            <main>
-                {activeTab === 'dashboard' && (
-                    <>
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-                            <div className="lg:col-span-1 bg-white p-6 rounded-lg shadow-sm">
-                                <h2 className="text-xl font-semibold mb-4 text-slate-800">Registro de {isToday ? 'Hoje' : selectedDayRecord?.date || formatDateBR(selectedDate)}</h2>
-                                <EntryForm 
-                                    onAddRecord={addRecord} 
-                                    disabled={!isToday}
-                                    isToday={isToday}
-                                    stopStatus={stopStatus}
-                                    isOverridden={stopLimitOverride[selectedDateString] || false}
-                                    onOverride={() => setStopLimitOverride(prev => ({...prev, [selectedDateString]: true}))}
-                                    existingRecord={selectedDayRecord}
-                                />
-                            </div>
-                            <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm h-96">
-                                <h2 className="text-xl font-semibold mb-4 text-slate-800">Crescimento do Saldo</h2>
-                                 <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={balanceChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                        <XAxis dataKey="date" stroke="#64748b" tick={{ fontSize: 12 }} />
-                                        <YAxis stroke="#64748b" tick={{ fontSize: 12 }} tickFormatter={(value) => `$${value}`} domain={['dataMin', 'dataMax']}/>
-                                        <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0' }} />
-                                        <Legend />
-                                        <Line type="monotone" dataKey="Saldo" stroke="#6366f1" strokeWidth={2} dot={{ r: 4, fill: '#6366f1' }} activeDot={{ r: 8, stroke: '#4f46e5' }} />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-
-                        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
-                            <h2 className="text-xl font-semibold mb-4 text-slate-800">Histórico Geral</h2>
-                            <HistoryList records={sortedRecords} formatCurrency={formatCurrency} convertToBRL={convertToBRL} />
-                        </div>
-                    </>
-                )}
-                {activeTab === 'analysis' && (
-                    <div className="space-y-8">
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                           <SummaryCard title="Saldo Atual (USD)" value={formatCurrency(summaryData.currentBalanceUSD, 'USD')} trend={summaryData.currentBalanceUSD >= settings.initialBalance ? 'up' : 'down'} />
-                           <SummaryCard title="Saldo Atual (BRL)" value={formatCurrency(convertToBRL(summaryData.currentBalanceUSD), 'BRL')} />
-                           <SummaryCard title="Lucro Total (USD)" value={formatCurrency(summaryData.totalProfitUSD, 'USD')} trend={summaryData.totalProfitUSD >= 0 ? 'up' : 'down'} />
-                           <SummaryCard title="Taxa de Acerto" value={`${summaryData.winRate.toFixed(1)}%`} />
-                           <SummaryCard title="Cotação USD/BRL" value={usdToBrlRate?.toFixed(3) || 'N/A'} />
-                           <SummaryCard title="Meta do Dia" value={`${formatCurrency(summaryData.todayNetProfitUSD)} / ${formatCurrency(dailyGoalAmountUSD)}`} trend={summaryData.todayNetProfitUSD >= dailyGoalAmountUSD && dailyGoalAmountUSD > 0 ? 'up' : undefined} />
-                        </div>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <DailyPerformanceChart records={summaryData.tradeDayRecords} />
-                            <WinLossRatioChart records={summaryData.tradeDayRecords} />
-                        </div>
-                    </div>
-                )}
-                {activeTab === 'goal' && (
-                    <GoalTracker 
-                        goal={goal}
-                        onSave={setGoal}
-                        achievedAmount={achievedAmount}
-                        formatCurrency={(val) => formatCurrency(val, 'USD')}
-                    />
-                )}
-            </main>
+        <div className="flex flex-col min-h-screen font-sans relative overflow-hidden">
+            {/* Watermark */}
+            <div
+                className="absolute inset-0 flex items-center justify-center -z-10 pointer-events-none"
+                aria-hidden="true"
+            >
+                <span className="text-[20vw] font-bold text-slate-200 transform -rotate-12 select-none">
+                    Teste
+                </span>
+            </div>
             
+            <div className="flex-grow p-4 sm:p-6 lg:p-8">
+                <header className="flex flex-wrap justify-between items-center mb-6 gap-4">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Desempenho Daytrade</h1>
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => { setTransactionType('deposit'); setIsTransactionModalOpen(true); }} className="px-3 py-2 text-sm bg-emerald-500 hover:bg-emerald-600 text-white rounded-md transition-colors">Depositar</button>
+                        <button onClick={() => { setTransactionType('withdrawal'); setIsTransactionModalOpen(true); }} className="px-3 py-2 text-sm bg-rose-500 hover:bg-rose-600 text-white rounded-md transition-colors">Retirar</button>
+                        <input 
+                            type="date"
+                            value={selectedDateString}
+                            onChange={(e) => setSelectedDate(new Date(e.target.value + 'T00:00:00'))}
+                            className="bg-white border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        />
+                        <button onClick={() => setIsSettingsOpen(true)} className="p-2 rounded-full hover:bg-slate-200 transition-colors">
+                            <SettingsIcon className="w-6 h-6"/>
+                        </button>
+                    </div>
+                </header>
+
+                <nav className="mb-8">
+                    <div className="flex border-b border-slate-200">
+                        <TabButton name="Painel" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+                        <TabButton name="Análise" active={activeTab === 'analysis'} onClick={() => setActiveTab('analysis')} />
+                        <TabButton name="Meta" active={activeTab === 'goal'} onClick={() => setActiveTab('goal')} />
+                    </div>
+                </nav>
+
+                <main>
+                    {activeTab === 'dashboard' && (
+                        <>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                                <div className="lg:col-span-1 bg-white p-6 rounded-lg shadow-sm">
+                                    <h2 className="text-xl font-semibold mb-4 text-slate-800">Registro de {isToday ? 'Hoje' : selectedDayRecord?.date || formatDateBR(selectedDate)}</h2>
+                                    <EntryForm 
+                                        onAddRecord={addRecord} 
+                                        disabled={!isToday}
+                                        isToday={isToday}
+                                        stopStatus={stopStatus}
+                                        isOverridden={stopLimitOverride[selectedDateString] || false}
+                                        onOverride={() => setStopLimitOverride(prev => ({...prev, [selectedDateString]: true}))}
+                                        existingRecord={selectedDayRecord}
+                                    />
+                                </div>
+                                <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm h-96">
+                                    <h2 className="text-xl font-semibold mb-4 text-slate-800">Crescimento do Saldo</h2>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={balanceChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                            <XAxis dataKey="date" stroke="#64748b" tick={{ fontSize: 12 }} />
+                                            <YAxis stroke="#64748b" tick={{ fontSize: 12 }} tickFormatter={(value) => `$${value}`} domain={['dataMin', 'dataMax']}/>
+                                            <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0' }} />
+                                            <Legend />
+                                            <Line type="monotone" dataKey="Saldo" stroke="#6366f1" strokeWidth={2} dot={{ r: 4, fill: '#6366f1' }} activeDot={{ r: 8, stroke: '#4f46e5' }} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
+                                <h2 className="text-xl font-semibold mb-4 text-slate-800">Histórico Geral</h2>
+                                <HistoryList records={sortedRecords} formatCurrency={formatCurrency} convertToBRL={convertToBRL} />
+                            </div>
+                        </>
+                    )}
+                    {activeTab === 'analysis' && (
+                        <div className="space-y-8">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                            <SummaryCard title="Saldo Atual (USD)" value={formatCurrency(summaryData.currentBalanceUSD, 'USD')} trend={summaryData.currentBalanceUSD >= settings.initialBalance ? 'up' : 'down'} />
+                            <SummaryCard title="Saldo Atual (BRL)" value={formatCurrency(convertToBRL(summaryData.currentBalanceUSD), 'BRL')} />
+                            <SummaryCard title="Lucro Total (USD)" value={formatCurrency(summaryData.totalProfitUSD, 'USD')} trend={summaryData.totalProfitUSD >= 0 ? 'up' : 'down'} />
+                            <SummaryCard title="Taxa de Acerto" value={`${summaryData.winRate.toFixed(1)}%`} />
+                            <SummaryCard title="Cotação USD/BRL" value={usdToBrlRate?.toFixed(3) || 'N/A'} />
+                            <SummaryCard title="Meta do Dia" value={`${formatCurrency(summaryData.todayNetProfitUSD)} / ${formatCurrency(dailyGoalAmountUSD)}`} trend={summaryData.todayNetProfitUSD >= dailyGoalAmountUSD && dailyGoalAmountUSD > 0 ? 'up' : undefined} />
+                            </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                <DailyPerformanceChart records={summaryData.tradeDayRecords} />
+                                <WinLossRatioChart records={summaryData.tradeDayRecords} />
+                            </div>
+                        </div>
+                    )}
+                    {activeTab === 'goal' && (
+                        <GoalTracker 
+                            goal={goal}
+                            onSave={setGoal}
+                            achievedAmount={achievedAmount}
+                            formatCurrency={(val) => formatCurrency(val, 'USD')}
+                        />
+                    )}
+                </main>
+            </div>
+            
+            <footer className="text-center text-sm text-slate-500 py-4">
+                Criado por Henrique Costa 2025
+            </footer>
+
             <SettingsModal 
                 isOpen={isSettingsOpen} 
                 onClose={() => setIsSettingsOpen(false)}
