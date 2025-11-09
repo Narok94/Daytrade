@@ -530,8 +530,8 @@ const EntryForm: React.FC<{ onAddRecord: (win: number, loss: number) => void; di
                 </div>
             ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div><label htmlFor="wins" className="block text-sm font-medium text-slate-600 mb-1">Adicionar Ganhos (Wins)</label><input id="wins" type="number" value={wins} onChange={(e) => setWins(e.target.value)} onFocus={(e) => e.target.select()} min="0" className="w-full bg-white border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" disabled={disabled}/></div>
-                    <div><label htmlFor="losses" className="block text-sm font-medium text-slate-600 mb-1">Adicionar Perdas (Losses)</label><input id="losses" type="number" value={losses} onChange={(e) => setLosses(e.target.value)} onFocus={(e) => e.target.select()} min="0" className="w-full bg-white border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" disabled={disabled}/></div>
+                    <div><label htmlFor="wins" className="block text-sm font-medium text-slate-600 mb-1">Adicionar Ganhos (Wins)</label><input id="wins" type="text" inputMode="numeric" pattern="[0-9]*" value={wins} onChange={(e) => setWins(e.target.value.replace(/[^0-9]/g, ''))} onFocus={(e) => e.target.select()} placeholder="0" className="w-full bg-white border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" disabled={disabled}/></div>
+                    <div><label htmlFor="losses" className="block text-sm font-medium text-slate-600 mb-1">Adicionar Perdas (Losses)</label><input id="losses" type="text" inputMode="numeric" pattern="[0-9]*" value={losses} onChange={(e) => setLosses(e.target.value.replace(/[^0-9]/g, ''))} onFocus={(e) => e.target.select()} placeholder="0" className="w-full bg-white border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" disabled={disabled}/></div>
                     <button type="submit" disabled={disabled} className="w-full flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded transition-colors"><PlusIcon className="w-5 h-5"/>Adicionar Operação</button>
                     {disabled && <p className="text-xs text-slate-400 mt-2 text-center">Você só pode adicionar registros para o dia de hoje.</p>}
                 </form>
@@ -748,16 +748,51 @@ const GoalTracker: React.FC<{
 };
 
 const SettingsModal: React.FC<{ isOpen: boolean; onClose: () => void; settings: TradeSettings; onSave: (s: TradeSettings) => void; }> = ({ isOpen, onClose, settings, onSave }) => {
-    const [formState, setFormState] = useState(settings);
+    const [formState, setFormState] = useState({
+        initialBalance: settings.initialBalance === 0 ? '' : String(settings.initialBalance),
+        entryMode: settings.entryMode,
+        entryValue: settings.entryValue === 0 ? '' : String(settings.entryValue),
+        stopGainPercentage: settings.stopGainPercentage === 0 ? '' : String(settings.stopGainPercentage),
+        stopLossPercentage: settings.stopLossPercentage === 0 ? '' : String(settings.stopLossPercentage),
+        payoutPercentage: settings.payoutPercentage === 0 ? '' : String(settings.payoutPercentage),
+    });
 
     useEffect(() => {
-        setFormState(settings);
+        if (isOpen) {
+            setFormState({
+                initialBalance: settings.initialBalance === 0 ? '' : String(settings.initialBalance),
+                entryMode: settings.entryMode,
+                entryValue: settings.entryValue === 0 ? '' : String(settings.entryValue),
+                stopGainPercentage: settings.stopGainPercentage === 0 ? '' : String(settings.stopGainPercentage),
+                stopLossPercentage: settings.stopLossPercentage === 0 ? '' : String(settings.stopLossPercentage),
+                payoutPercentage: settings.payoutPercentage === 0 ? '' : String(settings.payoutPercentage),
+            });
+        }
     }, [settings, isOpen]);
 
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
-        onSave(formState);
+        onSave({
+            ...settings,
+            initialBalance: Number(formState.initialBalance) || 0,
+            entryMode: formState.entryMode,
+            entryValue: Number(formState.entryValue) || 0,
+            stopGainPercentage: Number(formState.stopGainPercentage) || 0,
+            stopLossPercentage: Number(formState.stopLossPercentage) || 0,
+            payoutPercentage: Number(formState.payoutPercentage) || 0,
+        });
         onClose();
+    };
+
+    const handleNumericChange = (field: keyof Omit<typeof formState, 'entryMode'>) => (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { value } = e.target;
+        if (value === '' || /^\d*\.?\d*$/.test(value)) {
+            setFormState(prev => ({ ...prev, [field]: value }));
+        }
+    };
+    
+    const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setFormState(prev => ({ ...prev, entryMode: e.target.value as 'percentage' | 'fixed' }));
     };
 
     if (!isOpen) return null;
@@ -772,13 +807,13 @@ const SettingsModal: React.FC<{ isOpen: boolean; onClose: () => void; settings: 
                 <form onSubmit={handleSave} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-slate-700">Saldo Inicial (USD)</label>
-                        <input type="number" value={formState.initialBalance} onChange={e => setFormState({...formState, initialBalance: Number(e.target.value)})} className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"/>
+                        <input type="text" inputMode="numeric" placeholder="0" value={formState.initialBalance} onChange={handleNumericChange('initialBalance')} className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"/>
                     </div>
                      <div>
                         <label className="block text-sm font-medium text-slate-700">Modo de Entrada</label>
                         <select 
                             value={formState.entryMode} 
-                            onChange={e => setFormState({...formState, entryMode: e.target.value as 'percentage' | 'fixed'})}
+                            onChange={handleSelectChange}
                             className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                         >
                             <option value="percentage">Porcentagem da banca</option>
@@ -790,23 +825,25 @@ const SettingsModal: React.FC<{ isOpen: boolean; onClose: () => void; settings: 
                             Valor da Entrada ({formState.entryMode === 'percentage' ? '%' : 'USD'})
                         </label>
                         <input 
-                            type="number" 
+                            type="text" 
+                            inputMode="numeric" 
+                            placeholder="0"
                             value={formState.entryValue} 
-                            onChange={e => setFormState({...formState, entryValue: Number(e.target.value)})} 
+                            onChange={handleNumericChange('entryValue')} 
                             className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                         />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-slate-700">Stop Gain Diário (%)</label>
-                        <input type="number" value={formState.stopGainPercentage} onChange={e => setFormState({...formState, stopGainPercentage: Number(e.target.value)})} className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm"/>
+                        <input type="text" inputMode="numeric" placeholder="0" value={formState.stopGainPercentage} onChange={handleNumericChange('stopGainPercentage')} className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm"/>
                     </div>
                      <div>
                         <label className="block text-sm font-medium text-slate-700">Stop Loss Diário (%)</label>
-                        <input type="number" value={formState.stopLossPercentage} onChange={e => setFormState({...formState, stopLossPercentage: Number(e.target.value)})} className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm"/>
+                        <input type="text" inputMode="numeric" placeholder="0" value={formState.stopLossPercentage} onChange={handleNumericChange('stopLossPercentage')} className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm"/>
                     </div>
                      <div>
                         <label className="block text-sm font-medium text-slate-700">Payout (%)</label>
-                        <input type="number" value={formState.payoutPercentage} onChange={e => setFormState({...formState, payoutPercentage: Number(e.target.value)})} className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm"/>
+                        <input type="text" inputMode="numeric" placeholder="0" value={formState.payoutPercentage} onChange={handleNumericChange('payoutPercentage')} className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm"/>
                     </div>
                     <div className="flex gap-4 pt-4">
                          <button type="button" onClick={onClose} className="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-4 rounded transition-colors">Cancelar</button>
