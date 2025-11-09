@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TradeSettings, DailyRecord, TransactionRecord, AppRecord } from './types';
 import { fetchUSDBRLRate } from './services/currencyService';
-import { SettingsIcon, PlusIcon, TrendingUpIcon, TrendingDownIcon, DepositIcon, WithdrawalIcon, XMarkIcon } from './components/icons';
+import { SettingsIcon, PlusIcon, TrendingUpIcon, TrendingDownIcon, DepositIcon, WithdrawalIcon, XMarkIcon, TrashIcon } from './components/icons';
 
 interface GoalSettings {
     type: 'weekly' | 'monthly';
@@ -142,52 +142,6 @@ const App: React.FC = () => {
         return getBalanceUpToDate(selectedDateString);
     }, [sortedRecords, selectedDateString, getBalanceUpToDate]);
 
-    const addRecord = useCallback((winCount: number, lossCount: number) => {
-        const existingRecord = records.find(r => r.recordType === 'day' && r.id === selectedDateString) as DailyRecord | undefined;
-        const startBalanceUSD = startBalanceForSelectedDay;
-
-        const calculatedEntrySizeUSD = settings.entryMode === 'percentage'
-            ? startBalanceUSD * (settings.entryValue / 100)
-            : settings.entryValue;
-        
-        const entrySizeUSD = Math.max(1, calculatedEntrySizeUSD);
-        const profitPerWinUSD = entrySizeUSD * (settings.payoutPercentage / 100);
-        const lossPerTradeUSD = entrySizeUSD;
-
-        if (existingRecord) {
-            const newWinCount = existingRecord.winCount + winCount;
-            const newLossCount = existingRecord.lossCount + lossCount;
-            const newNetProfitUSD = (newWinCount * profitPerWinUSD) - (newLossCount * lossPerTradeUSD);
-            const newEndBalanceUSD = existingRecord.startBalanceUSD + newNetProfitUSD;
-
-            const updatedRecord: DailyRecord = {
-                ...existingRecord,
-                winCount: newWinCount,
-                lossCount: newLossCount,
-                entrySizeUSD,
-                netProfitUSD: newNetProfitUSD,
-                endBalanceUSD: newEndBalanceUSD,
-            };
-            setRecords(prevRecords => prevRecords.map(r => (r.id === selectedDateString ? updatedRecord : r)));
-        } else {
-            const netProfitUSD = (winCount * profitPerWinUSD) - (lossCount * lossPerTradeUSD);
-            const endBalanceUSD = startBalanceUSD + netProfitUSD;
-
-            const newRecord: DailyRecord = {
-                recordType: 'day',
-                id: selectedDateString,
-                date: formatDateBR(selectedDate),
-                startBalanceUSD,
-                winCount,
-                lossCount,
-                entrySizeUSD,
-                netProfitUSD,
-                endBalanceUSD,
-            };
-            setRecords(prevRecords => [...prevRecords, newRecord]);
-        }
-    }, [records, settings, selectedDateString, startBalanceForSelectedDay, selectedDate, formatDateBR]);
-    
     const recalculateBalances = useCallback((recordsToProcess: AppRecord[]): AppRecord[] => {
         const sorted = [...recordsToProcess].sort((a, b) => {
             const dateA = a.recordType === 'day' ? a.id : a.date;
@@ -229,6 +183,55 @@ const App: React.FC = () => {
         return recalculated;
     }, [settings]);
 
+    const addRecord = useCallback((winCount: number, lossCount: number) => {
+        const existingRecord = records.find(r => r.recordType === 'day' && r.id === selectedDateString) as DailyRecord | undefined;
+        const startBalanceUSD = startBalanceForSelectedDay;
+
+        const calculatedEntrySizeUSD = settings.entryMode === 'percentage'
+            ? startBalanceUSD * (settings.entryValue / 100)
+            : settings.entryValue;
+        
+        const entrySizeUSD = Math.max(1, calculatedEntrySizeUSD);
+        const profitPerWinUSD = entrySizeUSD * (settings.payoutPercentage / 100);
+        const lossPerTradeUSD = entrySizeUSD;
+
+        if (existingRecord) {
+            const newWinCount = existingRecord.winCount + winCount;
+            const newLossCount = existingRecord.lossCount + lossCount;
+            const newNetProfitUSD = (newWinCount * profitPerWinUSD) - (newLossCount * lossPerTradeUSD);
+            const newEndBalanceUSD = existingRecord.startBalanceUSD + newNetProfitUSD;
+
+            const updatedRecord: DailyRecord = {
+                ...existingRecord,
+                winCount: newWinCount,
+                lossCount: newLossCount,
+                entrySizeUSD,
+                netProfitUSD: newNetProfitUSD,
+                endBalanceUSD: newEndBalanceUSD,
+            };
+            const updatedRecords = records.map(r => (r.id === selectedDateString ? updatedRecord : r));
+            setRecords(recalculateBalances(updatedRecords));
+
+        } else {
+            const netProfitUSD = (winCount * profitPerWinUSD) - (lossCount * lossPerTradeUSD);
+            const endBalanceUSD = startBalanceUSD + netProfitUSD;
+
+            const newRecord: DailyRecord = {
+                recordType: 'day',
+                id: selectedDateString,
+                date: formatDateBR(selectedDate),
+                startBalanceUSD,
+                winCount,
+                lossCount,
+                entrySizeUSD,
+                netProfitUSD,
+                endBalanceUSD,
+            };
+            const updatedRecords = [...records, newRecord];
+            setRecords(recalculateBalances(updatedRecords));
+        }
+    }, [records, settings, selectedDateString, startBalanceForSelectedDay, selectedDate, formatDateBR, recalculateBalances]);
+    
     const handleSaveTransaction = useCallback((data: { type: 'deposit' | 'withdrawal'; date: Date; amount: number; notes: string }) => {
         const newTransaction: TransactionRecord = {
             recordType: data.type,
@@ -241,6 +244,13 @@ const App: React.FC = () => {
         const updatedRecords = [...records, newTransaction];
         setRecords(recalculateBalances(updatedRecords));
     }, [records, recalculateBalances, formatDateISO, formatDateBR]);
+    
+    const handleDeleteRecord = useCallback((recordId: string) => {
+        if (window.confirm('Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.')) {
+            const updatedRecords = records.filter(r => r.id !== recordId);
+            setRecords(recalculateBalances(updatedRecords));
+        }
+    }, [records, recalculateBalances]);
 
     const { summaryData, balanceChartData } = useMemo(() => {
         let balance = settings.initialBalance;
@@ -342,21 +352,11 @@ const App: React.FC = () => {
 
     return (
         <div className="flex flex-col min-h-screen font-sans relative overflow-hidden">
-            {/* Watermark */}
-            <div
-                className="absolute inset-0 flex items-center justify-center -z-10 pointer-events-none"
-                aria-hidden="true"
-            >
-                <span className="text-[20vw] font-bold text-slate-200 transform -rotate-12 select-none">
-                    Teste
-                </span>
-            </div>
-            
             <div className="flex-grow p-4 sm:p-6 lg:p-8">
                 <header className="flex flex-wrap justify-between items-center mb-6 gap-4">
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Desempenho Daytrade</h1>
-                        <p className="text-sm text-slate-500">Aplicativo em teste</p>
+                        <p className="text-sm text-slate-500">Gerencie suas operações de day trade</p>
                     </div>
                     <div className="flex items-center gap-2">
                         <button onClick={() => { setTransactionType('deposit'); setIsTransactionModalOpen(true); }} className="px-3 py-2 text-sm bg-emerald-500 hover:bg-emerald-600 text-white rounded-md transition-colors">Depositar</button>
@@ -414,7 +414,7 @@ const App: React.FC = () => {
 
                             <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
                                 <h2 className="text-xl font-semibold mb-4 text-slate-800">Histórico Geral</h2>
-                                <HistoryList records={sortedRecords} formatCurrency={formatCurrency} convertToBRL={convertToBRL} />
+                                <HistoryList records={sortedRecords} formatCurrency={formatCurrency} convertToBRL={convertToBRL} onDelete={handleDeleteRecord} />
                             </div>
                         </>
                     )}
@@ -540,7 +540,7 @@ const EntryForm: React.FC<{ onAddRecord: (win: number, loss: number) => void; di
     );
 };
 
-const HistoryList: React.FC<{ records: AppRecord[], formatCurrency: (v: number, c?: 'USD' | 'BRL') => string, convertToBRL: (usd: number) => number }> = ({ records, formatCurrency, convertToBRL }) => {
+const HistoryList: React.FC<{ records: AppRecord[], formatCurrency: (v: number, c?: 'USD' | 'BRL') => string, convertToBRL: (usd: number) => number, onDelete: (id: string) => void }> = ({ records, formatCurrency, convertToBRL, onDelete }) => {
     const sorted = [...records].sort((a, b) => (b.recordType === 'day' ? b.id : b.date).localeCompare(a.recordType === 'day' ? a.id : a.date));
     if (sorted.length === 0) return <p className="text-center text-slate-500 py-4">Nenhum registro encontrado.</p>;
 
@@ -555,6 +555,7 @@ const HistoryList: React.FC<{ records: AppRecord[], formatCurrency: (v: number, 
                             <th scope="col" className="px-4 py-3">Detalhes</th>
                             <th scope="col" className="px-4 py-3">Valor (USD)</th>
                             <th scope="col" className="px-4 py-3">Valor (BRL)</th>
+                            <th scope="col" className="px-4 py-3 text-center">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -583,6 +584,11 @@ const HistoryList: React.FC<{ records: AppRecord[], formatCurrency: (v: number, 
                             <td className={`px-4 py-2 ${record.recordType === 'day' ? ((record as DailyRecord).netProfitUSD >= 0 ? 'text-emerald-500' : 'text-rose-500') : (record.recordType === 'deposit' ? 'text-emerald-500' : 'text-rose-500')}`}>
                                 {record.recordType === 'day' ? formatCurrency(convertToBRL((record as DailyRecord).netProfitUSD), 'BRL') : (record.recordType === 'deposit' ? `+${formatCurrency(convertToBRL(record.amountUSD), 'BRL')}` : `-${formatCurrency(convertToBRL(record.amountUSD), 'BRL')}`)}
                             </td>
+                            <td className="px-4 py-2 text-center">
+                                <button onClick={() => onDelete(record.id)} className="p-1 text-slate-400 hover:text-rose-600 rounded-md transition-colors" title="Excluir registro">
+                                    <TrashIcon className="w-4 h-4" />
+                                </button>
+                            </td>
                            </tr>
                         ))}
                     </tbody>
@@ -590,8 +596,13 @@ const HistoryList: React.FC<{ records: AppRecord[], formatCurrency: (v: number, 
             </div>
             <div className="md:hidden space-y-3">
                  {sorted.map((record) => (
-                    <div key={record.id} className="bg-white p-4 rounded-lg shadow-sm border">
-                        <div className="flex justify-between items-start">
+                    <div key={record.id} className="relative bg-white p-4 rounded-lg shadow-sm border">
+                        <div className="absolute top-3 right-3">
+                            <button onClick={() => onDelete(record.id)} className="p-1 text-slate-400 hover:text-rose-600 rounded-full transition-colors" title="Excluir registro">
+                                <TrashIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="flex justify-between items-start pr-8">
                             <div>
                                 <p className="font-semibold">{record.recordType === 'day' ? record.date : record.displayDate}</p>
                                 <div className="mt-1">
