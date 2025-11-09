@@ -354,7 +354,10 @@ const App: React.FC = () => {
             
             <div className="flex-grow p-4 sm:p-6 lg:p-8">
                 <header className="flex flex-wrap justify-between items-center mb-6 gap-4">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Desempenho Daytrade</h1>
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Desempenho Daytrade</h1>
+                        <p className="text-sm text-slate-500">Aplicativo em teste</p>
+                    </div>
                     <div className="flex items-center gap-2">
                         <button onClick={() => { setTransactionType('deposit'); setIsTransactionModalOpen(true); }} className="px-3 py-2 text-sm bg-emerald-500 hover:bg-emerald-600 text-white rounded-md transition-colors">Depositar</button>
                         <button onClick={() => { setTransactionType('withdrawal'); setIsTransactionModalOpen(true); }} className="px-3 py-2 text-sm bg-rose-500 hover:bg-rose-600 text-white rounded-md transition-colors">Retirar</button>
@@ -527,8 +530,8 @@ const EntryForm: React.FC<{ onAddRecord: (win: number, loss: number) => void; di
                 </div>
             ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div><label htmlFor="wins" className="block text-sm font-medium text-slate-600 mb-1">Adicionar Ganhos (Wins)</label><input id="wins" type="number" value={wins} onChange={(e) => setWins(e.target.value)} onFocus={(e) => e.target.select()} min="0" placeholder="0" className="w-full bg-white border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" disabled={disabled}/></div>
-                    <div><label htmlFor="losses" className="block text-sm font-medium text-slate-600 mb-1">Adicionar Perdas (Losses)</label><input id="losses" type="number" value={losses} onChange={(e) => setLosses(e.target.value)} onFocus={(e) => e.target.select()} min="0" placeholder="0" className="w-full bg-white border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" disabled={disabled}/></div>
+                    <div><label htmlFor="wins" className="block text-sm font-medium text-slate-600 mb-1">Adicionar Ganhos (Wins)</label><input id="wins" type="number" value={wins} onChange={(e) => setWins(e.target.value)} onFocus={(e) => e.target.select()} min="0" className="w-full bg-white border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" disabled={disabled}/></div>
+                    <div><label htmlFor="losses" className="block text-sm font-medium text-slate-600 mb-1">Adicionar Perdas (Losses)</label><input id="losses" type="number" value={losses} onChange={(e) => setLosses(e.target.value)} onFocus={(e) => e.target.select()} min="0" className="w-full bg-white border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" disabled={disabled}/></div>
                     <button type="submit" disabled={disabled} className="w-full flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded transition-colors"><PlusIcon className="w-5 h-5"/>Adicionar Operação</button>
                     {disabled && <p className="text-xs text-slate-400 mt-2 text-center">Você só pode adicionar registros para o dia de hoje.</p>}
                 </form>
