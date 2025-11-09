@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TradeSettings, DailyRecord, TransactionRecord, AppRecord } from './types';
 import { fetchUSDBRLRate } from './services/currencyService';
-import { SettingsIcon, PlusIcon, TrendingUpIcon, TrendingDownIcon, DepositIcon, WithdrawalIcon, XMarkIcon, TrashIcon } from './components/icons';
+import { SettingsIcon, PlusIcon, TrendingUpIcon, TrendingDownIcon, DepositIcon, WithdrawalIcon, XMarkIcon, TrashIcon, PencilIcon } from './components/icons';
 
 interface GoalSettings {
     type: 'weekly' | 'monthly';
@@ -61,6 +61,8 @@ const App: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSettingsOpen, setIsSettingsOpen] = useState(() => !localStorage.getItem('tradeSettings'));
     const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [recordToEdit, setRecordToEdit] = useState<DailyRecord | null>(null);
     const [transactionType, setTransactionType] = useState<'deposit' | 'withdrawal' | null>(null);
     const [activeTab, setActiveTab] = useState<'dashboard' | 'analysis' | 'goal'>('dashboard');
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -252,6 +254,27 @@ const App: React.FC = () => {
         }
     }, [records, recalculateBalances]);
 
+    const handleEditRequest = useCallback((record: AppRecord) => {
+        if (record.recordType === 'day') {
+            setRecordToEdit(record);
+            setIsEditModalOpen(true);
+        } else {
+            alert("Apenas registros de trade diário podem ser editados no momento.");
+        }
+    }, []);
+
+    const handleUpdateRecord = useCallback((updatedData: { id: string; winCount: number; lossCount: number }) => {
+        const updatedRecords = records.map(r => {
+            if (r.id === updatedData.id && r.recordType === 'day') {
+                return { ...r, winCount: updatedData.winCount, lossCount: updatedData.lossCount };
+            }
+            return r;
+        });
+        setRecords(recalculateBalances(updatedRecords));
+        setIsEditModalOpen(false);
+        setRecordToEdit(null);
+    }, [records, recalculateBalances]);
+
     const { summaryData, balanceChartData } = useMemo(() => {
         let balance = settings.initialBalance;
         let totalDeposits = 0;
@@ -414,7 +437,7 @@ const App: React.FC = () => {
 
                             <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
                                 <h2 className="text-xl font-semibold mb-4 text-slate-800">Histórico Geral</h2>
-                                <HistoryList records={sortedRecords} formatCurrency={formatCurrency} convertToBRL={convertToBRL} onDelete={handleDeleteRecord} />
+                                <HistoryList records={sortedRecords} formatCurrency={formatCurrency} convertToBRL={convertToBRL} onDelete={handleDeleteRecord} onEdit={handleEditRequest} />
                             </div>
                         </>
                     )}
@@ -462,6 +485,12 @@ const App: React.FC = () => {
                 type={transactionType}
                 now={now}
             />
+             <EditDayRecordModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                onSave={handleUpdateRecord}
+                record={recordToEdit}
+            />
         </div>
     );
 };
@@ -505,7 +534,7 @@ const EntryForm: React.FC<{ onAddRecord: (win: number, loss: number) => void; di
                     <div><p className="text-sm text-slate-500">Ganhos</p><p className="text-lg font-semibold">{existingRecord.winCount}</p></div>
                     <div><p className="text-sm text-slate-500">Perdas</p><p className="text-lg font-semibold">{existingRecord.lossCount}</p></div>
                     <div><p className="text-sm text-slate-500">Resultado do Dia</p><p className={`text-lg font-semibold ${existingRecord.netProfitUSD >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(existingRecord.netProfitUSD)}</p></div>
-                    <p className="text-xs text-slate-400 mt-2 text-center">Os registros de dias anteriores não podem ser editados.</p>
+                    <p className="text-xs text-slate-400 mt-2 text-center">A edição de dias anteriores é feita na lista de histórico.</p>
                 </div>
             );
         }
@@ -540,7 +569,7 @@ const EntryForm: React.FC<{ onAddRecord: (win: number, loss: number) => void; di
     );
 };
 
-const HistoryList: React.FC<{ records: AppRecord[], formatCurrency: (v: number, c?: 'USD' | 'BRL') => string, convertToBRL: (usd: number) => number, onDelete: (id: string) => void }> = ({ records, formatCurrency, convertToBRL, onDelete }) => {
+const HistoryList: React.FC<{ records: AppRecord[], formatCurrency: (v: number, c?: 'USD' | 'BRL') => string, convertToBRL: (usd: number) => number, onDelete: (id: string) => void, onEdit: (record: AppRecord) => void }> = ({ records, formatCurrency, convertToBRL, onDelete, onEdit }) => {
     const sorted = [...records].sort((a, b) => (b.recordType === 'day' ? b.id : b.date).localeCompare(a.recordType === 'day' ? a.id : a.date));
     if (sorted.length === 0) return <p className="text-center text-slate-500 py-4">Nenhum registro encontrado.</p>;
 
@@ -585,9 +614,16 @@ const HistoryList: React.FC<{ records: AppRecord[], formatCurrency: (v: number, 
                                 {record.recordType === 'day' ? formatCurrency(convertToBRL((record as DailyRecord).netProfitUSD), 'BRL') : (record.recordType === 'deposit' ? `+${formatCurrency(convertToBRL(record.amountUSD), 'BRL')}` : `-${formatCurrency(convertToBRL(record.amountUSD), 'BRL')}`)}
                             </td>
                             <td className="px-4 py-2 text-center">
-                                <button onClick={() => onDelete(record.id)} className="p-1 text-slate-400 hover:text-rose-600 rounded-md transition-colors" title="Excluir registro">
-                                    <TrashIcon className="w-4 h-4" />
-                                </button>
+                                <div className="flex justify-center items-center gap-2">
+                                    {record.recordType === 'day' && (
+                                        <button onClick={() => onEdit(record)} className="p-1 text-slate-400 hover:text-indigo-600 rounded-md transition-colors" title="Editar registro">
+                                            <PencilIcon className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                    <button onClick={() => onDelete(record.id)} className="p-1 text-slate-400 hover:text-rose-600 rounded-md transition-colors" title="Excluir registro">
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </td>
                            </tr>
                         ))}
@@ -597,12 +633,17 @@ const HistoryList: React.FC<{ records: AppRecord[], formatCurrency: (v: number, 
             <div className="md:hidden space-y-3">
                  {sorted.map((record) => (
                     <div key={record.id} className="relative bg-white p-4 rounded-lg shadow-sm border">
-                        <div className="absolute top-3 right-3">
+                        <div className="absolute top-2 right-2 flex gap-1">
+                            {record.recordType === 'day' && (
+                                <button onClick={() => onEdit(record)} className="p-1 text-slate-400 hover:text-indigo-600 rounded-full transition-colors" title="Editar registro">
+                                    <PencilIcon className="w-5 h-5" />
+                                </button>
+                            )}
                             <button onClick={() => onDelete(record.id)} className="p-1 text-slate-400 hover:text-rose-600 rounded-full transition-colors" title="Excluir registro">
                                 <TrashIcon className="w-5 h-5" />
                             </button>
                         </div>
-                        <div className="flex justify-between items-start pr-8">
+                        <div className="flex justify-between items-start pr-12">
                             <div>
                                 <p className="font-semibold">{record.recordType === 'day' ? record.date : record.displayDate}</p>
                                 <div className="mt-1">
@@ -919,5 +960,77 @@ const TransactionModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave:
         </div>
     );
 };
+
+const EditDayRecordModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (data: { id: string; winCount: number; lossCount: number }) => void;
+    record: DailyRecord | null;
+}> = ({ isOpen, onClose, onSave, record }) => {
+    const [wins, setWins] = useState('');
+    const [losses, setLosses] = useState('');
+
+    useEffect(() => {
+        if (record) {
+            setWins(String(record.winCount));
+            setLosses(String(record.lossCount));
+        }
+    }, [record]);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!record) return;
+        onSave({
+            id: record.id,
+            winCount: parseInt(wins, 10) || 0,
+            lossCount: parseInt(losses, 10) || 0,
+        });
+        onClose();
+    };
+
+    if (!isOpen || !record) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold">Editar Registro de {record.date}</h2>
+                    <button onClick={onClose}><XMarkIcon className="w-6 h-6"/></button>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label htmlFor="edit-wins" className="block text-sm font-medium text-slate-700">Ganhos (Wins)</label>
+                        <input
+                            id="edit-wins"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={wins}
+                            onChange={(e) => setWins(e.target.value.replace(/[^0-9]/g, ''))}
+                            className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="edit-losses" className="block text-sm font-medium text-slate-700">Perdas (Losses)</label>
+                        <input
+                            id="edit-losses"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={losses}
+                            onChange={(e) => setLosses(e.target.value.replace(/[^0-9]/g, ''))}
+                            className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                        />
+                    </div>
+                    <div className="flex gap-4 pt-4">
+                        <button type="button" onClick={onClose} className="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-4 rounded transition-colors">Cancelar</button>
+                        <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors">Salvar Alterações</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 
 export default App;
