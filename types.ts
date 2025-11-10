@@ -9,9 +9,9 @@ export interface Brokerage {
   stopLossTrades: number;
 }
 
-export interface TradeBatch {
-  wins: number;
-  losses: number;
+export interface Trade {
+  id: string;
+  result: 'win' | 'loss';
   entryValue: number;
 }
 
@@ -21,7 +21,7 @@ export interface DailyRecord {
   id: string; // YYYY-MM-DD format
   date: string; // pt-BR format for display
   startBalanceUSD: number;
-  trades: TradeBatch[];
+  trades: Trade[];
   winCount: number;
   lossCount: number;
   netProfitUSD: number;

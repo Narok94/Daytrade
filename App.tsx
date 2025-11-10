@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Brokerage, DailyRecord, TransactionRecord, AppRecord, TradeBatch } from './types';
+import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Trade } from './types';
 import { fetchUSDBRLRate } from './services/currencyService';
-import { SettingsIcon, PlusIcon, DepositIcon, WithdrawalIcon, XMarkIcon, TrashIcon, PencilIcon, HomeIcon, TrophyIcon, InformationCircleIcon } from './components/icons';
+import { SettingsIcon, PlusIcon, DepositIcon, WithdrawalIcon, XMarkIcon, TrashIcon, HomeIcon, TrophyIcon, InformationCircleIcon } from './components/icons';
 
 interface GoalSettings {
     type: 'weekly' | 'monthly';
@@ -41,8 +41,6 @@ const App: React.FC = () => {
     const [isBrokerageModalOpen, setIsBrokerageModalOpen] = useState(false);
     const [brokerageToEdit, setBrokerageToEdit] = useState<Brokerage | null>(null);
     const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [recordToEdit, setRecordToEdit] = useState<DailyRecord | null>(null);
     const [transactionType, setTransactionType] = useState<'deposit' | 'withdrawal' | null>(null);
     const [activeTab, setActiveTab] = useState<'dashboard' | 'goal'>('dashboard');
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -104,10 +102,32 @@ const App: React.FC = () => {
              if (storedRecords) {
                 const parsedRecords = JSON.parse(storedRecords);
                 const migrated = parsedRecords.map((r: any) => {
-                    if (r.recordType === 'day' && !r.trades) {
-                        const newTrades = (r.winCount > 0 || r.lossCount > 0)
-                            ? [{ wins: r.winCount, losses: r.lossCount, entryValue: r.entrySizeUSD || 0 }]
-                            : [];
+                    if (r.recordType === 'day') {
+                        let newTrades: Trade[] = [];
+                        // Migration from old format without trades array
+                        if (!r.trades) {
+                            const entryValue = r.entrySizeUSD || 0;
+                            for (let i = 0; i < (r.winCount || 0); i++) {
+                                newTrades.push({ id: `trade_${Date.now()}_${i}_w`, result: 'win', entryValue });
+                            }
+                            for (let i = 0; i < (r.lossCount || 0); i++) {
+                                newTrades.push({ id: `trade_${Date.now()}_${i}_l`, result: 'loss', entryValue });
+                            }
+                        } 
+                        // Migration from TradeBatch[] format
+                        else if (r.trades.length > 0 && r.trades[0].hasOwnProperty('wins')) {
+                            r.trades.forEach((batch: any) => { // any for old TradeBatch type
+                                for (let i = 0; i < batch.wins; i++) {
+                                    newTrades.push({ id: `trade_${Date.now()}_${i}_w_${batch.entryValue}`, result: 'win', entryValue: batch.entryValue });
+                                }
+                                for (let i = 0; i < batch.losses; i++) {
+                                    newTrades.push({ id: `trade_${Date.now()}_${i}_l_${batch.entryValue}`, result: 'loss', entryValue: batch.entryValue });
+                                }
+                            });
+                        } else {
+                            // Already in new format
+                            newTrades = r.trades;
+                        }
                         const { entrySizeUSD, ...rest } = r;
                         return { ...rest, trades: newTrades };
                     }
@@ -206,17 +226,18 @@ const App: React.FC = () => {
 
         for (const record of sorted) {
             if (record.recordType === 'day') {
-                let winCount = 0;
-                let lossCount = 0;
+                const winCount = record.trades.filter(t => t.result === 'win').length;
+                const lossCount = record.trades.filter(t => t.result === 'loss').length;
+                
                 let netProfitUSD = 0;
-
                 if (record.trades && record.trades.length > 0) {
-                    for (const trade of record.trades) {
-                        winCount += trade.wins;
-                        lossCount += trade.losses;
-                        const profitPerWinUSD = trade.entryValue * (brokerage.payoutPercentage / 100);
-                        netProfitUSD += (trade.wins * profitPerWinUSD) - (trade.losses * trade.entryValue);
-                    }
+                    netProfitUSD = record.trades.reduce((totalProfit, trade) => {
+                        if (trade.result === 'win') {
+                            return totalProfit + (trade.entryValue * (brokerage.payoutPercentage / 100));
+                        } else { // loss
+                            return totalProfit - trade.entryValue;
+                        }
+                    }, 0);
                 }
                 
                 const endBalanceUSD = currentBalance + netProfitUSD;
@@ -261,11 +282,15 @@ const App: React.FC = () => {
         
         const entrySizeUSD = customEntryValueUSD ?? defaultEntrySizeUSD;
         
-        const newTradeBatch: TradeBatch = {
-            wins: winCount,
-            losses: lossCount,
-            entryValue: Math.max(1, entrySizeUSD),
-        };
+        const newTrades: Trade[] = [];
+        const entryValue = Math.max(1, entrySizeUSD);
+
+        for (let i = 0; i < winCount; i++) {
+            newTrades.push({ id: `trade_${Date.now()}_${i}_w`, result: 'win', entryValue });
+        }
+        for (let i = 0; i < lossCount; i++) {
+            newTrades.push({ id: `trade_${Date.now()}_${i}_l`, result: 'loss', entryValue });
+        }
 
         const existingRecord = filteredRecords.find(r => r.recordType === 'day' && r.id === selectedDateString) as DailyRecord | undefined;
         let updatedRecordsForBrokerage: AppRecord[];
@@ -273,7 +298,7 @@ const App: React.FC = () => {
         if (existingRecord) {
             const updatedRecord: DailyRecord = {
                 ...existingRecord,
-                trades: [...(existingRecord.trades || []), newTradeBatch],
+                trades: [...(existingRecord.trades || []), ...newTrades],
             };
             updatedRecordsForBrokerage = filteredRecords.map(r => (r.id === selectedDateString ? updatedRecord : r));
         } else {
@@ -283,7 +308,7 @@ const App: React.FC = () => {
                 id: selectedDateString,
                 date: formatDateBR(selectedDate),
                 startBalanceUSD: 0, // Recalculated
-                trades: [newTradeBatch],
+                trades: newTrades,
                 winCount: 0, // Recalculated
                 lossCount: 0, // Recalculated
                 netProfitUSD: 0, // Recalculated
@@ -316,38 +341,6 @@ const App: React.FC = () => {
         }
     }, [filteredRecords, updateRecordsForBrokerage]);
 
-    const handleEditRequest = useCallback((record: AppRecord) => {
-        if (record.recordType === 'day') {
-            setRecordToEdit(record);
-            setIsEditModalOpen(true);
-        }
-    }, []);
-    
-    const handleSaveEdit = useCallback((editedRecordData: { winCount: number, lossCount: number }) => {
-        if (!recordToEdit || !activeBrokerage) return;
-
-        const updated = filteredRecords.map(r => {
-            if (r.id === recordToEdit.id && r.recordType === 'day') {
-                 const recordDay = r as DailyRecord;
-                 const entryValue = activeBrokerage.entryMode === 'percentage'
-                    ? recordDay.startBalanceUSD * (activeBrokerage.entryValue / 100)
-                    : activeBrokerage.entryValue;
-
-                const newTrades: TradeBatch[] = [{
-                    wins: editedRecordData.winCount,
-                    losses: editedRecordData.lossCount,
-                    entryValue: Math.max(1, entryValue),
-                }];
-
-                return { ...recordDay, trades: newTrades };
-            }
-            return r;
-        });
-        updateRecordsForBrokerage(updated);
-        setIsEditModalOpen(false);
-        setRecordToEdit(null);
-    }, [filteredRecords, recordToEdit, updateRecordsForBrokerage, activeBrokerage]);
-    
     const handleSaveBrokerage = useCallback((brokerage: Brokerage) => {
         const index = brokerages.findIndex(b => b.id === brokerage.id);
         if (index > -1) {
@@ -572,14 +565,6 @@ const App: React.FC = () => {
                 type={transactionType}
             />
 
-            {recordToEdit && (
-              <EditRecordModal
-                isOpen={isEditModalOpen}
-                onClose={() => setIsEditModalOpen(false)}
-                onSave={handleSaveEdit}
-                record={recordToEdit}
-              />
-            )}
             <footer className="text-center mt-8 text-sm text-slate-500">
                 Criado por Henrique Costa
             </footer>
@@ -801,9 +786,34 @@ const App: React.FC = () => {
                                             </td>
                                             <td className="px-4 py-3 text-center">
                                                 {record.recordType === 'day' ? (
-                                                    <span className="font-mono">
-                                                        <span className="text-green-600 font-semibold">{record.winCount}W</span> / <span className="text-red-600 font-semibold">{record.lossCount}L</span>
-                                                    </span>
+                                                    record.trades && record.trades.length > 0 ? (
+                                                        <div className="flex flex-col items-center font-mono text-xs">
+                                                            {Object.entries(
+                                                                record.trades.reduce((acc, trade) => {
+                                                                    const key = trade.entryValue.toFixed(2);
+                                                                    if (!acc[key]) acc[key] = { wins: 0, losses: 0 };
+                                                                    if (trade.result === 'win') acc[key].wins++;
+                                                                    else acc[key].losses++;
+                                                                    return acc;
+                                                                }, {} as Record<string, { wins: number; losses: number }>)
+                                                            ).map(([entryValue, counts], index) => {
+                                                                {/* FIX: Explicitly cast 'counts' to the correct type to resolve TypeScript error where it was inferred as 'unknown'. */}
+                                                                const typedCounts = counts as { wins: number; losses: number };
+                                                                return (
+                                                                    <span key={index}>
+                                                                        <span className="text-green-600 font-semibold">{typedCounts.wins}W</span>
+                                                                        {' / '}
+                                                                        <span className="text-red-600 font-semibold">{typedCounts.losses}L</span>
+                                                                        <span className="text-slate-500"> @ ${entryValue}</span>
+                                                                    </span>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="font-mono">
+                                                            <span className="text-green-600 font-semibold">0W</span> / <span className="text-red-600 font-semibold">0L</span>
+                                                        </span>
+                                                    )
                                                 ) : (
                                                     <span className="font-semibold">${record.amountUSD.toFixed(2)}</span>
                                                 )}
@@ -813,11 +823,6 @@ const App: React.FC = () => {
                                             </td>
                                             <td className="px-2 py-3 text-center">
                                                 <div className="flex items-center justify-center space-x-2">
-                                                    {record.recordType === 'day' && (
-                                                      <button onClick={() => handleEditRequest(record)} className="text-slate-500 hover:text-blue-600" aria-label="Editar">
-                                                        <PencilIcon className="w-4 h-4" />
-                                                      </button>
-                                                    )}
                                                     <button onClick={() => handleDeleteRecord(record.id)} className="text-slate-500 hover:text-red-600" aria-label="Excluir">
                                                         <TrashIcon className="w-4 h-4" />
                                                     </button>
@@ -1201,62 +1206,6 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, on
                     </button>
                     <button onClick={handleSave} className={`px-4 py-2 text-white rounded-lg transition-colors ${isDeposit ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}>
                         Salvar
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-
-interface EditRecordModalProps extends ModalProps {
-  onSave: (data: { winCount: number, lossCount: number }) => void;
-  record: DailyRecord;
-}
-
-const EditRecordModal: React.FC<EditRecordModalProps> = ({ isOpen, onClose, onSave, record }) => {
-    const [winCount, setWinCount] = useState('');
-    const [lossCount, setLossCount] = useState('');
-
-    useEffect(() => {
-        if(isOpen) {
-            setWinCount(String(record.winCount || ''));
-            setLossCount(String(record.lossCount || ''));
-        }
-    }, [isOpen, record]);
-    
-    const handleSave = () => {
-        onSave({ winCount: parseInt(winCount, 10) || 0, lossCount: parseInt(lossCount, 10) || 0 });
-        onClose();
-    };
-
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog">
-            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-slate-900">Editar Registro ({record.date})</h2>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200 transition-colors" aria-label="Fechar">
-                        <XMarkIcon className="w-6 h-6 text-slate-500" />
-                    </button>
-                </div>
-                <div className="space-y-4">
-                     <div>
-                        <label htmlFor="winCount" className="block text-sm font-medium text-slate-700">Vitórias (WIN)</label>
-                        <input type="number" id="winCount" value={winCount} onChange={(e) => setWinCount(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
-                    </div>
-                     <div>
-                        <label htmlFor="lossCount" className="block text-sm font-medium text-slate-700">Derrotas (LOSS)</label>
-                        <input type="number" id="lossCount" value={lossCount} onChange={(e) => setLossCount(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
-                    </div>
-                </div>
-                <div className="mt-6 flex justify-end space-x-3">
-                    <button onClick={onClose} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors">
-                        Cancelar
-                    </button>
-                    <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                        Salvar Alterações
                     </button>
                 </div>
             </div>
