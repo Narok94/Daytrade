@@ -1,58 +1,57 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TradeSettings, DailyRecord, TransactionRecord, AppRecord } from './types';
 import { fetchUSDBRLRate } from './services/currencyService';
-import { SettingsIcon, PlusIcon, TrendingUpIcon, TrendingDownIcon, DepositIcon, WithdrawalIcon, XMarkIcon, TrashIcon, PencilIcon } from './components/icons';
+import { SettingsIcon, PlusIcon, TrendingUpIcon, TrendingDownIcon, DepositIcon, WithdrawalIcon, XMarkIcon, TrashIcon, PencilIcon, HomeIcon, ChartBarIcon, TrophyIcon } from './components/icons';
 
 interface GoalSettings {
     type: 'weekly' | 'monthly';
-    amount: number;
+    amount: number | '';
 }
 
-// --- Helper Functions for Date Calculations ---
-const getRemainingCalendarDaysInMonth = (date: Date): number => {
-    const today = new Date(date);
-    today.setHours(0, 0, 0, 0);
-    const year = today.getFullYear();
-    const month = today.getMonth();
-    const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
-    const remainingDays = lastDayOfMonth - today.getDate() + 1;
-    // Return at least 1 to avoid division by zero, even if it's the last day.
-    return Math.max(1, remainingDays);
-};
+const countTradingDays = (start: Date, end: Date): number => {
+    let count = 0;
+    const current = new Date(start);
+    current.setUTCHours(0, 0, 0, 0);
+    end.setUTCHours(23, 59, 59, 999);
 
-const getRemainingWeekdaysInWeek = (date: Date): number => {
-    const today = new Date(date);
-    today.setHours(0, 0, 0, 0);
-    const dayOfWeek = today.getDay(); // Sunday - 0, Monday - 1, ..., Saturday - 6
-    if (dayOfWeek >= 1 && dayOfWeek <= 5) { // If it's a weekday (Mon-Fri)
-        return 6 - dayOfWeek; // 5 for Mon, 4 for Tue, ..., 1 for Fri
+    while (current <= end) {
+        const day = current.getUTCDay();
+        if (day >= 1 && day <= 5) { // Monday to Friday
+            count++;
+        }
+        current.setUTCDate(current.getUTCDate() + 1);
     }
-    return 0; // For Saturday (6) and Sunday (0), no weekdays remain in the current Mon-Fri week.
+    return count;
 };
 
 
 const App: React.FC = () => {
     const [settings, setSettings] = useState<TradeSettings>(() => {
         const stored = localStorage.getItem('tradeSettings');
-        if (stored) return JSON.parse(stored);
-        return {
+        const defaults = {
             initialBalance: 0,
             entryMode: 'percentage' as const,
             entryValue: 0,
             payoutPercentage: 0,
-            dailyGoalPercentage: 0,
-            stopLossPercentage: 0,
-            stopGainPercentage: 0,
+            stopGainTrades: 0,
+            stopLossTrades: 0,
         };
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            delete parsed.stopGainPercentage;
+            delete parsed.stopLossPercentage;
+            delete parsed.dailyGoalPercentage;
+            return { ...defaults, ...parsed };
+        }
+        return defaults;
     });
     const [records, setRecords] = useState<AppRecord[]>(() => {
         const stored = localStorage.getItem('tradeRecords');
         if (stored) return JSON.parse(stored);
         return [];
     });
-    const [goal, setGoal] = useState<GoalSettings>(() => {
+    const [goal, setGoal] = useState<Omit<GoalSettings, 'amount'> & { amount: number }>(() => {
         const stored = localStorage.getItem('tradeGoal');
         if (stored) return JSON.parse(stored);
         return { type: 'monthly' as const, amount: 500 };
@@ -64,10 +63,12 @@ const App: React.FC = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [recordToEdit, setRecordToEdit] = useState<DailyRecord | null>(null);
     const [transactionType, setTransactionType] = useState<'deposit' | 'withdrawal' | null>(null);
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'analysis' | 'goal'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'goal'>('dashboard');
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [stopLimitOverride, setStopLimitOverride] = useState<Record<string, boolean>>({});
     const [now, setNow] = useState(new Date());
+    const [winsToAdd, setWinsToAdd] = useState('');
+    const [lossesToAdd, setLossesToAdd] = useState('');
 
     // --- Effects ---
     useEffect(() => {
@@ -79,7 +80,7 @@ const App: React.FC = () => {
         };
         getRate();
 
-        const intervalId = setInterval(() => setNow(new Date()), 60000); // Update time every minute
+        const intervalId = setInterval(() => setNow(new Date()), 60000);
         return () => clearInterval(intervalId);
     }, []);
 
@@ -123,13 +124,13 @@ const App: React.FC = () => {
         for (const record of sortedRecords) {
             const recordDate = record.recordType === 'day' ? record.id : record.date;
             if (recordDate >= dateISO) {
-                break; // Stop before the target date
+                break;
             }
             if (record.recordType === 'day') {
                 balance = record.endBalanceUSD;
             } else if (record.recordType === 'deposit') {
                 balance += record.amountUSD;
-            } else { // withdrawal
+            } else {
                 balance -= record.amountUSD;
             }
         }
@@ -258,779 +259,817 @@ const App: React.FC = () => {
         if (record.recordType === 'day') {
             setRecordToEdit(record);
             setIsEditModalOpen(true);
-        } else {
-            alert("Apenas registros de trade diário podem ser editados no momento.");
         }
     }, []);
+    
+    const handleSaveEdit = useCallback((editedRecordData: { winCount: number, lossCount: number }) => {
+        if (!recordToEdit) return;
 
-    const handleUpdateRecord = useCallback((updatedData: { id: string; winCount: number; lossCount: number }) => {
         const updatedRecords = records.map(r => {
-            if (r.id === updatedData.id && r.recordType === 'day') {
-                return { ...r, winCount: updatedData.winCount, lossCount: updatedData.lossCount };
+            if (r.id === recordToEdit.id && r.recordType === 'day') {
+                return {
+                    ...r,
+                    winCount: editedRecordData.winCount,
+                    lossCount: editedRecordData.lossCount,
+                };
             }
             return r;
         });
+
         setRecords(recalculateBalances(updatedRecords));
         setIsEditModalOpen(false);
         setRecordToEdit(null);
-    }, [records, recalculateBalances]);
+    }, [records, recordToEdit, recalculateBalances]);
 
-    const { summaryData, balanceChartData } = useMemo(() => {
-        let balance = settings.initialBalance;
-        let totalDeposits = 0;
-        let totalWithdrawals = 0;
-        const chartData: { date: string, Saldo: number }[] = [{ date: 'Inicial', Saldo: settings.initialBalance }];
+    const dailyRecordForSelectedDay = useMemo(() => {
+        return sortedRecords.find(r => r.recordType === 'day' && r.id === selectedDateString) as DailyRecord | undefined;
+    }, [sortedRecords, selectedDateString]);
 
-        for (const record of sortedRecords) {
-            if (record.recordType === 'day') {
-                balance = record.endBalanceUSD;
-                chartData.push({ date: record.date, Saldo: parseFloat(balance.toFixed(2)) });
-            } else {
-                if (record.recordType === 'deposit') {
-                    balance += record.amountUSD;
-                    totalDeposits += record.amountUSD;
-                } else {
-                    balance -= record.amountUSD;
-                    totalWithdrawals += record.amountUSD;
-                }
-                chartData.push({ date: record.displayDate, Saldo: parseFloat(balance.toFixed(2)) });
-            }
-        }
-        
-        const totalProfitUSD = balance - settings.initialBalance - totalDeposits + totalWithdrawals;
-        const totalWins = sortedRecords.filter(r => r.recordType === 'day').reduce((sum, r) => sum + (r as DailyRecord).winCount, 0);
-        const totalLosses = sortedRecords.filter(r => r.recordType === 'day').reduce((sum, r) => sum + (r as DailyRecord).lossCount, 0);
-        const totalTrades = totalWins + totalLosses;
-        const winRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
-        
-        const tradeDayRecords = sortedRecords.filter(r => r.recordType === 'day') as DailyRecord[];
-        
-        const todayRecord = tradeDayRecords.find(r => r.id === formatDateISO(now));
-        const todayNetProfitUSD = todayRecord?.netProfitUSD ?? 0;
+    const stopLossLimitReached = useMemo(() => {
+        if (!settings.stopLossTrades || settings.stopLossTrades <= 0) return false;
+        return dailyRecordForSelectedDay ? dailyRecordForSelectedDay.lossCount >= settings.stopLossTrades : false;
+    }, [dailyRecordForSelectedDay, settings.stopLossTrades]);
 
-        return {
-            summaryData: {
-                currentBalanceUSD: balance,
-                totalProfitUSD,
-                winRate,
-                todayNetProfitUSD,
-                tradeDayRecords
-            },
-            balanceChartData: chartData
-        };
-    }, [sortedRecords, settings.initialBalance, formatDateISO, now]);
+    const stopGainLimitReached = useMemo(() => {
+        if (!settings.stopGainTrades || settings.stopGainTrades <= 0) return false;
+        return dailyRecordForSelectedDay ? dailyRecordForSelectedDay.winCount >= settings.stopGainTrades : false;
+    }, [dailyRecordForSelectedDay, settings.stopGainTrades]);
 
-    const { achievedAmount, remainingDays, remainingGoal, dailyGoalAmountUSD } = useMemo(() => {
-        const currentDate = new Date(now);
-        currentDate.setHours(0,0,0,0);
-        let startDate: Date;
-        let daysCalculator: (date: Date) => number;
+    const isTradingHalted = useMemo(() => {
+        if (stopLimitOverride[selectedDateString]) return false;
+        return stopLossLimitReached || stopGainLimitReached;
+    }, [stopLossLimitReached, stopGainLimitReached, stopLimitOverride, selectedDateString]);
 
-        if (goal.type === 'weekly') {
-            const dayOfWeek = currentDate.getDay();
-            const firstDayOfWeek = new Date(currentDate);
-            firstDayOfWeek.setDate(currentDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)); 
-            startDate = firstDayOfWeek;
-            daysCalculator = getRemainingWeekdaysInWeek;
-        } else { // monthly
-            startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-            daysCalculator = getRemainingCalendarDaysInMonth;
+    const dynamicDailyGoal = useMemo(() => {
+        if (!goal || goal.amount <= 0) return 0;
+
+        const today = new Date(now);
+        today.setUTCHours(0, 0, 0, 0);
+
+        let startDate, endDate;
+        if (goal.type === 'monthly') {
+            startDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+            endDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
+        } else { // weekly
+            const dayOfWeek = today.getUTCDay();
+            const diff = today.getUTCDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // adjust when day is sunday
+            startDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), diff));
+            endDate = new Date(startDate);
+            endDate.setUTCDate(startDate.getUTCDate() + 6);
         }
 
-        const relevantRecords = summaryData.tradeDayRecords.filter(record => new Date(record.id + 'T00:00:00') >= startDate);
-        const currentAchieved = relevantRecords.reduce((sum, record) => sum + record.netProfitUSD, 0);
-        const remaining = daysCalculator(currentDate);
-        const goalRemaining = goal.amount - currentAchieved;
+        const profitSoFar = sortedRecords
+            .filter(r => {
+                if (r.recordType !== 'day') return false;
+                const recordDate = new Date(r.id.replace(/-/g, '/'));
+                recordDate.setUTCHours(0, 0, 0, 0);
+                return recordDate >= startDate && recordDate < today;
+            })
+            .reduce((acc, r) => acc + (r as DailyRecord).netProfitUSD, 0);
 
-        const dailyGoal = remaining > 0 && goalRemaining > 0 ? goalRemaining / remaining : 0;
+        const remainingGoal = goal.amount - profitSoFar;
+        if (remainingGoal <= 0) return 0;
+        
+        const remainingTradingDays = countTradingDays(today, endDate);
+        if (remainingTradingDays <= 0) return remainingGoal;
 
-        return { achievedAmount: currentAchieved, remainingDays: remaining, remainingGoal: goalRemaining, dailyGoalAmountUSD: dailyGoal };
-    }, [goal.type, goal.amount, summaryData.tradeDayRecords, now]);
+        return remainingGoal / remainingTradingDays;
 
-    const selectedDayRecord = useMemo(() => sortedRecords.find(r => r.recordType ==='day' && r.id === selectedDateString) as DailyRecord | undefined, [sortedRecords, selectedDateString]);
+    }, [goal, sortedRecords, now]);
 
-    const stopStatus = useMemo(() => {
-        if (!selectedDayRecord) return { breached: false };
-        const { netProfitUSD } = selectedDayRecord;
-        const stopLossLimit = startBalanceForSelectedDay * (settings.stopLossPercentage / 100);
-        const stopGainLimit = startBalanceForSelectedDay * (settings.stopGainPercentage / 100);
-        if (netProfitUSD <= -stopLossLimit) return { breached: true, type: 'loss' as const, limit: stopLossLimit };
-        if (netProfitUSD >= stopGainLimit) return { breached: true, type: 'gain' as const, limit: stopGainLimit };
-        return { breached: false };
-    }, [selectedDayRecord, startBalanceForSelectedDay, settings]);
+    // --- Performance Summaries ---
+    const getPerformanceStats = (startDate: Date, endDate: Date) => {
+        const relevantRecords = sortedRecords.filter(r => {
+            if (r.recordType !== 'day') return false;
+            const recordDate = new Date(r.id.replace(/-/g, '/'));
+            recordDate.setUTCHours(0, 0, 0, 0);
+            return recordDate >= startDate && recordDate <= endDate;
+        }) as DailyRecord[];
 
-    const formatCurrency = (value: number, currency: 'USD' | 'BRL' = 'USD') => new Intl.NumberFormat(currency === 'BRL' ? 'pt-BR' : 'en-US', { style: 'currency', currency }).format(value);
-    const convertToBRL = (usdValue: number) => usdValue * (usdToBrlRate || 0);
-    
-    const handleSettingsSave = (newSettings: TradeSettings) => {
-        setSettings(newSettings);
-        setRecords(recalculateBalances(records)); // Recalculate if settings change
+        const stats = relevantRecords.reduce((acc, r) => {
+            acc.profit += r.netProfitUSD;
+            acc.wins += r.winCount;
+            acc.losses += r.lossCount;
+            return acc;
+        }, { profit: 0, wins: 0, losses: 0 });
+
+        const totalTrades = stats.wins + stats.losses;
+        const winRate = totalTrades > 0 ? (stats.wins / totalTrades) * 100 : 0;
+
+        return { ...stats, totalTrades, winRate };
     };
 
-    if (isLoading) {
-        return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
-    }
+    const weeklyStats = useMemo(() => {
+        const today = new Date(now);
+        const dayOfWeek = today.getUTCDay();
+        const diff = today.getUTCDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+        const startDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), diff));
+        startDate.setUTCHours(0, 0, 0, 0);
+        const endDate = new Date(startDate);
+        endDate.setUTCDate(startDate.getUTCDate() + 6);
+        endDate.setUTCHours(23, 59, 59, 999);
+        return getPerformanceStats(startDate, endDate);
+    }, [sortedRecords, now]);
 
-    const isToday = selectedDateString === formatDateISO(now);
+    const monthlyStats = useMemo(() => {
+        const today = new Date(now);
+        const startDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+        const endDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
+        endDate.setUTCHours(23, 59, 59, 999);
+        return getPerformanceStats(startDate, endDate);
+    }, [sortedRecords, now]);
+
+    // --- RENDER ---
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-slate-100">
+                <div className="text-xl font-semibold text-slate-700">Carregando dados...</div>
+            </div>
+        );
+    }
+    
+    const TabButton: React.FC<{
+      label: string;
+      icon: React.ReactNode;
+      tabName: typeof activeTab;
+    }> = ({ label, icon, tabName }) => (
+      <button
+        onClick={() => setActiveTab(tabName)}
+        className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+          activeTab === tabName
+            ? 'bg-blue-600 text-white shadow-md'
+            : 'text-slate-600 hover:bg-slate-200'
+        }`}
+      >
+        {icon}
+        {label}
+      </button>
+    );
 
     return (
-        <div className="flex flex-col min-h-screen font-sans relative overflow-hidden">
-            <div className="flex-grow p-4 sm:p-6 lg:p-8">
-                <header className="flex flex-wrap justify-between items-center mb-6 gap-4">
-                    <div>
-                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Desempenho Daytrade</h1>
-                        <p className="text-sm text-slate-500">Gerencie suas operações de day trade</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => { setTransactionType('deposit'); setIsTransactionModalOpen(true); }} className="px-3 py-2 text-sm bg-emerald-500 hover:bg-emerald-600 text-white rounded-md transition-colors">Depositar</button>
-                        <button onClick={() => { setTransactionType('withdrawal'); setIsTransactionModalOpen(true); }} className="px-3 py-2 text-sm bg-rose-500 hover:bg-rose-600 text-white rounded-md transition-colors">Retirar</button>
-                        <input 
-                            type="date"
-                            value={selectedDateString}
-                            onChange={(e) => setSelectedDate(new Date(e.target.value + 'T00:00:00'))}
-                            className="bg-white border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                        />
-                        <button onClick={() => setIsSettingsOpen(true)} className="p-2 rounded-full hover:bg-slate-200 transition-colors">
-                            <SettingsIcon className="w-6 h-6"/>
+        <div className="min-h-screen bg-slate-100 text-slate-800 font-sans p-4 sm:p-6 lg:p-8">
+            <div className="max-w-7xl mx-auto">
+                <header className="flex flex-wrap justify-between items-center mb-4 pb-4 border-b border-slate-300">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Controle de Performance</h1>
+                    <div className="flex items-center space-x-4 mt-2 sm:mt-0">
+                        <span className="text-sm font-medium text-slate-600">
+                            Dólar: <span className="font-bold text-green-600">R$ {usdToBrlRate?.toFixed(2) || '...'}</span>
+                        </span>
+                        <button onClick={() => setIsSettingsOpen(true)} className="p-2 rounded-full hover:bg-slate-200 transition-colors" aria-label="Abrir Configurações">
+                            <SettingsIcon className="w-6 h-6 text-slate-600" />
                         </button>
                     </div>
                 </header>
 
-                <nav className="mb-8">
-                    <div className="flex border-b border-slate-200">
-                        <TabButton name="Painel" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-                        <TabButton name="Análise" active={activeTab === 'analysis'} onClick={() => setActiveTab('analysis')} />
-                        <TabButton name="Meta" active={activeTab === 'goal'} onClick={() => setActiveTab('goal')} />
+                 <nav className="mb-6 flex justify-center bg-white p-2 rounded-xl shadow-sm">
+                    <div className="flex space-x-2">
+                        <TabButton label="Dashboard" icon={<HomeIcon className="w-5 h-5"/>} tabName="dashboard" />
+                        <TabButton label="Metas e Análise" icon={<TrophyIcon className="w-5 h-5"/>} tabName="goal" />
                     </div>
                 </nav>
 
                 <main>
-                    {activeTab === 'dashboard' && (
-                        <>
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-                                <div className="lg:col-span-1 bg-white p-6 rounded-lg shadow-sm">
-                                    <h2 className="text-xl font-semibold mb-4 text-slate-800">Registro de {isToday ? 'Hoje' : selectedDayRecord?.date || formatDateBR(selectedDate)}</h2>
-                                    <EntryForm 
-                                        onAddRecord={addRecord} 
-                                        disabled={!isToday}
-                                        isToday={isToday}
-                                        stopStatus={stopStatus}
-                                        isOverridden={stopLimitOverride[selectedDateString] || false}
-                                        onOverride={() => setStopLimitOverride(prev => ({...prev, [selectedDateString]: true}))}
-                                        existingRecord={selectedDayRecord}
-                                    />
-                                </div>
-                                <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm h-96">
-                                    <h2 className="text-xl font-semibold mb-4 text-slate-800">Crescimento do Saldo</h2>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={balanceChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                            <XAxis dataKey="date" stroke="#64748b" tick={{ fontSize: 12 }} />
-                                            <YAxis stroke="#64748b" tick={{ fontSize: 12 }} tickFormatter={(value) => `$${value}`} domain={['dataMin', 'dataMax']}/>
-                                            <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0' }} />
-                                            <Legend />
-                                            <Line type="monotone" dataKey="Saldo" stroke="#6366f1" strokeWidth={2} dot={{ r: 4, fill: '#6366f1' }} activeDot={{ r: 8, stroke: '#4f46e5' }} />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-
-                            <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
-                                <h2 className="text-xl font-semibold mb-4 text-slate-800">Histórico Geral</h2>
-                                <HistoryList records={sortedRecords} formatCurrency={formatCurrency} convertToBRL={convertToBRL} onDelete={handleDeleteRecord} onEdit={handleEditRequest} />
-                            </div>
-                        </>
-                    )}
-                    {activeTab === 'analysis' && (
-                        <div className="space-y-8">
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                            <SummaryCard title="Saldo Atual (USD)" value={formatCurrency(summaryData.currentBalanceUSD, 'USD')} trend={summaryData.currentBalanceUSD >= settings.initialBalance ? 'up' : 'down'} />
-                            <SummaryCard title="Saldo Atual (BRL)" value={formatCurrency(convertToBRL(summaryData.currentBalanceUSD), 'BRL')} />
-                            <SummaryCard title="Lucro Total (USD)" value={formatCurrency(summaryData.totalProfitUSD, 'USD')} trend={summaryData.totalProfitUSD >= 0 ? 'up' : 'down'} />
-                            <SummaryCard title="Taxa de Acerto" value={`${summaryData.winRate.toFixed(1)}%`} />
-                            <SummaryCard title="Cotação USD/BRL" value={usdToBrlRate?.toFixed(3) || 'N/A'} />
-                            <SummaryCard title="Meta do Dia" value={`${formatCurrency(summaryData.todayNetProfitUSD)} / ${formatCurrency(dailyGoalAmountUSD)}`} trend={summaryData.todayNetProfitUSD >= dailyGoalAmountUSD && dailyGoalAmountUSD > 0 ? 'up' : undefined} />
-                            </div>
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                <DailyPerformanceChart records={summaryData.tradeDayRecords} />
-                                <WinLossRatioChart records={summaryData.tradeDayRecords} />
-                            </div>
-                        </div>
-                    )}
-                    {activeTab === 'goal' && (
-                        <GoalTracker 
-                            goal={goal}
-                            onSave={setGoal}
-                            achievedAmount={achievedAmount}
-                            formatCurrency={(val) => formatCurrency(val, 'USD')}
-                        />
-                    )}
+                    {activeTab === 'dashboard' && <DashboardPanel />}
+                    {activeTab === 'goal' && <GoalPanel />}
                 </main>
             </div>
-            
-            <footer className="text-center text-sm text-slate-500 py-4">
-                Criado por Henrique Costa 2025
-            </footer>
 
-            <SettingsModal 
-                isOpen={isSettingsOpen} 
+            <SettingsModal
+                isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
                 settings={settings}
-                onSave={handleSettingsSave}
+                onSave={setSettings}
             />
-             <TransactionModal
+
+            <TransactionModal
                 isOpen={isTransactionModalOpen}
                 onClose={() => setIsTransactionModalOpen(false)}
                 onSave={handleSaveTransaction}
                 type={transactionType}
-                now={now}
             />
-             <EditDayRecordModal
+
+            {recordToEdit && (
+              <EditRecordModal
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}
-                onSave={handleUpdateRecord}
+                onSave={handleSaveEdit}
                 record={recordToEdit}
-            />
-        </div>
-    );
-};
-
-// --- Sub-components ---
-
-const TabButton: React.FC<{name: string, active: boolean, onClick: () => void}> = ({ name, active, onClick }) => (
-    <button onClick={onClick} className={`py-3 px-4 text-sm font-medium transition-colors focus:outline-none ${active ? 'border-b-2 border-indigo-500 text-indigo-600' : 'border-b-2 border-transparent text-slate-500 hover:text-slate-800'}`}>
-        {name}
-    </button>
-);
-
-const SummaryCard: React.FC<{ title: string; value: string; trend?: 'up' | 'down' }> = ({ title, value, trend }) => (
-    <div className="bg-white p-4 rounded-lg shadow-sm flex flex-col justify-between">
-        <h3 className="text-sm font-medium text-slate-500">{title}</h3>
-        <div className="flex items-center justify-between mt-2">
-            <p className="text-xl md:text-2xl font-semibold text-slate-900">{value}</p>
-            {trend === 'up' && <TrendingUpIcon className="w-5 h-5 text-emerald-500" />}
-            {trend === 'down' && <TrendingDownIcon className="w-5 h-5 text-rose-500" />}
-        </div>
-    </div>
-);
-
-const EntryForm: React.FC<{ onAddRecord: (win: number, loss: number) => void; disabled: boolean; stopStatus: { breached: boolean; type?: any }; isOverridden: boolean; onOverride: () => void; existingRecord?: DailyRecord; isToday: boolean; }> = ({ onAddRecord, disabled, stopStatus, isOverridden, onOverride, existingRecord, isToday }) => {
-    const [wins, setWins] = useState('');
-    const [losses, setLosses] = useState('');
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        const winCount = parseInt(wins, 10) || 0;
-        const lossCount = parseInt(losses, 10) || 0;
-        if (winCount > 0 || lossCount > 0) {
-            onAddRecord(winCount, lossCount);
-            setWins('');
-            setLosses('');
-        }
-    };
-    if (!isToday) {
-        if (existingRecord) {
-            return (
-                <div className="space-y-4">
-                    <div><p className="text-sm text-slate-500">Ganhos</p><p className="text-lg font-semibold">{existingRecord.winCount}</p></div>
-                    <div><p className="text-sm text-slate-500">Perdas</p><p className="text-lg font-semibold">{existingRecord.lossCount}</p></div>
-                    <div><p className="text-sm text-slate-500">Resultado do Dia</p><p className={`text-lg font-semibold ${existingRecord.netProfitUSD >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(existingRecord.netProfitUSD)}</p></div>
-                    <p className="text-xs text-slate-400 mt-2 text-center">A edição de dias anteriores é feita na lista de histórico.</p>
-                </div>
-            );
-        }
-        return <div className="text-center py-8"><p className="text-slate-500">Não há registros para esta data.</p></div>
-    }
-    return (
-        <div className="space-y-6">
-            {existingRecord && (
-                <div className="space-y-2 pb-4 border-b border-slate-200">
-                     <div className="grid grid-cols-3 gap-2 text-center">
-                        <div><p className="text-xs text-slate-500">Ganhos Hoje</p><p className="text-lg font-semibold text-emerald-600">{existingRecord.winCount}</p></div>
-                        <div><p className="text-xs text-slate-500">Perdas Hoje</p><p className="text-lg font-semibold text-rose-600">{existingRecord.lossCount}</p></div>
-                        <div><p className="text-xs text-slate-500">Resultado</p><p className={`text-lg font-semibold ${existingRecord.netProfitUSD >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(existingRecord.netProfitUSD)}</p></div>
-                    </div>
-                </div>
-            )}
-            {stopStatus.breached && !isOverridden ? (
-                <div className="text-center p-4 rounded-lg bg-rose-50 border border-rose-200">
-                    <h3 className="font-semibold text-lg mb-2 text-rose-800">{stopStatus.type === 'gain' ? 'Stop Gain Atingido!' : 'Stop Loss Atingido!'}</h3>
-                    <p className="text-sm text-rose-700 mb-4">{stopStatus.type === 'gain' ? 'Você atingiu sua meta de ganhos do dia. Parabéns!' : 'Você atingiu seu limite de perdas do dia. É hora de parar.'}</p>
-                    <button onClick={onOverride} className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded transition-colors text-sm">Continuar (Não Recomendado)</button>
-                </div>
-            ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div><label htmlFor="wins" className="block text-sm font-medium text-slate-600 mb-1">Adicionar Ganhos (Wins)</label><input id="wins" type="text" inputMode="numeric" pattern="[0-9]*" value={wins} onChange={(e) => setWins(e.target.value.replace(/[^0-9]/g, ''))} onFocus={(e) => e.target.select()} placeholder="0" className="w-full bg-white border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" disabled={disabled}/></div>
-                    <div><label htmlFor="losses" className="block text-sm font-medium text-slate-600 mb-1">Adicionar Perdas (Losses)</label><input id="losses" type="text" inputMode="numeric" pattern="[0-9]*" value={losses} onChange={(e) => setLosses(e.target.value.replace(/[^0-9]/g, ''))} onFocus={(e) => e.target.select()} placeholder="0" className="w-full bg-white border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" disabled={disabled}/></div>
-                    <button type="submit" disabled={disabled} className="w-full flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded transition-colors"><PlusIcon className="w-5 h-5"/>Adicionar Operação</button>
-                    {disabled && <p className="text-xs text-slate-400 mt-2 text-center">Você só pode adicionar registros para o dia de hoje.</p>}
-                </form>
+              />
             )}
         </div>
     );
-};
 
-const HistoryList: React.FC<{ records: AppRecord[], formatCurrency: (v: number, c?: 'USD' | 'BRL') => string, convertToBRL: (usd: number) => number, onDelete: (id: string) => void, onEdit: (record: AppRecord) => void }> = ({ records, formatCurrency, convertToBRL, onDelete, onEdit }) => {
-    const sorted = [...records].sort((a, b) => (b.recordType === 'day' ? b.id : b.date).localeCompare(a.recordType === 'day' ? a.id : a.date));
-    if (sorted.length === 0) return <p className="text-center text-slate-500 py-4">Nenhum registro encontrado.</p>;
+    function DashboardPanel() {
+        const handleAddTrades = () => {
+            const wins = parseInt(winsToAdd, 10) || 0;
+            const losses = parseInt(lossesToAdd, 10) || 0;
 
-    return (
-        <div className="space-y-4">
-            <div className="overflow-x-auto hidden md:block">
-                <table className="w-full text-sm text-left text-slate-700">
-                    <thead className="text-xs text-slate-500 uppercase bg-slate-50">
-                        <tr>
-                            <th scope="col" className="px-4 py-3">Data</th>
-                            <th scope="col" className="px-4 py-3">Tipo</th>
-                            <th scope="col" className="px-4 py-3">Detalhes</th>
-                            <th scope="col" className="px-4 py-3">Valor (USD)</th>
-                            <th scope="col" className="px-4 py-3">Valor (BRL)</th>
-                            <th scope="col" className="px-4 py-3 text-center">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sorted.map((record) => (
-                          <tr key={record.id} className="bg-white border-b hover:bg-slate-50">
-                            <td className="px-4 py-2 font-medium">
-                                {record.recordType === 'day' ? record.date : record.displayDate}
-                            </td>
-                            <td className="px-4 py-2">
-                                {record.recordType === 'day' && <span className="text-xs font-medium mr-2 px-2.5 py-0.5 rounded bg-blue-100 text-blue-800">Dia de Trade</span>}
-                                {record.recordType === 'deposit' && <span className="flex items-center text-xs font-medium mr-2 px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800"><DepositIcon className="w-3 h-3 mr-1"/>Depósito</span>}
-                                {record.recordType === 'withdrawal' && <span className="flex items-center text-xs font-medium mr-2 px-2.5 py-0.5 rounded bg-rose-100 text-rose-800"><WithdrawalIcon className="w-3 h-3 mr-1"/>Retirada</span>}
-                            </td>
-                            <td className="px-4 py-2">
-                                {record.recordType === 'day' ? (
-                                    <span>
-                                        <span className="text-emerald-600">{(record as DailyRecord).winCount} W</span> / <span className="text-rose-600">{(record as DailyRecord).lossCount} L</span>
-                                    </span>
-                                ) : (
-                                    <span className="text-slate-500 italic">{(record as TransactionRecord).notes || 'Sem notas'}</span>
-                                )}
-                            </td>
-                            <td className={`px-4 py-2 font-semibold ${record.recordType === 'day' ? ((record as DailyRecord).netProfitUSD >= 0 ? 'text-emerald-600' : 'text-rose-600') : (record.recordType === 'deposit' ? 'text-emerald-600' : 'text-rose-600')}`}>
-                                {record.recordType === 'day' ? formatCurrency((record as DailyRecord).netProfitUSD) : (record.recordType === 'deposit' ? `+${formatCurrency(record.amountUSD)}` : `-${formatCurrency(record.amountUSD)}`)}
-                            </td>
-                            <td className={`px-4 py-2 ${record.recordType === 'day' ? ((record as DailyRecord).netProfitUSD >= 0 ? 'text-emerald-500' : 'text-rose-500') : (record.recordType === 'deposit' ? 'text-emerald-500' : 'text-rose-500')}`}>
-                                {record.recordType === 'day' ? formatCurrency(convertToBRL((record as DailyRecord).netProfitUSD), 'BRL') : (record.recordType === 'deposit' ? `+${formatCurrency(convertToBRL(record.amountUSD), 'BRL')}` : `-${formatCurrency(convertToBRL(record.amountUSD), 'BRL')}`)}
-                            </td>
-                            <td className="px-4 py-2 text-center">
-                                <div className="flex justify-center items-center gap-2">
-                                    {record.recordType === 'day' && (
-                                        <button onClick={() => onEdit(record)} className="p-1 text-slate-400 hover:text-indigo-600 rounded-md transition-colors" title="Editar registro">
-                                            <PencilIcon className="w-4 h-4" />
-                                        </button>
-                                    )}
-                                    <button onClick={() => onDelete(record.id)} className="p-1 text-slate-400 hover:text-rose-600 rounded-md transition-colors" title="Excluir registro">
-                                        <TrashIcon className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </td>
-                           </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            <div className="md:hidden space-y-3">
-                 {sorted.map((record) => (
-                    <div key={record.id} className="relative bg-white p-4 rounded-lg shadow-sm border">
-                        <div className="absolute top-2 right-2 flex gap-1">
-                            {record.recordType === 'day' && (
-                                <button onClick={() => onEdit(record)} className="p-1 text-slate-400 hover:text-indigo-600 rounded-full transition-colors" title="Editar registro">
-                                    <PencilIcon className="w-5 h-5" />
+            if (wins > 0 || losses > 0) {
+                addRecord(wins, losses);
+                setWinsToAdd('');
+                setLossesToAdd('');
+            }
+        };
+
+        return (
+            <section>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Coluna de Controle */}
+                    <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-lg flex flex-col space-y-6 h-fit">
+                        <h2 className="text-xl font-bold text-slate-900 border-b pb-2">Controle do Dia</h2>
+                        <div>
+                            <label htmlFor="trade-date" className="block text-sm font-medium text-slate-700 mb-1">Data da Operação</label>
+                            <input
+                                type="date"
+                                id="trade-date"
+                                value={selectedDateString}
+                                onChange={(e) => setSelectedDate(new Date(e.target.value.replace(/-/g, '/')))}
+                                className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                            />
+                        </div>
+                        
+                        {isTradingHalted && (
+                            <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md shadow-md" role="alert">
+                                <p className="font-bold">Limite Atingido</p>
+                                <p>Você atingiu seu limite de {stopLossLimitReached ? `perdas (Stop Loss: ${settings.stopLossTrades})` : `ganhos (Stop Gain: ${settings.stopGainTrades})`} para hoje.</p>
+                                <button onClick={() => setStopLimitOverride(prev => ({ ...prev, [selectedDateString]: true }))} className="mt-2 text-sm text-blue-600 hover:underline">
+                                    Operar mesmo assim
                                 </button>
-                            )}
-                            <button onClick={() => onDelete(record.id)} className="p-1 text-slate-400 hover:text-rose-600 rounded-full transition-colors" title="Excluir registro">
-                                <TrashIcon className="w-5 h-5" />
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label htmlFor="wins-to-add" className="block text-sm font-medium text-green-700">WINs</label>
+                                    <input
+                                        type="number"
+                                        id="wins-to-add"
+                                        value={winsToAdd}
+                                        onChange={(e) => setWinsToAdd(e.target.value)}
+                                        disabled={isTradingHalted}
+                                        className="mt-1 w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-slate-200"
+                                        placeholder="0"
+                                        min="0"
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="losses-to-add" className="block text-sm font-medium text-red-700">LOSSes</label>
+                                    <input
+                                        type="number"
+                                        id="losses-to-add"
+                                        value={lossesToAdd}
+                                        onChange={(e) => setLossesToAdd(e.target.value)}
+                                        disabled={isTradingHalted}
+                                        className="mt-1 w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 disabled:bg-slate-200"
+                                        placeholder="0"
+                                        min="0"
+                                    />
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleAddTrades}
+                                disabled={isTradingHalted || (!winsToAdd && !lossesToAdd)}
+                                className="w-full bg-slate-700 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all"
+                            >
+                                Registrar Operações
                             </button>
                         </div>
-                        <div className="flex justify-between items-start pr-12">
-                            <div>
-                                <p className="font-semibold">{record.recordType === 'day' ? record.date : record.displayDate}</p>
-                                <div className="mt-1">
-                                {record.recordType === 'day' && <span className="text-xs font-medium mr-2 px-2.5 py-0.5 rounded bg-blue-100 text-blue-800">Dia de Trade</span>}
-                                {record.recordType === 'deposit' && <span className="flex items-center text-xs font-medium mr-2 px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800"><DepositIcon className="w-3 h-3 mr-1"/>Depósito</span>}
-                                {record.recordType === 'withdrawal' && <span className="flex items-center text-xs font-medium mr-2 px-2.5 py-0.5 rounded bg-rose-100 text-rose-800"><WithdrawalIcon className="w-3 h-3 mr-1"/>Retirada</span>}
+
+
+                         <div className="flex flex-col space-y-2 pt-4 border-t">
+                             <button
+                                onClick={() => { setTransactionType('deposit'); setIsTransactionModalOpen(true); }}
+                                className="flex items-center justify-center gap-2 w-full bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-blue-600 transition-colors"
+                             >
+                                 <DepositIcon className="w-5 h-5" />
+                                 Adicionar Depósito
+                             </button>
+                              <button
+                                onClick={() => { setTransactionType('withdrawal'); setIsTransactionModalOpen(true); }}
+                                className="flex items-center justify-center gap-2 w-full bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-orange-600 transition-colors"
+                             >
+                                 <WithdrawalIcon className="w-5 h-5" />
+                                 Adicionar Saque
+                             </button>
+                         </div>
+                    </div>
+
+                    {/* Coluna de Histórico e Status */}
+                    <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-lg">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 text-center">
+                            <div className="bg-slate-100 p-4 rounded-lg">
+                                <p className="text-sm text-slate-500">Banca Inicial (Dia)</p>
+                                <p className="text-xl font-bold text-slate-800">${startBalanceForSelectedDay.toFixed(2)}</p>
+                            </div>
+                             <div className={`p-4 rounded-lg ${dailyRecordForSelectedDay?.netProfitUSD ?? 0 >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+                                <p className="text-sm text-slate-500">Lucro/Prejuízo (Dia)</p>
+                                <p className={`text-xl font-bold ${dailyRecordForSelectedDay?.netProfitUSD ?? 0 >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    ${dailyRecordForSelectedDay?.netProfitUSD.toFixed(2) ?? '0.00'}
+                                </p>
+                            </div>
+                            <div className="bg-blue-100 p-4 rounded-lg">
+                                <p className="text-sm text-slate-500">Meta Dinâmica do Dia</p>
+                                <p className="text-xl font-bold text-blue-800">
+                                    ${dynamicDailyGoal.toFixed(2)}
+                                </p>
+                            </div>
+                            <div className="bg-slate-100 p-4 rounded-lg">
+                                <p className="text-sm text-slate-500">Banca Final (Dia)</p>
+                                <p className="text-xl font-bold text-slate-800">
+                                    ${dailyRecordForSelectedDay?.endBalanceUSD.toFixed(2) ?? startBalanceForSelectedDay.toFixed(2)}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mb-6">
+                            <h3 className="text-lg font-bold text-slate-900 mb-4">Resumo de Performance</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="bg-slate-100 p-4 rounded-lg">
+                                    <h4 className="font-bold text-slate-800 mb-2">Esta Semana</h4>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-600">Lucro Total:</span>
+                                        <span className={`font-semibold ${weeklyStats.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>${weeklyStats.profit.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-600">Operações:</span>
+                                        <span className="font-semibold text-slate-700">{weeklyStats.totalTrades}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-600">Assertividade:</span>
+                                        <span className="font-semibold text-slate-700">{weeklyStats.winRate.toFixed(1)}%</span>
+                                    </div>
+                                </div>
+                                <div className="bg-slate-100 p-4 rounded-lg">
+                                    <h4 className="font-bold text-slate-800 mb-2">Este Mês</h4>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-600">Lucro Total:</span>
+                                        <span className={`font-semibold ${monthlyStats.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>${monthlyStats.profit.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-600">Operações:</span>
+                                        <span className="font-semibold text-slate-700">{monthlyStats.totalTrades}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-600">Assertividade:</span>
+                                        <span className="font-semibold text-slate-700">{monthlyStats.winRate.toFixed(1)}%</span>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="text-right">
-                                <p className={`font-semibold ${record.recordType === 'day' ? ((record as DailyRecord).netProfitUSD >= 0 ? 'text-emerald-600' : 'text-rose-600') : (record.recordType === 'deposit' ? 'text-emerald-600' : 'text-rose-600')}`}>
-                                    {record.recordType === 'day' ? formatCurrency((record as DailyRecord).netProfitUSD) : (record.recordType === 'deposit' ? `+${formatCurrency(record.amountUSD)}` : `-${formatCurrency(record.amountUSD)}`)}
-                                </p>
-                                <p className="text-xs text-slate-500">
-                                    {record.recordType === 'day' ? formatCurrency(convertToBRL((record as DailyRecord).netProfitUSD), 'BRL') : (record.recordType === 'deposit' ? `+${formatCurrency(convertToBRL(record.amountUSD), 'BRL')}` : `-${formatCurrency(convertToBRL(record.amountUSD), 'BRL')}`)}
-                                </p>
-                            </div>
                         </div>
-                        <div className="mt-2 text-sm text-slate-600">
-                             {record.recordType === 'day' ? (
-                                <span>
-                                    <span className="text-emerald-600">{(record as DailyRecord).winCount} W</span> / <span className="text-rose-600">{(record as DailyRecord).lossCount} L</span>
-                                </span>
-                            ) : (
-                                <span className="italic">{(record as TransactionRecord).notes || 'Sem notas'}</span>
-                            )}
+
+                        <h3 className="text-lg font-bold text-slate-900 mb-4">Histórico de Operações</h3>
+                        <div className="overflow-auto max-h-[45vh] pr-2">
+                            <table className="w-full text-sm text-left text-slate-500">
+                                <thead className="text-xs text-slate-700 uppercase bg-slate-100 sticky top-0">
+                                    <tr>
+                                        <th scope="col" className="px-4 py-3">Data</th>
+                                        <th scope="col" className="px-4 py-3">Tipo</th>
+                                        <th scope="col" className="px-4 py-3 text-center">Detalhes / Valor</th>
+                                        <th scope="col" className="px-4 py-3 text-right">Balanço Final</th>
+                                        <th scope="col" className="px-2 py-3 text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sortedRecords.length > 0 ? sortedRecords.map((record) => (
+                                        <tr key={record.id} className="bg-white border-b hover:bg-slate-50">
+                                            <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">
+                                                {record.recordType === 'day' ? record.date : record.displayDate}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                {record.recordType === 'day' && <span className="bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">Trading</span>}
+                                                {record.recordType === 'deposit' && <span className="bg-green-100 text-green-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">Depósito</span>}
+                                                {record.recordType === 'withdrawal' && <span className="bg-orange-100 text-orange-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">Saque</span>}
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                {record.recordType === 'day' ? (
+                                                    <span className="font-mono">
+                                                        <span className="text-green-600 font-semibold">{record.winCount}W</span> / <span className="text-red-600 font-semibold">{record.lossCount}L</span>
+                                                    </span>
+                                                ) : (
+                                                    <span className="font-semibold">${record.amountUSD.toFixed(2)}</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-mono font-semibold">
+                                                {record.recordType === 'day' ? `$${record.endBalanceUSD.toFixed(2)}` : '-'}
+                                            </td>
+                                            <td className="px-2 py-3 text-center">
+                                                <div className="flex items-center justify-center space-x-2">
+                                                    {record.recordType === 'day' && (
+                                                      <button onClick={() => handleEditRequest(record)} className="text-slate-500 hover:text-blue-600" aria-label="Editar">
+                                                        <PencilIcon className="w-4 h-4" />
+                                                      </button>
+                                                    )}
+                                                    <button onClick={() => handleDeleteRecord(record.id)} className="text-slate-500 hover:text-red-600" aria-label="Excluir">
+                                                        <TrashIcon className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )).reverse() : (
+                                        <tr>
+                                            <td colSpan={5} className="text-center py-8 text-slate-500">
+                                                Nenhum registro encontrado. Comece a operar!
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-const DailyPerformanceChart: React.FC<{ records: DailyRecord[] }> = ({ records }) => {
-    const data = records.map(r => ({ date: r.date, Lucro: parseFloat(r.netProfitUSD.toFixed(2)) }));
-    return (
-        <div className="bg-white p-6 rounded-lg shadow-sm h-80">
-            <h3 className="text-lg font-semibold mb-4 text-slate-800">Lucro Diário (USD)</h3>
-            <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="date" stroke="#64748b" tick={{ fontSize: 10 }} />
-                    <YAxis stroke="#64748b" tick={{ fontSize: 10 }} tickFormatter={(value) => `$${value}`} />
-                    <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0' }} />
-                    <Bar dataKey="Lucro">
-                        {data.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.Lucro >= 0 ? '#10b981' : '#f43f5e'} />
-                        ))}
-                    </Bar>
-                </BarChart>
-            </ResponsiveContainer>
-        </div>
-    );
-};
-
-const WinLossRatioChart: React.FC<{ records: DailyRecord[] }> = ({ records }) => {
-    const totalWins = records.reduce((sum, r) => sum + r.winCount, 0);
-    const totalLosses = records.reduce((sum, r) => sum + r.lossCount, 0);
-    const data = [
-        { name: 'Ganhos', value: totalWins },
-        { name: 'Perdas', value: totalLosses },
-    ];
-    const COLORS = ['#10b981', '#f43f5e'];
-    return (
-        <div className="bg-white p-6 rounded-lg shadow-sm h-80">
-            <h3 className="text-lg font-semibold mb-4 text-slate-800">Proporção Ganhos/Perdas</h3>
-            <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                    <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                        {data.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                </PieChart>
-            </ResponsiveContainer>
-        </div>
-    );
-};
-
-const GoalTracker: React.FC<{
-    goal: GoalSettings;
-    onSave: (goal: GoalSettings) => void;
-    achievedAmount: number;
-    formatCurrency: (val: number) => string;
-}> = ({ goal, onSave, achievedAmount, formatCurrency }) => {
-    const [isEditing, setIsEditing] = useState(false);
-    const [formState, setFormState] = useState(goal);
-
-    useEffect(() => {
-        setFormState(goal);
-    }, [goal]);
-
-    const handleSave = (e: React.FormEvent) => {
-        e.preventDefault();
-        onSave(formState);
-        setIsEditing(false);
-    };
-
-    const percentage = goal.amount > 0 ? (achievedAmount / goal.amount) * 100 : 0;
-
-    return (
-        <div className="bg-white p-6 rounded-lg shadow-sm max-w-2xl mx-auto">
-            <h2 className="text-2xl font-bold mb-4">Meta de Lucro {goal.type === 'weekly' ? 'Semanal' : 'Mensal'}</h2>
-            <div className="space-y-4">
-                <div className="w-full bg-slate-200 rounded-full h-4">
-                    <div className="bg-emerald-500 h-4 rounded-full" style={{ width: `${Math.min(percentage, 100)}%` }}></div>
                 </div>
-                <div className="flex justify-between text-sm font-medium">
-                    <span>{formatCurrency(achievedAmount)}</span>
-                    <span>{formatCurrency(goal.amount)}</span>
-                </div>
-                <p className="text-center text-slate-600">{percentage.toFixed(1)}% da meta atingida.</p>
-            </div>
-            {isEditing ? (
-                <form onSubmit={handleSave} className="mt-6 space-y-4">
-                    <div>
-                        <label htmlFor="goalType" className="block text-sm font-medium text-slate-700">Tipo de Meta</label>
-                        <select
-                            id="goalType"
-                            value={formState.type}
-                            onChange={(e) => setFormState({ ...formState, type: e.target.value as 'weekly' | 'monthly' })}
-                            className="mt-1 block w-full pl-3 pr-10 py-2 text-base bg-white border-slate-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                        >
-                            <option value="weekly">Semanal</option>
-                            <option value="monthly">Mensal</option>
-                        </select>
+            </section>
+        );
+    }
+    
+    function GoalPanel() {
+        const [localGoal, setLocalGoal] = useState<GoalSettings>(() => ({
+            type: goal.type,
+            amount: goal.amount || '',
+        }));
+
+        const handleSave = () => {
+            const amountToSave = typeof localGoal.amount === 'number' ? localGoal.amount : 0;
+            setGoal({ type: localGoal.type, amount: amountToSave });
+            alert('Meta salva com sucesso!');
+        };
+
+        const currentMonthProfit = useMemo(() => {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const monthPrefix = `${year}-${month}`;
+
+            return sortedRecords
+                .filter(r => r.recordType === 'day' && r.id.startsWith(monthPrefix))
+                .reduce((acc, r) => acc + (r as DailyRecord).netProfitUSD, 0);
+        }, [sortedRecords]);
+
+        const currentWeekProfit = useMemo(() => {
+            const now = new Date();
+            const startOfWeek = new Date(now);
+            const day = now.getDay();
+            const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+            startOfWeek.setDate(diff);
+            startOfWeek.setHours(0, 0, 0, 0);
+
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            endOfWeek.setHours(23, 59, 59, 999);
+
+            return sortedRecords
+                .filter(r => {
+                    if (r.recordType !== 'day') return false;
+                    const recordDate = new Date(r.id.replace(/-/g, '/'));
+                    return recordDate >= startOfWeek && recordDate <= endOfWeek;
+                })
+                .reduce((acc, r) => acc + (r as DailyRecord).netProfitUSD, 0);
+        }, [sortedRecords]);
+
+        const monthlyGoalAmount = goal.type === 'monthly' ? goal.amount : 0;
+        const weeklyGoalAmount = goal.type === 'weekly' ? goal.amount : (monthlyGoalAmount / 4.33);
+
+        return (
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-2xl shadow-lg h-fit">
+                    <h2 className="text-2xl font-bold text-slate-900 mb-6 border-b pb-4">Definir Meta Principal</h2>
+                    <div className="space-y-4">
+                        <div>
+                            <label htmlFor="goalType" className="block text-sm font-medium text-slate-700">Período da Meta</label>
+                            <select 
+                                id="goalType"
+                                value={localGoal.type}
+                                onChange={(e) => setLocalGoal(g => ({ ...g, type: e.target.value as 'weekly' | 'monthly' }))}
+                                className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            >
+                                <option value="monthly">Mensal</option>
+                                <option value="weekly">Semanal</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label htmlFor="goalAmount" className="block text-sm font-medium text-slate-700">Valor da Meta (USD)</label>
+                            <input
+                                type="number"
+                                id="goalAmount"
+                                value={localGoal.amount}
+                                onChange={(e) => setLocalGoal(g => ({ ...g, amount: e.target.value === '' ? '' : parseFloat(e.target.value) }))}
+                                className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Ex: 500"
+                            />
+                        </div>
                     </div>
-                    <div>
-                        <label htmlFor="goalAmount" className="block text-sm font-medium text-slate-700">Valor da Meta (USD)</label>
-                        <input
-                            type="number"
-                            id="goalAmount"
-                            value={formState.amount}
-                            min="0"
-                            onChange={(e) => setFormState({ ...formState, amount: Number(e.target.value) })}
-                            className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm bg-white border-slate-300 rounded-md"
-                            placeholder="200"
+                    <div className="mt-6 flex justify-end">
+                        <button onClick={handleSave} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+                            Salvar Meta
+                        </button>
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-2xl shadow-lg">
+                    <h2 className="text-2xl font-bold text-slate-900 mb-6 border-b pb-4">Análise de Metas</h2>
+                    <div className="space-y-8">
+                        <GoalProgressBar
+                            title="Meta Semanal"
+                            currentValue={currentWeekProfit}
+                            goalValue={weeklyGoalAmount}
+                            description="Progresso de lucro na semana atual (Seg-Dom)"
+                        />
+                        <GoalProgressBar
+                            title="Meta Mensal"
+                            currentValue={currentMonthProfit}
+                            goalValue={monthlyGoalAmount}
+                            description={`Progresso de lucro em ${now.toLocaleString('pt-BR', { month: 'long' })}`}
                         />
                     </div>
-                    <div className="flex gap-4">
-                        <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors">Salvar</button>
-                        <button type="button" onClick={() => setIsEditing(false)} className="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-4 rounded transition-colors">Cancelar</button>
-                    </div>
-                </form>
-            ) : (
-                <button onClick={() => setIsEditing(true)} className="mt-6 w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded transition-colors">
-                    Editar Meta
-                </button>
-            )}
+                </div>
+            </div>
+        )
+    }
+};
+
+interface GoalProgressBarProps {
+    title: string;
+    currentValue: number;
+    goalValue: number;
+    description: string;
+}
+
+const GoalProgressBar: React.FC<GoalProgressBarProps> = ({ title, currentValue, goalValue, description }) => {
+    const progress = goalValue > 0 ? Math.min((currentValue / goalValue) * 100, 100) : 0;
+    const isGoalMet = goalValue > 0 && currentValue >= goalValue;
+    const progressColor = isGoalMet ? 'bg-emerald-500' : 'bg-blue-500';
+    
+    if (goalValue <= 0) {
+        return (
+            <div>
+                 <h3 className="text-lg font-semibold text-slate-800">{title}</h3>
+                 <p className="text-sm text-slate-500 mt-1">
+                    Meta não definida. Defina uma meta na aba <span className="font-semibold">Metas e Análise</span>.
+                </p>
+            </div>
+        )
+    }
+
+    return (
+        <div>
+            <div className="flex justify-between items-end mb-1">
+                <div>
+                    <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800">
+                        {isGoalMet && <TrophyIcon className="w-5 h-5 text-amber-400" />}
+                        {title}
+                    </h3>
+                    <p className="text-sm text-slate-500">{description}</p>
+                </div>
+                <div className="text-right">
+                    <p className={`text-lg font-bold ${isGoalMet ? 'text-emerald-500' : 'text-slate-700'}`}>
+                        ${currentValue.toFixed(2)}
+                    </p>
+                    <p className="text-sm text-slate-500">de ${goalValue.toFixed(2)}</p>
+                </div>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-4 shadow-inner">
+                <div
+                    className={`h-4 rounded-full transition-all duration-500 ease-out ${progressColor}`}
+                    style={{ width: `${progress}%` }}
+                ></div>
+            </div>
+            <p className="text-right text-sm font-semibold text-slate-600 mt-1">{Math.round(progress)}%</p>
         </div>
     );
 };
 
-const SettingsModal: React.FC<{ isOpen: boolean; onClose: () => void; settings: TradeSettings; onSave: (s: TradeSettings) => void; }> = ({ isOpen, onClose, settings, onSave }) => {
-    const [formState, setFormState] = useState({
-        initialBalance: settings.initialBalance === 0 ? '' : String(settings.initialBalance),
-        entryMode: settings.entryMode,
-        entryValue: settings.entryValue === 0 ? '' : String(settings.entryValue),
-        stopGainPercentage: settings.stopGainPercentage === 0 ? '' : String(settings.stopGainPercentage),
-        stopLossPercentage: settings.stopLossPercentage === 0 ? '' : String(settings.stopLossPercentage),
-        payoutPercentage: settings.payoutPercentage === 0 ? '' : String(settings.payoutPercentage),
+
+interface ModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+}
+
+interface SettingsModalProps extends ModalProps {
+    settings: TradeSettings;
+    onSave: (settings: TradeSettings) => void;
+}
+
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSave }) => {
+    const [localSettings, setLocalSettings] = useState({
+        initialBalance: '',
+        entryMode: 'percentage',
+        entryValue: '',
+        payoutPercentage: '',
+        stopGainTrades: '',
+        stopLossTrades: '',
     });
 
     useEffect(() => {
         if (isOpen) {
-            setFormState({
-                initialBalance: settings.initialBalance === 0 ? '' : String(settings.initialBalance),
+            setLocalSettings({
+                initialBalance: String(settings.initialBalance || ''),
                 entryMode: settings.entryMode,
-                entryValue: settings.entryValue === 0 ? '' : String(settings.entryValue),
-                stopGainPercentage: settings.stopGainPercentage === 0 ? '' : String(settings.stopGainPercentage),
-                stopLossPercentage: settings.stopLossPercentage === 0 ? '' : String(settings.stopLossPercentage),
-                payoutPercentage: settings.payoutPercentage === 0 ? '' : String(settings.payoutPercentage),
+                entryValue: String(settings.entryValue || ''),
+                payoutPercentage: String(settings.payoutPercentage || ''),
+                stopGainTrades: String(settings.stopGainTrades || ''),
+                stopLossTrades: String(settings.stopLossTrades || ''),
             });
         }
     }, [settings, isOpen]);
 
-    const handleSave = (e: React.FormEvent) => {
-        e.preventDefault();
-        onSave({
-            ...settings,
-            initialBalance: Number(formState.initialBalance) || 0,
-            entryMode: formState.entryMode,
-            entryValue: Number(formState.entryValue) || 0,
-            stopGainPercentage: Number(formState.stopGainPercentage) || 0,
-            stopLossPercentage: Number(formState.stopLossPercentage) || 0,
-            payoutPercentage: Number(formState.payoutPercentage) || 0,
-        });
-        onClose();
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setLocalSettings(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleNumericChange = (field: keyof Omit<typeof formState, 'entryMode'>) => (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { value } = e.target;
-        if (value === '' || /^\d*\.?\d*$/.test(value)) {
-            setFormState(prev => ({ ...prev, [field]: value }));
-        }
-    };
-    
-    const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setFormState(prev => ({ ...prev, entryMode: e.target.value as 'percentage' | 'fixed' }));
+    const handleSave = () => {
+        const settingsToSave: TradeSettings = {
+            initialBalance: parseFloat(localSettings.initialBalance) || 0,
+            entryMode: localSettings.entryMode as 'percentage' | 'fixed',
+            entryValue: parseFloat(localSettings.entryValue) || 0,
+            payoutPercentage: parseFloat(localSettings.payoutPercentage) || 0,
+            stopGainTrades: parseInt(localSettings.stopGainTrades, 10) || 0,
+            stopLossTrades: parseInt(localSettings.stopLossTrades, 10) || 0,
+        };
+        onSave(settingsToSave);
+        onClose();
     };
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md max-h-full overflow-y-auto">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">Configurações</h2>
-                    <button onClick={onClose}><XMarkIcon className="w-6 h-6"/></button>
+                    <h2 className="text-xl font-bold text-slate-900">Configurações de Trading</h2>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200 transition-colors" aria-label="Fechar">
+                        <XMarkIcon className="w-6 h-6 text-slate-500" />
+                    </button>
                 </div>
-                <form onSubmit={handleSave} className="space-y-4">
+                <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-slate-700">Saldo Inicial (USD)</label>
-                        <input type="text" inputMode="numeric" placeholder="0" value={formState.initialBalance} onChange={handleNumericChange('initialBalance')} className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"/>
+                        <label htmlFor="initialBalance" className="block text-sm font-medium text-slate-700">Banca Inicial (USD)</label>
+                        <input type="number" name="initialBalance" id="initialBalance" value={localSettings.initialBalance} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                     </div>
-                     <div>
-                        <label className="block text-sm font-medium text-slate-700">Modo de Entrada</label>
-                        <select 
-                            value={formState.entryMode} 
-                            onChange={handleSelectChange}
-                            className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                        >
-                            <option value="percentage">Porcentagem da banca</option>
-                            <option value="fixed">Valor fixo</option>
+                    <div>
+                        <label htmlFor="entryMode" className="block text-sm font-medium text-slate-700">Modo de Entrada</label>
+                        <select name="entryMode" id="entryMode" value={localSettings.entryMode} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value="percentage">Porcentagem da Banca</option>
+                            <option value="fixed">Valor Fixo</option>
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-slate-700">
-                            Valor da Entrada ({formState.entryMode === 'percentage' ? '%' : 'USD'})
+                        <label htmlFor="entryValue" className="block text-sm font-medium text-slate-700">
+                            Valor da Entrada ({localSettings.entryMode === 'percentage' ? '%' : 'USD'})
                         </label>
-                        <input 
-                            type="text" 
-                            inputMode="numeric" 
-                            placeholder="0"
-                            value={formState.entryValue} 
-                            onChange={handleNumericChange('entryValue')} 
-                            className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                        />
+                        <input type="number" name="entryValue" id="entryValue" value={localSettings.entryValue} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-slate-700">Stop Gain Diário (%)</label>
-                        <input type="text" inputMode="numeric" placeholder="0" value={formState.stopGainPercentage} onChange={handleNumericChange('stopGainPercentage')} className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm"/>
+                        <label htmlFor="payoutPercentage" className="block text-sm font-medium text-slate-700">Payout (%)</label>
+                        <input type="number" name="payoutPercentage" id="payoutPercentage" value={localSettings.payoutPercentage} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                     </div>
-                     <div>
-                        <label className="block text-sm font-medium text-slate-700">Stop Loss Diário (%)</label>
-                        <input type="text" inputMode="numeric" placeholder="0" value={formState.stopLossPercentage} onChange={handleNumericChange('stopLossPercentage')} className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm"/>
+                    <hr/>
+                    <h3 className="text-lg font-semibold text-slate-800 pt-2">Gerenciamento de Risco</h3>
+                    <div>
+                        <label htmlFor="stopGainTrades" className="block text-sm font-medium text-slate-700">Stop Gain (nº de vitórias)</label>
+                        <input type="number" name="stopGainTrades" id="stopGainTrades" value={localSettings.stopGainTrades} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                     </div>
-                     <div>
-                        <label className="block text-sm font-medium text-slate-700">Payout (%)</label>
-                        <input type="text" inputMode="numeric" placeholder="0" value={formState.payoutPercentage} onChange={handleNumericChange('payoutPercentage')} className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm"/>
+                    <div>
+                        <label htmlFor="stopLossTrades" className="block text-sm font-medium text-slate-700">Stop Loss (nº de derrotas)</label>
+                        <input type="number" name="stopLossTrades" id="stopLossTrades" value={localSettings.stopLossTrades} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                     </div>
-                    <div className="flex gap-4 pt-4">
-                         <button type="button" onClick={onClose} className="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-4 rounded transition-colors">Cancelar</button>
-                        <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors">Salvar</button>
-                    </div>
-                </form>
+                </div>
+                <div className="mt-6 flex justify-end space-x-3">
+                    <button onClick={onClose} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors">
+                        Cancelar
+                    </button>
+                    <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        Salvar
+                    </button>
+                </div>
             </div>
         </div>
     );
 };
 
-const TransactionModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (d: { type: 'deposit' | 'withdrawal'; date: Date; amount: number; notes: string; }) => void; type: 'deposit' | 'withdrawal' | null; now: Date; }> = ({ isOpen, onClose, onSave, type, now }) => {
+interface TransactionModalProps extends ModalProps {
+    onSave: (data: { type: 'deposit' | 'withdrawal'; date: Date; amount: number; notes: string }) => void;
+    type: 'deposit' | 'withdrawal' | null;
+}
+
+const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, onSave, type }) => {
     const [amount, setAmount] = useState('');
-    const [date, setDate] = useState(now.toISOString().split('T')[0]);
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [notes, setNotes] = useState('');
-    
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!type) return;
-        onSave({ type, amount: Number(amount), date: new Date(date + 'T00:00:00'), notes });
-        onClose();
-        setAmount('');
-        setNotes('');
-    };
 
     useEffect(() => {
-        if (isOpen) {
-            setDate(now.toISOString().split('T')[0]);
+        if (!isOpen) {
             setAmount('');
+            setDate(new Date().toISOString().split('T')[0]);
             setNotes('');
         }
-    }, [isOpen, now]);
+    }, [isOpen]);
 
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">{type === 'deposit' ? 'Novo Depósito' : 'Nova Retirada'}</h2>
-                    <button onClick={onClose}><XMarkIcon className="w-6 h-6"/></button>
-                </div>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700">Valor (USD)</label>
-                        <input type="number" value={amount} onChange={e => setAmount(e.target.value)} min="0.01" step="0.01" required className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm"/>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700">Data</label>
-                        <input type="date" value={date} onChange={e => setDate(e.target.value)} required className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm"/>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700">Notas (Opcional)</label>
-                        <input type="text" value={notes} onChange={e => setNotes(e.target.value)} className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm"/>
-                    </div>
-                    <div className="flex gap-4 pt-4">
-                        <button type="button" onClick={onClose} className="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-4 rounded transition-colors">Cancelar</button>
-                        <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors">Salvar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-const EditDayRecordModal: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    onSave: (data: { id: string; winCount: number; lossCount: number }) => void;
-    record: DailyRecord | null;
-}> = ({ isOpen, onClose, onSave, record }) => {
-    const [wins, setWins] = useState('');
-    const [losses, setLosses] = useState('');
-
-    useEffect(() => {
-        if (record) {
-            setWins(String(record.winCount));
-            setLosses(String(record.lossCount));
-        }
-    }, [record]);
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!record) return;
+    const handleSave = () => {
+        if (!type || !amount || parseFloat(amount) <= 0) return;
         onSave({
-            id: record.id,
-            winCount: parseInt(wins, 10) || 0,
-            lossCount: parseInt(losses, 10) || 0,
+            type,
+            amount: parseFloat(amount),
+            date: new Date(date.replace(/-/g, '/')),
+            notes
         });
         onClose();
     };
 
-    if (!isOpen || !record) return null;
+    if (!isOpen || !type) return null;
+
+    const isDeposit = type === 'deposit';
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">Editar Registro de {record.date}</h2>
-                    <button onClick={onClose}><XMarkIcon className="w-6 h-6"/></button>
+                    <h2 className="text-xl font-bold text-slate-900">{isDeposit ? 'Adicionar Depósito' : 'Adicionar Saque'}</h2>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200 transition-colors" aria-label="Fechar">
+                        <XMarkIcon className="w-6 h-6 text-slate-500" />
+                    </button>
                 </div>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-4">
                     <div>
-                        <label htmlFor="edit-wins" className="block text-sm font-medium text-slate-700">Ganhos (Wins)</label>
-                        <input
-                            id="edit-wins"
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={wins}
-                            onChange={(e) => setWins(e.target.value.replace(/[^0-9]/g, ''))}
-                            className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                        />
+                        <label htmlFor="transAmount" className="block text-sm font-medium text-slate-700">Valor (USD)</label>
+                        <input type="number" id="transAmount" value={amount} onChange={(e) => setAmount(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="0.00"/>
                     </div>
                     <div>
-                        <label htmlFor="edit-losses" className="block text-sm font-medium text-slate-700">Perdas (Losses)</label>
-                        <input
-                            id="edit-losses"
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={losses}
-                            onChange={(e) => setLosses(e.target.value.replace(/[^0-9]/g, ''))}
-                            className="mt-1 block w-full bg-white rounded-md border-slate-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                        />
+                        <label htmlFor="transDate" className="block text-sm font-medium text-slate-700">Data</label>
+                        <input type="date" id="transDate" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
                     </div>
-                    <div className="flex gap-4 pt-4">
-                        <button type="button" onClick={onClose} className="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-4 rounded transition-colors">Cancelar</button>
-                        <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors">Salvar Alterações</button>
+                    <div>
+                        <label htmlFor="transNotes" className="block text-sm font-medium text-slate-700">Notas (Opcional)</label>
+                        <input type="text" id="transNotes" value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Ex: Bônus da corretora"/>
                     </div>
-                </form>
+                </div>
+                <div className="mt-6 flex justify-end space-x-3">
+                    <button onClick={onClose} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors">
+                        Cancelar
+                    </button>
+                    <button onClick={handleSave} className={`px-4 py-2 text-white rounded-lg transition-colors ${isDeposit ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}>
+                        Salvar
+                    </button>
+                </div>
             </div>
         </div>
     );
 };
 
+
+interface EditRecordModalProps extends ModalProps {
+  onSave: (data: { winCount: number, lossCount: number }) => void;
+  record: DailyRecord;
+}
+
+const EditRecordModal: React.FC<EditRecordModalProps> = ({ isOpen, onClose, onSave, record }) => {
+    const [winCount, setWinCount] = useState('');
+    const [lossCount, setLossCount] = useState('');
+
+    useEffect(() => {
+        if(isOpen) {
+            setWinCount(String(record.winCount || ''));
+            setLossCount(String(record.lossCount || ''));
+        }
+    }, [isOpen, record]);
+    
+    const handleSave = () => {
+        onSave({ winCount: parseInt(winCount, 10) || 0, lossCount: parseInt(lossCount, 10) || 0 });
+        onClose();
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-slate-900">Editar Registro ({record.date})</h2>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200 transition-colors" aria-label="Fechar">
+                        <XMarkIcon className="w-6 h-6 text-slate-500" />
+                    </button>
+                </div>
+                <div className="space-y-4">
+                     <div>
+                        <label htmlFor="winCount" className="block text-sm font-medium text-slate-700">Vitórias (WIN)</label>
+                        <input type="number" id="winCount" value={winCount} onChange={(e) => setWinCount(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
+                    </div>
+                     <div>
+                        <label htmlFor="lossCount" className="block text-sm font-medium text-slate-700">Derrotas (LOSS)</label>
+                        <input type="number" id="lossCount" value={lossCount} onChange={(e) => setLossCount(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
+                    </div>
+                </div>
+                <div className="mt-6 flex justify-end space-x-3">
+                    <button onClick={onClose} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors">
+                        Cancelar
+                    </button>
+                    <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        Salvar Alterações
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export default App;

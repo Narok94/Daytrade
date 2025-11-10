@@ -3,9 +3,8 @@ export interface TradeSettings {
   entryMode: 'percentage' | 'fixed';
   entryValue: number;
   payoutPercentage: number;
-  dailyGoalPercentage: number;
-  stopLossPercentage: number;
-  stopGainPercentage: number;
+  stopGainTrades: number;
+  stopLossTrades: number;
 }
 
 export interface DailyRecord {
