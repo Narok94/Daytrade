@@ -196,6 +196,22 @@ const App: React.FC = () => {
             return dateA.localeCompare(dateB);
         });
     }, [filteredRecords]);
+
+    const currentBalanceUSD = useMemo(() => {
+        if (!activeBrokerage) return 0;
+        
+        let balance = activeBrokerage.initialBalance;
+        for (const record of sortedFilteredRecords) {
+            if (record.recordType === 'day') {
+                balance += record.netProfitUSD;
+            } else if (record.recordType === 'deposit') {
+                balance += record.amountUSD;
+            } else { // withdrawal
+                balance -= record.amountUSD;
+            }
+        }
+        return balance;
+    }, [sortedFilteredRecords, activeBrokerage]);
     
     const getBalanceUpToDate = useCallback((dateISO: string, recordsForBrokerage: AppRecord[], initialBalance: number): number => {
         let balance = initialBalance;
@@ -526,6 +542,11 @@ const App: React.FC = () => {
                         )}
                     </div>
                     <div className="flex items-center space-x-2 sm:space-x-4 mt-2 sm:mt-0">
+                        {activeBrokerage && (
+                            <span className="text-sm font-medium text-slate-600">
+                                Banca: <span className="font-bold text-blue-600">${currentBalanceUSD.toFixed(2)}</span>
+                            </span>
+                        )}
                         <span className="text-sm font-medium text-slate-600">
                             Dólar: <span className="font-bold text-green-600">R$ {usdToBrlRate?.toFixed(2) || '...'}</span>
                         </span>
