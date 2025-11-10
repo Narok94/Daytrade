@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Trade } from './types';
+import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Trade, User } from './types';
 import { fetchUSDBRLRate } from './services/currencyService';
-import { SettingsIcon, PlusIcon, DepositIcon, WithdrawalIcon, XMarkIcon, TrashIcon, HomeIcon, TrophyIcon, InformationCircleIcon } from './components/icons';
+import { SettingsIcon, PlusIcon, DepositIcon, WithdrawalIcon, XMarkIcon, TrashIcon, HomeIcon, TrophyIcon, InformationCircleIcon, LogoutIcon } from './components/icons';
 
 interface GoalSettings {
     type: 'weekly' | 'monthly';
@@ -10,11 +10,12 @@ interface GoalSettings {
 
 const countTradingDays = (start: Date, end: Date): number => {
     let count = 0;
-    const current = new Date(start);
+    const current = new Date(start.getTime()); // Use getTime to create a true copy
+    const endDate = new Date(end.getTime());
     current.setUTCHours(0, 0, 0, 0);
-    end.setUTCHours(23, 59, 59, 999);
+    endDate.setUTCHours(23, 59, 59, 999);
 
-    while (current <= end) {
+    while (current <= endDate) {
         const day = current.getUTCDay();
         if (day >= 1 && day <= 5) { // Monday to Friday
             count++;
@@ -25,13 +26,15 @@ const countTradingDays = (start: Date, end: Date): number => {
 };
 
 
-const App: React.FC = () => {
+const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout }) => {
+    const getStorageKey = useCallback((key: string) => `${user.username}_${key}`, [user.username]);
+
     const [brokerages, setBrokerages] = useState<Brokerage[]>([]);
     const [activeBrokerageId, setActiveBrokerageId] = useState<string | null>(null);
     const [records, setRecords] = useState<AppRecord[]>([]);
     
     const [goal, setGoal] = useState<Omit<GoalSettings, 'amount'> & { amount: number }>(() => {
-        const stored = localStorage.getItem('tradeGoal');
+        const stored = localStorage.getItem(getStorageKey('tradeGoal'));
         if (stored) return JSON.parse(stored);
         return { type: 'monthly' as const, amount: 500 };
     });
@@ -43,7 +46,11 @@ const App: React.FC = () => {
     const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
     const [transactionType, setTransactionType] = useState<'deposit' | 'withdrawal' | null>(null);
     const [activeTab, setActiveTab] = useState<'dashboard' | 'goal'>('dashboard');
-    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(() => {
+        const today = new Date();
+        today.setUTCHours(0,0,0,0);
+        return today;
+    });
     const [stopLimitOverride, setStopLimitOverride] = useState<Record<string, boolean>>({});
     const [now, setNow] = useState(new Date());
     const [winsToAdd, setWinsToAdd] = useState('');
@@ -58,10 +65,37 @@ const App: React.FC = () => {
             setIsLoading(true);
             const rate = await fetchUSDBRLRate();
             setUsdToBrlRate(rate);
+            
+            // --- Data Migration for 'henrique' ---
+            if (user.username === 'henrique') {
+                const oldBrokeragesKey = 'brokerages_v2';
+                const oldRecordsKey = 'tradeRecords_v2';
+                const oldGoalKey = 'tradeGoal';
+
+                const newBrokeragesKey = getStorageKey('brokerages_v2');
+                
+                if (localStorage.getItem(oldBrokeragesKey) && !localStorage.getItem(newBrokeragesKey)) {
+                    console.log('Migrating data for user: henrique');
+                    const oldBrokerages = localStorage.getItem(oldBrokeragesKey);
+                    const oldRecords = localStorage.getItem(oldRecordsKey);
+                    const oldGoal = localStorage.getItem(oldGoalKey);
+
+                    if (oldBrokerages) localStorage.setItem(newBrokeragesKey, oldBrokerages);
+                    if (oldRecords) localStorage.setItem(getStorageKey('tradeRecords_v2'), oldRecords);
+                    if (oldGoal) localStorage.setItem(getStorageKey('tradeGoal'), oldGoal);
+
+                    // Remove old keys after successful migration
+                    localStorage.removeItem(oldBrokeragesKey);
+                    localStorage.removeItem(oldRecordsKey);
+                    localStorage.removeItem(oldGoalKey);
+                }
+            }
+            // --- End Migration ---
+
 
             let loadedBrokerages: Brokerage[] = [];
-            const storedBrokerages = localStorage.getItem('brokerages_v2');
-            const storedRecords = localStorage.getItem('tradeRecords_v2');
+            const storedBrokerages = localStorage.getItem(getStorageKey('brokerages_v2'));
+            const storedRecords = localStorage.getItem(getStorageKey('tradeRecords_v2'));
 
             if (storedBrokerages) {
                 const parsedBrokerages = JSON.parse(storedBrokerages);
@@ -70,39 +104,77 @@ const App: React.FC = () => {
                 if (parsedBrokerages.length > 0) {
                     setActiveBrokerageId(parsedBrokerages[0].id);
                 }
+            } else if (user.username === 'henrique') {
+                console.log("Seeding initial data for user: henrique");
+                const defaultBrokerage: Brokerage = {
+                    id: `brokerage_henrique_default`,
+                    name: 'Corretora Principal',
+                    initialBalance: 11.25, // Calculated: 13.80 (end balance) - 2.55 (profit)
+                    entryMode: 'fixed',
+                    entryValue: 1.00,
+                    payoutPercentage: 85,
+                    stopGainTrades: 5,
+                    stopLossTrades: 3,
+                };
+                
+                const defaultPayout = defaultBrokerage.payoutPercentage;
+                const profitDay1 = 3.00 * (defaultPayout / 100);
+                const endBalanceDay1 = defaultBrokerage.initialBalance + profitDay1;
+
+                const profitDay2 = (2 * 1.00 * (defaultPayout / 100)) + (4 * 3.00 * (defaultPayout / 100));
+                const endBalanceDay2 = endBalanceDay1 + profitDay2;
+
+
+                const recordsSeed: AppRecord[] = [
+                    {
+                        recordType: 'day',
+                        brokerageId: defaultBrokerage.id,
+                        id: '2025-11-09',
+                        date: '09/11/2025',
+                        startBalanceUSD: defaultBrokerage.initialBalance,
+                        trades: [
+                            { id: 'seed_1_1', result: 'win', entryValue: 3.00, payoutPercentage: defaultPayout },
+                        ],
+                        winCount: 1,
+                        lossCount: 0,
+                        netProfitUSD: profitDay1,
+                        endBalanceUSD: endBalanceDay1,
+                    },
+                    {
+                        recordType: 'day',
+                        brokerageId: defaultBrokerage.id,
+                        id: '2025-11-10',
+                        date: '10/11/2025',
+                        startBalanceUSD: endBalanceDay1,
+                        trades: [
+                            { id: 'seed_2_1', result: 'win', entryValue: 1.00, payoutPercentage: defaultPayout },
+                            { id: 'seed_2_2', result: 'win', entryValue: 1.00, payoutPercentage: defaultPayout },
+                            { id: 'seed_2_3', result: 'win', entryValue: 3.00, payoutPercentage: defaultPayout },
+                            { id: 'seed_2_4', result: 'win', entryValue: 3.00, payoutPercentage: defaultPayout },
+                            { id: 'seed_2_5', result: 'win', entryValue: 3.00, payoutPercentage: defaultPayout },
+                            { id: 'seed_2_6', result: 'win', entryValue: 3.00, payoutPercentage: defaultPayout },
+                        ],
+                        winCount: 6,
+                        lossCount: 0,
+                        netProfitUSD: profitDay2,
+                        endBalanceUSD: endBalanceDay2,
+                    }
+                ];
+
+                loadedBrokerages = [defaultBrokerage];
+                setBrokerages(loadedBrokerages);
+                setRecords(recordsSeed);
+                setActiveBrokerageId(defaultBrokerage.id);
+                
+                localStorage.setItem(getStorageKey('brokerages_v2'), JSON.stringify(loadedBrokerages));
+                localStorage.setItem(getStorageKey('tradeRecords_v2'), JSON.stringify(recordsSeed));
+
             } else {
-                const oldSettingsRaw = localStorage.getItem('tradeSettings');
-                const oldRecordsRaw = localStorage.getItem('tradeRecords');
-                if (oldSettingsRaw && oldRecordsRaw) {
-                    const oldSettings = JSON.parse(oldSettingsRaw);
-                     delete oldSettings.stopGainPercentage;
-                     delete oldSettings.stopLossPercentage;
-                     delete oldSettings.dailyGoalPercentage;
-
-                    const newBrokerage: Brokerage = {
-                        id: `brokerage_${Date.now()}`,
-                        name: "Corretora Principal",
-                        ...oldSettings,
-                    };
-                    loadedBrokerages = [newBrokerage];
-                    const migratedRecords: AppRecord[] = JSON.parse(oldRecordsRaw).map((r: any) => ({
-                        ...r,
-                        brokerageId: newBrokerage.id
-                    }));
-
-                    setBrokerages([newBrokerage]);
-                    setRecords(migratedRecords);
-                    setActiveBrokerageId(newBrokerage.id);
-                    localStorage.setItem('brokerages_v2', JSON.stringify([newBrokerage]));
-                    localStorage.setItem('tradeRecords_v2', JSON.stringify(migratedRecords));
-                    localStorage.removeItem('tradeSettings');
-                    localStorage.removeItem('tradeRecords');
-                } else {
-                    // No data, prompt for first brokerage
-                    setIsBrokerageModalOpen(true);
-                    setBrokerageToEdit(null); // Explicitly set to "add mode"
-                }
+                 // No data for this user, prompt for first brokerage
+                setIsBrokerageModalOpen(true);
+                setBrokerageToEdit(null);
             }
+
              if (storedRecords) {
                 const parsedRecords = JSON.parse(storedRecords);
                 const migrated = parsedRecords.map((r: any) => {
@@ -152,23 +224,23 @@ const App: React.FC = () => {
         initialize();
         const intervalId = setInterval(() => setNow(new Date()), 60000);
         return () => clearInterval(intervalId);
-    }, []);
+    }, [user, getStorageKey]);
 
     useEffect(() => {
         if (brokerages.length > 0) {
-             localStorage.setItem('brokerages_v2', JSON.stringify(brokerages));
+             localStorage.setItem(getStorageKey('brokerages_v2'), JSON.stringify(brokerages));
         }
-    }, [brokerages]);
+    }, [brokerages, getStorageKey]);
 
     useEffect(() => {
         if (!isLoading) { // Avoid saving empty initial state
-            localStorage.setItem('tradeRecords_v2', JSON.stringify(records));
+            localStorage.setItem(getStorageKey('tradeRecords_v2'), JSON.stringify(records));
         }
-    }, [records, isLoading]);
+    }, [records, isLoading, getStorageKey]);
 
     useEffect(() => {
-        localStorage.setItem('tradeGoal', JSON.stringify(goal));
-    }, [goal]);
+        localStorage.setItem(getStorageKey('tradeGoal'), JSON.stringify(goal));
+    }, [goal, getStorageKey]);
 
     // --- Derived State & Helpers ---
     const activeBrokerage = useMemo(() => brokerages.find(b => b.id === activeBrokerageId), [brokerages, activeBrokerageId]);
@@ -179,9 +251,9 @@ const App: React.FC = () => {
     }, [records, activeBrokerageId]);
 
     const formatDateISO = useCallback((date: Date): string => {
-        const year = date.getFullYear();
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
+        const year = date.getUTCFullYear();
+        const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+        const day = date.getUTCDate().toString().padStart(2, '0');
         return `${year}-${month}-${day}`;
     }, []);
     
@@ -421,7 +493,7 @@ const App: React.FC = () => {
     const dynamicDailyGoal = useMemo(() => {
         if (!goal || goal.amount <= 0) return 0;
 
-        const calculationDay = new Date(selectedDate);
+        const calculationDay = new Date(selectedDate.getTime());
         calculationDay.setUTCHours(0, 0, 0, 0);
 
         let startDate, endDate;
@@ -439,28 +511,33 @@ const App: React.FC = () => {
         const profitSoFar = sortedFilteredRecords
             .filter(r => {
                 if (r.recordType !== 'day') return false;
-                const recordDate = new Date(r.id.replace(/-/g, '/'));
-                recordDate.setUTCHours(0, 0, 0, 0);
+                const recordDate = new Date(r.id + 'T00:00:00Z');
                 return recordDate >= startDate && recordDate < calculationDay;
             })
             .reduce((acc, r) => acc + (r as DailyRecord).netProfitUSD, 0);
+            
+        const dailyRecordProfit = dailyRecordForSelectedDay?.netProfitUSD ?? 0;
+        const totalProfitForGoal = profitSoFar + dailyRecordProfit;
+        const remainingGoal = goal.amount - totalProfitForGoal;
 
-        const remainingGoal = goal.amount - profitSoFar;
         if (remainingGoal <= 0) return 0;
         
-        const remainingTradingDays = countTradingDays(calculationDay, endDate);
-        if (remainingTradingDays <= 0) return remainingGoal;
+        const todayIncludedForRemaining = new Date(calculationDay.getTime());
+        todayIncludedForRemaining.setUTCDate(todayIncludedForRemaining.getUTCDate());
 
+        const remainingTradingDays = countTradingDays(todayIncludedForRemaining, endDate);
+        
+        if (remainingTradingDays <= 0) return remainingGoal > 0 ? remainingGoal : 0;
+        
         return remainingGoal / remainingTradingDays;
 
-    }, [goal, sortedFilteredRecords, selectedDate]);
+    }, [goal, sortedFilteredRecords, selectedDate, dailyRecordForSelectedDay]);
 
     // --- Performance Summaries ---
     const getPerformanceStats = (startDate: Date, endDate: Date) => {
         const relevantRecords = sortedFilteredRecords.filter(r => {
             if (r.recordType !== 'day') return false;
-            const recordDate = new Date(r.id.replace(/-/g, '/'));
-            recordDate.setUTCHours(0, 0, 0, 0);
+            const recordDate = new Date(r.id + 'T00:00:00Z');
             return recordDate >= startDate && recordDate <= endDate;
         }) as DailyRecord[];
 
@@ -556,6 +633,9 @@ const App: React.FC = () => {
                         <button onClick={() => { setBrokerageToEdit(activeBrokerage || null); setIsBrokerageModalOpen(true); }} className="p-2 rounded-full hover:bg-slate-200 transition-colors" aria-label="Abrir Configurações da Corretora" disabled={!activeBrokerage}>
                             <SettingsIcon className="w-6 h-6 text-slate-600" />
                         </button>
+                         <button onClick={onLogout} className="p-2 rounded-full hover:bg-slate-200 transition-colors" aria-label="Sair">
+                            <LogoutIcon className="w-6 h-6 text-slate-600" />
+                        </button>
                     </div>
                 </header>
                  
@@ -574,7 +654,7 @@ const App: React.FC = () => {
                     </>
                  ) : (
                     <div className="text-center py-10 bg-white rounded-lg shadow-md">
-                        <h2 className="text-2xl font-semibold text-slate-800">Bem-vindo(a)!</h2>
+                        <h2 className="text-2xl font-semibold text-slate-800">Bem-vindo(a), {user.username}!</h2>
                         <p className="text-slate-600 mt-2">Para começar, adicione sua primeira corretora.</p>
                         <button onClick={() => { setBrokerageToEdit(null); setIsBrokerageModalOpen(true); }} className="mt-4 px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-colors">
                             Adicionar Corretora
@@ -645,7 +725,7 @@ const App: React.FC = () => {
                                 type="date"
                                 id="trade-date"
                                 value={selectedDateString}
-                                onChange={(e) => setSelectedDate(new Date(e.target.value.replace(/-/g, '/')))}
+                                onChange={(e) => setSelectedDate(new Date(e.target.value + 'T00:00:00Z'))}
                                 className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                             />
                         </div>
@@ -753,9 +833,9 @@ const App: React.FC = () => {
                                 <p className="text-sm text-slate-500">Banca Inicial (Dia)</p>
                                 <p className="text-xl font-bold text-slate-800">${startBalanceForSelectedDay.toFixed(2)}</p>
                             </div>
-                             <div className={`p-4 rounded-lg ${dailyRecordForSelectedDay?.netProfitUSD ?? 0 >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+                             <div className={`p-4 rounded-lg ${(dailyRecordForSelectedDay?.netProfitUSD ?? 0) >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
                                 <p className="text-sm text-slate-500">Lucro/Prejuízo (Dia)</p>
-                                <p className={`text-xl font-bold ${dailyRecordForSelectedDay?.netProfitUSD ?? 0 >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                <p className={`text-xl font-bold ${(dailyRecordForSelectedDay?.netProfitUSD ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                     ${dailyRecordForSelectedDay?.netProfitUSD.toFixed(2) ?? '0.00'}
                                 </p>
                             </div>
@@ -907,8 +987,8 @@ const App: React.FC = () => {
 
         const currentMonthProfit = useMemo(() => {
             const now = new Date();
-            const year = now.getFullYear();
-            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const year = now.getUTCFullYear();
+            const month = (now.getUTCMonth() + 1).toString().padStart(2, '0');
             const monthPrefix = `${year}-${month}`;
 
             return sortedFilteredRecords
@@ -918,20 +998,20 @@ const App: React.FC = () => {
 
         const currentWeekProfit = useMemo(() => {
             const now = new Date();
-            const startOfWeek = new Date(now);
-            const day = now.getDay();
-            const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-            startOfWeek.setDate(diff);
-            startOfWeek.setHours(0, 0, 0, 0);
+            const startOfWeek = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+            const day = now.getUTCDay();
+            const diff = startOfWeek.getUTCDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+            startOfWeek.setUTCDate(diff);
+            startOfWeek.setUTCHours(0, 0, 0, 0);
 
             const endOfWeek = new Date(startOfWeek);
-            endOfWeek.setDate(startOfWeek.getDate() + 6);
-            endOfWeek.setHours(23, 59, 59, 999);
+            endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
+            endOfWeek.setUTCHours(23, 59, 59, 999);
 
             return sortedFilteredRecords
                 .filter(r => {
                     if (r.recordType !== 'day') return false;
-                    const recordDate = new Date(r.id.replace(/-/g, '/'));
+                    const recordDate = new Date(r.id + 'T00:00:00Z');
                     return recordDate >= startOfWeek && recordDate <= endOfWeek;
                 })
                 .reduce((acc, r) => acc + (r as DailyRecord).netProfitUSD, 0);
@@ -989,7 +1069,7 @@ const App: React.FC = () => {
                             title="Meta Mensal"
                             currentValue={currentMonthProfit}
                             goalValue={monthlyGoalAmount}
-                            description={`Progresso de lucro em ${now.toLocaleString('pt-BR', { month: 'long' })}`}
+                            description={`Progresso de lucro em ${now.toLocaleString('pt-BR', { month: 'long', timeZone: 'UTC' })}`}
                         />
                     </div>
                 </div>
@@ -1215,7 +1295,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, on
         onSave({
             type,
             amount: parseFloat(amount),
-            date: new Date(date.replace(/-/g, '/')),
+            date: new Date(date + 'T00:00:00Z'),
             notes
         });
         onClose();

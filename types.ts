@@ -40,3 +40,7 @@ export interface TransactionRecord {
 }
 
 export type AppRecord = DailyRecord | TransactionRecord;
+
+export interface User {
+  username: string;
+}
