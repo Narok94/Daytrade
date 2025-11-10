@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TradeSettings, DailyRecord, TransactionRecord, AppRecord } from './types';
 import { fetchUSDBRLRate } from './services/currencyService';
-import { SettingsIcon, PlusIcon, TrendingUpIcon, TrendingDownIcon, DepositIcon, WithdrawalIcon, XMarkIcon, TrashIcon, PencilIcon, HomeIcon, ChartBarIcon, TrophyIcon } from './components/icons';
+import { SettingsIcon, PlusIcon, TrendingUpIcon, TrendingDownIcon, DepositIcon, WithdrawalIcon, XMarkIcon, TrashIcon, PencilIcon, HomeIcon, ChartBarIcon, TrophyIcon, InformationCircleIcon } from './components/icons';
 
 interface GoalSettings {
     type: 'weekly' | 'monthly';
@@ -69,6 +70,7 @@ const App: React.FC = () => {
     const [now, setNow] = useState(new Date());
     const [winsToAdd, setWinsToAdd] = useState('');
     const [lossesToAdd, setLossesToAdd] = useState('');
+    const [isTestMessageVisible, setIsTestMessageVisible] = useState(true);
 
     // --- Effects ---
     useEffect(() => {
@@ -456,6 +458,9 @@ const App: React.FC = () => {
                 record={recordToEdit}
               />
             )}
+            <footer className="text-center mt-8 text-sm text-slate-500">
+                Criado por Henrique Costa
+            </footer>
         </div>
     );
 
@@ -473,6 +478,18 @@ const App: React.FC = () => {
 
         return (
             <section>
+                {isTestMessageVisible && (
+                    <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-800 p-4 rounded-md shadow-md mb-6 flex items-start relative" role="alert">
+                        <InformationCircleIcon className="w-6 h-6 mr-3 flex-shrink-0 mt-1" />
+                        <div>
+                            <p className="font-bold">Olá! Bem-vindo(a) à versão de testes.</p>
+                            <p className="text-sm">Sinta-se à vontade para explorar. Lembre-se que o app está em desenvolvimento, então algumas coisas podem mudar ou não funcionar 100% ainda.</p>
+                        </div>
+                        <button onClick={() => setIsTestMessageVisible(false)} className="absolute top-2 right-2 p-1 rounded-full hover:bg-blue-200 transition-colors" aria-label="Fechar aviso">
+                            <XMarkIcon className="w-5 h-5" />
+                        </button>
+                    </div>
+                )}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Coluna de Controle */}
                     <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-lg flex flex-col space-y-6 h-fit">
