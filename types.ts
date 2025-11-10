@@ -1,4 +1,6 @@
-export interface TradeSettings {
+export interface Brokerage {
+  id: string;
+  name: string;
   initialBalance: number;
   entryMode: 'percentage' | 'fixed';
   entryValue: number;
@@ -9,6 +11,7 @@ export interface TradeSettings {
 
 export interface DailyRecord {
   recordType: 'day';
+  brokerageId: string;
   id: string; // YYYY-MM-DD format
   date: string; // pt-BR format for display
   startBalanceUSD: number;
@@ -21,6 +24,7 @@ export interface DailyRecord {
 
 export interface TransactionRecord {
     recordType: 'deposit' | 'withdrawal';
+    brokerageId: string;
     id: string; // Unique ID, e.g., from Date.now()
     date: string; // YYYY-MM-DD, for sorting
     displayDate: string; // pt-BR format for display

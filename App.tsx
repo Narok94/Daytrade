@@ -1,9 +1,7 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TradeSettings, DailyRecord, TransactionRecord, AppRecord } from './types';
+import { Brokerage, DailyRecord, TransactionRecord, AppRecord } from './types';
 import { fetchUSDBRLRate } from './services/currencyService';
-import { SettingsIcon, PlusIcon, TrendingUpIcon, TrendingDownIcon, DepositIcon, WithdrawalIcon, XMarkIcon, TrashIcon, PencilIcon, HomeIcon, ChartBarIcon, TrophyIcon, InformationCircleIcon } from './components/icons';
+import { SettingsIcon, PlusIcon, DepositIcon, WithdrawalIcon, XMarkIcon, TrashIcon, PencilIcon, HomeIcon, TrophyIcon, InformationCircleIcon } from './components/icons';
 
 interface GoalSettings {
     type: 'weekly' | 'monthly';
@@ -28,38 +26,20 @@ const countTradingDays = (start: Date, end: Date): number => {
 
 
 const App: React.FC = () => {
-    const [settings, setSettings] = useState<TradeSettings>(() => {
-        const stored = localStorage.getItem('tradeSettings');
-        const defaults = {
-            initialBalance: 0,
-            entryMode: 'percentage' as const,
-            entryValue: 0,
-            payoutPercentage: 0,
-            stopGainTrades: 0,
-            stopLossTrades: 0,
-        };
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            delete parsed.stopGainPercentage;
-            delete parsed.stopLossPercentage;
-            delete parsed.dailyGoalPercentage;
-            return { ...defaults, ...parsed };
-        }
-        return defaults;
-    });
-    const [records, setRecords] = useState<AppRecord[]>(() => {
-        const stored = localStorage.getItem('tradeRecords');
-        if (stored) return JSON.parse(stored);
-        return [];
-    });
+    const [brokerages, setBrokerages] = useState<Brokerage[]>([]);
+    const [activeBrokerageId, setActiveBrokerageId] = useState<string | null>(null);
+    const [records, setRecords] = useState<AppRecord[]>([]);
+    
     const [goal, setGoal] = useState<Omit<GoalSettings, 'amount'> & { amount: number }>(() => {
         const stored = localStorage.getItem('tradeGoal');
         if (stored) return JSON.parse(stored);
         return { type: 'monthly' as const, amount: 500 };
     });
+    
     const [usdToBrlRate, setUsdToBrlRate] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(() => !localStorage.getItem('tradeSettings'));
+    const [isBrokerageModalOpen, setIsBrokerageModalOpen] = useState(false);
+    const [brokerageToEdit, setBrokerageToEdit] = useState<Brokerage | null>(null);
     const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [recordToEdit, setRecordToEdit] = useState<DailyRecord | null>(null);
@@ -74,31 +54,88 @@ const App: React.FC = () => {
 
     // --- Effects ---
     useEffect(() => {
-        const getRate = async () => {
+        const initialize = async () => {
             setIsLoading(true);
             const rate = await fetchUSDBRLRate();
             setUsdToBrlRate(rate);
+
+            const storedBrokerages = localStorage.getItem('brokerages_v2');
+            const storedRecords = localStorage.getItem('tradeRecords_v2');
+
+            if (storedBrokerages) {
+                const parsedBrokerages = JSON.parse(storedBrokerages);
+                setBrokerages(parsedBrokerages);
+                if (parsedBrokerages.length > 0) {
+                    setActiveBrokerageId(parsedBrokerages[0].id);
+                }
+            } else {
+                const oldSettingsRaw = localStorage.getItem('tradeSettings');
+                const oldRecordsRaw = localStorage.getItem('tradeRecords');
+                if (oldSettingsRaw && oldRecordsRaw) {
+                    const oldSettings = JSON.parse(oldSettingsRaw);
+                     delete oldSettings.stopGainPercentage;
+                     delete oldSettings.stopLossPercentage;
+                     delete oldSettings.dailyGoalPercentage;
+
+                    const newBrokerage: Brokerage = {
+                        id: `brokerage_${Date.now()}`,
+                        name: "Corretora Principal",
+                        ...oldSettings,
+                    };
+                    const migratedRecords: AppRecord[] = JSON.parse(oldRecordsRaw).map((r: any) => ({
+                        ...r,
+                        brokerageId: newBrokerage.id
+                    }));
+
+                    setBrokerages([newBrokerage]);
+                    setRecords(migratedRecords);
+                    setActiveBrokerageId(newBrokerage.id);
+                    localStorage.setItem('brokerages_v2', JSON.stringify([newBrokerage]));
+                    localStorage.setItem('tradeRecords_v2', JSON.stringify(migratedRecords));
+                    localStorage.removeItem('tradeSettings');
+                    localStorage.removeItem('tradeRecords');
+                } else {
+                    // No data, prompt for first brokerage
+                    setIsBrokerageModalOpen(true);
+                    setBrokerageToEdit(null); // Explicitly set to "add mode"
+                }
+            }
+             if (storedRecords) {
+                setRecords(JSON.parse(storedRecords));
+            }
+
             setIsLoading(false);
         };
-        getRate();
 
+        initialize();
         const intervalId = setInterval(() => setNow(new Date()), 60000);
         return () => clearInterval(intervalId);
     }, []);
 
     useEffect(() => {
-        localStorage.setItem('tradeSettings', JSON.stringify(settings));
-    }, [settings]);
+        if (brokerages.length > 0) {
+             localStorage.setItem('brokerages_v2', JSON.stringify(brokerages));
+        }
+    }, [brokerages]);
 
     useEffect(() => {
-        localStorage.setItem('tradeRecords', JSON.stringify(records));
-    }, [records]);
+        if (!isLoading) { // Avoid saving empty initial state
+            localStorage.setItem('tradeRecords_v2', JSON.stringify(records));
+        }
+    }, [records, isLoading]);
 
     useEffect(() => {
         localStorage.setItem('tradeGoal', JSON.stringify(goal));
     }, [goal]);
 
-    // --- Memoized Values & Helpers ---
+    // --- Derived State & Helpers ---
+    const activeBrokerage = useMemo(() => brokerages.find(b => b.id === activeBrokerageId), [brokerages, activeBrokerageId]);
+    
+    const filteredRecords = useMemo(() => {
+        if (!activeBrokerageId) return [];
+        return records.filter(r => r.brokerageId === activeBrokerageId);
+    }, [records, activeBrokerageId]);
+
     const formatDateISO = useCallback((date: Date): string => {
         const year = date.getFullYear();
         const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -110,20 +147,17 @@ const App: React.FC = () => {
 
     const selectedDateString = useMemo(() => formatDateISO(selectedDate), [selectedDate, formatDateISO]);
 
-    const sortedRecords = useMemo(() => {
-        return [...records].sort((a, b) => {
+    const sortedFilteredRecords = useMemo(() => {
+        return [...filteredRecords].sort((a, b) => {
             const dateA = a.recordType === 'day' ? a.id : a.date;
             const dateB = b.recordType === 'day' ? b.id : b.date;
-            if (dateA !== dateB) {
-                return dateA.localeCompare(dateB);
-            }
-            return 0;
+            return dateA.localeCompare(dateB);
         });
-    }, [records]);
+    }, [filteredRecords]);
     
-    const getBalanceUpToDate = useCallback((dateISO: string): number => {
-        let balance = settings.initialBalance;
-        for (const record of sortedRecords) {
+    const getBalanceUpToDate = useCallback((dateISO: string, recordsForBrokerage: AppRecord[], initialBalance: number): number => {
+        let balance = initialBalance;
+        for (const record of recordsForBrokerage) {
             const recordDate = record.recordType === 'day' ? record.id : record.date;
             if (recordDate >= dateISO) {
                 break;
@@ -137,33 +171,34 @@ const App: React.FC = () => {
             }
         }
         return balance;
-    }, [sortedRecords, settings.initialBalance]);
+    }, []);
 
     const startBalanceForSelectedDay = useMemo(() => {
-        const recordForDay = sortedRecords.find(r => r.recordType === 'day' && r.id === selectedDateString);
+        if (!activeBrokerage) return 0;
+        const recordForDay = sortedFilteredRecords.find(r => r.recordType === 'day' && r.id === selectedDateString);
         if (recordForDay) {
             return (recordForDay as DailyRecord).startBalanceUSD;
         }
-        return getBalanceUpToDate(selectedDateString);
-    }, [sortedRecords, selectedDateString, getBalanceUpToDate]);
+        return getBalanceUpToDate(selectedDateString, sortedFilteredRecords, activeBrokerage.initialBalance);
+    }, [sortedFilteredRecords, selectedDateString, getBalanceUpToDate, activeBrokerage]);
 
-    const recalculateBalances = useCallback((recordsToProcess: AppRecord[]): AppRecord[] => {
+    const recalculateBalances = useCallback((recordsToProcess: AppRecord[], brokerage: Brokerage): AppRecord[] => {
         const sorted = [...recordsToProcess].sort((a, b) => {
             const dateA = a.recordType === 'day' ? a.id : a.date;
             const dateB = b.recordType === 'day' ? b.id : b.date;
             return dateA.localeCompare(dateB);
         });
 
-        let currentBalance = settings.initialBalance;
+        let currentBalance = brokerage.initialBalance;
         const recalculated: AppRecord[] = [];
 
         for (const record of sorted) {
             if (record.recordType === 'day') {
-                const calculatedEntrySizeUSD = settings.entryMode === 'percentage'
-                    ? currentBalance * (settings.entryValue / 100)
-                    : settings.entryValue;
+                const calculatedEntrySizeUSD = brokerage.entryMode === 'percentage'
+                    ? currentBalance * (brokerage.entryValue / 100)
+                    : brokerage.entryValue;
                 const entrySizeUSD = Math.max(1, calculatedEntrySizeUSD);
-                const profitPerWinUSD = entrySizeUSD * (settings.payoutPercentage / 100);
+                const profitPerWinUSD = entrySizeUSD * (brokerage.payoutPercentage / 100);
                 
                 const netProfitUSD = (record.winCount * profitPerWinUSD) - (record.lossCount * entrySizeUSD);
                 const endBalanceUSD = currentBalance + netProfitUSD;
@@ -186,76 +221,81 @@ const App: React.FC = () => {
             }
         }
         return recalculated;
-    }, [settings]);
+    }, []);
+
+    const updateRecordsForBrokerage = useCallback((updatedRecordsForBrokerage: AppRecord[]) => {
+        if (!activeBrokerageId) return;
+        const otherRecords = records.filter(r => r.brokerageId !== activeBrokerageId);
+        const recalculated = recalculateBalances(updatedRecordsForBrokerage, activeBrokerage!);
+        setRecords([...otherRecords, ...recalculated]);
+    }, [records, activeBrokerageId, activeBrokerage, recalculateBalances]);
+
 
     const addRecord = useCallback((winCount: number, lossCount: number) => {
-        const existingRecord = records.find(r => r.recordType === 'day' && r.id === selectedDateString) as DailyRecord | undefined;
+        if (!activeBrokerage) return;
+        
+        const existingRecord = filteredRecords.find(r => r.recordType === 'day' && r.id === selectedDateString) as DailyRecord | undefined;
         const startBalanceUSD = startBalanceForSelectedDay;
 
-        const calculatedEntrySizeUSD = settings.entryMode === 'percentage'
-            ? startBalanceUSD * (settings.entryValue / 100)
-            : settings.entryValue;
+        const calculatedEntrySizeUSD = activeBrokerage.entryMode === 'percentage'
+            ? startBalanceUSD * (activeBrokerage.entryValue / 100)
+            : activeBrokerage.entryValue;
         
         const entrySizeUSD = Math.max(1, calculatedEntrySizeUSD);
-        const profitPerWinUSD = entrySizeUSD * (settings.payoutPercentage / 100);
+        const profitPerWinUSD = entrySizeUSD * (activeBrokerage.payoutPercentage / 100);
         const lossPerTradeUSD = entrySizeUSD;
+
+        let updatedRecordsForBrokerage: AppRecord[];
 
         if (existingRecord) {
             const newWinCount = existingRecord.winCount + winCount;
             const newLossCount = existingRecord.lossCount + lossCount;
-            const newNetProfitUSD = (newWinCount * profitPerWinUSD) - (newLossCount * lossPerTradeUSD);
-            const newEndBalanceUSD = existingRecord.startBalanceUSD + newNetProfitUSD;
-
+            
             const updatedRecord: DailyRecord = {
                 ...existingRecord,
                 winCount: newWinCount,
                 lossCount: newLossCount,
-                entrySizeUSD,
-                netProfitUSD: newNetProfitUSD,
-                endBalanceUSD: newEndBalanceUSD,
             };
-            const updatedRecords = records.map(r => (r.id === selectedDateString ? updatedRecord : r));
-            setRecords(recalculateBalances(updatedRecords));
-
+            updatedRecordsForBrokerage = filteredRecords.map(r => (r.id === selectedDateString ? updatedRecord : r));
         } else {
-            const netProfitUSD = (winCount * profitPerWinUSD) - (lossCount * lossPerTradeUSD);
-            const endBalanceUSD = startBalanceUSD + netProfitUSD;
-
             const newRecord: DailyRecord = {
                 recordType: 'day',
+                brokerageId: activeBrokerage.id,
                 id: selectedDateString,
                 date: formatDateBR(selectedDate),
                 startBalanceUSD,
                 winCount,
                 lossCount,
-                entrySizeUSD,
-                netProfitUSD,
-                endBalanceUSD,
+                entrySizeUSD: 0, // Will be recalculated
+                netProfitUSD: 0, // Will be recalculated
+                endBalanceUSD: 0, // Will be recalculated
             };
-            const updatedRecords = [...records, newRecord];
-            setRecords(recalculateBalances(updatedRecords));
+            updatedRecordsForBrokerage = [...filteredRecords, newRecord];
         }
-    }, [records, settings, selectedDateString, startBalanceForSelectedDay, selectedDate, formatDateBR, recalculateBalances]);
+        updateRecordsForBrokerage(updatedRecordsForBrokerage);
+
+    }, [filteredRecords, activeBrokerage, selectedDateString, startBalanceForSelectedDay, selectedDate, formatDateBR, updateRecordsForBrokerage]);
     
     const handleSaveTransaction = useCallback((data: { type: 'deposit' | 'withdrawal'; date: Date; amount: number; notes: string }) => {
+        if (!activeBrokerageId) return;
         const newTransaction: TransactionRecord = {
             recordType: data.type,
+            brokerageId: activeBrokerageId,
             id: `trans_${Date.now()}`,
             date: formatDateISO(data.date),
             displayDate: formatDateBR(data.date),
             amountUSD: data.amount,
             notes: data.notes,
         };
-        const updatedRecords = [...records, newTransaction];
-        setRecords(recalculateBalances(updatedRecords));
-    }, [records, recalculateBalances, formatDateISO, formatDateBR]);
+        updateRecordsForBrokerage([...filteredRecords, newTransaction]);
+    }, [filteredRecords, activeBrokerageId, updateRecordsForBrokerage, formatDateISO, formatDateBR]);
     
     const handleDeleteRecord = useCallback((recordId: string) => {
         if (window.confirm('Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.')) {
-            const updatedRecords = records.filter(r => r.id !== recordId);
-            setRecords(recalculateBalances(updatedRecords));
+            const updated = filteredRecords.filter(r => r.id !== recordId);
+            updateRecordsForBrokerage(updated);
         }
-    }, [records, recalculateBalances]);
+    }, [filteredRecords, updateRecordsForBrokerage]);
 
     const handleEditRequest = useCallback((record: AppRecord) => {
         if (record.recordType === 'day') {
@@ -267,35 +307,60 @@ const App: React.FC = () => {
     const handleSaveEdit = useCallback((editedRecordData: { winCount: number, lossCount: number }) => {
         if (!recordToEdit) return;
 
-        const updatedRecords = records.map(r => {
-            if (r.id === recordToEdit.id && r.recordType === 'day') {
-                return {
-                    ...r,
-                    winCount: editedRecordData.winCount,
-                    lossCount: editedRecordData.lossCount,
-                };
+        const updated = filteredRecords.map(r => {
+            if (r.id === recordToEdit.id) {
+                return { ...r, ...editedRecordData };
             }
             return r;
         });
-
-        setRecords(recalculateBalances(updatedRecords));
+        updateRecordsForBrokerage(updated);
         setIsEditModalOpen(false);
         setRecordToEdit(null);
-    }, [records, recordToEdit, recalculateBalances]);
+    }, [filteredRecords, recordToEdit, updateRecordsForBrokerage]);
+    
+    const handleSaveBrokerage = useCallback((brokerage: Brokerage) => {
+        const index = brokerages.findIndex(b => b.id === brokerage.id);
+        if (index > -1) {
+            const updatedBrokerages = [...brokerages];
+            updatedBrokerages[index] = brokerage;
+            setBrokerages(updatedBrokerages);
+            
+            // Recalculate balances if initialBalance changed
+            if (brokerages[index].initialBalance !== brokerage.initialBalance) {
+                updateRecordsForBrokerage(filteredRecords);
+            }
+        } else {
+            setBrokerages(prev => [...prev, brokerage]);
+            setActiveBrokerageId(brokerage.id);
+        }
+        setIsBrokerageModalOpen(false);
+    }, [brokerages, filteredRecords, updateRecordsForBrokerage]);
+    
+    const handleDeleteBrokerage = useCallback((brokerageId: string) => {
+        if (window.confirm('Tem certeza que deseja excluir esta corretora e todos os seus registros? Esta ação não pode ser desfeita.')) {
+            const newBrokerages = brokerages.filter(b => b.id !== brokerageId);
+            const newRecords = records.filter(r => r.brokerageId !== brokerageId);
+            setBrokerages(newBrokerages);
+            setRecords(newRecords);
+            setActiveBrokerageId(newBrokerages.length > 0 ? newBrokerages[0].id : null);
+            setIsBrokerageModalOpen(false);
+        }
+    }, [brokerages, records]);
+
 
     const dailyRecordForSelectedDay = useMemo(() => {
-        return sortedRecords.find(r => r.recordType === 'day' && r.id === selectedDateString) as DailyRecord | undefined;
-    }, [sortedRecords, selectedDateString]);
+        return sortedFilteredRecords.find(r => r.recordType === 'day' && r.id === selectedDateString) as DailyRecord | undefined;
+    }, [sortedFilteredRecords, selectedDateString]);
 
     const stopLossLimitReached = useMemo(() => {
-        if (!settings.stopLossTrades || settings.stopLossTrades <= 0) return false;
-        return dailyRecordForSelectedDay ? dailyRecordForSelectedDay.lossCount >= settings.stopLossTrades : false;
-    }, [dailyRecordForSelectedDay, settings.stopLossTrades]);
+        if (!activeBrokerage?.stopLossTrades || activeBrokerage.stopLossTrades <= 0) return false;
+        return dailyRecordForSelectedDay ? dailyRecordForSelectedDay.lossCount >= activeBrokerage.stopLossTrades : false;
+    }, [dailyRecordForSelectedDay, activeBrokerage]);
 
     const stopGainLimitReached = useMemo(() => {
-        if (!settings.stopGainTrades || settings.stopGainTrades <= 0) return false;
-        return dailyRecordForSelectedDay ? dailyRecordForSelectedDay.winCount >= settings.stopGainTrades : false;
-    }, [dailyRecordForSelectedDay, settings.stopGainTrades]);
+        if (!activeBrokerage?.stopGainTrades || activeBrokerage.stopGainTrades <= 0) return false;
+        return dailyRecordForSelectedDay ? dailyRecordForSelectedDay.winCount >= activeBrokerage.stopGainTrades : false;
+    }, [dailyRecordForSelectedDay, activeBrokerage]);
 
     const isTradingHalted = useMemo(() => {
         if (stopLimitOverride[selectedDateString]) return false;
@@ -320,7 +385,7 @@ const App: React.FC = () => {
             endDate.setUTCDate(startDate.getUTCDate() + 6);
         }
 
-        const profitSoFar = sortedRecords
+        const profitSoFar = sortedFilteredRecords
             .filter(r => {
                 if (r.recordType !== 'day') return false;
                 const recordDate = new Date(r.id.replace(/-/g, '/'));
@@ -337,11 +402,11 @@ const App: React.FC = () => {
 
         return remainingGoal / remainingTradingDays;
 
-    }, [goal, sortedRecords, now]);
+    }, [goal, sortedFilteredRecords, now]);
 
     // --- Performance Summaries ---
     const getPerformanceStats = (startDate: Date, endDate: Date) => {
-        const relevantRecords = sortedRecords.filter(r => {
+        const relevantRecords = sortedFilteredRecords.filter(r => {
             if (r.recordType !== 'day') return false;
             const recordDate = new Date(r.id.replace(/-/g, '/'));
             recordDate.setUTCHours(0, 0, 0, 0);
@@ -371,7 +436,7 @@ const App: React.FC = () => {
         endDate.setUTCDate(startDate.getUTCDate() + 6);
         endDate.setUTCHours(23, 59, 59, 999);
         return getPerformanceStats(startDate, endDate);
-    }, [sortedRecords, now]);
+    }, [sortedFilteredRecords, now]);
 
     const monthlyStats = useMemo(() => {
         const today = new Date(now);
@@ -379,7 +444,7 @@ const App: React.FC = () => {
         const endDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
         endDate.setUTCHours(23, 59, 59, 999);
         return getPerformanceStats(startDate, endDate);
-    }, [sortedRecords, now]);
+    }, [sortedFilteredRecords, now]);
 
     // --- RENDER ---
     if (isLoading) {
@@ -412,35 +477,62 @@ const App: React.FC = () => {
         <div className="min-h-screen bg-slate-100 text-slate-800 font-sans p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
                 <header className="flex flex-wrap justify-between items-center mb-4 pb-4 border-b border-slate-300">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Controle de Performance</h1>
-                    <div className="flex items-center space-x-4 mt-2 sm:mt-0">
+                    <div className="flex items-center gap-4 flex-wrap">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Controle de Performance</h1>
+                        {brokerages.length > 0 && activeBrokerageId && (
+                            <select
+                                value={activeBrokerageId}
+                                onChange={(e) => setActiveBrokerageId(e.target.value)}
+                                className="mt-2 sm:mt-0 px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                aria-label="Selecionar Corretora"
+                            >
+                                {brokerages.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            </select>
+                        )}
+                    </div>
+                    <div className="flex items-center space-x-2 sm:space-x-4 mt-2 sm:mt-0">
                         <span className="text-sm font-medium text-slate-600">
                             Dólar: <span className="font-bold text-green-600">R$ {usdToBrlRate?.toFixed(2) || '...'}</span>
                         </span>
-                        <button onClick={() => setIsSettingsOpen(true)} className="p-2 rounded-full hover:bg-slate-200 transition-colors" aria-label="Abrir Configurações">
+                        <button onClick={() => { setBrokerageToEdit(null); setIsBrokerageModalOpen(true); }} className="p-2 rounded-full hover:bg-slate-200 transition-colors" aria-label="Adicionar Nova Corretora">
+                           <PlusIcon className="w-6 h-6 text-slate-600" />
+                        </button>
+                        <button onClick={() => { setBrokerageToEdit(activeBrokerage || null); setIsBrokerageModalOpen(true); }} className="p-2 rounded-full hover:bg-slate-200 transition-colors" aria-label="Abrir Configurações da Corretora" disabled={!activeBrokerage}>
                             <SettingsIcon className="w-6 h-6 text-slate-600" />
                         </button>
                     </div>
                 </header>
-
-                 <nav className="mb-6 flex justify-center bg-white p-2 rounded-xl shadow-sm">
-                    <div className="flex space-x-2">
-                        <TabButton label="Dashboard" icon={<HomeIcon className="w-5 h-5"/>} tabName="dashboard" />
-                        <TabButton label="Metas e Análise" icon={<TrophyIcon className="w-5 h-5"/>} tabName="goal" />
+                 
+                 {activeBrokerage ? (
+                    <>
+                        <nav className="mb-6 flex justify-center bg-white p-2 rounded-xl shadow-sm">
+                            <div className="flex space-x-2">
+                                <TabButton label="Dashboard" icon={<HomeIcon className="w-5 h-5"/>} tabName="dashboard" />
+                                <TabButton label="Metas e Análise" icon={<TrophyIcon className="w-5 h-5"/>} tabName="goal" />
+                            </div>
+                        </nav>
+                        <main>
+                            {activeTab === 'dashboard' && <DashboardPanel />}
+                            {activeTab === 'goal' && <GoalPanel />}
+                        </main>
+                    </>
+                 ) : (
+                    <div className="text-center py-10 bg-white rounded-lg shadow-md">
+                        <h2 className="text-2xl font-semibold text-slate-800">Bem-vindo(a)!</h2>
+                        <p className="text-slate-600 mt-2">Para começar, adicione sua primeira corretora.</p>
+                        <button onClick={() => { setBrokerageToEdit(null); setIsBrokerageModalOpen(true); }} className="mt-4 px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                            Adicionar Corretora
+                        </button>
                     </div>
-                </nav>
-
-                <main>
-                    {activeTab === 'dashboard' && <DashboardPanel />}
-                    {activeTab === 'goal' && <GoalPanel />}
-                </main>
+                 )}
             </div>
 
-            <SettingsModal
-                isOpen={isSettingsOpen}
-                onClose={() => setIsSettingsOpen(false)}
-                settings={settings}
-                onSave={setSettings}
+            <BrokerageModal
+                isOpen={isBrokerageModalOpen}
+                onClose={() => setIsBrokerageModalOpen(false)}
+                onSave={handleSaveBrokerage}
+                onDelete={handleDeleteBrokerage}
+                brokerageToEdit={brokerageToEdit}
             />
 
             <TransactionModal
@@ -465,6 +557,7 @@ const App: React.FC = () => {
     );
 
     function DashboardPanel() {
+        if (!activeBrokerage) return null;
         const handleAddTrades = () => {
             const wins = parseInt(winsToAdd, 10) || 0;
             const losses = parseInt(lossesToAdd, 10) || 0;
@@ -508,7 +601,7 @@ const App: React.FC = () => {
                         {isTradingHalted && (
                             <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md shadow-md" role="alert">
                                 <p className="font-bold">Limite Atingido</p>
-                                <p>Você atingiu seu limite de {stopLossLimitReached ? `perdas (Stop Loss: ${settings.stopLossTrades})` : `ganhos (Stop Gain: ${settings.stopGainTrades})`} para hoje.</p>
+                                <p>Você atingiu seu limite de {stopLossLimitReached ? `perdas (Stop Loss: ${activeBrokerage.stopLossTrades})` : `ganhos (Stop Gain: ${activeBrokerage.stopGainTrades})`} para hoje.</p>
                                 <button onClick={() => setStopLimitOverride(prev => ({ ...prev, [selectedDateString]: true }))} className="mt-2 text-sm text-blue-600 hover:underline">
                                     Operar mesmo assim
                                 </button>
@@ -648,7 +741,7 @@ const App: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {sortedRecords.length > 0 ? sortedRecords.map((record) => (
+                                    {sortedFilteredRecords.length > 0 ? [...sortedFilteredRecords].reverse().map((record) => (
                                         <tr key={record.id} className="bg-white border-b hover:bg-slate-50">
                                             <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">
                                                 {record.recordType === 'day' ? record.date : record.displayDate}
@@ -683,7 +776,7 @@ const App: React.FC = () => {
                                                 </div>
                                             </td>
                                         </tr>
-                                    )).reverse() : (
+                                    )) : (
                                         <tr>
                                             <td colSpan={5} className="text-center py-8 text-slate-500">
                                                 Nenhum registro encontrado. Comece a operar!
@@ -717,10 +810,10 @@ const App: React.FC = () => {
             const month = (now.getMonth() + 1).toString().padStart(2, '0');
             const monthPrefix = `${year}-${month}`;
 
-            return sortedRecords
+            return sortedFilteredRecords
                 .filter(r => r.recordType === 'day' && r.id.startsWith(monthPrefix))
                 .reduce((acc, r) => acc + (r as DailyRecord).netProfitUSD, 0);
-        }, [sortedRecords]);
+        }, [sortedFilteredRecords]);
 
         const currentWeekProfit = useMemo(() => {
             const now = new Date();
@@ -734,14 +827,14 @@ const App: React.FC = () => {
             endOfWeek.setDate(startOfWeek.getDate() + 6);
             endOfWeek.setHours(23, 59, 59, 999);
 
-            return sortedRecords
+            return sortedFilteredRecords
                 .filter(r => {
                     if (r.recordType !== 'day') return false;
                     const recordDate = new Date(r.id.replace(/-/g, '/'));
                     return recordDate >= startOfWeek && recordDate <= endOfWeek;
                 })
                 .reduce((acc, r) => acc + (r as DailyRecord).netProfitUSD, 0);
-        }, [sortedRecords]);
+        }, [sortedFilteredRecords]);
 
         const monthlyGoalAmount = goal.type === 'monthly' ? goal.amount : 0;
         const weeklyGoalAmount = goal.type === 'weekly' ? goal.amount : (monthlyGoalAmount / 4.33);
@@ -861,13 +954,15 @@ interface ModalProps {
     onClose: () => void;
 }
 
-interface SettingsModalProps extends ModalProps {
-    settings: TradeSettings;
-    onSave: (settings: TradeSettings) => void;
+interface BrokerageModalProps extends ModalProps {
+    brokerageToEdit: Brokerage | null;
+    onSave: (brokerage: Brokerage) => void;
+    onDelete: (brokerageId: string) => void;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSave }) => {
-    const [localSettings, setLocalSettings] = useState({
+const BrokerageModal: React.FC<BrokerageModalProps> = ({ isOpen, onClose, brokerageToEdit, onSave, onDelete }) => {
+    const [localBrokerage, setLocalBrokerage] = useState({
+        name: '',
         initialBalance: '',
         entryMode: 'percentage',
         entryValue: '',
@@ -876,35 +971,51 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
         stopLossTrades: '',
     });
 
+    const isEditMode = brokerageToEdit !== null;
+
     useEffect(() => {
         if (isOpen) {
-            setLocalSettings({
-                initialBalance: String(settings.initialBalance || ''),
-                entryMode: settings.entryMode,
-                entryValue: String(settings.entryValue || ''),
-                payoutPercentage: String(settings.payoutPercentage || ''),
-                stopGainTrades: String(settings.stopGainTrades || ''),
-                stopLossTrades: String(settings.stopLossTrades || ''),
-            });
+            if (isEditMode && brokerageToEdit) {
+                setLocalBrokerage({
+                    name: brokerageToEdit.name,
+                    initialBalance: String(brokerageToEdit.initialBalance || ''),
+                    entryMode: brokerageToEdit.entryMode,
+                    entryValue: String(brokerageToEdit.entryValue || ''),
+                    payoutPercentage: String(brokerageToEdit.payoutPercentage || ''),
+                    stopGainTrades: String(brokerageToEdit.stopGainTrades || ''),
+                    stopLossTrades: String(brokerageToEdit.stopLossTrades || ''),
+                });
+            } else {
+                 setLocalBrokerage({
+                    name: '', initialBalance: '', entryMode: 'percentage',
+                    entryValue: '', payoutPercentage: '', stopGainTrades: '', stopLossTrades: '',
+                });
+            }
         }
-    }, [settings, isOpen]);
+    }, [brokerageToEdit, isEditMode, isOpen]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        setLocalSettings(prev => ({ ...prev, [name]: value }));
+        setLocalBrokerage(prev => ({ ...prev, [name]: value }));
     };
 
     const handleSave = () => {
-        const settingsToSave: TradeSettings = {
-            initialBalance: parseFloat(localSettings.initialBalance) || 0,
-            entryMode: localSettings.entryMode as 'percentage' | 'fixed',
-            entryValue: parseFloat(localSettings.entryValue) || 0,
-            payoutPercentage: parseFloat(localSettings.payoutPercentage) || 0,
-            stopGainTrades: parseInt(localSettings.stopGainTrades, 10) || 0,
-            stopLossTrades: parseInt(localSettings.stopLossTrades, 10) || 0,
+        if (!localBrokerage.name) {
+            alert('O nome da corretora é obrigatório.');
+            return;
+        }
+
+        const brokerageData: Brokerage = {
+            id: isEditMode ? brokerageToEdit!.id : `brokerage_${Date.now()}`,
+            name: localBrokerage.name,
+            initialBalance: parseFloat(localBrokerage.initialBalance) || 0,
+            entryMode: localBrokerage.entryMode as 'percentage' | 'fixed',
+            entryValue: parseFloat(localBrokerage.entryValue) || 0,
+            payoutPercentage: parseFloat(localBrokerage.payoutPercentage) || 0,
+            stopGainTrades: parseInt(localBrokerage.stopGainTrades, 10) || 0,
+            stopLossTrades: parseInt(localBrokerage.stopLossTrades, 10) || 0,
         };
-        onSave(settingsToSave);
-        onClose();
+        onSave(brokerageData);
     };
 
     if (!isOpen) return null;
@@ -913,51 +1024,67 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog">
             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md max-h-full overflow-y-auto">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-slate-900">Configurações de Trading</h2>
+                    <h2 className="text-xl font-bold text-slate-900">
+                        {isEditMode ? 'Configurações da Corretora' : 'Adicionar Nova Corretora'}
+                    </h2>
                     <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200 transition-colors" aria-label="Fechar">
                         <XMarkIcon className="w-6 h-6 text-slate-500" />
                     </button>
                 </div>
                 <div className="space-y-4">
                     <div>
+                        <label htmlFor="name" className="block text-sm font-medium text-slate-700">Nome da Corretora</label>
+                        <input type="text" name="name" id="name" value={localBrokerage.name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div>
                         <label htmlFor="initialBalance" className="block text-sm font-medium text-slate-700">Banca Inicial (USD)</label>
-                        <input type="number" name="initialBalance" id="initialBalance" value={localSettings.initialBalance} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        <input type="number" name="initialBalance" id="initialBalance" value={localBrokerage.initialBalance} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                     </div>
                     <div>
                         <label htmlFor="entryMode" className="block text-sm font-medium text-slate-700">Modo de Entrada</label>
-                        <select name="entryMode" id="entryMode" value={localSettings.entryMode} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <select name="entryMode" id="entryMode" value={localBrokerage.entryMode} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                             <option value="percentage">Porcentagem da Banca</option>
                             <option value="fixed">Valor Fixo</option>
                         </select>
                     </div>
                     <div>
                         <label htmlFor="entryValue" className="block text-sm font-medium text-slate-700">
-                            Valor da Entrada ({localSettings.entryMode === 'percentage' ? '%' : 'USD'})
+                            Valor da Entrada ({localBrokerage.entryMode === 'percentage' ? '%' : 'USD'})
                         </label>
-                        <input type="number" name="entryValue" id="entryValue" value={localSettings.entryValue} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        <input type="number" name="entryValue" id="entryValue" value={localBrokerage.entryValue} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                     </div>
                     <div>
                         <label htmlFor="payoutPercentage" className="block text-sm font-medium text-slate-700">Payout (%)</label>
-                        <input type="number" name="payoutPercentage" id="payoutPercentage" value={localSettings.payoutPercentage} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        <input type="number" name="payoutPercentage" id="payoutPercentage" value={localBrokerage.payoutPercentage} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                     </div>
                     <hr/>
                     <h3 className="text-lg font-semibold text-slate-800 pt-2">Gerenciamento de Risco</h3>
                     <div>
                         <label htmlFor="stopGainTrades" className="block text-sm font-medium text-slate-700">Stop Gain (nº de vitórias)</label>
-                        <input type="number" name="stopGainTrades" id="stopGainTrades" value={localSettings.stopGainTrades} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        <input type="number" name="stopGainTrades" id="stopGainTrades" value={localBrokerage.stopGainTrades} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                     </div>
                     <div>
                         <label htmlFor="stopLossTrades" className="block text-sm font-medium text-slate-700">Stop Loss (nº de derrotas)</label>
-                        <input type="number" name="stopLossTrades" id="stopLossTrades" value={localSettings.stopLossTrades} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        <input type="number" name="stopLossTrades" id="stopLossTrades" value={localBrokerage.stopLossTrades} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                     </div>
                 </div>
-                <div className="mt-6 flex justify-end space-x-3">
-                    <button onClick={onClose} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors">
-                        Cancelar
-                    </button>
-                    <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                        Salvar
-                    </button>
+                <div className="mt-6 flex justify-between items-center">
+                    <div>
+                        {isEditMode && (
+                            <button onClick={() => onDelete(brokerageToEdit!.id)} className="px-4 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors flex items-center gap-2">
+                                <TrashIcon className="w-4 h-4" />
+                                Excluir
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex space-x-3">
+                        <button onClick={onClose} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors">
+                            Cancelar
+                        </button>
+                        <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            Salvar
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
