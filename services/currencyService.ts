@@ -1,7 +1,8 @@
 
 export async function fetchUSDBRLRate(): Promise<number> {
   try {
-    const response = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const response = await fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json?date=${today}`);
     if (!response.ok) {
       throw new Error('Network response was not ok');
     }

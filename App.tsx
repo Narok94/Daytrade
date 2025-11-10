@@ -421,17 +421,17 @@ const App: React.FC = () => {
     const dynamicDailyGoal = useMemo(() => {
         if (!goal || goal.amount <= 0) return 0;
 
-        const today = new Date(now);
-        today.setUTCHours(0, 0, 0, 0);
+        const calculationDay = new Date(selectedDate);
+        calculationDay.setUTCHours(0, 0, 0, 0);
 
         let startDate, endDate;
         if (goal.type === 'monthly') {
-            startDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
-            endDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
+            startDate = new Date(Date.UTC(calculationDay.getUTCFullYear(), calculationDay.getUTCMonth(), 1));
+            endDate = new Date(Date.UTC(calculationDay.getUTCFullYear(), calculationDay.getUTCMonth() + 1, 0));
         } else { // weekly
-            const dayOfWeek = today.getUTCDay();
-            const diff = today.getUTCDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // adjust when day is sunday
-            startDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), diff));
+            const dayOfWeek = calculationDay.getUTCDay();
+            const diff = calculationDay.getUTCDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // adjust when day is sunday
+            startDate = new Date(Date.UTC(calculationDay.getUTCFullYear(), calculationDay.getUTCMonth(), diff));
             endDate = new Date(startDate);
             endDate.setUTCDate(startDate.getUTCDate() + 6);
         }
@@ -441,19 +441,19 @@ const App: React.FC = () => {
                 if (r.recordType !== 'day') return false;
                 const recordDate = new Date(r.id.replace(/-/g, '/'));
                 recordDate.setUTCHours(0, 0, 0, 0);
-                return recordDate >= startDate && recordDate < today;
+                return recordDate >= startDate && recordDate < calculationDay;
             })
             .reduce((acc, r) => acc + (r as DailyRecord).netProfitUSD, 0);
 
         const remainingGoal = goal.amount - profitSoFar;
         if (remainingGoal <= 0) return 0;
         
-        const remainingTradingDays = countTradingDays(today, endDate);
+        const remainingTradingDays = countTradingDays(calculationDay, endDate);
         if (remainingTradingDays <= 0) return remainingGoal;
 
         return remainingGoal / remainingTradingDays;
 
-    }, [goal, sortedFilteredRecords, now]);
+    }, [goal, sortedFilteredRecords, selectedDate]);
 
     // --- Performance Summaries ---
     const getPerformanceStats = (startDate: Date, endDate: Date) => {
