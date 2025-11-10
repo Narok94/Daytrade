@@ -9,15 +9,21 @@ export interface Brokerage {
   stopLossTrades: number;
 }
 
+export interface TradeBatch {
+  wins: number;
+  losses: number;
+  entryValue: number;
+}
+
 export interface DailyRecord {
   recordType: 'day';
   brokerageId: string;
   id: string; // YYYY-MM-DD format
   date: string; // pt-BR format for display
   startBalanceUSD: number;
+  trades: TradeBatch[];
   winCount: number;
   lossCount: number;
-  entrySizeUSD: number;
   netProfitUSD: number;
   endBalanceUSD: number;
 }

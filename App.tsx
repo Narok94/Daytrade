@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Brokerage, DailyRecord, TransactionRecord, AppRecord } from './types';
+import { Brokerage, DailyRecord, TransactionRecord, AppRecord, TradeBatch } from './types';
 import { fetchUSDBRLRate } from './services/currencyService';
 import { SettingsIcon, PlusIcon, DepositIcon, WithdrawalIcon, XMarkIcon, TrashIcon, PencilIcon, HomeIcon, TrophyIcon, InformationCircleIcon } from './components/icons';
 
@@ -50,6 +50,7 @@ const App: React.FC = () => {
     const [now, setNow] = useState(new Date());
     const [winsToAdd, setWinsToAdd] = useState('');
     const [lossesToAdd, setLossesToAdd] = useState('');
+    const [customEntryValue, setCustomEntryValue] = useState('');
     const [isTestMessageVisible, setIsTestMessageVisible] = useState(true);
 
     // --- Effects ---
@@ -101,7 +102,18 @@ const App: React.FC = () => {
                 }
             }
              if (storedRecords) {
-                setRecords(JSON.parse(storedRecords));
+                const parsedRecords = JSON.parse(storedRecords);
+                const migrated = parsedRecords.map((r: any) => {
+                    if (r.recordType === 'day' && !r.trades) {
+                        const newTrades = (r.winCount > 0 || r.lossCount > 0)
+                            ? [{ wins: r.winCount, losses: r.lossCount, entryValue: r.entrySizeUSD || 0 }]
+                            : [];
+                        const { entrySizeUSD, ...rest } = r;
+                        return { ...rest, trades: newTrades };
+                    }
+                    return r;
+                });
+                setRecords(migrated);
             }
 
             setIsLoading(false);
@@ -194,19 +206,26 @@ const App: React.FC = () => {
 
         for (const record of sorted) {
             if (record.recordType === 'day') {
-                const calculatedEntrySizeUSD = brokerage.entryMode === 'percentage'
-                    ? currentBalance * (brokerage.entryValue / 100)
-                    : brokerage.entryValue;
-                const entrySizeUSD = Math.max(1, calculatedEntrySizeUSD);
-                const profitPerWinUSD = entrySizeUSD * (brokerage.payoutPercentage / 100);
+                let winCount = 0;
+                let lossCount = 0;
+                let netProfitUSD = 0;
+
+                if (record.trades && record.trades.length > 0) {
+                    for (const trade of record.trades) {
+                        winCount += trade.wins;
+                        lossCount += trade.losses;
+                        const profitPerWinUSD = trade.entryValue * (brokerage.payoutPercentage / 100);
+                        netProfitUSD += (trade.wins * profitPerWinUSD) - (trade.losses * trade.entryValue);
+                    }
+                }
                 
-                const netProfitUSD = (record.winCount * profitPerWinUSD) - (record.lossCount * entrySizeUSD);
                 const endBalanceUSD = currentBalance + netProfitUSD;
 
                 recalculated.push({
                     ...record,
                     startBalanceUSD: currentBalance,
-                    entrySizeUSD,
+                    winCount,
+                    lossCount,
                     netProfitUSD,
                     endBalanceUSD,
                 });
@@ -224,37 +243,37 @@ const App: React.FC = () => {
     }, []);
 
     const updateRecordsForBrokerage = useCallback((updatedRecordsForBrokerage: AppRecord[]) => {
-        if (!activeBrokerageId) return;
+        if (!activeBrokerageId || !activeBrokerage) return;
         const otherRecords = records.filter(r => r.brokerageId !== activeBrokerageId);
-        const recalculated = recalculateBalances(updatedRecordsForBrokerage, activeBrokerage!);
+        const recalculated = recalculateBalances(updatedRecordsForBrokerage, activeBrokerage);
         setRecords([...otherRecords, ...recalculated]);
     }, [records, activeBrokerageId, activeBrokerage, recalculateBalances]);
 
 
-    const addRecord = useCallback((winCount: number, lossCount: number) => {
+    const addRecord = useCallback((winCount: number, lossCount: number, customEntryValueUSD?: number) => {
         if (!activeBrokerage) return;
         
-        const existingRecord = filteredRecords.find(r => r.recordType === 'day' && r.id === selectedDateString) as DailyRecord | undefined;
         const startBalanceUSD = startBalanceForSelectedDay;
 
-        const calculatedEntrySizeUSD = activeBrokerage.entryMode === 'percentage'
+        const defaultEntrySizeUSD = activeBrokerage.entryMode === 'percentage'
             ? startBalanceUSD * (activeBrokerage.entryValue / 100)
             : activeBrokerage.entryValue;
         
-        const entrySizeUSD = Math.max(1, calculatedEntrySizeUSD);
-        const profitPerWinUSD = entrySizeUSD * (activeBrokerage.payoutPercentage / 100);
-        const lossPerTradeUSD = entrySizeUSD;
+        const entrySizeUSD = customEntryValueUSD ?? defaultEntrySizeUSD;
+        
+        const newTradeBatch: TradeBatch = {
+            wins: winCount,
+            losses: lossCount,
+            entryValue: Math.max(1, entrySizeUSD),
+        };
 
+        const existingRecord = filteredRecords.find(r => r.recordType === 'day' && r.id === selectedDateString) as DailyRecord | undefined;
         let updatedRecordsForBrokerage: AppRecord[];
 
         if (existingRecord) {
-            const newWinCount = existingRecord.winCount + winCount;
-            const newLossCount = existingRecord.lossCount + lossCount;
-            
             const updatedRecord: DailyRecord = {
                 ...existingRecord,
-                winCount: newWinCount,
-                lossCount: newLossCount,
+                trades: [...(existingRecord.trades || []), newTradeBatch],
             };
             updatedRecordsForBrokerage = filteredRecords.map(r => (r.id === selectedDateString ? updatedRecord : r));
         } else {
@@ -263,12 +282,12 @@ const App: React.FC = () => {
                 brokerageId: activeBrokerage.id,
                 id: selectedDateString,
                 date: formatDateBR(selectedDate),
-                startBalanceUSD,
-                winCount,
-                lossCount,
-                entrySizeUSD: 0, // Will be recalculated
-                netProfitUSD: 0, // Will be recalculated
-                endBalanceUSD: 0, // Will be recalculated
+                startBalanceUSD: 0, // Recalculated
+                trades: [newTradeBatch],
+                winCount: 0, // Recalculated
+                lossCount: 0, // Recalculated
+                netProfitUSD: 0, // Recalculated
+                endBalanceUSD: 0, // Recalculated
             };
             updatedRecordsForBrokerage = [...filteredRecords, newRecord];
         }
@@ -305,18 +324,29 @@ const App: React.FC = () => {
     }, []);
     
     const handleSaveEdit = useCallback((editedRecordData: { winCount: number, lossCount: number }) => {
-        if (!recordToEdit) return;
+        if (!recordToEdit || !activeBrokerage) return;
 
         const updated = filteredRecords.map(r => {
-            if (r.id === recordToEdit.id) {
-                return { ...r, ...editedRecordData };
+            if (r.id === recordToEdit.id && r.recordType === 'day') {
+                 const recordDay = r as DailyRecord;
+                 const entryValue = activeBrokerage.entryMode === 'percentage'
+                    ? recordDay.startBalanceUSD * (activeBrokerage.entryValue / 100)
+                    : activeBrokerage.entryValue;
+
+                const newTrades: TradeBatch[] = [{
+                    wins: editedRecordData.winCount,
+                    losses: editedRecordData.lossCount,
+                    entryValue: Math.max(1, entryValue),
+                }];
+
+                return { ...recordDay, trades: newTrades };
             }
             return r;
         });
         updateRecordsForBrokerage(updated);
         setIsEditModalOpen(false);
         setRecordToEdit(null);
-    }, [filteredRecords, recordToEdit, updateRecordsForBrokerage]);
+    }, [filteredRecords, recordToEdit, updateRecordsForBrokerage, activeBrokerage]);
     
     const handleSaveBrokerage = useCallback((brokerage: Brokerage) => {
         const index = brokerages.findIndex(b => b.id === brokerage.id);
@@ -561,11 +591,13 @@ const App: React.FC = () => {
         const handleAddTrades = () => {
             const wins = parseInt(winsToAdd, 10) || 0;
             const losses = parseInt(lossesToAdd, 10) || 0;
+            const entryValue = parseFloat(customEntryValue) || undefined;
 
             if (wins > 0 || losses > 0) {
-                addRecord(wins, losses);
+                addRecord(wins, losses, entryValue);
                 setWinsToAdd('');
                 setLossesToAdd('');
+                setCustomEntryValue('');
             }
         };
 
@@ -609,6 +641,22 @@ const App: React.FC = () => {
                         )}
 
                         <div className="space-y-4">
+                            <div>
+                                <label htmlFor="custom-entry-value" className="block text-sm font-medium text-slate-700">Valor da Entrada (USD)</label>
+                                <input
+                                    type="number"
+                                    id="custom-entry-value"
+                                    value={customEntryValue}
+                                    onChange={(e) => setCustomEntryValue(e.target.value)}
+                                    disabled={isTradingHalted}
+                                    className="mt-1 w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-200"
+                                    placeholder={`Padrão: ${activeBrokerage.entryMode === 'fixed' 
+                                        ? `$${activeBrokerage.entryValue.toFixed(2)}` 
+                                        : `${(startBalanceForSelectedDay * (activeBrokerage.entryValue / 100)).toFixed(2)} (${activeBrokerage.entryValue}%)`
+                                    }`}
+                                    min="0"
+                                />
+                            </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label htmlFor="wins-to-add" className="block text-sm font-medium text-green-700">WINs</label>
