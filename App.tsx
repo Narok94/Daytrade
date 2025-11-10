@@ -49,6 +49,7 @@ const App: React.FC = () => {
     const [winsToAdd, setWinsToAdd] = useState('');
     const [lossesToAdd, setLossesToAdd] = useState('');
     const [customEntryValue, setCustomEntryValue] = useState('');
+    const [customPayout, setCustomPayout] = useState('');
     const [isTestMessageVisible, setIsTestMessageVisible] = useState(true);
 
     // --- Effects ---
@@ -58,11 +59,13 @@ const App: React.FC = () => {
             const rate = await fetchUSDBRLRate();
             setUsdToBrlRate(rate);
 
+            let loadedBrokerages: Brokerage[] = [];
             const storedBrokerages = localStorage.getItem('brokerages_v2');
             const storedRecords = localStorage.getItem('tradeRecords_v2');
 
             if (storedBrokerages) {
                 const parsedBrokerages = JSON.parse(storedBrokerages);
+                loadedBrokerages = parsedBrokerages;
                 setBrokerages(parsedBrokerages);
                 if (parsedBrokerages.length > 0) {
                     setActiveBrokerageId(parsedBrokerages[0].id);
@@ -81,6 +84,7 @@ const App: React.FC = () => {
                         name: "Corretora Principal",
                         ...oldSettings,
                     };
+                    loadedBrokerages = [newBrokerage];
                     const migratedRecords: AppRecord[] = JSON.parse(oldRecordsRaw).map((r: any) => ({
                         ...r,
                         brokerageId: newBrokerage.id
@@ -103,30 +107,36 @@ const App: React.FC = () => {
                 const parsedRecords = JSON.parse(storedRecords);
                 const migrated = parsedRecords.map((r: any) => {
                     if (r.recordType === 'day') {
+                        const brokerageForRecord = loadedBrokerages.find(b => b.id === r.brokerageId);
+                        const payout = brokerageForRecord ? brokerageForRecord.payoutPercentage : 85;
+
                         let newTrades: Trade[] = [];
                         // Migration from old format without trades array
                         if (!r.trades) {
                             const entryValue = r.entrySizeUSD || 0;
                             for (let i = 0; i < (r.winCount || 0); i++) {
-                                newTrades.push({ id: `trade_${Date.now()}_${i}_w`, result: 'win', entryValue });
+                                newTrades.push({ id: `trade_${Date.now()}_${i}_w`, result: 'win', entryValue, payoutPercentage: payout });
                             }
                             for (let i = 0; i < (r.lossCount || 0); i++) {
-                                newTrades.push({ id: `trade_${Date.now()}_${i}_l`, result: 'loss', entryValue });
+                                newTrades.push({ id: `trade_${Date.now()}_${i}_l`, result: 'loss', entryValue, payoutPercentage: payout });
                             }
                         } 
                         // Migration from TradeBatch[] format
                         else if (r.trades.length > 0 && r.trades[0].hasOwnProperty('wins')) {
                             r.trades.forEach((batch: any) => { // any for old TradeBatch type
                                 for (let i = 0; i < batch.wins; i++) {
-                                    newTrades.push({ id: `trade_${Date.now()}_${i}_w_${batch.entryValue}`, result: 'win', entryValue: batch.entryValue });
+                                    newTrades.push({ id: `trade_${Date.now()}_${i}_w_${batch.entryValue}`, result: 'win', entryValue: batch.entryValue, payoutPercentage: payout });
                                 }
                                 for (let i = 0; i < batch.losses; i++) {
-                                    newTrades.push({ id: `trade_${Date.now()}_${i}_l_${batch.entryValue}`, result: 'loss', entryValue: batch.entryValue });
+                                    newTrades.push({ id: `trade_${Date.now()}_${i}_l_${batch.entryValue}`, result: 'loss', entryValue: batch.entryValue, payoutPercentage: payout });
                                 }
                             });
                         } else {
-                            // Already in new format
-                            newTrades = r.trades;
+                            // Already in new format, ensure payoutPercentage exists
+                            newTrades = r.trades.map((trade: any) => ({
+                                ...trade,
+                                payoutPercentage: trade.payoutPercentage ?? payout,
+                            }));
                         }
                         const { entrySizeUSD, ...rest } = r;
                         return { ...rest, trades: newTrades };
@@ -233,7 +243,8 @@ const App: React.FC = () => {
                 if (record.trades && record.trades.length > 0) {
                     netProfitUSD = record.trades.reduce((totalProfit, trade) => {
                         if (trade.result === 'win') {
-                            return totalProfit + (trade.entryValue * (brokerage.payoutPercentage / 100));
+                            const payout = trade.payoutPercentage ?? brokerage.payoutPercentage;
+                            return totalProfit + (trade.entryValue * (payout / 100));
                         } else { // loss
                             return totalProfit - trade.entryValue;
                         }
@@ -271,7 +282,7 @@ const App: React.FC = () => {
     }, [records, activeBrokerageId, activeBrokerage, recalculateBalances]);
 
 
-    const addRecord = useCallback((winCount: number, lossCount: number, customEntryValueUSD?: number) => {
+    const addRecord = useCallback((winCount: number, lossCount: number, customEntryValueUSD?: number, customPayoutPercentage?: number) => {
         if (!activeBrokerage) return;
         
         const startBalanceUSD = startBalanceForSelectedDay;
@@ -281,15 +292,16 @@ const App: React.FC = () => {
             : activeBrokerage.entryValue;
         
         const entrySizeUSD = customEntryValueUSD ?? defaultEntrySizeUSD;
+        const payoutPercentage = customPayoutPercentage ?? activeBrokerage.payoutPercentage;
         
         const newTrades: Trade[] = [];
         const entryValue = Math.max(1, entrySizeUSD);
 
         for (let i = 0; i < winCount; i++) {
-            newTrades.push({ id: `trade_${Date.now()}_${i}_w`, result: 'win', entryValue });
+            newTrades.push({ id: `trade_${Date.now()}_${i}_w`, result: 'win', entryValue, payoutPercentage });
         }
         for (let i = 0; i < lossCount; i++) {
-            newTrades.push({ id: `trade_${Date.now()}_${i}_l`, result: 'loss', entryValue });
+            newTrades.push({ id: `trade_${Date.now()}_${i}_l`, result: 'loss', entryValue, payoutPercentage });
         }
 
         const existingRecord = filteredRecords.find(r => r.recordType === 'day' && r.id === selectedDateString) as DailyRecord | undefined;
@@ -577,12 +589,14 @@ const App: React.FC = () => {
             const wins = parseInt(winsToAdd, 10) || 0;
             const losses = parseInt(lossesToAdd, 10) || 0;
             const entryValue = parseFloat(customEntryValue) || undefined;
+            const payout = parseFloat(customPayout) || undefined;
 
             if (wins > 0 || losses > 0) {
-                addRecord(wins, losses, entryValue);
+                addRecord(wins, losses, entryValue, payout);
                 setWinsToAdd('');
                 setLossesToAdd('');
                 setCustomEntryValue('');
+                setCustomPayout('');
             }
         };
 
@@ -639,6 +653,19 @@ const App: React.FC = () => {
                                         ? `$${activeBrokerage.entryValue.toFixed(2)}` 
                                         : `${(startBalanceForSelectedDay * (activeBrokerage.entryValue / 100)).toFixed(2)} (${activeBrokerage.entryValue}%)`
                                     }`}
+                                    min="0"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="custom-payout" className="block text-sm font-medium text-slate-700">Valor do Payout (%)</label>
+                                <input
+                                    type="number"
+                                    id="custom-payout"
+                                    value={customPayout}
+                                    onChange={(e) => setCustomPayout(e.target.value)}
+                                    disabled={isTradingHalted}
+                                    className="mt-1 w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-200"
+                                    placeholder={`Padrão: ${activeBrokerage.payoutPercentage}%`}
                                     min="0"
                                 />
                             </div>

@@ -13,6 +13,7 @@ export interface Trade {
   id: string;
   result: 'win' | 'loss';
   entryValue: number;
+  payoutPercentage: number;
 }
 
 export interface DailyRecord {
