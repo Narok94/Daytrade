@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Trade, User } from './types';
 import { fetchUSDBRLRate } from './services/currencyService';
@@ -109,7 +110,7 @@ const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout })
                 const defaultBrokerage: Brokerage = {
                     id: `brokerage_henrique_default`,
                     name: 'Corretora Principal',
-                    initialBalance: 11.25, // Calculated: 13.80 (end balance) - 2.55 (profit)
+                    initialBalance: 11.25,
                     entryMode: 'fixed',
                     entryValue: 1.00,
                     payoutPercentage: 85,
@@ -120,8 +121,26 @@ const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout })
                 const defaultPayout = defaultBrokerage.payoutPercentage;
                 const profitDay1 = 3.00 * (defaultPayout / 100);
                 const endBalanceDay1 = defaultBrokerage.initialBalance + profitDay1;
+                
+                const tradesDay2: Trade[] = [
+                  { id: 'seed_2_1', result: 'loss', entryValue: 1.00, payoutPercentage: defaultPayout },
+                  { id: 'seed_2_2', result: 'loss', entryValue: 1.25, payoutPercentage: defaultPayout },
+                  { id: 'seed_2_3', result: 'loss', entryValue: 5.00, payoutPercentage: defaultPayout },
+                  { id: 'seed_2_4', result: 'win',  entryValue: 3.00, payoutPercentage: defaultPayout },
+                  { id: 'seed_2_5', result: 'loss', entryValue: 3.00, payoutPercentage: defaultPayout },
+                  { id: 'seed_2_6', result: 'loss', entryValue: 3.00, payoutPercentage: defaultPayout },
+                  { id: 'seed_2_7', result: 'loss', entryValue: 3.00, payoutPercentage: defaultPayout },
+                  { id: 'seed_2_8', result: 'win',  entryValue: 3.00, payoutPercentage: defaultPayout },
+                  { id: 'seed_2_9', result: 'win',  entryValue: 1.00, payoutPercentage: defaultPayout },
+                ];
 
-                const profitDay2 = (2 * 1.00 * (defaultPayout / 100)) + (4 * 3.00 * (defaultPayout / 100));
+                const profitDay2 = tradesDay2.reduce((acc, trade) => {
+                  if (trade.result === 'win') {
+                    return acc + (trade.entryValue * (trade.payoutPercentage / 100));
+                  }
+                  return acc - trade.entryValue;
+                }, 0);
+
                 const endBalanceDay2 = endBalanceDay1 + profitDay2;
 
 
@@ -146,16 +165,9 @@ const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout })
                         id: '2025-11-10',
                         date: '10/11/2025',
                         startBalanceUSD: endBalanceDay1,
-                        trades: [
-                            { id: 'seed_2_1', result: 'win', entryValue: 1.00, payoutPercentage: defaultPayout },
-                            { id: 'seed_2_2', result: 'win', entryValue: 1.00, payoutPercentage: defaultPayout },
-                            { id: 'seed_2_3', result: 'win', entryValue: 3.00, payoutPercentage: defaultPayout },
-                            { id: 'seed_2_4', result: 'win', entryValue: 3.00, payoutPercentage: defaultPayout },
-                            { id: 'seed_2_5', result: 'win', entryValue: 3.00, payoutPercentage: defaultPayout },
-                            { id: 'seed_2_6', result: 'win', entryValue: 3.00, payoutPercentage: defaultPayout },
-                        ],
-                        winCount: 6,
-                        lossCount: 0,
+                        trades: tradesDay2,
+                        winCount: 3,
+                        lossCount: 6,
                         netProfitUSD: profitDay2,
                         endBalanceUSD: endBalanceDay2,
                     }
