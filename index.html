@@ -23,60 +23,53 @@
         background: #64748b; /* bg-slate-500 */
       }
       
-      /* --- Dynamic Trader Background v2 --- */
-      @keyframes move-lines {
-        0% { background-position: 0 0; }
-        100% { background-position: -400px 0; }
+      /* --- Soft Floating Blobs Background --- */
+      @keyframes float {
+        0% { transform: translate(0, 0); }
+        50% { transform: translate(-25vw, 20vh); }
+        100% { transform: translate(0, 0); }
       }
-
-      @keyframes move-lines-2 {
-        0% { background-position: 0 0; }
-        100% { background-position: 400px 0; }
+      
+      @keyframes float2 {
+        0% { transform: translate(0, 0); }
+        50% { transform: translate(20vw, -25vh); }
+        100% { transform: translate(0, 0); }
       }
       
       .login-background {
+        --bg-color: #020412;
         position: relative;
         overflow: hidden;
-        /* Static grid pattern as the base layer */
-        background-color: #0F172A; /* bg-slate-900 */
-        background-image: 
-          linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-        background-size: 2.5rem 2.5rem; /* 40px */
+        background-color: var(--bg-color);
+        /* Vignette effect to focus on the center */
+        background-image: radial-gradient(ellipse at center, transparent 40%, var(--bg-color) 80%);
       }
       
-      .login-background::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        /* First layer of moving lines */
-        background-image: repeating-linear-gradient(
-          45deg, 
-          transparent, 
-          transparent 35px, 
-          rgba(255, 255, 255, 0.1) 35px, 
-          rgba(255, 255, 255, 0.1) 37px
-        );
-        animation: move-lines 15s linear infinite;
-        z-index: 0;
-      }
-      
+      .login-background::before,
       .login-background::after {
         content: '';
         position: absolute;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        /* Second layer of moving lines, different angle and speed */
-        background-image: repeating-linear-gradient(
-          -45deg, 
-          transparent, 
-          transparent 25px, 
-          rgba(255, 255, 255, 0.07) 25px, 
-          rgba(255, 255, 255, 0.07) 27px
-        );
-        animation: move-lines-2 20s linear infinite;
         z-index: 0;
+        width: 50vmax;
+        height: 50vmax;
+        border-radius: 45%;
+        background: rgba(29, 78, 216, 0.25); /* blue-700 with alpha */
+        filter: blur(100px);
+        will-change: transform;
+      }
+      
+      .login-background::before {
+        top: -10vh;
+        left: -15vw;
+        animation: float 20s infinite linear alternate;
+      }
+      
+      .login-background::after {
+        bottom: -10vh;
+        right: -15vw;
+        background: rgba(30, 64, 175, 0.3); /* blue-800 with alpha */
+        animation: float2 25s infinite linear alternate;
+        animation-delay: -5s;
       }
 
       .login-form-container {

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Trade, User } from './types';
 import { fetchUSDBRLRate } from './services/currencyService';
-import { SettingsIcon, PlusIcon, DepositIcon, WithdrawalIcon, XMarkIcon, TrashIcon, HomeIcon, TrophyIcon, InformationCircleIcon, LogoutIcon } from './components/icons';
+import { SettingsIcon, PlusIcon, DepositIcon, WithdrawalIcon, XMarkIcon, TrashIcon, HomeIcon, TrophyIcon, InformationCircleIcon, LogoutIcon, PencilIcon } from './components/icons';
 
 interface GoalSettings {
     type: 'weekly' | 'monthly';
@@ -53,6 +53,7 @@ interface DashboardPanelProps {
     monthlyStats: { profit: number; wins: number; losses: number; totalTrades: number; winRate: number; startBalance: number; currentBalance: number; };
     sortedFilteredRecords: AppRecord[];
     handleDeleteRecord: (recordId: string) => void;
+    handleEditRecord: (record: AppRecord) => void;
     setTransactionType: React.Dispatch<React.SetStateAction<'deposit' | 'withdrawal' | null>>;
     setIsTransactionModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
@@ -62,7 +63,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
     customPayout, setCustomPayout, addRecord, isTestMessageVisible, setIsTestMessageVisible, selectedDateString,
     setSelectedDate, isTradingHalted, stopLossLimitReached, setStopLimitOverride, startBalanceForSelectedDay,
     dailyRecordForSelectedDay, dynamicDailyGoal, weeklyStats, monthlyStats, sortedFilteredRecords,
-    handleDeleteRecord, setTransactionType, setIsTransactionModalOpen
+    handleDeleteRecord, handleEditRecord, setTransactionType, setIsTransactionModalOpen
 }) => {
     const handleAddTrades = () => {
         const wins = parseInt(winsToAdd, 10) || 0;
@@ -345,6 +346,9 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                                         </td>
                                         <td className="px-2 py-3 text-center">
                                             <div className="flex items-center justify-center space-x-2">
+                                                <button onClick={() => handleEditRecord(record)} className="text-slate-500 hover:text-blue-600" aria-label="Editar">
+                                                    <PencilIcon className="w-4 h-4" />
+                                                </button>
                                                 <button onClick={() => handleDeleteRecord(record.id)} className="text-slate-500 hover:text-red-600" aria-label="Excluir">
                                                     <TrashIcon className="w-4 h-4" />
                                                 </button>
@@ -505,6 +509,9 @@ const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout })
     const [brokerageToEdit, setBrokerageToEdit] = useState<Brokerage | null>(null);
     const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
     const [transactionType, setTransactionType] = useState<'deposit' | 'withdrawal' | null>(null);
+    const [transactionToEdit, setTransactionToEdit] = useState<TransactionRecord | null>(null);
+    const [isEditDayModalOpen, setIsEditDayModalOpen] = useState(false);
+    const [dayToEdit, setDayToEdit] = useState<DailyRecord | null>(null);
     const [activeTab, setActiveTab] = useState<'dashboard' | 'goal'>('dashboard');
     const [selectedDate, setSelectedDate] = useState(() => {
         const today = new Date();
@@ -891,18 +898,38 @@ const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout })
 
     }, [filteredRecords, activeBrokerage, selectedDateString, startBalanceForSelectedDay, selectedDate, formatDateBR, updateRecordsForBrokerage]);
     
-    const handleSaveTransaction = useCallback((data: { type: 'deposit' | 'withdrawal'; date: Date; amount: number; notes: string }) => {
+    const handleSaveTransaction = useCallback((data: { type: 'deposit' | 'withdrawal'; date: Date; amount: number; notes: string }, id_to_update?: string) => {
         if (!activeBrokerageId) return;
-        const newTransaction: TransactionRecord = {
-            recordType: data.type,
-            brokerageId: activeBrokerageId,
-            id: `trans_${Date.now()}`,
-            date: formatDateISO(data.date),
-            displayDate: formatDateBR(data.date),
-            amountUSD: data.amount,
-            notes: data.notes,
-        };
-        updateRecordsForBrokerage([...filteredRecords, newTransaction]);
+
+        if (id_to_update) {
+            // Find and update
+            const updated = filteredRecords.map(r => {
+                if (r.id === id_to_update) {
+                    return {
+                        ...r,
+                        recordType: data.type,
+                        date: formatDateISO(data.date),
+                        displayDate: formatDateBR(data.date),
+                        amountUSD: data.amount,
+                        notes: data.notes,
+                    } as TransactionRecord;
+                }
+                return r;
+            });
+            updateRecordsForBrokerage(updated);
+        } else {
+            // Create new
+            const newTransaction: TransactionRecord = {
+                recordType: data.type,
+                brokerageId: activeBrokerageId,
+                id: `trans_${Date.now()}`,
+                date: formatDateISO(data.date),
+                displayDate: formatDateBR(data.date),
+                amountUSD: data.amount,
+                notes: data.notes,
+            };
+            updateRecordsForBrokerage([...filteredRecords, newTransaction]);
+        }
     }, [filteredRecords, activeBrokerageId, updateRecordsForBrokerage, formatDateISO, formatDateBR]);
     
     const handleDeleteRecord = useCallback((recordId: string) => {
@@ -911,6 +938,22 @@ const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout })
             updateRecordsForBrokerage(updated);
         }
     }, [filteredRecords, updateRecordsForBrokerage]);
+
+    const handleEditRecord = useCallback((record: AppRecord) => {
+        if (record.recordType === 'deposit' || record.recordType === 'withdrawal') {
+            setTransactionToEdit(record);
+            setTransactionType(record.recordType);
+            setIsTransactionModalOpen(true);
+        } else if (record.recordType === 'day') {
+            setDayToEdit(record);
+            setIsEditDayModalOpen(true);
+        }
+    }, []);
+
+    const handleSaveDayRecord = (updatedRecord: DailyRecord) => {
+        const updated = filteredRecords.map(r => r.id === updatedRecord.id ? updatedRecord : r);
+        updateRecordsForBrokerage(updated);
+    };
 
     const handleSaveBrokerage = useCallback((brokerage: Brokerage) => {
         const index = brokerages.findIndex(b => b.id === brokerage.id);
@@ -1092,7 +1135,7 @@ const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout })
         customPayout, setCustomPayout, addRecord, isTestMessageVisible, setIsTestMessageVisible, selectedDateString,
         setSelectedDate, isTradingHalted, stopLossLimitReached, setStopLimitOverride, startBalanceForSelectedDay,
         dailyRecordForSelectedDay, dynamicDailyGoal, weeklyStats, monthlyStats, sortedFilteredRecords,
-        handleDeleteRecord, setTransactionType, setIsTransactionModalOpen
+        handleDeleteRecord, handleEditRecord, setTransactionType, setIsTransactionModalOpen
     };
 
     const goalPanelProps: GoalPanelProps = {
@@ -1174,9 +1217,23 @@ const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout })
 
             <TransactionModal
                 isOpen={isTransactionModalOpen}
-                onClose={() => setIsTransactionModalOpen(false)}
+                onClose={() => {
+                    setIsTransactionModalOpen(false);
+                    setTransactionToEdit(null);
+                }}
                 onSave={handleSaveTransaction}
                 type={transactionType}
+                transactionToEdit={transactionToEdit}
+            />
+
+            <EditDayModal
+                isOpen={isEditDayModalOpen}
+                onClose={() => {
+                    setIsEditDayModalOpen(false);
+                    setDayToEdit(null);
+                }}
+                dayRecord={dayToEdit}
+                onSave={handleSaveDayRecord}
             />
 
             <footer className="text-center mt-8 text-sm text-slate-500">
@@ -1381,22 +1438,31 @@ const BrokerageModal: React.FC<BrokerageModalProps> = ({ isOpen, onClose, broker
 };
 
 interface TransactionModalProps extends ModalProps {
-    onSave: (data: { type: 'deposit' | 'withdrawal'; date: Date; amount: number; notes: string }) => void;
+    onSave: (data: { type: 'deposit' | 'withdrawal'; date: Date; amount: number; notes: string }, id?: string) => void;
     type: 'deposit' | 'withdrawal' | null;
+    transactionToEdit?: TransactionRecord | null;
 }
 
-const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, onSave, type }) => {
+const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, onSave, type, transactionToEdit }) => {
     const [amount, setAmount] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [notes, setNotes] = useState('');
 
+    const isEditMode = !!transactionToEdit;
+
     useEffect(() => {
-        if (!isOpen) {
-            setAmount('');
-            setDate(new Date().toISOString().split('T')[0]);
-            setNotes('');
+        if (isOpen) {
+            if (isEditMode && transactionToEdit) {
+                setAmount(String(transactionToEdit.amountUSD));
+                setDate(transactionToEdit.date);
+                setNotes(transactionToEdit.notes);
+            } else {
+                setAmount('');
+                setDate(new Date().toISOString().split('T')[0]);
+                setNotes('');
+            }
         }
-    }, [isOpen]);
+    }, [isOpen, isEditMode, transactionToEdit]);
 
     const handleSave = () => {
         if (!type || !amount || parseFloat(amount) <= 0) return;
@@ -1405,19 +1471,20 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, on
             amount: parseFloat(amount),
             date: new Date(date + 'T00:00:00Z'),
             notes
-        });
+        }, isEditMode ? transactionToEdit.id : undefined);
         onClose();
     };
 
     if (!isOpen || !type) return null;
 
     const isDeposit = type === 'deposit';
+    const title = `${isEditMode ? 'Editar' : 'Adicionar'} ${isDeposit ? 'Depósito' : 'Saque'}`;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog">
             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-slate-900">{isDeposit ? 'Adicionar Depósito' : 'Adicionar Saque'}</h2>
+                    <h2 className="text-xl font-bold text-slate-900">{title}</h2>
                     <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200 transition-colors" aria-label="Fechar">
                         <XMarkIcon className="w-6 h-6 text-slate-500" />
                     </button>
@@ -1442,6 +1509,78 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, on
                     </button>
                     <button onClick={handleSave} className={`px-4 py-2 text-white rounded-lg transition-colors ${isDeposit ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}>
                         Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+interface EditDayModalProps extends ModalProps {
+    dayRecord: DailyRecord | null;
+    onSave: (dayRecordWithUpdatedTrades: DailyRecord) => void;
+}
+
+const EditDayModal: React.FC<EditDayModalProps> = ({ isOpen, onClose, dayRecord, onSave }) => {
+    const [localTrades, setLocalTrades] = useState<Trade[]>([]);
+
+    useEffect(() => {
+        if (dayRecord) {
+            setLocalTrades(dayRecord.trades);
+        } else {
+            setLocalTrades([]);
+        }
+    }, [dayRecord]);
+
+    const handleDeleteTrade = (tradeId: string) => {
+        setLocalTrades(prev => prev.filter(trade => trade.id !== tradeId));
+    };
+
+    const handleSave = () => {
+        if (!dayRecord) return;
+        onSave({ ...dayRecord, trades: localTrades });
+        onClose();
+    };
+
+    if (!isOpen || !dayRecord) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[80vh] flex flex-col">
+                <div className="flex justify-between items-center mb-4 border-b pb-2">
+                    <h2 className="text-xl font-bold text-slate-900">
+                        Editar Operações do Dia: {dayRecord.date}
+                    </h2>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200 transition-colors" aria-label="Fechar">
+                        <XMarkIcon className="w-6 h-6 text-slate-500" />
+                    </button>
+                </div>
+                <div className="flex-grow overflow-y-auto space-y-2 pr-2">
+                    {localTrades.length > 0 ? localTrades.map((trade, index) => (
+                        <div key={trade.id || index} className="flex items-center justify-between p-2 bg-slate-100 rounded-md">
+                            <div className="flex items-center gap-4">
+                                <span className={`font-bold w-12 text-center px-2 py-1 rounded-md text-sm ${trade.result === 'win' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                                    {trade.result === 'win' ? 'WIN' : 'LOSS'}
+                                </span>
+                                <span className="text-slate-700">
+                                    Valor: <span className="font-semibold">${trade.entryValue.toFixed(2)}</span>
+                                </span>
+                            </div>
+                            <button onClick={() => handleDeleteTrade(trade.id)} className="text-slate-500 hover:text-red-600 p-1 rounded-full hover:bg-red-100" aria-label="Excluir operação">
+                                <TrashIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                    )) : (
+                        <p className="text-slate-500 text-center py-4">Nenhuma operação registrada para este dia.</p>
+                    )}
+                </div>
+                <div className="mt-6 flex justify-end space-x-3 pt-4 border-t">
+                    <button onClick={onClose} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors">
+                        Cancelar
+                    </button>
+                    <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        Salvar Alterações
                     </button>
                 </div>
             </div>
