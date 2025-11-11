@@ -83,6 +83,17 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
     const monthlyGoalAmount = goal.type === 'monthly' ? goal.amount : 0;
     const weeklyGoalAmount = goal.type === 'weekly' ? goal.amount : (monthlyGoalAmount > 0 ? (monthlyGoalAmount / 4.33) : 0);
 
+    const getGoalColorClass = (profit: number, goal: number): string => {
+        if (goal <= 0) return 'text-blue-600';
+        const progress = (profit / goal) * 100;
+        if (progress >= 100) return 'text-green-600';
+        if (progress >= 60) return 'text-yellow-600';
+        return 'text-red-600';
+    };
+
+    const weeklyGoalColor = getGoalColorClass(weeklyStats.profit, weeklyGoalAmount);
+    const monthlyGoalColor = getGoalColorClass(monthlyStats.profit, monthlyGoalAmount);
+
     return (
         <section>
             {isTestMessageVisible && (
@@ -251,7 +262,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                                 {weeklyGoalAmount > 0 && (
                                     <div className="flex justify-between text-sm">
                                         <span className="text-slate-600">Meta:</span>
-                                        <span className="font-semibold text-blue-600">${weeklyGoalAmount.toFixed(2)}</span>
+                                        <span className={`font-semibold ${weeklyGoalColor}`}>${weeklyGoalAmount.toFixed(2)}</span>
                                     </div>
                                 )}
                                  <div className="flex justify-between text-sm">
@@ -280,7 +291,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                                 {monthlyGoalAmount > 0 && (
                                     <div className="flex justify-between text-sm">
                                         <span className="text-slate-600">Meta:</span>
-                                        <span className="font-semibold text-blue-600">${monthlyGoalAmount.toFixed(2)}</span>
+                                        <span className={`font-semibold ${monthlyGoalColor}`}>${monthlyGoalAmount.toFixed(2)}</span>
                                     </div>
                                 )}
                                 <div className="flex justify-between text-sm">
