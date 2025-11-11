@@ -26,6 +26,465 @@ const countTradingDays = (start: Date, end: Date): number => {
     return count;
 };
 
+// --- Child Components ---
+
+interface DashboardPanelProps {
+    activeBrokerage: Brokerage;
+    winsToAdd: string;
+    setWinsToAdd: React.Dispatch<React.SetStateAction<string>>;
+    lossesToAdd: string;
+    setLossesToAdd: React.Dispatch<React.SetStateAction<string>>;
+    customEntryValue: string;
+    setCustomEntryValue: React.Dispatch<React.SetStateAction<string>>;
+    customPayout: string;
+    setCustomPayout: React.Dispatch<React.SetStateAction<string>>;
+    addRecord: (winCount: number, lossCount: number, customEntryValueUSD?: number, customPayoutPercentage?: number) => void;
+    isTestMessageVisible: boolean;
+    setIsTestMessageVisible: React.Dispatch<React.SetStateAction<boolean>>;
+    selectedDateString: string;
+    setSelectedDate: (date: Date) => void;
+    isTradingHalted: boolean;
+    stopLossLimitReached: boolean;
+    setStopLimitOverride: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+    startBalanceForSelectedDay: number;
+    dailyRecordForSelectedDay: DailyRecord | undefined;
+    dynamicDailyGoal: number;
+    weeklyStats: { profit: number; wins: number; losses: number; totalTrades: number; winRate: number; startBalance: number; currentBalance: number; };
+    monthlyStats: { profit: number; wins: number; losses: number; totalTrades: number; winRate: number; startBalance: number; currentBalance: number; };
+    sortedFilteredRecords: AppRecord[];
+    handleDeleteRecord: (recordId: string) => void;
+    setTransactionType: React.Dispatch<React.SetStateAction<'deposit' | 'withdrawal' | null>>;
+    setIsTransactionModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+const DashboardPanel: React.FC<DashboardPanelProps> = ({
+    activeBrokerage, winsToAdd, setWinsToAdd, lossesToAdd, setLossesToAdd, customEntryValue, setCustomEntryValue,
+    customPayout, setCustomPayout, addRecord, isTestMessageVisible, setIsTestMessageVisible, selectedDateString,
+    setSelectedDate, isTradingHalted, stopLossLimitReached, setStopLimitOverride, startBalanceForSelectedDay,
+    dailyRecordForSelectedDay, dynamicDailyGoal, weeklyStats, monthlyStats, sortedFilteredRecords,
+    handleDeleteRecord, setTransactionType, setIsTransactionModalOpen
+}) => {
+    const handleAddTrades = () => {
+        const wins = parseInt(winsToAdd, 10) || 0;
+        const losses = parseInt(lossesToAdd, 10) || 0;
+        const entryValue = parseFloat(customEntryValue) || undefined;
+        const payout = parseFloat(customPayout) || undefined;
+
+        if (wins > 0 || losses > 0) {
+            addRecord(wins, losses, entryValue, payout);
+            setWinsToAdd('');
+            setLossesToAdd('');
+            setCustomEntryValue('');
+            setCustomPayout('');
+        }
+    };
+
+    return (
+        <section>
+            {isTestMessageVisible && (
+                <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-800 p-4 rounded-md shadow-md mb-6 flex items-start relative" role="alert">
+                    <InformationCircleIcon className="w-6 h-6 mr-3 flex-shrink-0 mt-1" />
+                    <div>
+                        <p className="font-bold">Olá! Bem-vindo(a) à versão de testes.</p>
+                        <p className="text-sm">Sinta-se à vontade para explorar. Lembre-se que o app está em desenvolvimento, então algumas coisas podem mudar ou não funcionar 100% ainda.</p>
+                    </div>
+                    <button onClick={() => setIsTestMessageVisible(false)} className="absolute top-2 right-2 p-1 rounded-full hover:bg-blue-200 transition-colors" aria-label="Fechar aviso">
+                        <XMarkIcon className="w-5 h-5" />
+                    </button>
+                </div>
+            )}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Coluna de Controle */}
+                <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-lg flex flex-col space-y-6 h-fit">
+                    <h2 className="text-xl font-bold text-slate-900 border-b pb-2">Controle do Dia</h2>
+                    <div>
+                        <label htmlFor="trade-date" className="block text-sm font-medium text-slate-700 mb-1">Data da Operação</label>
+                        <input
+                            type="date"
+                            id="trade-date"
+                            value={selectedDateString}
+                            onChange={(e) => setSelectedDate(new Date(e.target.value + 'T00:00:00Z'))}
+                            className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                        />
+                    </div>
+                    
+                    {isTradingHalted && (
+                        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md shadow-md" role="alert">
+                            <p className="font-bold">Limite Atingido</p>
+                            <p>Você atingiu seu limite de {stopLossLimitReached ? `perdas (Stop Loss: ${activeBrokerage.stopLossTrades})` : `ganhos (Stop Gain: ${activeBrokerage.stopGainTrades})`} para hoje.</p>
+                            <button onClick={() => setStopLimitOverride(prev => ({ ...prev, [selectedDateString]: true }))} className="mt-2 text-sm text-blue-600 hover:underline">
+                                Operar mesmo assim
+                            </button>
+                        </div>
+                    )}
+
+                    <div className="space-y-4">
+                        <div>
+                            <label htmlFor="custom-entry-value" className="block text-sm font-medium text-slate-700">Valor da Entrada (USD)</label>
+                            <input
+                                type="number"
+                                id="custom-entry-value"
+                                value={customEntryValue}
+                                onChange={(e) => setCustomEntryValue(e.target.value)}
+                                disabled={isTradingHalted}
+                                className="mt-1 w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-200"
+                                placeholder={`Padrão: ${activeBrokerage.entryMode === 'fixed' 
+                                    ? `$${activeBrokerage.entryValue.toFixed(2)}` 
+                                    : `${(startBalanceForSelectedDay * (activeBrokerage.entryValue / 100)).toFixed(2)} (${activeBrokerage.entryValue}%)`
+                                }`}
+                                min="0"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="custom-payout" className="block text-sm font-medium text-slate-700">Valor do Payout (%)</label>
+                            <input
+                                type="number"
+                                id="custom-payout"
+                                value={customPayout}
+                                onChange={(e) => setCustomPayout(e.target.value)}
+                                disabled={isTradingHalted}
+                                className="mt-1 w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-200"
+                                placeholder={`Padrão: ${activeBrokerage.payoutPercentage}%`}
+                                min="0"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label htmlFor="wins-to-add" className="block text-sm font-medium text-green-700">WINs</label>
+                                <input
+                                    type="number"
+                                    id="wins-to-add"
+                                    value={winsToAdd}
+                                    onChange={(e) => setWinsToAdd(e.target.value)}
+                                    disabled={isTradingHalted}
+                                    className="mt-1 w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-slate-200"
+                                    placeholder="0"
+                                    min="0"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="losses-to-add" className="block text-sm font-medium text-red-700">LOSSes</label>
+                                <input
+                                    type="number"
+                                    id="losses-to-add"
+                                    value={lossesToAdd}
+                                    onChange={(e) => setLossesToAdd(e.target.value)}
+                                    disabled={isTradingHalted}
+                                    className="mt-1 w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 disabled:bg-slate-200"
+                                    placeholder="0"
+                                    min="0"
+                                />
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleAddTrades}
+                            disabled={isTradingHalted || (!winsToAdd && !lossesToAdd)}
+                            className="w-full bg-slate-700 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all"
+                        >
+                            Registrar Operações
+                        </button>
+                    </div>
+
+
+                     <div className="flex flex-col space-y-2 pt-4 border-t">
+                         <button
+                            onClick={() => { setTransactionType('deposit'); setIsTransactionModalOpen(true); }}
+                            className="flex items-center justify-center gap-2 w-full bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-blue-600 transition-colors"
+                         >
+                             <DepositIcon className="w-5 h-5" />
+                             Adicionar Depósito
+                         </button>
+                          <button
+                            onClick={() => { setTransactionType('withdrawal'); setIsTransactionModalOpen(true); }}
+                            className="flex items-center justify-center gap-2 w-full bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-orange-600 transition-colors"
+                         >
+                             <WithdrawalIcon className="w-5 h-5" />
+                             Adicionar Saque
+                         </button>
+                     </div>
+                </div>
+
+                {/* Coluna de Histórico e Status */}
+                <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-lg">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 text-center">
+                        <div className="bg-slate-100 p-4 rounded-lg">
+                            <p className="text-sm text-slate-500">Banca Inicial (Dia)</p>
+                            <p className="text-xl font-bold text-slate-800">${startBalanceForSelectedDay.toFixed(2)}</p>
+                        </div>
+                         <div className={`p-4 rounded-lg ${(dailyRecordForSelectedDay?.netProfitUSD ?? 0) >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+                            <p className="text-sm text-slate-500">Lucro/Prejuízo (Dia)</p>
+                            <p className={`text-xl font-bold ${(dailyRecordForSelectedDay?.netProfitUSD ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                ${dailyRecordForSelectedDay?.netProfitUSD.toFixed(2) ?? '0.00'}
+                            </p>
+                        </div>
+                        <div className="bg-blue-100 p-4 rounded-lg">
+                            <p className="text-sm text-slate-500">Meta Dinâmica do Dia</p>
+                            <p className="text-xl font-bold text-blue-800">
+                                ${dynamicDailyGoal.toFixed(2)}
+                            </p>
+                        </div>
+                        <div className="bg-slate-100 p-4 rounded-lg">
+                            <p className="text-sm text-slate-500">Banca Final (Dia)</p>
+                            <p className="text-xl font-bold text-slate-800">
+                                ${dailyRecordForSelectedDay?.endBalanceUSD.toFixed(2) ?? startBalanceForSelectedDay.toFixed(2)}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="mb-6">
+                        <h3 className="text-lg font-bold text-slate-900 mb-4">Resumo de Performance</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-slate-100 p-4 rounded-lg">
+                                <h4 className="font-bold text-slate-800 mb-2">Esta Semana</h4>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-600">Banca Inicial:</span>
+                                    <span className="font-semibold text-slate-700">${weeklyStats.startBalance.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-600">Lucro/Prejuízo:</span>
+                                    <span className={`font-semibold ${weeklyStats.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>${weeklyStats.profit.toFixed(2)}</span>
+                                </div>
+                                 <div className="flex justify-between text-sm">
+                                    <span className="text-slate-600">Banca Atual:</span>
+                                    <span className="font-semibold text-slate-700">${weeklyStats.currentBalance.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-600">Operações:</span>
+                                    <span className="font-semibold text-slate-700">{weeklyStats.totalTrades}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-600">Assertividade:</span>
+                                    <span className="font-semibold text-slate-700">{weeklyStats.winRate.toFixed(1)}%</span>
+                                </div>
+                            </div>
+                            <div className="bg-slate-100 p-4 rounded-lg">
+                                <h4 className="font-bold text-slate-800 mb-2">Este Mês</h4>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-600">Banca Inicial:</span>
+                                    <span className="font-semibold text-slate-700">${monthlyStats.startBalance.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-600">Lucro/Prejuízo:</span>
+                                    <span className={`font-semibold ${monthlyStats.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>${monthlyStats.profit.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-600">Banca Atual:</span>
+                                    <span className="font-semibold text-slate-700">${monthlyStats.currentBalance.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-600">Operações:</span>
+                                    <span className="font-semibold text-slate-700">{monthlyStats.totalTrades}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-600">Assertividade:</span>
+                                    <span className="font-semibold text-slate-700">{monthlyStats.winRate.toFixed(1)}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 className="text-lg font-bold text-slate-900 mb-4">Histórico de Operações</h3>
+                    <div className="overflow-auto max-h-[45vh] pr-2">
+                        <table className="w-full text-sm text-left text-slate-500">
+                            <thead className="text-xs text-slate-700 uppercase bg-slate-100 sticky top-0">
+                                <tr>
+                                    <th scope="col" className="px-4 py-3">Data</th>
+                                    <th scope="col" className="px-4 py-3">Tipo</th>
+                                    <th scope="col" className="px-4 py-3 text-center">Detalhes / Valor</th>
+                                    <th scope="col" className="px-4 py-3 text-right">Balanço Final</th>
+                                    <th scope="col" className="px-2 py-3 text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sortedFilteredRecords.length > 0 ? [...sortedFilteredRecords].reverse().map((record) => (
+                                    <tr key={record.id} className="bg-white border-b hover:bg-slate-50">
+                                        <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">
+                                            {record.recordType === 'day' ? record.date : record.displayDate}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {record.recordType === 'day' && <span className="bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">Trading</span>}
+                                            {record.recordType === 'deposit' && <span className="bg-green-100 text-green-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">Depósito</span>}
+                                            {record.recordType === 'withdrawal' && <span className="bg-orange-100 text-orange-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">Saque</span>}
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            {record.recordType === 'day' ? (
+                                                record.trades && record.trades.length > 0 ? (
+                                                    <div className="flex flex-col items-center font-mono text-xs">
+                                                        {Object.entries(
+                                                            record.trades.reduce((acc, trade) => {
+                                                                const key = trade.entryValue.toFixed(2);
+                                                                if (!acc[key]) acc[key] = { wins: 0, losses: 0 };
+                                                                if (trade.result === 'win') acc[key].wins++;
+                                                                else acc[key].losses++;
+                                                                return acc;
+                                                            }, {} as Record<string, { wins: number; losses: number }>)
+                                                        ).map(([entryValue, counts], index) => {
+                                                            {/* FIX: Explicitly cast 'counts' to the correct type to resolve TypeScript error where it was inferred as 'unknown'. */}
+                                                            const typedCounts = counts as { wins: number; losses: number };
+                                                            return (
+                                                                <span key={index}>
+                                                                    <span className="text-green-600 font-semibold">{typedCounts.wins}W</span>
+                                                                    {' / '}
+                                                                    <span className="text-red-600 font-semibold">{typedCounts.losses}L</span>
+                                                                    <span className="text-slate-500"> @ ${entryValue}</span>
+                                                                </span>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <span className="font-mono">
+                                                        <span className="text-green-600 font-semibold">0W</span> / <span className="text-red-600 font-semibold">0L</span>
+                                                    </span>
+                                                )
+                                            ) : (
+                                                <span className="font-semibold">${record.amountUSD.toFixed(2)}</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-mono font-semibold">
+                                            {record.recordType === 'day' ? `$${record.endBalanceUSD.toFixed(2)}` : '-'}
+                                        </td>
+                                        <td className="px-2 py-3 text-center">
+                                            <div className="flex items-center justify-center space-x-2">
+                                                <button onClick={() => handleDeleteRecord(record.id)} className="text-slate-500 hover:text-red-600" aria-label="Excluir">
+                                                    <TrashIcon className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )) : (
+                                    <tr>
+                                        <td colSpan={5} className="text-center py-8 text-slate-500">
+                                            Nenhum registro encontrado. Comece a operar!
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+};
+
+interface GoalPanelProps {
+    goal: Omit<GoalSettings, 'amount'> & { amount: number };
+    setGoal: React.Dispatch<React.SetStateAction<Omit<GoalSettings, 'amount'> & { amount: number }>>;
+    sortedFilteredRecords: AppRecord[];
+    now: Date;
+}
+
+const GoalPanel: React.FC<GoalPanelProps> = ({ goal, setGoal, sortedFilteredRecords, now }) => {
+    const [localGoal, setLocalGoal] = useState<GoalSettings>({
+        type: goal.type,
+        amount: goal.amount || '',
+    });
+
+    useEffect(() => {
+        setLocalGoal({
+            type: goal.type,
+            amount: goal.amount || '',
+        })
+    }, [goal]);
+
+    const handleSave = () => {
+        const amountToSave = typeof localGoal.amount === 'number' ? localGoal.amount : 0;
+        setGoal({ type: localGoal.type, amount: amountToSave });
+        alert('Meta salva com sucesso!');
+    };
+
+    const currentMonthProfit = useMemo(() => {
+        const today = new Date(now);
+        const year = today.getUTCFullYear();
+        const month = (today.getUTCMonth() + 1).toString().padStart(2, '0');
+        const monthPrefix = `${year}-${month}`;
+
+        return sortedFilteredRecords
+            .filter(r => r.recordType === 'day' && r.id.startsWith(monthPrefix))
+            .reduce((acc, r) => acc + (r as DailyRecord).netProfitUSD, 0);
+    }, [sortedFilteredRecords, now]);
+
+    const currentWeekProfit = useMemo(() => {
+        const today = new Date(now);
+        const startOfWeek = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+        const day = today.getUTCDay();
+        const diff = startOfWeek.getUTCDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+        startOfWeek.setUTCDate(diff);
+        startOfWeek.setUTCHours(0, 0, 0, 0);
+
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
+        endOfWeek.setUTCHours(23, 59, 59, 999);
+
+        return sortedFilteredRecords
+            .filter(r => {
+                if (r.recordType !== 'day') return false;
+                const recordDate = new Date(r.id + 'T00:00:00Z');
+                return recordDate >= startOfWeek && recordDate <= endOfWeek;
+            })
+            .reduce((acc, r) => acc + (r as DailyRecord).netProfitUSD, 0);
+    }, [sortedFilteredRecords, now]);
+
+    const monthlyGoalAmount = goal.type === 'monthly' ? goal.amount : 0;
+    const weeklyGoalAmount = goal.type === 'weekly' ? goal.amount : (monthlyGoalAmount / 4.33);
+
+    return (
+         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white p-6 rounded-2xl shadow-lg h-fit">
+                <h2 className="text-2xl font-bold text-slate-900 mb-6 border-b pb-4">Definir Meta Principal</h2>
+                <div className="space-y-4">
+                    <div>
+                        <label htmlFor="goalType" className="block text-sm font-medium text-slate-700">Período da Meta</label>
+                        <select 
+                            id="goalType"
+                            value={localGoal.type}
+                            onChange={(e) => setLocalGoal(g => ({ ...g, type: e.target.value as 'weekly' | 'monthly' }))}
+                            className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        >
+                            <option value="monthly">Mensal</option>
+                            <option value="weekly">Semanal</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor="goalAmount" className="block text-sm font-medium text-slate-700">Valor da Meta (USD)</label>
+                        <input
+                            type="number"
+                            id="goalAmount"
+                            value={localGoal.amount}
+                            onChange={(e) => setLocalGoal(g => ({ ...g, amount: e.target.value === '' ? '' : parseFloat(e.target.value) }))}
+                            className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Ex: 500"
+                        />
+                    </div>
+                </div>
+                <div className="mt-6 flex justify-end">
+                    <button onClick={handleSave} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+                        Salvar Meta
+                    </button>
+                </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-lg">
+                <h2 className="text-2xl font-bold text-slate-900 mb-6 border-b pb-4">Análise de Metas</h2>
+                <div className="space-y-8">
+                    <GoalProgressBar
+                        title="Meta Semanal"
+                        currentValue={currentWeekProfit}
+                        goalValue={weeklyGoalAmount}
+                        description="Progresso de lucro na semana atual (Seg-Dom)"
+                    />
+                    <GoalProgressBar
+                        title="Meta Mensal"
+                        currentValue={currentMonthProfit}
+                        goalValue={monthlyGoalAmount}
+                        description={`Progresso de lucro em ${now.toLocaleString('pt-BR', { month: 'long', timeZone: 'UTC' })}`}
+                    />
+                </div>
+            </div>
+        </div>
+    )
+};
+
 
 const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout }) => {
     const getStorageKey = useCallback((key: string) => `${user.username}_${key}`, [user.username]);
@@ -575,16 +1034,30 @@ const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout })
         const endDate = new Date(startDate);
         endDate.setUTCDate(startDate.getUTCDate() + 6);
         endDate.setUTCHours(23, 59, 59, 999);
-        return getPerformanceStats(startDate, endDate);
-    }, [sortedFilteredRecords, now]);
+        const stats = getPerformanceStats(startDate, endDate);
+
+        if (!activeBrokerage) return { ...stats, startBalance: 0, currentBalance: 0 };
+    
+        const startBalance = getBalanceUpToDate(formatDateISO(startDate), sortedFilteredRecords, activeBrokerage.initialBalance);
+        const currentBalance = startBalance + stats.profit;
+
+        return { ...stats, startBalance, currentBalance };
+    }, [sortedFilteredRecords, now, activeBrokerage, getBalanceUpToDate, formatDateISO]);
 
     const monthlyStats = useMemo(() => {
         const today = new Date(now);
         const startDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
         const endDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
         endDate.setUTCHours(23, 59, 59, 999);
-        return getPerformanceStats(startDate, endDate);
-    }, [sortedFilteredRecords, now]);
+        const stats = getPerformanceStats(startDate, endDate);
+
+        if (!activeBrokerage) return { ...stats, startBalance: 0, currentBalance: 0 };
+    
+        const startBalance = getBalanceUpToDate(formatDateISO(startDate), sortedFilteredRecords, activeBrokerage.initialBalance);
+        const currentBalance = startBalance + stats.profit;
+    
+        return { ...stats, startBalance, currentBalance };
+    }, [sortedFilteredRecords, now, activeBrokerage, getBalanceUpToDate, formatDateISO]);
 
     // --- RENDER ---
     if (isLoading) {
@@ -612,6 +1085,22 @@ const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout })
         {label}
       </button>
     );
+
+    const dashboardProps: DashboardPanelProps = {
+        activeBrokerage: activeBrokerage!,
+        winsToAdd, setWinsToAdd, lossesToAdd, setLossesToAdd, customEntryValue, setCustomEntryValue,
+        customPayout, setCustomPayout, addRecord, isTestMessageVisible, setIsTestMessageVisible, selectedDateString,
+        setSelectedDate, isTradingHalted, stopLossLimitReached, setStopLimitOverride, startBalanceForSelectedDay,
+        dailyRecordForSelectedDay, dynamicDailyGoal, weeklyStats, monthlyStats, sortedFilteredRecords,
+        handleDeleteRecord, setTransactionType, setIsTransactionModalOpen
+    };
+
+    const goalPanelProps: GoalPanelProps = {
+        goal,
+        setGoal,
+        sortedFilteredRecords,
+        now
+    };
 
     return (
         <div className="min-h-screen bg-slate-100 text-slate-800 font-sans p-4 sm:p-6 lg:p-8">
@@ -660,8 +1149,8 @@ const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout })
                             </div>
                         </nav>
                         <main>
-                            {activeTab === 'dashboard' && <DashboardPanel />}
-                            {activeTab === 'goal' && <GoalPanel />}
+                            {activeTab === 'dashboard' && <DashboardPanel {...dashboardProps} />}
+                            {activeTab === 'goal' && <GoalPanel {...goalPanelProps} />}
                         </main>
                     </>
                  ) : (
@@ -695,399 +1184,6 @@ const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout })
             </footer>
         </div>
     );
-
-    function DashboardPanel() {
-        if (!activeBrokerage) return null;
-        const handleAddTrades = () => {
-            const wins = parseInt(winsToAdd, 10) || 0;
-            const losses = parseInt(lossesToAdd, 10) || 0;
-            const entryValue = parseFloat(customEntryValue) || undefined;
-            const payout = parseFloat(customPayout) || undefined;
-
-            if (wins > 0 || losses > 0) {
-                addRecord(wins, losses, entryValue, payout);
-                setWinsToAdd('');
-                setLossesToAdd('');
-                setCustomEntryValue('');
-                setCustomPayout('');
-            }
-        };
-
-        return (
-            <section>
-                {isTestMessageVisible && (
-                    <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-800 p-4 rounded-md shadow-md mb-6 flex items-start relative" role="alert">
-                        <InformationCircleIcon className="w-6 h-6 mr-3 flex-shrink-0 mt-1" />
-                        <div>
-                            <p className="font-bold">Olá! Bem-vindo(a) à versão de testes.</p>
-                            <p className="text-sm">Sinta-se à vontade para explorar. Lembre-se que o app está em desenvolvimento, então algumas coisas podem mudar ou não funcionar 100% ainda.</p>
-                        </div>
-                        <button onClick={() => setIsTestMessageVisible(false)} className="absolute top-2 right-2 p-1 rounded-full hover:bg-blue-200 transition-colors" aria-label="Fechar aviso">
-                            <XMarkIcon className="w-5 h-5" />
-                        </button>
-                    </div>
-                )}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Coluna de Controle */}
-                    <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-lg flex flex-col space-y-6 h-fit">
-                        <h2 className="text-xl font-bold text-slate-900 border-b pb-2">Controle do Dia</h2>
-                        <div>
-                            <label htmlFor="trade-date" className="block text-sm font-medium text-slate-700 mb-1">Data da Operação</label>
-                            <input
-                                type="date"
-                                id="trade-date"
-                                value={selectedDateString}
-                                onChange={(e) => setSelectedDate(new Date(e.target.value + 'T00:00:00Z'))}
-                                className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                            />
-                        </div>
-                        
-                        {isTradingHalted && (
-                            <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md shadow-md" role="alert">
-                                <p className="font-bold">Limite Atingido</p>
-                                <p>Você atingiu seu limite de {stopLossLimitReached ? `perdas (Stop Loss: ${activeBrokerage.stopLossTrades})` : `ganhos (Stop Gain: ${activeBrokerage.stopGainTrades})`} para hoje.</p>
-                                <button onClick={() => setStopLimitOverride(prev => ({ ...prev, [selectedDateString]: true }))} className="mt-2 text-sm text-blue-600 hover:underline">
-                                    Operar mesmo assim
-                                </button>
-                            </div>
-                        )}
-
-                        <div className="space-y-4">
-                            <div>
-                                <label htmlFor="custom-entry-value" className="block text-sm font-medium text-slate-700">Valor da Entrada (USD)</label>
-                                <input
-                                    type="number"
-                                    id="custom-entry-value"
-                                    value={customEntryValue}
-                                    onChange={(e) => setCustomEntryValue(e.target.value)}
-                                    disabled={isTradingHalted}
-                                    className="mt-1 w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-200"
-                                    placeholder={`Padrão: ${activeBrokerage.entryMode === 'fixed' 
-                                        ? `$${activeBrokerage.entryValue.toFixed(2)}` 
-                                        : `${(startBalanceForSelectedDay * (activeBrokerage.entryValue / 100)).toFixed(2)} (${activeBrokerage.entryValue}%)`
-                                    }`}
-                                    min="0"
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="custom-payout" className="block text-sm font-medium text-slate-700">Valor do Payout (%)</label>
-                                <input
-                                    type="number"
-                                    id="custom-payout"
-                                    value={customPayout}
-                                    onChange={(e) => setCustomPayout(e.target.value)}
-                                    disabled={isTradingHalted}
-                                    className="mt-1 w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-200"
-                                    placeholder={`Padrão: ${activeBrokerage.payoutPercentage}%`}
-                                    min="0"
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label htmlFor="wins-to-add" className="block text-sm font-medium text-green-700">WINs</label>
-                                    <input
-                                        type="number"
-                                        id="wins-to-add"
-                                        value={winsToAdd}
-                                        onChange={(e) => setWinsToAdd(e.target.value)}
-                                        disabled={isTradingHalted}
-                                        className="mt-1 w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-slate-200"
-                                        placeholder="0"
-                                        min="0"
-                                    />
-                                </div>
-                                <div>
-                                    <label htmlFor="losses-to-add" className="block text-sm font-medium text-red-700">LOSSes</label>
-                                    <input
-                                        type="number"
-                                        id="losses-to-add"
-                                        value={lossesToAdd}
-                                        onChange={(e) => setLossesToAdd(e.target.value)}
-                                        disabled={isTradingHalted}
-                                        className="mt-1 w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 disabled:bg-slate-200"
-                                        placeholder="0"
-                                        min="0"
-                                    />
-                                </div>
-                            </div>
-                            <button
-                                onClick={handleAddTrades}
-                                disabled={isTradingHalted || (!winsToAdd && !lossesToAdd)}
-                                className="w-full bg-slate-700 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all"
-                            >
-                                Registrar Operações
-                            </button>
-                        </div>
-
-
-                         <div className="flex flex-col space-y-2 pt-4 border-t">
-                             <button
-                                onClick={() => { setTransactionType('deposit'); setIsTransactionModalOpen(true); }}
-                                className="flex items-center justify-center gap-2 w-full bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-blue-600 transition-colors"
-                             >
-                                 <DepositIcon className="w-5 h-5" />
-                                 Adicionar Depósito
-                             </button>
-                              <button
-                                onClick={() => { setTransactionType('withdrawal'); setIsTransactionModalOpen(true); }}
-                                className="flex items-center justify-center gap-2 w-full bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-orange-600 transition-colors"
-                             >
-                                 <WithdrawalIcon className="w-5 h-5" />
-                                 Adicionar Saque
-                             </button>
-                         </div>
-                    </div>
-
-                    {/* Coluna de Histórico e Status */}
-                    <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-lg">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 text-center">
-                            <div className="bg-slate-100 p-4 rounded-lg">
-                                <p className="text-sm text-slate-500">Banca Inicial (Dia)</p>
-                                <p className="text-xl font-bold text-slate-800">${startBalanceForSelectedDay.toFixed(2)}</p>
-                            </div>
-                             <div className={`p-4 rounded-lg ${(dailyRecordForSelectedDay?.netProfitUSD ?? 0) >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-                                <p className="text-sm text-slate-500">Lucro/Prejuízo (Dia)</p>
-                                <p className={`text-xl font-bold ${(dailyRecordForSelectedDay?.netProfitUSD ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    ${dailyRecordForSelectedDay?.netProfitUSD.toFixed(2) ?? '0.00'}
-                                </p>
-                            </div>
-                            <div className="bg-blue-100 p-4 rounded-lg">
-                                <p className="text-sm text-slate-500">Meta Dinâmica do Dia</p>
-                                <p className="text-xl font-bold text-blue-800">
-                                    ${dynamicDailyGoal.toFixed(2)}
-                                </p>
-                            </div>
-                            <div className="bg-slate-100 p-4 rounded-lg">
-                                <p className="text-sm text-slate-500">Banca Final (Dia)</p>
-                                <p className="text-xl font-bold text-slate-800">
-                                    ${dailyRecordForSelectedDay?.endBalanceUSD.toFixed(2) ?? startBalanceForSelectedDay.toFixed(2)}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="mb-6">
-                            <h3 className="text-lg font-bold text-slate-900 mb-4">Resumo de Performance</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="bg-slate-100 p-4 rounded-lg">
-                                    <h4 className="font-bold text-slate-800 mb-2">Esta Semana</h4>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-slate-600">Lucro Total:</span>
-                                        <span className={`font-semibold ${weeklyStats.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>${weeklyStats.profit.toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-slate-600">Operações:</span>
-                                        <span className="font-semibold text-slate-700">{weeklyStats.totalTrades}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-slate-600">Assertividade:</span>
-                                        <span className="font-semibold text-slate-700">{weeklyStats.winRate.toFixed(1)}%</span>
-                                    </div>
-                                </div>
-                                <div className="bg-slate-100 p-4 rounded-lg">
-                                    <h4 className="font-bold text-slate-800 mb-2">Este Mês</h4>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-slate-600">Lucro Total:</span>
-                                        <span className={`font-semibold ${monthlyStats.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>${monthlyStats.profit.toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-slate-600">Operações:</span>
-                                        <span className="font-semibold text-slate-700">{monthlyStats.totalTrades}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-slate-600">Assertividade:</span>
-                                        <span className="font-semibold text-slate-700">{monthlyStats.winRate.toFixed(1)}%</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <h3 className="text-lg font-bold text-slate-900 mb-4">Histórico de Operações</h3>
-                        <div className="overflow-auto max-h-[45vh] pr-2">
-                            <table className="w-full text-sm text-left text-slate-500">
-                                <thead className="text-xs text-slate-700 uppercase bg-slate-100 sticky top-0">
-                                    <tr>
-                                        <th scope="col" className="px-4 py-3">Data</th>
-                                        <th scope="col" className="px-4 py-3">Tipo</th>
-                                        <th scope="col" className="px-4 py-3 text-center">Detalhes / Valor</th>
-                                        <th scope="col" className="px-4 py-3 text-right">Balanço Final</th>
-                                        <th scope="col" className="px-2 py-3 text-center">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {sortedFilteredRecords.length > 0 ? [...sortedFilteredRecords].reverse().map((record) => (
-                                        <tr key={record.id} className="bg-white border-b hover:bg-slate-50">
-                                            <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">
-                                                {record.recordType === 'day' ? record.date : record.displayDate}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                {record.recordType === 'day' && <span className="bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">Trading</span>}
-                                                {record.recordType === 'deposit' && <span className="bg-green-100 text-green-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">Depósito</span>}
-                                                {record.recordType === 'withdrawal' && <span className="bg-orange-100 text-orange-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">Saque</span>}
-                                            </td>
-                                            <td className="px-4 py-3 text-center">
-                                                {record.recordType === 'day' ? (
-                                                    record.trades && record.trades.length > 0 ? (
-                                                        <div className="flex flex-col items-center font-mono text-xs">
-                                                            {Object.entries(
-                                                                record.trades.reduce((acc, trade) => {
-                                                                    const key = trade.entryValue.toFixed(2);
-                                                                    if (!acc[key]) acc[key] = { wins: 0, losses: 0 };
-                                                                    if (trade.result === 'win') acc[key].wins++;
-                                                                    else acc[key].losses++;
-                                                                    return acc;
-                                                                }, {} as Record<string, { wins: number; losses: number }>)
-                                                            ).map(([entryValue, counts], index) => {
-                                                                {/* FIX: Explicitly cast 'counts' to the correct type to resolve TypeScript error where it was inferred as 'unknown'. */}
-                                                                const typedCounts = counts as { wins: number; losses: number };
-                                                                return (
-                                                                    <span key={index}>
-                                                                        <span className="text-green-600 font-semibold">{typedCounts.wins}W</span>
-                                                                        {' / '}
-                                                                        <span className="text-red-600 font-semibold">{typedCounts.losses}L</span>
-                                                                        <span className="text-slate-500"> @ ${entryValue}</span>
-                                                                    </span>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    ) : (
-                                                        <span className="font-mono">
-                                                            <span className="text-green-600 font-semibold">0W</span> / <span className="text-red-600 font-semibold">0L</span>
-                                                        </span>
-                                                    )
-                                                ) : (
-                                                    <span className="font-semibold">${record.amountUSD.toFixed(2)}</span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-mono font-semibold">
-                                                {record.recordType === 'day' ? `$${record.endBalanceUSD.toFixed(2)}` : '-'}
-                                            </td>
-                                            <td className="px-2 py-3 text-center">
-                                                <div className="flex items-center justify-center space-x-2">
-                                                    <button onClick={() => handleDeleteRecord(record.id)} className="text-slate-500 hover:text-red-600" aria-label="Excluir">
-                                                        <TrashIcon className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    )) : (
-                                        <tr>
-                                            <td colSpan={5} className="text-center py-8 text-slate-500">
-                                                Nenhum registro encontrado. Comece a operar!
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        );
-    }
-    
-    function GoalPanel() {
-        const [localGoal, setLocalGoal] = useState<GoalSettings>(() => ({
-            type: goal.type,
-            amount: goal.amount || '',
-        }));
-
-        const handleSave = () => {
-            const amountToSave = typeof localGoal.amount === 'number' ? localGoal.amount : 0;
-            setGoal({ type: localGoal.type, amount: amountToSave });
-            alert('Meta salva com sucesso!');
-        };
-
-        const currentMonthProfit = useMemo(() => {
-            const now = new Date();
-            const year = now.getUTCFullYear();
-            const month = (now.getUTCMonth() + 1).toString().padStart(2, '0');
-            const monthPrefix = `${year}-${month}`;
-
-            return sortedFilteredRecords
-                .filter(r => r.recordType === 'day' && r.id.startsWith(monthPrefix))
-                .reduce((acc, r) => acc + (r as DailyRecord).netProfitUSD, 0);
-        }, [sortedFilteredRecords]);
-
-        const currentWeekProfit = useMemo(() => {
-            const now = new Date();
-            const startOfWeek = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-            const day = now.getUTCDay();
-            const diff = startOfWeek.getUTCDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-            startOfWeek.setUTCDate(diff);
-            startOfWeek.setUTCHours(0, 0, 0, 0);
-
-            const endOfWeek = new Date(startOfWeek);
-            endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
-            endOfWeek.setUTCHours(23, 59, 59, 999);
-
-            return sortedFilteredRecords
-                .filter(r => {
-                    if (r.recordType !== 'day') return false;
-                    const recordDate = new Date(r.id + 'T00:00:00Z');
-                    return recordDate >= startOfWeek && recordDate <= endOfWeek;
-                })
-                .reduce((acc, r) => acc + (r as DailyRecord).netProfitUSD, 0);
-        }, [sortedFilteredRecords]);
-
-        const monthlyGoalAmount = goal.type === 'monthly' ? goal.amount : 0;
-        const weeklyGoalAmount = goal.type === 'weekly' ? goal.amount : (monthlyGoalAmount / 4.33);
-
-        return (
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-2xl shadow-lg h-fit">
-                    <h2 className="text-2xl font-bold text-slate-900 mb-6 border-b pb-4">Definir Meta Principal</h2>
-                    <div className="space-y-4">
-                        <div>
-                            <label htmlFor="goalType" className="block text-sm font-medium text-slate-700">Período da Meta</label>
-                            <select 
-                                id="goalType"
-                                value={localGoal.type}
-                                onChange={(e) => setLocalGoal(g => ({ ...g, type: e.target.value as 'weekly' | 'monthly' }))}
-                                className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            >
-                                <option value="monthly">Mensal</option>
-                                <option value="weekly">Semanal</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label htmlFor="goalAmount" className="block text-sm font-medium text-slate-700">Valor da Meta (USD)</label>
-                            <input
-                                type="number"
-                                id="goalAmount"
-                                value={localGoal.amount}
-                                onChange={(e) => setLocalGoal(g => ({ ...g, amount: e.target.value === '' ? '' : parseFloat(e.target.value) }))}
-                                className="mt-1 block w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Ex: 500"
-                            />
-                        </div>
-                    </div>
-                    <div className="mt-6 flex justify-end">
-                        <button onClick={handleSave} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md">
-                            Salvar Meta
-                        </button>
-                    </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-2xl shadow-lg">
-                    <h2 className="text-2xl font-bold text-slate-900 mb-6 border-b pb-4">Análise de Metas</h2>
-                    <div className="space-y-8">
-                        <GoalProgressBar
-                            title="Meta Semanal"
-                            currentValue={currentWeekProfit}
-                            goalValue={weeklyGoalAmount}
-                            description="Progresso de lucro na semana atual (Seg-Dom)"
-                        />
-                        <GoalProgressBar
-                            title="Meta Mensal"
-                            currentValue={currentMonthProfit}
-                            goalValue={monthlyGoalAmount}
-                            description={`Progresso de lucro em ${now.toLocaleString('pt-BR', { month: 'long', timeZone: 'UTC' })}`}
-                        />
-                    </div>
-                </div>
-            </div>
-        )
-    }
 };
 
 interface GoalProgressBarProps {
