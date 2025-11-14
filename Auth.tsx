@@ -7,6 +7,7 @@ import { User } from './types';
 const USERS: Record<string, string> = {
   henrique: '1345',
   admin: 'admin',
+  larissa: 'lari@2025',
 };
 
 const Auth: React.FC = () => {
