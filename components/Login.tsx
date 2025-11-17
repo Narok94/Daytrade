@@ -3,48 +3,71 @@ import { UserIcon, LockClosedIcon, TrendingUpIcon } from './icons';
 
 interface LoginProps {
     onLogin: (username: string, password: string) => boolean;
+    onRegister: (username: string, password: string) => void;
     error: string;
+    setError: (error: string) => void;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, error }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [isRegistering, setIsRegistering] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
     
     useEffect(() => {
-        const rememberedUser = localStorage.getItem('rememberedUser');
-        if (rememberedUser) {
-            setUsername(rememberedUser);
-            setRememberMe(true);
+        if (!isRegistering) {
+            const rememberedUser = localStorage.getItem('rememberedUser');
+            if (rememberedUser) {
+                setUsername(rememberedUser);
+                setRememberMe(true);
+            }
         }
-    }, []);
+    }, [isRegistering]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const success = onLogin(username, password);
-        if (success) {
-             if (rememberMe) {
-                localStorage.setItem('rememberedUser', username);
-            } else {
-                localStorage.removeItem('rememberedUser');
+        if (isRegistering) {
+            if (password !== confirmPassword) {
+                setError('As senhas não coincidem.');
+                return;
+            }
+            onRegister(username, password);
+        } else {
+            const success = onLogin(username, password);
+            if (success) {
+                 if (rememberMe) {
+                    localStorage.setItem('rememberedUser', username);
+                } else {
+                    localStorage.removeItem('rememberedUser');
+                }
             }
         }
+    };
+    
+    const toggleView = () => {
+        setIsRegistering(!isRegistering);
+        // Clear state and errors when switching views
+        setUsername('');
+        setPassword('');
+        setConfirmPassword('');
+        setError('');
     };
 
     return (
         <div className="login-background min-h-screen w-full flex items-center justify-center p-4 font-sans">
-            <div className="login-form-container gradient-border-card w-full max-w-md rounded-2xl shadow-xl p-8 transition-all duration-300">
+            <div className="login-card w-full max-w-sm p-8 transition-all duration-300">
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 text-blue-600 rounded-full mb-4 border border-slate-200">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-800 text-white rounded-2xl mb-4 shadow-md">
                         <TrendingUpIcon className="w-8 h-8" />
                     </div>
-                    <h1 className="text-3xl font-bold text-slate-800">Performance Trader</h1>
-                    <p className="text-slate-500 mt-2">Acesse sua plataforma de controle.</p>
+                    <h1 className="text-3xl font-bold text-slate-900">{isRegistering ? 'Criar Conta' : 'Acesse sua Conta'}</h1>
+                    <p className="text-slate-500 mt-1">{isRegistering ? 'Preencha os dados para se registrar.' : 'Bem-vindo(a) de volta!'}</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                             <UserIcon className="w-5 h-5 text-slate-400" />
                         </div>
                         <input
@@ -52,14 +75,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, error }) => {
                             id="username"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            className="w-full pl-10 pr-3 py-3 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition"
+                            className="w-full pl-11 pr-3 py-3 bg-slate-50/50 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                             placeholder="Usuário"
                             required
                         />
                     </div>
 
                     <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                             <LockClosedIcon className="w-5 h-5 text-slate-400" />
                         </div>
                         <input
@@ -67,40 +90,69 @@ const Login: React.FC<LoginProps> = ({ onLogin, error }) => {
                             id="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full pl-10 pr-3 py-3 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition"
+                            className="w-full pl-11 pr-3 py-3 bg-slate-50/50 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                             placeholder="Senha"
                             required
                         />
                     </div>
                     
-                    {error && (
-                        <p className="text-sm text-red-700 text-center bg-red-100 border border-red-200 py-2 rounded-lg">{error}</p>
+                    {isRegistering && (
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                <LockClosedIcon className="w-5 h-5 text-slate-400" />
+                            </div>
+                            <input
+                                type="password"
+                                id="confirmPassword"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                className="w-full pl-11 pr-3 py-3 bg-slate-50/50 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                placeholder="Confirmar Senha"
+                                required
+                            />
+                        </div>
                     )}
-
-                    <div className="flex items-center justify-between">
+                    
+                    {!isRegistering && (
                         <div className="flex items-center">
                             <input
                                 id="remember-me"
                                 type="checkbox"
                                 checked={rememberMe}
                                 onChange={(e) => setRememberMe(e.target.checked)}
-                                className="h-4 w-4 bg-slate-100 border-slate-300 text-cyan-600 focus:ring-cyan-500 rounded"
+                                className="h-4 w-4 bg-slate-100 border-slate-300 text-blue-600 focus:ring-blue-500 rounded"
                             />
                             <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-600">
                                 Lembrar usuário
                             </label>
                         </div>
-                    </div>
+                    )}
 
-                    <div>
+                    {error && (
+                        <p className="text-sm text-red-600 text-center">{error}</p>
+                    )}
+                    
+                    <div className="pt-2">
                         <button
                             type="submit"
-                            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white focus:ring-blue-500 transition-transform transform hover:scale-105"
+                            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-base font-medium text-white bg-slate-800 hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-colors"
                         >
-                            Entrar
+                            {isRegistering ? 'Registrar' : 'Entrar'}
                         </button>
                     </div>
                 </form>
+                 <div className="mt-6 text-center text-sm">
+                    <span className="text-slate-500">
+                        {isRegistering ? 'Já tem uma conta? ' : 'Não tem uma conta? '}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={toggleView}
+                        className="font-medium text-blue-600 hover:underline focus:outline-none"
+                    >
+                        {isRegistering ? 'Fazer Login' : 'Registrar-se'}
+                    </button>
+                </div>
             </div>
         </div>
     );
