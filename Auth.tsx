@@ -8,19 +8,26 @@ const INITIAL_USERS: Record<string, string> = {
   henrique: '1345',
   admin: 'admin',
   larissa: 'lari@2025',
+  adailton: '1345',
 };
 
 const Auth: React.FC = () => {
     // User accounts are now managed in state, sourced from localStorage
     const [users, setUsers] = useState<Record<string, string>>(() => {
         try {
-            const storedUsers = localStorage.getItem('app_users');
-            if (storedUsers) {
-                return JSON.parse(storedUsers);
-            }
-            // If no users are stored, initialize with default users
-            localStorage.setItem('app_users', JSON.stringify(INITIAL_USERS));
-            return INITIAL_USERS;
+            const storedUsersStr = localStorage.getItem('app_users');
+            const storedUsers = storedUsersStr ? JSON.parse(storedUsersStr) : {};
+            
+            // Merge INITIAL_USERS with storedUsers. 
+            // INITIAL_USERS provides defaults/new hardcoded users.
+            // storedUsers overrides existing ones (if passwords changed or registered).
+            // This ensures 'adailton' appears even if localStorage exists.
+            const mergedUsers = { ...INITIAL_USERS, ...storedUsers };
+            
+            // Update localStorage with the merged result so it persists
+            localStorage.setItem('app_users', JSON.stringify(mergedUsers));
+            
+            return mergedUsers;
         } catch (error) {
             console.error("Failed to load users from localStorage", error);
             return INITIAL_USERS; // Fallback

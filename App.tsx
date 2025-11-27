@@ -4,7 +4,7 @@ import { fetchUSDBRLRate } from './services/currencyService';
 import { 
     SettingsIcon, PlusIcon, DepositIcon, WithdrawalIcon, XMarkIcon, 
     TrashIcon, HomeIcon, TrophyIcon, InformationCircleIcon, LogoutIcon, 
-    SearchIcon, BellIcon, LayoutGridIcon, PieChartIcon, ChartBarIcon,
+    BellIcon, LayoutGridIcon, PieChartIcon, ChartBarIcon,
     TrendingUpIcon, TrendingDownIcon, ListBulletIcon, TargetIcon, CalculatorIcon, SunIcon, MoonIcon
 } from './components/icons';
 import { 
@@ -124,16 +124,7 @@ const Header: React.FC<{
     const theme = useThemeClasses(isDarkMode);
 
     return (
-        <header className={`h-20 flex items-center justify-between px-8 flex-shrink-0 ${theme.header}`}>
-            <div className="flex items-center w-96 relative">
-                <SearchIcon className={`absolute left-4 w-5 h-5 ${theme.textMuted}`} />
-                <input 
-                    type="text" 
-                    placeholder="Buscar estratégia, operação..." 
-                    className={`w-full rounded-full py-2.5 pl-12 pr-4 focus:outline-none focus:ring-1 text-sm transition-all ${isDarkMode ? 'bg-slate-900/50 border border-slate-800 text-slate-300 focus:border-slate-700 focus:ring-slate-700 placeholder-slate-600' : 'bg-slate-100 border border-slate-200 text-slate-700 focus:border-slate-300 focus:ring-slate-300 placeholder-slate-400'}`}
-                />
-            </div>
-
+        <header className={`h-20 flex items-center justify-end px-8 flex-shrink-0 ${theme.header}`}>
             <div className="flex items-center gap-6">
                 <div className={`flex items-center gap-3 text-sm pr-6 border-r ${isDarkMode ? 'text-slate-400 border-slate-800' : 'text-slate-500 border-slate-200'}`}>
                      {brokerages.length > 0 && (
