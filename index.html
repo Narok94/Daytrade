@@ -7,53 +7,73 @@
     <title>Controle de Performance Daytrade</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      /* Custom scrollbar for a modern look in light mode */
-      ::-webkit-scrollbar {
+      /* Custom scrollbar for dark mode */
+      .dark ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
       }
-      ::-webkit-scrollbar-track {
-        background: #e2e8f0; /* bg-slate-200 */
+      .dark ::-webkit-scrollbar-track {
+        background: #020617; /* slate-950 */
       }
-      ::-webkit-scrollbar-thumb {
-        background: #94a3b8; /* bg-slate-400 */
+      .dark ::-webkit-scrollbar-thumb {
+        background: #334155; /* slate-700 */
         border-radius: 4px;
       }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #64748b; /* bg-slate-500 */
-      }
-      
-      /* --- New Login Screen Styles --- */
-      .login-background {
-        background-color: #f1f5f9; /* slate-100 */
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 900'%3E%3Cdefs%3E%3Cstyle%3E.trend-line %7B animation: drift 20s linear infinite alternate; %7D .trend-line-2 %7B animation: drift-reverse 25s linear infinite alternate; %7D .float-line %7B animation: float 10s ease-in-out infinite alternate; %7D .pulse-dot-green %7B animation: pulse 2s ease-in-out infinite; transform-origin: center; %7D .pulse-dot-red %7B animation: pulse 2.5s ease-in-out infinite; transform-origin: center; %7D @keyframes drift %7B from %7B stroke-dashoffset: 0; %7D to %7B stroke-dashoffset: 100; %7D %7D @keyframes drift-reverse %7B from %7B stroke-dashoffset: 100; %7D to %7B stroke-dashoffset: 0; %7D %7D @keyframes pulse %7B 0%25 %7B transform: scale(0.9); opacity: 0.7; %7D 50%25 %7B transform: scale(1.1); opacity: 1; %7D 100%25 %7B transform: scale(0.9); opacity: 0.7; %7D %7D @keyframes float %7B from %7B transform: translateY(-5px); %7D to %7B transform: translateY(5px); %7D %7D%3C/style%3E%3Cpattern id='grid' width='80' height='80' patternUnits='userSpaceOnUse'%3E%3Cpath d='M 80 0 L 0 0 0 80' fill='none' stroke='%23e2e8f0' stroke-width='1'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='1440' height='900' fill='url(%23grid)' opacity='0.3'/%3E%3Cline class='float-line' x1='0' y1='300' x2='1440' y2='300' stroke='%23cbd5e1' stroke-width='1' stroke-dasharray='5 10' opacity='0.5'/%3E%3Cline class='float-line' x1='0' y1='750' x2='1440' y2='750' stroke='%23cbd5e1' stroke-width='1' stroke-dasharray='5 10' opacity='0.5' style='animation-delay: -5s;'/%3E%3Cpath class='trend-line' d='M-100 700 Q 200 500, 400 600 T 800 500 T 1200 650 T 1500 550' stroke='%2393c5fd' stroke-width='4' fill='none' stroke-dasharray='20 10'/%3E%3Cpath class='trend-line-2' d='M-50 400 Q 250 600, 500 450 T 900 600 T 1300 400 T 1550 500' stroke='%23fca5a5' stroke-width='3' fill='none' stroke-dasharray='15 15'/%3E%3Cg opacity='0.7'%3E%3Crect x='120' y='650' width='30' height='50' fill='%23bbf7d0'/%3E%3Crect x='133' y='630' width='4' height='90' fill='%234ade80'/%3E%3Crect x='120' y='670' width='30' height='30' fill='%234ade80'/%3E%3C/g%3E%3Cg opacity='0.7'%3E%3Crect x='250' y='500' width='40' height='100' fill='%23fecaca'/%3E%3Crect x='268' y='480' width='4' height='140' fill='%23ef4444'/%3E%3Crect x='250' y='500' width='40' height='80' fill='%23ef4444'/%3E%3C/g%3E%3Cg opacity='0.8'%3E%3Crect x='400' y='580' width='40' height='100' fill='%23bbf7d0'/%3E%3Crect x='418' y='550' width='4' height='160' fill='%234ade80'/%3E%3Crect x='400' y='580' width='40' height='60' fill='%234ade80'/%3E%3Ccircle class='pulse-dot-green' cx='420' cy='690' r='8' fill='%2316a34a'/%3E%3C/g%3E%3Cg opacity='0.8'%3E%3Crect x='550' y='520' width='35' height='70' fill='%23bbf7d0'/%3E%3Crect x='566' y='500' width='4' height='110' fill='%234ade80'/%3E%3Crect x='550' y='520' width='35' height='50' fill='%234ade80'/%3E%3C/g%3E%3Cg opacity='0.8'%3E%3Crect x='700' y='450' width='40' height='120' fill='%23fecaca'/%3E%3Crect x='718' y='420' width='4' height='180' fill='%23ef4444'/%3E%3Crect x='700' y='490' width='40' height='80' fill='%23ef4444'/%3E%3Ccircle class='pulse-dot-red' cx='720' cy='440' r='8' fill='%23dc2626'/%3E%3C/g%3E%3Cg opacity='0.8'%3E%3Crect x='950' y='480' width='30' height='60' fill='%23bbf7d0'/%3E%3Crect x='963' y='470' width='4' height='80' fill='%234ade80'/%3E%3Crect x='950' y='480' width='30' height='40' fill='%234ade80'/%3E%3C/g%3E%3Cg opacity='0.8'%3E%3Crect x='1100' y='550' width='40' height='150' fill='%23fecaca'/%3E%3Crect x='1118' y='520' width='4' height='210' fill='%23ef4444'/%3E%3Crect x='1100' y='580' width='40' height='120' fill='%23ef4444'/%3E%3Ccircle class='pulse-dot-red' cx='1120' cy='540' r='8' fill='%23dc2626' style='animation-delay: -1s;'/%3E%3C/g%3E%3Cg opacity='0.7'%3E%3Crect x='1300' y='450' width='30' height='80' fill='%23bbf7d0'/%3E%3Crect x='1313' y='430' width='4' height='120' fill='%234ade80'/%3E%3Crect x='1300' y='450' width='30' height='60' fill='%234ade80'/%3E%3C/g%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: center;
-        background-size: cover;
-        overflow: hidden;
-      }
-      
-      .login-card {
-        background-color: rgba(255, 255, 255, 0.85);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border-radius: 1rem; /* rounded-2xl */
-        box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        transition: all 0.3s ease-in-out;
+      .dark ::-webkit-scrollbar-thumb:hover {
+        background: #475569; /* slate-600 */
       }
 
-      @media (max-width: 640px) {
-        .login-background {
-          background-size: 220%; /* Zoom in for mobile */
-          background-position: 50% 70%; /* Focus on a good section of the graphic */
-        }
-        .login-card {
-          width: 100%;
-          max-width: none;
-          margin: 0 1rem; /* Add horizontal margin */
-          padding: 2rem;
-        }
+      /* Custom scrollbar for light mode */
+      .light ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      .light ::-webkit-scrollbar-track {
+        background: #f1f5f9; /* slate-100 */
+      }
+      .light ::-webkit-scrollbar-thumb {
+        background: #cbd5e1; /* slate-300 */
+        border-radius: 4px;
+      }
+      .light ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8; /* slate-400 */
+      }
+      
+      body {
+        /* Default base styles, will be overridden by React classes */
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+      }
+
+      /* --- Login Screen Styles --- */
+      .login-container {
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        position: relative;
+      }
+      
+      /* Dynamic Trading Background Animation Effect */
+      .login-overlay {
+        background: linear-gradient(135deg, rgba(2, 6, 23, 0.85) 0%, rgba(15, 23, 42, 0.7) 100%);
+      }
+
+      .glass-card {
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      }
+
+      @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+        100% { transform: translateY(0px); }
+      }
+      
+      .animate-float {
+        animation: float 6s ease-in-out infinite;
       }
     </style>
 <script type="importmap">
@@ -62,14 +82,14 @@
     "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "recharts": "https://aistudiocdn.com/recharts@^3.3.0",
-    "vite": "https://aistudiocdn.com/vite@^7.2.2",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.0"
+    "recharts": "https://aistudiocdn.com/recharts@^2.12.7",
+    "vite": "https://aistudiocdn.com/vite@^5.2.0",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^4.2.1"
   }
 }
 </script>
 </head>
-  <body class="bg-slate-50 text-slate-800">
+  <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { UserIcon, LockClosedIcon, TrendingUpIcon } from './icons';
 
@@ -55,58 +56,61 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
     };
 
     return (
-        <div className="login-background min-h-screen w-full flex items-center justify-center p-4 font-sans">
-            <div className="login-card w-full max-w-sm p-8 transition-all duration-300">
+        <div className="login-container min-h-screen w-full flex items-center justify-center p-4 font-sans" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1611974765270-ca1258634369?q=80&w=2064&auto=format&fit=crop')" }}>
+            {/* Dark overlay for readability */}
+            <div className="absolute inset-0 login-overlay"></div>
+
+            <div className="glass-card w-full max-w-sm p-8 rounded-3xl relative z-10 animate-float">
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-800 text-white rounded-2xl mb-4 shadow-md">
-                        <TrendingUpIcon className="w-8 h-8" />
+                    <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-tr from-green-500 to-emerald-700 text-white rounded-2xl mb-4 shadow-lg shadow-green-500/30">
+                        <TrendingUpIcon className="w-10 h-10" />
                     </div>
-                    <h1 className="text-3xl font-bold text-slate-900">{isRegistering ? 'Criar Conta' : 'Acesse sua Conta'}</h1>
-                    <p className="text-slate-500 mt-1">{isRegistering ? 'Preencha os dados para se registrar.' : 'Bem-vindo(a) de volta!'}</p>
+                    <h1 className="text-3xl font-black text-white tracking-tight">{isRegistering ? 'Nova Conta' : 'HRK Analytics'}</h1>
+                    <p className="text-slate-300 mt-2 text-sm font-medium">{isRegistering ? 'Junte-se a nós para operar.' : 'Sua performance em outro nível.'}</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
-                    <div className="relative">
+                    <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                            <UserIcon className="w-5 h-5 text-slate-400" />
+                            <UserIcon className="w-5 h-5 text-slate-400 group-focus-within:text-green-400 transition-colors" />
                         </div>
                         <input
                             type="text"
                             id="username"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            className="w-full pl-11 pr-3 py-3 bg-slate-50/50 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                            className="w-full pl-11 pr-3 py-3.5 bg-slate-950/50 border border-slate-700 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                             placeholder="Usuário"
                             required
                         />
                     </div>
 
-                    <div className="relative">
+                    <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                            <LockClosedIcon className="w-5 h-5 text-slate-400" />
+                            <LockClosedIcon className="w-5 h-5 text-slate-400 group-focus-within:text-green-400 transition-colors" />
                         </div>
                         <input
                             type="password"
                             id="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full pl-11 pr-3 py-3 bg-slate-50/50 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                            className="w-full pl-11 pr-3 py-3.5 bg-slate-950/50 border border-slate-700 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                             placeholder="Senha"
                             required
                         />
                     </div>
                     
                     {isRegistering && (
-                        <div className="relative">
+                        <div className="relative group">
                             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                <LockClosedIcon className="w-5 h-5 text-slate-400" />
+                                <LockClosedIcon className="w-5 h-5 text-slate-400 group-focus-within:text-green-400 transition-colors" />
                             </div>
                             <input
                                 type="password"
                                 id="confirmPassword"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="w-full pl-11 pr-3 py-3 bg-slate-50/50 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                className="w-full pl-11 pr-3 py-3.5 bg-slate-950/50 border border-slate-700 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                                 placeholder="Confirmar Senha"
                                 required
                             />
@@ -120,39 +124,45 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                                 type="checkbox"
                                 checked={rememberMe}
                                 onChange={(e) => setRememberMe(e.target.checked)}
-                                className="h-4 w-4 bg-slate-100 border-slate-300 text-blue-600 focus:ring-blue-500 rounded"
+                                className="h-4 w-4 bg-slate-950/50 border-slate-600 text-green-500 focus:ring-green-500 rounded cursor-pointer"
                             />
-                            <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-600">
+                            <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-300 cursor-pointer hover:text-white transition-colors">
                                 Lembrar usuário
                             </label>
                         </div>
                     )}
 
                     {error && (
-                        <p className="text-sm text-red-600 text-center">{error}</p>
+                        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                             <p className="text-sm text-red-400 text-center font-medium">{error}</p>
+                        </div>
                     )}
                     
                     <div className="pt-2">
                         <button
                             type="submit"
-                            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-base font-medium text-white bg-slate-800 hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-colors"
+                            className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg shadow-green-900/20 text-base font-bold text-slate-950 bg-green-500 hover:bg-green-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all transform active:scale-[0.98]"
                         >
-                            {isRegistering ? 'Registrar' : 'Entrar'}
+                            {isRegistering ? 'Criar Conta' : 'Acessar Plataforma'}
                         </button>
                     </div>
                 </form>
                  <div className="mt-6 text-center text-sm">
-                    <span className="text-slate-500">
+                    <span className="text-slate-400">
                         {isRegistering ? 'Já tem uma conta? ' : 'Não tem uma conta? '}
                     </span>
                     <button
                         type="button"
                         onClick={toggleView}
-                        className="font-medium text-blue-600 hover:underline focus:outline-none"
+                        className="font-bold text-green-400 hover:text-green-300 hover:underline focus:outline-none transition-colors"
                     >
                         {isRegistering ? 'Fazer Login' : 'Registrar-se'}
                     </button>
                 </div>
+            </div>
+            
+            <div className="absolute bottom-4 text-center w-full z-10">
+                <p className="text-slate-500 text-xs">© 2025 HRK Analytics. Todos os direitos reservados.</p>
             </div>
         </div>
     );
