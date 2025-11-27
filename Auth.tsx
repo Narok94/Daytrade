@@ -9,6 +9,7 @@ const INITIAL_USERS: Record<string, string> = {
   admin: 'admin',
   larissa: 'lari@2025',
   adailton: '1345',
+  charles: '12345',
 };
 
 const Auth: React.FC = () => {
