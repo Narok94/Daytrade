@@ -1,11 +1,13 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Trade, User } from './types';
 import { fetchUSDBRLRate } from './services/currencyService';
+import { GoogleGenAI, Type } from "@google/genai";
 import { 
     SettingsIcon, PlusIcon, DepositIcon, WithdrawalIcon, XMarkIcon, 
     TrashIcon, HomeIcon, TrophyIcon, InformationCircleIcon, LogoutIcon, 
     BellIcon, LayoutGridIcon, PieChartIcon, ChartBarIcon,
-    TrendingUpIcon, TrendingDownIcon, ListBulletIcon, TargetIcon, CalculatorIcon, SunIcon, MoonIcon
+    TrendingUpIcon, TrendingDownIcon, ListBulletIcon, TargetIcon, CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ChevronUpIcon, ChevronDownIcon, ArrowPathIcon, CpuChipIcon
 } from './components/icons';
 import { 
     LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -41,74 +43,97 @@ const useThemeClasses = (isDarkMode: boolean) => {
 // --- Child Components ---
 
 const Sidebar: React.FC<{
-    activeTab: 'dashboard' | 'operations' | 'goals' | 'settings';
-    setActiveTab: (tab: 'dashboard' | 'operations' | 'goals' | 'settings') => void;
+    activeTab: 'dashboard' | 'operations' | 'goals' | 'settings' | 'analyze';
+    setActiveTab: (tab: 'dashboard' | 'operations' | 'goals' | 'settings' | 'analyze') => void;
     onLogout: () => void;
     isDarkMode: boolean;
     toggleTheme: () => void;
-}> = ({ activeTab, setActiveTab, onLogout, isDarkMode, toggleTheme }) => {
+    isOpen: boolean;
+    onClose: () => void;
+}> = ({ activeTab, setActiveTab, onLogout, isDarkMode, toggleTheme, isOpen, onClose }) => {
     const theme = useThemeClasses(isDarkMode);
 
     return (
-        <aside className={`w-64 flex flex-col flex-shrink-0 ${theme.sidebar}`}>
-            <div className={`h-20 flex items-center px-6 ${isDarkMode ? 'border-b border-slate-900/50' : 'border-b border-slate-100'}`}>
-                <div className="flex items-center gap-2">
-                    <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
-                    <span className={`text-xl font-bold tracking-wider ${theme.text}`}>HRK <span className="text-green-500">Analytics</span></span>
+        <>
+            {/* Mobile Overlay */}
+            {isOpen && (
+                <div 
+                    className="fixed inset-0 z-40 bg-black/60 md:hidden backdrop-blur-sm"
+                    onClick={onClose}
+                ></div>
+            )}
+
+            <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform duration-300 transform md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} ${theme.sidebar}`}>
+                <div className={`h-20 flex items-center justify-between px-6 ${isDarkMode ? 'border-b border-slate-900/50' : 'border-b border-slate-100'}`}>
+                    <div className="flex items-center gap-2">
+                        <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                        <span className={`text-xl font-bold tracking-wider ${theme.text}`}>HRK <span className="text-green-500">Analytics</span></span>
+                    </div>
+                     <button onClick={onClose} className="md:hidden text-slate-500">
+                        <XMarkIcon className="w-6 h-6" />
+                    </button>
                 </div>
-            </div>
-            
-            <nav className="flex-1 px-4 py-6 space-y-1">
-                <button 
-                    onClick={() => setActiveTab('dashboard')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}
-                >
-                    <LayoutGridIcon className={`w-5 h-5 ${activeTab === 'dashboard' ? 'text-green-500' : (isDarkMode ? 'text-slate-500 group-hover:text-slate-300' : 'text-slate-400 group-hover:text-slate-600')}`} />
-                    <span className="font-medium">Dashboard</span>
-                </button>
                 
-                <button 
-                    onClick={() => setActiveTab('operations')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${activeTab === 'operations' ? theme.navActive : theme.navInactive}`}
-                >
-                    <ListBulletIcon className={`w-5 h-5 ${activeTab === 'operations' ? 'text-green-500' : (isDarkMode ? 'text-slate-500 group-hover:text-slate-300' : 'text-slate-400 group-hover:text-slate-600')}`} />
-                    <span className="font-medium">Operações</span>
-                </button>
-                
-                <button 
-                    onClick={() => setActiveTab('goals')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}
-                >
-                    <TargetIcon className={`w-5 h-5 ${activeTab === 'goals' ? 'text-green-500' : (isDarkMode ? 'text-slate-500 group-hover:text-slate-300' : 'text-slate-400 group-hover:text-slate-600')}`} />
-                    <span className="font-medium">Metas</span>
-                </button>
+                <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+                    <button 
+                        onClick={() => { setActiveTab('dashboard'); onClose(); }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}
+                    >
+                        <LayoutGridIcon className={`w-5 h-5 ${activeTab === 'dashboard' ? 'text-green-500' : (isDarkMode ? 'text-slate-500 group-hover:text-slate-300' : 'text-slate-400 group-hover:text-slate-600')}`} />
+                        <span className="font-medium">Dashboard</span>
+                    </button>
+                    
+                    <button 
+                        onClick={() => { setActiveTab('operations'); onClose(); }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${activeTab === 'operations' ? theme.navActive : theme.navInactive}`}
+                    >
+                        <ListBulletIcon className={`w-5 h-5 ${activeTab === 'operations' ? 'text-green-500' : (isDarkMode ? 'text-slate-500 group-hover:text-slate-300' : 'text-slate-400 group-hover:text-slate-600')}`} />
+                        <span className="font-medium">Operações</span>
+                    </button>
 
-                 <button 
-                    onClick={() => setActiveTab('settings')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}
-                >
-                    <SettingsIcon className={`w-5 h-5 ${activeTab === 'settings' ? 'text-green-500' : (isDarkMode ? 'text-slate-500 group-hover:text-slate-300' : 'text-slate-400 group-hover:text-slate-600')}`} />
-                    <span className="font-medium">Configurações</span>
-                </button>
-            </nav>
+                    <button 
+                        onClick={() => { setActiveTab('analyze'); onClose(); }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${activeTab === 'analyze' ? theme.navActive : theme.navInactive}`}
+                    >
+                        <CpuChipIcon className={`w-5 h-5 ${activeTab === 'analyze' ? 'text-green-500' : (isDarkMode ? 'text-slate-500 group-hover:text-slate-300' : 'text-slate-400 group-hover:text-slate-600')}`} />
+                        <span className="font-medium">Analisar</span>
+                    </button>
+                    
+                    <button 
+                        onClick={() => { setActiveTab('goals'); onClose(); }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}
+                    >
+                        <TargetIcon className={`w-5 h-5 ${activeTab === 'goals' ? 'text-green-500' : (isDarkMode ? 'text-slate-500 group-hover:text-slate-300' : 'text-slate-400 group-hover:text-slate-600')}`} />
+                        <span className="font-medium">Metas</span>
+                    </button>
 
-            <div className={`p-6 border-t space-y-4 ${isDarkMode ? 'border-slate-900/50' : 'border-slate-100'}`}>
-                 <button 
-                    onClick={toggleTheme}
-                    className={`w-full flex items-center gap-3 px-2 py-2 text-sm cursor-pointer transition-colors ${theme.navInactive}`}
-                 >
-                    {isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
-                    <span className="font-medium">{isDarkMode ? 'Tema Claro' : 'Tema Escuro'}</span>
-                 </button>
+                     <button 
+                        onClick={() => { setActiveTab('settings'); onClose(); }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}
+                    >
+                        <SettingsIcon className={`w-5 h-5 ${activeTab === 'settings' ? 'text-green-500' : (isDarkMode ? 'text-slate-500 group-hover:text-slate-300' : 'text-slate-400 group-hover:text-slate-600')}`} />
+                        <span className="font-medium">Configurações</span>
+                    </button>
+                </nav>
 
-                 <button onClick={onLogout} className={`w-full flex items-center gap-3 px-2 py-2 transition-colors ${isDarkMode ? 'text-slate-400 hover:text-red-400' : 'text-slate-500 hover:text-red-600'}`}>
-                    <LogoutIcon className="w-5 h-5" />
-                    <span className="font-medium">Sair</span>
-                </button>
-            </div>
-        </aside>
+                <div className={`p-6 border-t space-y-4 ${isDarkMode ? 'border-slate-900/50' : 'border-slate-100'}`}>
+                     <button 
+                        onClick={toggleTheme}
+                        className={`w-full flex items-center gap-3 px-2 py-2 text-sm cursor-pointer transition-colors ${theme.navInactive}`}
+                     >
+                        {isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+                        <span className="font-medium">{isDarkMode ? 'Tema Claro' : 'Tema Escuro'}</span>
+                     </button>
+
+                     <button onClick={onLogout} className={`w-full flex items-center gap-3 px-2 py-2 transition-colors ${isDarkMode ? 'text-slate-400 hover:text-red-400' : 'text-slate-500 hover:text-red-600'}`}>
+                        <LogoutIcon className="w-5 h-5" />
+                        <span className="font-medium">Sair</span>
+                    </button>
+                </div>
+            </aside>
+        </>
     );
 }
 
@@ -120,18 +145,47 @@ const Header: React.FC<{
     usdToBrlRate: number | null;
     isDarkMode: boolean;
     onOpenBriefing: () => void;
-}> = ({ user, activeBrokerage, brokerages, setActiveBrokerageId, usdToBrlRate, isDarkMode, onOpenBriefing }) => {
+    onOpenMenu: () => void;
+    onSyncTrades: () => Promise<void>;
+}> = ({ user, activeBrokerage, brokerages, setActiveBrokerageId, usdToBrlRate, isDarkMode, onOpenBriefing, onOpenMenu, onSyncTrades }) => {
     const theme = useThemeClasses(isDarkMode);
+    const [isSyncing, setIsSyncing] = useState(false);
+
+    const handleSync = async () => {
+        setIsSyncing(true);
+        try {
+            await onSyncTrades();
+        } finally {
+            setTimeout(() => setIsSyncing(false), 1000);
+        }
+    }
 
     return (
-        <header className={`h-20 flex items-center justify-end px-8 flex-shrink-0 ${theme.header}`}>
-            <div className="flex items-center gap-6">
-                <div className={`flex items-center gap-3 text-sm pr-6 border-r ${isDarkMode ? 'text-slate-400 border-slate-800' : 'text-slate-500 border-slate-200'}`}>
+        <header className={`h-20 flex items-center justify-between md:justify-end px-4 md:px-8 flex-shrink-0 ${theme.header}`}>
+            <button 
+                onClick={onOpenMenu}
+                className="md:hidden text-slate-500 hover:text-slate-300 p-2"
+            >
+                <MenuIcon className="w-6 h-6" />
+            </button>
+
+            <div className="flex items-center gap-4 md:gap-6">
+                 {/* Sync Button */}
+                <button
+                    onClick={handleSync}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${isDarkMode ? 'border-slate-800 text-slate-400 hover:text-green-400 hover:bg-slate-900' : 'border-slate-200 text-slate-500 hover:text-green-600 hover:bg-slate-50'}`}
+                    disabled={isSyncing}
+                >
+                    <ArrowPathIcon className={`w-4 h-4 ${isSyncing ? 'animate-spin text-green-500' : ''}`} />
+                    <span className="hidden sm:inline">{isSyncing ? 'Sincronizando...' : 'Sincronizar'}</span>
+                </button>
+
+                <div className={`flex items-center gap-3 text-sm pr-4 md:pr-6 border-r ${isDarkMode ? 'text-slate-400 border-slate-800' : 'text-slate-500 border-slate-200'}`}>
                      {brokerages.length > 0 && (
                         <select
                             value={activeBrokerage?.id || ''}
                             onChange={(e) => setActiveBrokerageId(e.target.value)}
-                            className={`bg-transparent border-none cursor-pointer text-xs focus:ring-0 ${isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'}`}
+                            className={`bg-transparent border-none cursor-pointer text-xs focus:ring-0 max-w-[120px] md:max-w-none truncate ${isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'}`}
                         >
                             {brokerages.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                         </select>
@@ -195,6 +249,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
     handleDeleteRecord, setTransactionType, setIsTransactionModalOpen, goal, usdToBrlRate, isDarkMode
 }) => {
     const theme = useThemeClasses(isDarkMode);
+    const [areKpisVisible, setAreKpisVisible] = useState(true);
 
     const handleQuickAdd = (type: 'win' | 'loss') => {
          const entryValue = customEntryValue ? parseFloat(customEntryValue) : undefined;
@@ -228,96 +283,107 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
 
 
     return (
-        <div className="p-8 space-y-8">
+        <div className="p-4 md:p-8 space-y-6 md:space-y-8">
             {/* Header / Date Picker */}
-            <div className="flex justify-between items-start">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
                 <div>
-                    <h2 className={`text-3xl font-bold mb-1 ${theme.text}`}>Dashboard</h2>
-                    <p className={theme.textMuted}>Acompanhe sua performance em tempo real</p>
+                    <h2 className={`text-2xl md:text-3xl font-bold mb-1 ${theme.text}`}>Dashboard</h2>
+                    <p className={`text-sm md:text-base ${theme.textMuted}`}>Acompanhe sua performance em tempo real</p>
                 </div>
                 <div className="flex items-center gap-4">
                      <input
                         type="date"
                         value={selectedDateString}
                         onChange={(e) => setSelectedDate(new Date(e.target.value + 'T00:00:00Z'))}
-                        className={`border rounded-lg px-4 py-2 focus:outline-none focus:border-slate-500 text-sm ${isDarkMode ? 'bg-slate-900 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`}
+                        className={`w-full md:w-auto border rounded-lg px-4 py-2 focus:outline-none focus:border-slate-500 text-sm ${isDarkMode ? 'bg-slate-900 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`}
                     />
                 </div>
             </div>
 
             {/* Trading Halted Alert */}
              {isTradingHalted && (
-                <div className="bg-red-900/20 border border-red-900/50 text-red-400 p-4 rounded-xl flex justify-between items-center" role="alert">
+                <div className="bg-red-900/20 border border-red-900/50 text-red-400 p-4 rounded-xl flex flex-col md:flex-row justify-between items-center gap-4" role="alert">
                     <div className="flex items-center gap-3">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                         <div>
                             <p className="font-bold">Stop Atingido</p>
                             <p className="text-sm opacity-80">Você atingiu seu limite de {stopLossLimitReached ? 'perdas' : 'ganhos'} diário.</p>
                         </div>
                     </div>
-                    <button onClick={() => setStopLimitOverride(prev => ({ ...prev, [selectedDateString]: true }))} className="text-xs bg-red-900/40 hover:bg-red-900/60 px-4 py-2 rounded-lg border border-red-800/50 transition-colors uppercase font-bold tracking-wider">
+                    <button onClick={() => setStopLimitOverride(prev => ({ ...prev, [selectedDateString]: true }))} className="w-full md:w-auto text-xs bg-red-900/40 hover:bg-red-900/60 px-4 py-2 rounded-lg border border-red-800/50 transition-colors uppercase font-bold tracking-wider whitespace-nowrap">
                         Liberar Operações
                     </button>
                 </div>
             )}
 
+            {/* Mobile Toggle for KPIs */}
+            <div className="flex justify-end md:hidden mb-2">
+                <button
+                    onClick={() => setAreKpisVisible(!areKpisVisible)}
+                    className={`flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${theme.navInactive}`}
+                >
+                    {areKpisVisible ? 'Ocultar Resumo' : 'Mostrar Resumo'}
+                    {areKpisVisible ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
+                </button>
+            </div>
+
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className={`${areKpisVisible ? 'grid' : 'hidden'} grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 transition-all`}>
                 {/* Banca Atual */}
-                <div className={`p-5 rounded-2xl border transition-all ${theme.card} ${theme.cardHover}`}>
+                <div className={`p-4 md:p-5 rounded-2xl border transition-all ${theme.card} ${theme.cardHover}`}>
                     <div className="flex justify-between items-start mb-2">
                         <div>
-                            <p className={`${theme.textMuted} text-[10px] font-bold uppercase tracking-widest`}>Banca Atual</p>
-                            <p className={`text-2xl font-bold mt-1 ${theme.text}`}>${currentBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                            <p className={`${theme.textMuted} text-[9px] md:text-[10px] font-bold uppercase tracking-widest`}>Banca Atual</p>
+                            <p className={`text-xl md:text-2xl font-bold mt-1 ${theme.text}`}>${currentBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
-                        <div className={`p-2 rounded-lg text-green-500 border ${isDarkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-green-50 border-green-100'}`}>
-                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" /></svg>
+                        <div className={`p-1.5 md:p-2 rounded-lg text-green-500 border ${isDarkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-green-50 border-green-100'}`}>
+                             <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" /></svg>
                         </div>
                     </div>
                     <div className="flex items-center">
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded border ${isDarkMode ? 'text-slate-500 bg-slate-950/30 border-slate-800/50' : 'text-slate-600 bg-slate-100 border-slate-200'}`}>
+                        <span className={`text-[10px] md:text-xs font-medium px-1.5 py-0.5 rounded border ${isDarkMode ? 'text-slate-500 bg-slate-950/30 border-slate-800/50' : 'text-slate-600 bg-slate-100 border-slate-200'}`}>
                             R$ {balanceInBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                     </div>
                 </div>
 
                 {/* Lucro Diário */}
-                <div className={`p-5 rounded-2xl border transition-all ${theme.card} ${theme.cardHover}`}>
+                <div className={`p-4 md:p-5 rounded-2xl border transition-all ${theme.card} ${theme.cardHover}`}>
                     <div className="flex justify-between items-start mb-2">
                         <div>
-                            <p className={`${theme.textMuted} text-[10px] font-bold uppercase tracking-widest`}>Lucro Diário</p>
-                            <p className={`text-2xl font-bold mt-1 ${currentProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            <p className={`${theme.textMuted} text-[9px] md:text-[10px] font-bold uppercase tracking-widest`}>Lucro Diário</p>
+                            <p className={`text-xl md:text-2xl font-bold mt-1 ${currentProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                 {currentProfit >= 0 ? '+' : ''}${currentProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                         </div>
-                         <div className={`p-2 rounded-lg border ${currentProfit >= 0 ? (isDarkMode ? 'bg-green-500/10 text-green-500 border-slate-700/50' : 'bg-green-50 text-green-600 border-green-100') : (isDarkMode ? 'bg-red-500/10 text-red-500 border-slate-700/50' : 'bg-red-50 text-red-600 border-red-100')}`}>
+                         <div className={`p-1.5 md:p-2 rounded-lg border ${currentProfit >= 0 ? (isDarkMode ? 'bg-green-500/10 text-green-500 border-slate-700/50' : 'bg-green-50 text-green-600 border-green-100') : (isDarkMode ? 'bg-red-500/10 text-red-500 border-slate-700/50' : 'bg-red-50 text-red-600 border-red-100')}`}>
                              {currentProfit >= 0 ? 
-                                <TrendingUpIcon className="w-5 h-5" /> : 
-                                <TrendingDownIcon className="w-5 h-5" />
+                                <TrendingUpIcon className="w-4 h-4 md:w-5 md:h-5" /> : 
+                                <TrendingDownIcon className="w-4 h-4 md:w-5 md:h-5" />
                              }
                         </div>
                     </div>
                      <div className="flex items-center gap-2">
-                         <span className={`text-xs font-medium px-2 py-0.5 rounded border ${isDarkMode ? 'text-slate-500 bg-slate-950/30 border-slate-800/50' : 'text-slate-600 bg-slate-100 border-slate-200'}`}>
+                         <span className={`text-[10px] md:text-xs font-medium px-1.5 py-0.5 rounded border ${isDarkMode ? 'text-slate-500 bg-slate-950/30 border-slate-800/50' : 'text-slate-600 bg-slate-100 border-slate-200'}`}>
                              R$ {profitInBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                          </span>
                     </div>
                 </div>
 
                  {/* Meta Diária */}
-                 <div className={`p-5 rounded-2xl border transition-all ${theme.card} ${theme.cardHover}`}>
+                 <div className={`p-4 md:p-5 rounded-2xl border transition-all ${theme.card} ${theme.cardHover}`}>
                     <div className="flex justify-between items-start mb-2">
                         <div>
-                             <p className={`${theme.textMuted} text-[10px] font-bold uppercase tracking-widest`}>Meta Diária</p>
+                             <p className={`${theme.textMuted} text-[9px] md:text-[10px] font-bold uppercase tracking-widest`}>Meta Diária</p>
                             <div className="flex items-baseline gap-2 mt-1">
-                                <p className={`text-2xl font-bold ${currentProfit >= dailyGoalTarget ? 'text-green-500' : theme.text}`}>
+                                <p className={`text-xl md:text-2xl font-bold ${currentProfit >= dailyGoalTarget ? 'text-green-500' : theme.text}`}>
                                      {dailyGoalTarget > 0 ? ((currentProfit / dailyGoalTarget) * 100).toFixed(0) : 0}%
                                 </p>
-                                <span className={`text-xs ${theme.textMuted}`}>/ ${dailyGoalTarget.toFixed(2)}</span>
+                                <span className={`text-[10px] md:text-xs ${theme.textMuted}`}>/ ${dailyGoalTarget.toFixed(2)}</span>
                             </div>
                         </div>
-                        <div className={`p-2 rounded-lg text-blue-400 border ${isDarkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
-                            <TargetIcon className="w-5 h-5" />
+                        <div className={`p-1.5 md:p-2 rounded-lg text-blue-400 border ${isDarkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+                            <TargetIcon className="w-4 h-4 md:w-5 md:h-5" />
                         </div>
                     </div>
                      <div className={`w-full rounded-full h-1.5 mt-2 ${isDarkMode ? 'bg-slate-950' : 'bg-slate-200'}`}>
@@ -326,17 +392,17 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                 </div>
 
                 {/* Taxa de Acerto */}
-                <div className={`p-5 rounded-2xl border transition-all ${theme.card} ${theme.cardHover}`}>
+                <div className={`p-4 md:p-5 rounded-2xl border transition-all ${theme.card} ${theme.cardHover}`}>
                     <div className="flex justify-between items-start mb-2">
                         <div>
-                             <p className={`${theme.textMuted} text-[10px] font-bold uppercase tracking-widest`}>Taxa de Acerto</p>
-                            <p className={`text-2xl font-bold mt-1 ${theme.text}`}>{winRate}%</p>
+                             <p className={`${theme.textMuted} text-[9px] md:text-[10px] font-bold uppercase tracking-widest`}>Taxa de Acerto</p>
+                            <p className={`text-xl md:text-2xl font-bold mt-1 ${theme.text}`}>{winRate}%</p>
                         </div>
-                        <div className={`p-2 rounded-lg text-purple-400 border ${isDarkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-purple-50 text-purple-600 border-purple-100'}`}>
-                             <PieChartIcon className="w-5 h-5" />
+                        <div className={`p-1.5 md:p-2 rounded-lg text-purple-400 border ${isDarkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-purple-50 text-purple-600 border-purple-100'}`}>
+                             <PieChartIcon className="w-4 h-4 md:w-5 md:h-5" />
                         </div>
                     </div>
-                    <div className="flex items-center gap-3 text-xs font-medium">
+                    <div className="flex items-center gap-3 text-[10px] md:text-xs font-medium">
                         <span className="text-green-500 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> {dailyRecordForSelectedDay?.winCount || 0} Wins</span>
                         <span className="text-red-500 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> {dailyRecordForSelectedDay?.lossCount || 0} Loss</span>
                     </div>
@@ -344,7 +410,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
             </div>
 
             {/* Quick Actions - REDESIGNED */}
-            <div className={`p-6 rounded-2xl border ${theme.card}`}>
+            <div className={`p-4 md:p-6 rounded-2xl border ${theme.card}`}>
                 <div className="flex justify-between items-center mb-4">
                     <h3 className={`text-xl font-bold ${theme.text}`}>Ações Rápidas</h3>
                      <div className="flex gap-4">
@@ -399,7 +465,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                          <button
                             onClick={() => handleQuickAdd('win')}
                             disabled={isTradingHalted}
-                            className="bg-green-500 hover:bg-green-400 active:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-black text-xl rounded-xl shadow-lg shadow-green-900/20 hover:shadow-green-500/20 transition-all flex items-center justify-center gap-3 uppercase tracking-widest relative overflow-hidden group"
+                            className="bg-green-500 hover:bg-green-400 active:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-black text-lg md:text-xl rounded-xl shadow-lg shadow-green-900/20 hover:shadow-green-500/20 transition-all flex items-center justify-center gap-2 md:gap-3 uppercase tracking-widest relative overflow-hidden group"
                         >
                             <div className="p-1.5 rounded-full bg-slate-950/20">
                                  <TrendingUpIcon className="w-5 h-5 text-slate-900" />
@@ -409,7 +475,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                         <button
                             onClick={() => handleQuickAdd('loss')}
                             disabled={isTradingHalted}
-                            className="bg-red-500 hover:bg-red-400 active:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-xl rounded-xl shadow-lg shadow-red-900/20 hover:shadow-red-500/20 transition-all flex items-center justify-center gap-3 uppercase tracking-widest relative overflow-hidden group"
+                            className="bg-red-500 hover:bg-red-400 active:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-lg md:text-xl rounded-xl shadow-lg shadow-red-900/20 hover:shadow-red-500/20 transition-all flex items-center justify-center gap-2 md:gap-3 uppercase tracking-widest relative overflow-hidden group"
                         >
                              <div className="p-1.5 rounded-full bg-black/20">
                                 <TrendingDownIcon className="w-5 h-5 text-white" />
@@ -468,25 +534,25 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                      <table className={`w-full text-sm text-left ${theme.textMuted}`}>
                         <thead className={`text-xs uppercase ${theme.tableHeader}`}>
                             <tr>
-                                <th scope="col" className="px-6 py-4 font-semibold">Data</th>
-                                <th scope="col" className="px-6 py-4 font-semibold">Tipo</th>
-                                <th scope="col" className="px-6 py-4 text-center font-semibold">Resumo</th>
-                                <th scope="col" className="px-6 py-4 text-right font-semibold">Resultado</th>
-                                <th scope="col" className="px-6 py-4 text-center font-semibold">Ações</th>
+                                <th scope="col" className="px-6 py-4 font-semibold whitespace-nowrap">Data</th>
+                                <th scope="col" className="px-6 py-4 font-semibold whitespace-nowrap">Tipo</th>
+                                <th scope="col" className="px-6 py-4 text-center font-semibold whitespace-nowrap">Resumo</th>
+                                <th scope="col" className="px-6 py-4 text-right font-semibold whitespace-nowrap">Resultado</th>
+                                <th scope="col" className="px-6 py-4 text-center font-semibold whitespace-nowrap">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                              {sortedFilteredRecords.length > 0 ? [...sortedFilteredRecords].reverse().slice(0, 10).map((record) => (
                                 <tr key={record.id} className={`border-b ${theme.border} ${theme.tableRow} transition-colors`}>
-                                     <td className={`px-6 py-4 font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                                     <td className={`px-6 py-4 font-medium whitespace-nowrap ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
                                         {record.recordType === 'day' ? record.date : record.displayDate}
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-4 whitespace-nowrap">
                                          {record.recordType === 'day' && <span className="text-blue-400 bg-blue-900/20 px-2.5 py-1 rounded text-xs font-medium border border-blue-900/30">Trading</span>}
                                         {record.recordType === 'deposit' && <span className="text-green-400 bg-green-900/20 px-2.5 py-1 rounded text-xs font-medium border border-green-900/30">Depósito</span>}
                                         {record.recordType === 'withdrawal' && <span className="text-orange-400 bg-orange-900/20 px-2.5 py-1 rounded text-xs font-medium border border-orange-900/30">Saque</span>}
                                     </td>
-                                    <td className="px-6 py-4 text-center">
+                                    <td className="px-6 py-4 text-center whitespace-nowrap">
                                          {record.recordType === 'day' ? (
                                             <div className="flex justify-center gap-3">
                                                 <span className="font-bold text-green-500">{record.winCount}W</span>
@@ -497,7 +563,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                                             <span className="text-slate-500 italic text-xs">{record.notes || '-'}</span>
                                          )}
                                     </td>
-                                    <td className={`px-6 py-4 text-right font-bold ${
+                                    <td className={`px-6 py-4 text-right font-bold whitespace-nowrap ${
                                         record.recordType === 'day' 
                                             ? (record.netProfitUSD >= 0 ? 'text-green-400' : 'text-red-400')
                                             : (isDarkMode ? 'text-slate-200' : 'text-slate-800')
@@ -508,7 +574,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                                             `$${record.amountUSD.toFixed(2)}`
                                          )}
                                     </td>
-                                    <td className="px-6 py-4 text-center">
+                                    <td className="px-6 py-4 text-center whitespace-nowrap">
                                         <button onClick={() => handleDeleteRecord(record.id)} className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-900/10 rounded-full transition-all">
                                             <TrashIcon className="w-4 h-4" />
                                         </button>
@@ -537,8 +603,8 @@ const OperationsPanel: React.FC<{
     const theme = useThemeClasses(isDarkMode);
     
     return (
-        <div className="p-8">
-            <h2 className={`text-3xl font-bold mb-8 ${theme.text}`}>Histórico de Operações</h2>
+        <div className="p-4 md:p-8">
+            <h2 className={`text-2xl md:text-3xl font-bold mb-6 md:mb-8 ${theme.text}`}>Histórico de Operações</h2>
             
             <div className={`rounded-2xl border overflow-hidden ${theme.card}`}>
                 <div className={`p-6 border-b ${theme.border}`}>
@@ -548,26 +614,26 @@ const OperationsPanel: React.FC<{
                      <table className={`w-full text-sm text-left ${theme.textMuted}`}>
                         <thead className={`text-xs uppercase ${theme.tableHeader}`}>
                             <tr>
-                                <th scope="col" className="px-6 py-4 font-semibold">Data</th>
-                                <th scope="col" className="px-6 py-4 font-semibold">Tipo</th>
-                                <th scope="col" className="px-6 py-4 text-center font-semibold">Detalhes</th>
-                                <th scope="col" className="px-6 py-4 text-right font-semibold">Saldo Final / Valor</th>
-                                <th scope="col" className="px-6 py-4 text-right font-semibold">Resultado Dia</th>
-                                <th scope="col" className="px-6 py-4 text-center font-semibold">Ações</th>
+                                <th scope="col" className="px-6 py-4 font-semibold whitespace-nowrap">Data</th>
+                                <th scope="col" className="px-6 py-4 font-semibold whitespace-nowrap">Tipo</th>
+                                <th scope="col" className="px-6 py-4 text-center font-semibold whitespace-nowrap">Detalhes</th>
+                                <th scope="col" className="px-6 py-4 text-right font-semibold whitespace-nowrap">Saldo Final / Valor</th>
+                                <th scope="col" className="px-6 py-4 text-right font-semibold whitespace-nowrap">Resultado Dia</th>
+                                <th scope="col" className="px-6 py-4 text-center font-semibold whitespace-nowrap">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                              {sortedFilteredRecords.length > 0 ? [...sortedFilteredRecords].reverse().map((record) => (
                                 <tr key={record.id} className={`border-b ${theme.border} ${theme.tableRow} transition-colors`}>
-                                     <td className={`px-6 py-4 font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                                     <td className={`px-6 py-4 font-medium whitespace-nowrap ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
                                         {record.recordType === 'day' ? record.date : record.displayDate}
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-4 whitespace-nowrap">
                                          {record.recordType === 'day' && <span className="text-blue-400 bg-blue-900/20 px-2.5 py-1 rounded text-xs font-medium border border-blue-900/30">Trading</span>}
                                         {record.recordType === 'deposit' && <span className="text-green-400 bg-green-900/20 px-2.5 py-1 rounded text-xs font-medium border border-green-900/30">Depósito</span>}
                                         {record.recordType === 'withdrawal' && <span className="text-orange-400 bg-orange-900/20 px-2.5 py-1 rounded text-xs font-medium border border-orange-900/30">Saque</span>}
                                     </td>
-                                    <td className="px-6 py-4 text-center">
+                                    <td className="px-6 py-4 text-center whitespace-nowrap">
                                          {record.recordType === 'day' ? (
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex justify-center gap-3">
@@ -580,14 +646,14 @@ const OperationsPanel: React.FC<{
                                             <span className="text-slate-500 italic text-xs">{record.notes || '-'}</span>
                                          )}
                                     </td>
-                                    <td className={`px-6 py-4 text-right ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                                    <td className={`px-6 py-4 text-right whitespace-nowrap ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                                          {record.recordType === 'day' ? (
                                             `$${record.endBalanceUSD.toFixed(2)}`
                                          ) : (
                                             `$${record.amountUSD.toFixed(2)}`
                                          )}
                                     </td>
-                                     <td className={`px-6 py-4 text-right font-bold ${
+                                     <td className={`px-6 py-4 text-right font-bold whitespace-nowrap ${
                                         record.recordType === 'day' 
                                             ? (record.netProfitUSD >= 0 ? 'text-green-400' : 'text-red-400')
                                             : 'text-slate-500'
@@ -596,7 +662,7 @@ const OperationsPanel: React.FC<{
                                             `$${record.netProfitUSD.toFixed(2)}`
                                          ) : '-'}
                                     </td>
-                                    <td className="px-6 py-4 text-center">
+                                    <td className="px-6 py-4 text-center whitespace-nowrap">
                                         <button onClick={() => handleDeleteRecord(record.id)} className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-900/10 rounded-full transition-all">
                                             <TrashIcon className="w-4 h-4" />
                                         </button>
@@ -611,6 +677,200 @@ const OperationsPanel: React.FC<{
                              )}
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
+    const theme = useThemeClasses(isDarkMode);
+    const [asset, setAsset] = useState('');
+    const [time, setTime] = useState('');
+    const [timeframe, setTimeframe] = useState('5m');
+    const [isLoading, setIsLoading] = useState(false);
+    const [analysisResult, setAnalysisResult] = useState<{
+        buyChance: number;
+        sellChance: number;
+        reasoning: string;
+    } | null>(null);
+
+    // List of assets for dropdown
+    const cryptoAssets = [
+        "BTC/USD",
+        "ETH/USD",
+        "SOL/USD",
+        "XRP/USD",
+        "ADA/USD",
+        "EUR/USD", // Keeping common forex
+        "GBP/USD"
+    ];
+
+    const handleAnalyze = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setAnalysisResult(null);
+
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            
+            const prompt = `
+                Atue como um analista financeiro profissional especializado em day trade e análise técnica. 
+                Estou analisando o ativo "${asset}" às "${time}" para um tempo gráfico de "${timeframe}". 
+                Com base em padrões históricos, volatilidade e estratégias gerais de sentimento de mercado para esta classe de ativos (simule um contexto de análise técnica), 
+                forneça uma probabilidade percentual para COMPRA (Call) e VENDA (Put). 
+                
+                IMPORTANTE: Esta é uma simulação baseada em conceitos de indicadores técnicos.
+                
+                Retorne a resposta estritamente no formato JSON com estes campos:
+                - buyChance: number (0-100)
+                - sellChance: number (0-100)
+                - reasoning: string (Uma explicação concisa de 2 frases em PORTUGUÊS DO BRASIL sobre os indicadores técnicos ou padrões que justificam essa probabilidade).
+            `;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            buyChance: { type: Type.NUMBER },
+                            sellChance: { type: Type.NUMBER },
+                            reasoning: { type: Type.STRING },
+                        },
+                        required: ["buyChance", "sellChance", "reasoning"]
+                    }
+                }
+            });
+
+            const text = response.text;
+            if (text) {
+                const json = JSON.parse(text);
+                setAnalysisResult(json);
+            }
+
+        } catch (error) {
+            console.error("AI Analysis failed:", error);
+            alert("Falha na análise. Verifique sua conexão.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="p-4 md:p-8">
+            <h2 className={`text-2xl md:text-3xl font-bold mb-6 md:mb-8 ${theme.text}`}>Analisar Operações (IA)</h2>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className={`p-6 md:p-8 rounded-2xl border ${theme.card}`}>
+                    <h3 className={`text-xl font-bold mb-6 border-b pb-4 ${theme.text} ${theme.border}`}>Dados da Operação</h3>
+                    <form onSubmit={handleAnalyze} className="space-y-6">
+                        <div>
+                            <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Ativo</label>
+                            <select
+                                value={asset}
+                                onChange={(e) => setAsset(e.target.value)}
+                                required
+                                className={`block w-full px-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors uppercase ${theme.input}`}
+                            >
+                                <option value="" disabled>Selecione um ativo</option>
+                                {cryptoAssets.map(a => (
+                                    <option key={a} value={a}>{a}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                             <div>
+                                <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Horário</label>
+                                <input
+                                    type="time"
+                                    value={time}
+                                    onChange={(e) => setTime(e.target.value)}
+                                    required
+                                    className={`block w-full px-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors ${theme.input}`}
+                                />
+                            </div>
+                            <div>
+                                <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Tempo</label>
+                                <select
+                                    value={timeframe}
+                                    onChange={(e) => setTimeframe(e.target.value)}
+                                    className={`block w-full px-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors ${theme.input}`}
+                                >
+                                    <option value="1m">1 Minuto (M1)</option>
+                                    <option value="5m">5 Minutos (M5)</option>
+                                    <option value="15m">15 Minutos (M15)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button 
+                            type="submit" 
+                            disabled={isLoading}
+                            className={`w-full py-4 mt-4 font-bold rounded-xl shadow-lg transition-all active:scale-[0.98] flex justify-center items-center gap-2 
+                                ${isLoading ? 'bg-slate-700 cursor-not-allowed text-slate-400' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-green-900/20'}`}
+                        >
+                            {isLoading ? (
+                                <>
+                                    <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                                    Analisando...
+                                </>
+                            ) : (
+                                <>
+                                    <CpuChipIcon className="w-5 h-5" />
+                                    Gerar Análise com IA
+                                </>
+                            )}
+                        </button>
+                    </form>
+                </div>
+
+                {/* Results Panel */}
+                <div className={`p-6 md:p-8 rounded-2xl border flex flex-col justify-center items-center text-center ${theme.card}`}>
+                    {!analysisResult && !isLoading && (
+                        <div className="opacity-50">
+                            <CpuChipIcon className="w-16 h-16 mx-auto mb-4 text-slate-500" />
+                            <p className={theme.textMuted}>Preencha os dados ao lado para solicitar uma análise de probabilidade à Inteligência Artificial.</p>
+                        </div>
+                    )}
+
+                    {isLoading && (
+                        <div className="animate-pulse">
+                            <div className="w-16 h-16 rounded-full bg-slate-700 mx-auto mb-4"></div>
+                            <div className="h-4 bg-slate-700 rounded w-3/4 mx-auto mb-2"></div>
+                            <div className="h-4 bg-slate-700 rounded w-1/2 mx-auto"></div>
+                        </div>
+                    )}
+
+                    {analysisResult && (
+                        <div className="w-full animate-fade-in-up">
+                            <h3 className={`text-xl font-bold mb-8 ${theme.text}`}>Probabilidade Estimada</h3>
+                            
+                            <div className="flex justify-between items-end mb-2 px-2">
+                                <span className="font-bold text-green-500 text-lg">COMPRA ({analysisResult.buyChance}%)</span>
+                                <span className="font-bold text-red-500 text-lg">VENDA ({analysisResult.sellChance}%)</span>
+                            </div>
+
+                            <div className="w-full h-6 bg-slate-800 rounded-full overflow-hidden flex mb-8">
+                                <div 
+                                    className="h-full bg-green-500 transition-all duration-1000 ease-out" 
+                                    style={{ width: `${analysisResult.buyChance}%` }}
+                                ></div>
+                                <div 
+                                    className="h-full bg-red-500 transition-all duration-1000 ease-out" 
+                                    style={{ width: `${analysisResult.sellChance}%` }}
+                                ></div>
+                            </div>
+
+                            <div className={`p-4 rounded-xl text-left border ${isDarkMode ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                                <p className={`text-sm font-semibold mb-1 ${theme.textMuted}`}>Análise Técnica (IA):</p>
+                                <p className={`italic ${theme.text}`}>"{analysisResult.reasoning}"</p>
+                            </div>
+                             <p className="text-xs text-slate-500 mt-4">*Isso é uma simulação baseada em IA e não constitui conselho financeiro real.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -642,11 +902,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ activeBrokerage, onUpdate
     };
 
     return (
-        <div className="p-8">
-             <h2 className={`text-3xl font-bold mb-8 ${theme.text}`}>Configurações</h2>
+        <div className="p-4 md:p-8">
+             <h2 className={`text-2xl md:text-3xl font-bold mb-6 md:mb-8 ${theme.text}`}>Configurações</h2>
              
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                 <div className={`p-8 rounded-2xl border ${theme.card}`}>
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
+                 <div className={`p-6 md:p-8 rounded-2xl border ${theme.card}`}>
                     <h3 className={`text-xl font-bold mb-6 border-b pb-4 ${theme.text} ${theme.border}`}>Configurações da Corretora</h3>
                     
                     <div className="space-y-6">
@@ -675,11 +935,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ activeBrokerage, onUpdate
                     </div>
                  </div>
 
-                 <div className={`p-8 rounded-2xl border ${theme.card}`}>
+                 <div className={`p-6 md:p-8 rounded-2xl border ${theme.card}`}>
                     <h3 className={`text-xl font-bold mb-6 border-b pb-4 ${theme.text} ${theme.border}`}>Configurações da Operação</h3>
                     
                     <div className="space-y-6">
-                         <div className="grid grid-cols-2 gap-6">
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                              <div>
                                 <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Modo de Entrada</label>
                                 <select 
@@ -738,11 +998,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ activeBrokerage, onUpdate
                          </div>
                     </div>
 
-                    <div className="mt-8 flex justify-between items-center">
+                    <div className="mt-8 flex flex-col-reverse md:flex-row justify-between items-center gap-4">
                         <button onClick={() => onDeleteBrokerage(activeBrokerage.id)} className="text-red-400 hover:text-red-300 text-sm flex items-center gap-2">
                             <TrashIcon className="w-4 h-4" /> Excluir Corretora
                         </button>
-                        <button onClick={handleSave} className="px-8 py-3 bg-green-500 text-slate-950 font-bold rounded-lg hover:bg-green-400 transition-colors shadow-lg shadow-green-900/20">
+                        <button onClick={handleSave} className="w-full md:w-auto px-8 py-3 bg-green-500 text-slate-950 font-bold rounded-lg hover:bg-green-400 transition-colors shadow-lg shadow-green-900/20">
                             Salvar Alterações
                         </button>
                     </div>
@@ -870,10 +1130,10 @@ const GoalPanel: React.FC<GoalPanelProps> = ({ goal, setGoal, sortedFilteredReco
     };
 
     return (
-        <div className="p-8">
-            <h2 className={`text-3xl font-bold mb-8 ${theme.text}`}>Definição de Metas</h2>
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className={`p-8 rounded-2xl border ${theme.card}`}>
+        <div className="p-4 md:p-8">
+            <h2 className={`text-2xl md:text-3xl font-bold mb-6 md:mb-8 ${theme.text}`}>Definição de Metas</h2>
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
+                <div className={`p-6 md:p-8 rounded-2xl border ${theme.card}`}>
                     <h3 className={`text-xl font-bold mb-6 border-b pb-4 ${theme.text} ${theme.border}`}>Configurar Meta Principal</h3>
                     <p className={`text-sm mb-6 ${theme.textMuted}`}>Esta meta será usada para calcular automaticamente sua meta diária no Dashboard.</p>
                     <div className="space-y-6">
@@ -915,7 +1175,7 @@ const GoalPanel: React.FC<GoalPanelProps> = ({ goal, setGoal, sortedFilteredReco
                                 </svg>
                                 Projeção da Meta
                             </h4>
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className={`text-center p-3 rounded-lg border ${isDarkMode ? 'bg-slate-950 border-slate-800/50' : 'bg-white border-slate-200'}`}>
                                     <p className={`text-xs mb-1 uppercase tracking-wider ${theme.textMuted}`}>Diária</p>
                                     <p className="text-lg font-bold text-green-400">${dailyTarget.toFixed(2)}</p>
@@ -935,13 +1195,13 @@ const GoalPanel: React.FC<GoalPanelProps> = ({ goal, setGoal, sortedFilteredReco
                         </div>
                     </div>
                     <div className="mt-8 flex justify-end">
-                        <button onClick={handleSave} className="px-8 py-3 bg-green-500 text-slate-950 font-bold rounded-lg hover:bg-green-400 transition-colors shadow-lg shadow-green-900/20">
+                        <button onClick={handleSave} className="w-full md:w-auto px-8 py-3 bg-green-500 text-slate-950 font-bold rounded-lg hover:bg-green-400 transition-colors shadow-lg shadow-green-900/20">
                             Salvar Alterações
                         </button>
                     </div>
                 </div>
 
-                <div className={`p-8 rounded-2xl border ${theme.card}`}>
+                <div className={`p-6 md:p-8 rounded-2xl border ${theme.card}`}>
                     <h3 className={`text-xl font-bold mb-6 border-b pb-4 ${theme.text} ${theme.border}`}>Progresso Atual</h3>
                     <div className="space-y-6">
                         <GoalProgressBar
@@ -1105,8 +1365,9 @@ const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout })
     const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
     const [transactionType, setTransactionType] = useState<'deposit' | 'withdrawal' | null>(null);
     
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'operations' | 'goals' | 'settings'>('dashboard');
-    
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'operations' | 'goals' | 'settings' | 'analyze'>('dashboard');
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
     const [selectedDate, setSelectedDate] = useState(() => {
         const today = new Date();
         today.setUTCHours(0,0,0,0);
@@ -1123,454 +1384,535 @@ const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout })
     // --- Effects ---
     useEffect(() => {
         const initialize = async () => {
-            setIsLoading(true);
-            const rate = await fetchUSDBRLRate();
-            setUsdToBrlRate(rate);
-            
-             if (user.username === 'henrique') {
-                const oldBrokeragesKey = 'brokerages_v2';
-                const oldRecordsKey = 'tradeRecords_v2';
-                const oldGoalKey = 'tradeGoal';
-                const newBrokeragesKey = getStorageKey('brokerages_v2');
-                if (localStorage.getItem(oldBrokeragesKey) && !localStorage.getItem(newBrokeragesKey)) {
-                    localStorage.setItem(newBrokeragesKey, localStorage.getItem(oldBrokeragesKey)!);
-                    if (localStorage.getItem(oldRecordsKey)) localStorage.setItem(getStorageKey('tradeRecords_v2'), localStorage.getItem(oldRecordsKey)!);
-                    if (localStorage.getItem(oldGoalKey)) localStorage.setItem(getStorageKey('tradeGoal'), localStorage.getItem(oldGoalKey)!);
-                }
-            }
-
-            let loadedBrokerages: Brokerage[] = [];
-            const storedBrokerages = localStorage.getItem(getStorageKey('brokerages_v2'));
-            const storedRecords = localStorage.getItem(getStorageKey('tradeRecords_v2'));
-
-            if (storedBrokerages) {
-                const parsedBrokerages = JSON.parse(storedBrokerages);
-                loadedBrokerages = parsedBrokerages;
-                setBrokerages(parsedBrokerages);
-                if (parsedBrokerages.length > 0) {
-                    setActiveBrokerageId(parsedBrokerages[0].id);
-                }
-            } else if (user.username === 'henrique') {
-                 const defaultBrokerage: Brokerage = {
-                    id: `brokerage_henrique_default`, name: 'Corretora Principal', initialBalance: 11.25, entryMode: 'fixed', entryValue: 1.00, payoutPercentage: 85, stopGainTrades: 5, stopLossTrades: 3,
-                };
-                loadedBrokerages = [defaultBrokerage];
-                setBrokerages(loadedBrokerages);
-                setActiveBrokerageId(defaultBrokerage.id);
-            } else {
-                setIsBrokerageModalOpen(true);
-                setBrokerageToEdit(null);
-            }
-
-             if (storedRecords) {
-                const parsedRecords = JSON.parse(storedRecords);
-                const migrated = parsedRecords.map((r: any) => {
-                    if (r.recordType === 'day' && !r.trades) {
-                         const entryValue = r.entrySizeUSD || 0;
-                         const payout = 85;
-                         const newTrades = [];
-                         for (let i=0; i<r.winCount; i++) newTrades.push({id: `mig_w_${i}`, result: 'win', entryValue, payoutPercentage: payout});
-                         for (let i=0; i<r.lossCount; i++) newTrades.push({id: `mig_l_${i}`, result: 'loss', entryValue, payoutPercentage: payout});
-                         return {...r, trades: newTrades};
+             try {
+                setIsLoading(true);
+                const rate = await fetchUSDBRLRate();
+                setUsdToBrlRate(rate);
+                
+                 if (user.username === 'henrique') {
+                    const oldBrokeragesKey = 'brokerages_v2';
+                    const oldRecordsKey = 'tradeRecords_v2';
+                    const oldGoalKey = 'tradeGoal';
+                    const newBrokeragesKey = getStorageKey('brokerages_v2');
+                    if (localStorage.getItem(oldBrokeragesKey) && !localStorage.getItem(newBrokeragesKey)) {
+                        localStorage.setItem(newBrokeragesKey, localStorage.getItem(oldBrokeragesKey)!);
+                        if (localStorage.getItem(oldRecordsKey)) localStorage.setItem(getStorageKey('tradeRecords_v2'), localStorage.getItem(oldRecordsKey)!);
+                        if (localStorage.getItem(oldGoalKey)) localStorage.setItem(getStorageKey('tradeGoal'), localStorage.getItem(oldGoalKey)!);
                     }
-                    return r;
-                });
-                setRecords(migrated);
-            }
-            setIsLoading(false);
+                }
+
+                let loadedBrokerages: Brokerage[] = [];
+                const storedBrokerages = localStorage.getItem(getStorageKey('brokerages_v2'));
+                const storedRecords = localStorage.getItem(getStorageKey('tradeRecords_v2'));
+
+                if (storedBrokerages) {
+                    const parsedBrokerages = JSON.parse(storedBrokerages);
+                    loadedBrokerages = parsedBrokerages;
+                    setBrokerages(parsedBrokerages);
+                    if (parsedBrokerages.length > 0) {
+                        setActiveBrokerageId(parsedBrokerages[0].id);
+                    }
+                } else if (user.username === 'henrique') {
+                     const defaultBrokerage: Brokerage = {
+                        id: `brokerage_henrique_default`, name: 'Corretora Principal', initialBalance: 11.25, entryMode: 'fixed', entryValue: 1.00, payoutPercentage: 85, stopGainTrades: 5, stopLossTrades: 3,
+                    };
+                    loadedBrokerages = [defaultBrokerage];
+                    setBrokerages(loadedBrokerages);
+                    setActiveBrokerageId(defaultBrokerage.id);
+                } else {
+                    setIsBrokerageModalOpen(true);
+                    setBrokerageToEdit(null);
+                }
+
+                 if (storedRecords) {
+                    const parsedRecords = JSON.parse(storedRecords);
+                    const migrated = parsedRecords.map((r: any) => {
+                        if (r.recordType === 'day' && !r.trades) {
+                             const entryValue = r.entrySizeUSD || 0;
+                             const payout = 85;
+                             const newTrades = [];
+                             for (let i = 0; i < r.winCount; i++) {
+                                const id = Math.random().toString(36).substring(2, 9);
+                                newTrades.push({id: `${r.id}_win_${id}`, result: 'win', entryValue: entryValue, payoutPercentage: payout} as Trade);
+                             }
+                             for (let i = 0; i < r.lossCount; i++) {
+                                 const id = Math.random().toString(36).substring(2, 9);
+                                 newTrades.push({id: `${r.id}_loss_${id}`, result: 'loss', entryValue: entryValue, payoutPercentage: payout} as Trade);
+                             }
+                             return { ...r, trades: newTrades };
+                        }
+                        return r;
+                    });
+                    setRecords(migrated);
+                 }
+             } finally {
+                setIsLoading(false);
+             }
         };
-
         initialize();
-        const intervalId = setInterval(() => setNow(new Date()), 60000);
-        return () => clearInterval(intervalId);
-    }, [user, getStorageKey]);
+    }, [user.username, getStorageKey]);
 
     useEffect(() => {
-        if (brokerages.length > 0) localStorage.setItem(getStorageKey('brokerages_v2'), JSON.stringify(brokerages));
-    }, [brokerages, getStorageKey]);
+        // Daily Briefing Logic
+        if (!isLoading && brokerages.length > 0 && activeBrokerageId) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const lastBriefingKey = getStorageKey('lastBriefingDate');
+            const lastBriefing = localStorage.getItem(lastBriefingKey);
 
-    useEffect(() => {
-        if (!isLoading) localStorage.setItem(getStorageKey('tradeRecords_v2'), JSON.stringify(records));
-    }, [records, isLoading, getStorageKey]);
+            if (lastBriefing !== todayStr) {
+                setIsDailyBriefingOpen(true);
+                localStorage.setItem(lastBriefingKey, todayStr);
+            }
+        }
+    }, [isLoading, brokerages, activeBrokerageId, getStorageKey]);
 
     useEffect(() => {
         localStorage.setItem(getStorageKey('tradeGoal'), JSON.stringify(goal));
     }, [goal, getStorageKey]);
 
-    // Check for daily briefing on load/brokerage ready
-    useEffect(() => {
-        if (!isLoading && activeBrokerageId) {
-            const today = new Date().toISOString().split('T')[0];
-            const lastBriefing = localStorage.getItem(getStorageKey('lastBriefingDate'));
+    const activeBrokerage = useMemo(() => 
+        brokerages.find(b => b.id === activeBrokerageId), 
+    [brokerages, activeBrokerageId]);
+
+    const saveRecords = (newRecords: AppRecord[]) => {
+        setRecords(newRecords);
+        localStorage.setItem(getStorageKey('tradeRecords_v2'), JSON.stringify(newRecords));
+    };
+
+    const addRecord = (winCount: number, lossCount: number, customEntryValueUSD?: number, customPayoutPercentage?: number) => {
+        if (!activeBrokerage) return;
+
+        const dateString = selectedDate.toISOString().split('T')[0];
+        const displayDate = selectedDate.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+        
+        let existingRecordIndex = records.findIndex(r => r.recordType === 'day' && r.id === dateString && r.brokerageId === activeBrokerage.id);
+        let record = existingRecordIndex >= 0 ? { ...(records[existingRecordIndex] as DailyRecord) } : null;
+
+        if (!record) {
+             // Calculate start balance from previous day
+            let previousBalance = activeBrokerage.initialBalance;
+            const sortedRecords = [...records].sort((a, b) => new Date(a.id).getTime() - new Date(b.id).getTime());
             
-            if (lastBriefing !== today) {
-                const timer = setTimeout(() => setIsDailyBriefingOpen(true), 500);
-                return () => clearTimeout(timer);
+            for (const r of sortedRecords) {
+                if (r.brokerageId === activeBrokerage.id && new Date(r.id) < selectedDate) {
+                    if (r.recordType === 'day') previousBalance = (r as DailyRecord).endBalanceUSD;
+                    else if (r.recordType === 'deposit') previousBalance += (r as TransactionRecord).amountUSD;
+                    else if (r.recordType === 'withdrawal') previousBalance -= (r as TransactionRecord).amountUSD;
+                }
+            }
+
+            record = {
+                recordType: 'day',
+                id: dateString,
+                date: displayDate,
+                startBalanceUSD: previousBalance,
+                trades: [],
+                winCount: 0,
+                lossCount: 0,
+                netProfitUSD: 0,
+                endBalanceUSD: previousBalance,
+                brokerageId: activeBrokerage.id
+            };
+        }
+
+        // Determine Entry Value
+        let entryValue = customEntryValueUSD;
+        if (entryValue === undefined) {
+            if (activeBrokerage.entryMode === 'fixed') {
+                entryValue = activeBrokerage.entryValue;
+            } else {
+                 // Use current balance for percentage calculation to be dynamic
+                entryValue = record.endBalanceUSD * (activeBrokerage.entryValue / 100);
             }
         }
-    }, [isLoading, activeBrokerageId, getStorageKey]);
+        
+        const payout = customPayoutPercentage !== undefined ? customPayoutPercentage : activeBrokerage.payoutPercentage;
 
-    // --- Derived State & Helpers ---
-    const activeBrokerage = useMemo(() => brokerages.find(b => b.id === activeBrokerageId), [brokerages, activeBrokerageId]);
-    
-    const filteredRecords = useMemo(() => {
-        if (!activeBrokerageId) return [];
-        return records.filter(r => r.brokerageId === activeBrokerageId);
-    }, [records, activeBrokerageId]);
+        // Add Trade
+        const newTrade: Trade = {
+            id: Date.now().toString(),
+            result: winCount > 0 ? 'win' : 'loss',
+            entryValue: entryValue,
+            payoutPercentage: payout
+        };
+        
+        const updatedTrades = [...record.trades, newTrade];
+        
+        // Recalculate Totals based on trades list to ensure consistency
+        let netProfit = 0;
+        let wins = 0;
+        let losses = 0;
 
-    const formatDateISO = useCallback((date: Date): string => {
-        const year = date.getUTCFullYear();
-        const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
-        const day = date.getUTCDate().toString().padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    }, []);
-    
-    const formatDateBR = useCallback((date: Date): string => date.toLocaleDateString('pt-BR', { timeZone: 'UTC' }), []);
-
-    const selectedDateString = useMemo(() => formatDateISO(selectedDate), [selectedDate, formatDateISO]);
-
-    const sortedFilteredRecords = useMemo(() => {
-        return [...filteredRecords].sort((a, b) => {
-            const dateA = a.recordType === 'day' ? a.id : a.date;
-            const dateB = b.recordType === 'day' ? b.id : b.date;
-            return dateA.localeCompare(dateB);
+        updatedTrades.forEach(t => {
+            if (t.result === 'win') {
+                netProfit += t.entryValue * (t.payoutPercentage / 100);
+                wins++;
+            } else {
+                netProfit -= t.entryValue;
+                losses++;
+            }
         });
-    }, [filteredRecords]);
 
-    const getBalanceUpToDate = useCallback((dateISO: string, recordsForBrokerage: AppRecord[], initialBalance: number): number => {
-        let balance = initialBalance;
-        for (const record of recordsForBrokerage) {
-            const recordDate = record.recordType === 'day' ? record.id : record.date;
-            if (recordDate >= dateISO) break;
-            if (record.recordType === 'day') balance = record.endBalanceUSD;
-            else if (record.recordType === 'deposit') balance += record.amountUSD;
-            else balance -= record.amountUSD;
+        record.trades = updatedTrades;
+        record.winCount = wins;
+        record.lossCount = losses;
+        record.netProfitUSD = netProfit;
+        record.endBalanceUSD = record.startBalanceUSD + netProfit;
+
+        const newRecords = [...records];
+        if (existingRecordIndex >= 0) {
+            newRecords[existingRecordIndex] = record;
+        } else {
+            newRecords.push(record);
         }
-        return balance;
-    }, []);
+        saveRecords(newRecords);
+    };
+    
+    const handleDeleteRecord = (recordId: string) => {
+        if (confirm('Tem certeza que deseja excluir este registro?')) {
+            const newRecords = records.filter(r => r.id !== recordId);
+            saveRecords(newRecords);
+        }
+    };
+
+    const addTransaction = (amount: number, type: 'deposit' | 'withdrawal') => {
+        if (!activeBrokerage) return;
+        const id = Date.now().toString();
+        const todayStr = new Date().toISOString().split('T')[0];
+         const displayDate = new Date().toLocaleDateString('pt-BR');
+
+        const newRecord: TransactionRecord = {
+            recordType: type,
+            id: id,
+            brokerageId: activeBrokerage.id,
+            date: todayStr,
+            displayDate: displayDate,
+            amountUSD: amount,
+            notes: type === 'deposit' ? 'Aporte manual' : 'Retirada manual'
+        };
+
+        saveRecords([...records, newRecord]);
+        setIsTransactionModalOpen(false);
+    };
+
+    const handleSyncTrades = async () => {
+        if (!activeBrokerage) return;
+        try {
+            const response = await fetch('http://localhost:5000/api/trades');
+             if (!response.ok) throw new Error('Falha na sincronização');
+             
+            const externalTrades = await response.json();
+            
+            // Logic to merge trades (avoid duplicates by ID if possible, or simple append)
+            // For MVP: assume local script sends only new trades or handles diff. 
+            // We'll iterate and add them if they don't exist.
+            
+            let addedCount = 0;
+             // Mocking the structure of externalTrades based on our internal Trade type
+             // Expecting: { result: 'win'|'loss', entryValue: number, payout: number, date: string }
+             
+             externalTrades.forEach((t: any) => {
+                 // For simplicity, we just trigger addRecord for each. 
+                 // In production, we'd match IDs to avoid duplicates.
+                 const isWin = t.result === 'win';
+                 // NOTE: This adds to SELECTED DATE in current implementation. 
+                 // Ideally, sync should respect the trade's date.
+                 addRecord(isWin ? 1 : 0, isWin ? 0 : 1, t.entryValue, t.payout);
+                 addedCount++;
+             });
+             
+             if (addedCount > 0) alert(`${addedCount} operações sincronizadas com sucesso!`);
+             else alert('Nenhuma nova operação encontrada.');
+
+        } catch (error) {
+            console.error("Sync error:", error);
+            alert("Erro ao sincronizar. Verifique se o script Python está rodando.");
+        }
+    };
+
+    const handleUpdateBrokerage = (updatedBrokerage: Brokerage) => {
+        const updated = brokerages.map(b => b.id === updatedBrokerage.id ? updatedBrokerage : b);
+        setBrokerages(updated);
+        localStorage.setItem(getStorageKey('brokerages_v2'), JSON.stringify(updated));
+    };
+
+     const handleAddBrokerage = (newBrokerage: Brokerage) => {
+        const updated = [...brokerages, newBrokerage];
+        setBrokerages(updated);
+        localStorage.setItem(getStorageKey('brokerages_v2'), JSON.stringify(updated));
+        setActiveBrokerageId(newBrokerage.id);
+        setIsBrokerageModalOpen(false);
+    };
+
+    const handleDeleteBrokerage = (id: string) => {
+        if (confirm('Tem certeza? Isso apagará todo o histórico desta corretora.')) {
+             const updated = brokerages.filter(b => b.id !== id);
+             setBrokerages(updated);
+             localStorage.setItem(getStorageKey('brokerages_v2'), JSON.stringify(updated));
+             
+             // Also delete associated records
+             const updatedRecords = records.filter(r => r.brokerageId !== id);
+             saveRecords(updatedRecords);
+
+             if (updated.length > 0) setActiveBrokerageId(updated[0].id);
+             else setActiveBrokerageId(null);
+        }
+    };
+
+    // --- Derived State for UI ---
+    
+    const sortedFilteredRecords = useMemo(() => {
+        if (!activeBrokerage) return [];
+        return records
+            .filter(r => r.brokerageId === activeBrokerage.id)
+            .sort((a, b) => {
+                 // Sort by date (descending for display, or ascending for calc? Display needs desc usually, but verify usage)
+                 // Actually standard sort here, reversing in UI components
+                 if (a.date === b.date) return a.recordType === 'day' ? -1 : 1; 
+                 return new Date(a.date).getTime() - new Date(b.date).getTime();
+            });
+    }, [records, activeBrokerage]);
 
     const startBalanceForSelectedDay = useMemo(() => {
         if (!activeBrokerage) return 0;
-        const recordForDay = sortedFilteredRecords.find(r => r.recordType === 'day' && r.id === selectedDateString);
-        if (recordForDay) return (recordForDay as DailyRecord).startBalanceUSD;
-        return getBalanceUpToDate(selectedDateString, sortedFilteredRecords, activeBrokerage.initialBalance);
-    }, [sortedFilteredRecords, selectedDateString, getBalanceUpToDate, activeBrokerage]);
-
-    const recalculateBalances = useCallback((recordsToProcess: AppRecord[], brokerage: Brokerage): AppRecord[] => {
-        const sorted = [...recordsToProcess].sort((a, b) => {
-            const dateA = a.recordType === 'day' ? a.id : a.date;
-            const dateB = b.recordType === 'day' ? b.id : b.date;
-            return dateA.localeCompare(dateB);
+        let balance = activeBrokerage.initialBalance;
+        
+        // Calculate balance up to the selected date
+        // Note: records sorted by date ascending in previous step? No, sorting logic above might be mixed.
+        // Let's ensure robust calculation.
+        const sorted = [...records].sort((a, b) => {
+             const dateA = a.recordType === 'day' ? a.id : a.date; // Use YYYY-MM-DD id for days
+             const dateB = b.recordType === 'day' ? b.id : b.date;
+             return new Date(dateA).getTime() - new Date(dateB).getTime();
         });
 
-        let currentBalance = brokerage.initialBalance;
-        const recalculated: AppRecord[] = [];
-
-        for (const record of sorted) {
-            if (record.recordType === 'day') {
-                const winCount = record.trades.filter(t => t.result === 'win').length;
-                const lossCount = record.trades.filter(t => t.result === 'loss').length;
-                
-                let netProfitUSD = 0;
-                if (record.trades && record.trades.length > 0) {
-                    netProfitUSD = record.trades.reduce((totalProfit, trade) => {
-                        if (trade.result === 'win') {
-                            const payout = trade.payoutPercentage ?? brokerage.payoutPercentage;
-                            return totalProfit + (trade.entryValue * (payout / 100));
-                        } else return totalProfit - trade.entryValue;
-                    }, 0);
-                }
-                const endBalanceUSD = currentBalance + netProfitUSD;
-                recalculated.push({ ...record, startBalanceUSD: currentBalance, winCount, lossCount, netProfitUSD, endBalanceUSD });
-                currentBalance = endBalanceUSD;
-            } else {
-                recalculated.push(record);
-                if (record.recordType === 'deposit') currentBalance += record.amountUSD;
-                else currentBalance -= record.amountUSD;
-            }
+        for (const r of sorted) {
+             if (r.brokerageId === activeBrokerage.id) {
+                 const rDate = new Date(r.recordType === 'day' ? r.id : r.date);
+                 // If record is BEFORE selected date, apply it
+                 if (rDate < selectedDate) {
+                     if (r.recordType === 'day') balance = (r as DailyRecord).endBalanceUSD;
+                     else if (r.recordType === 'deposit') balance += (r as TransactionRecord).amountUSD;
+                     else if (r.recordType === 'withdrawal') balance -= (r as TransactionRecord).amountUSD;
+                 }
+             }
         }
-        return recalculated;
-    }, []);
-
-    const updateRecordsForBrokerage = useCallback((updatedRecordsForBrokerage: AppRecord[]) => {
-        if (!activeBrokerageId || !activeBrokerage) return;
-        const otherRecords = records.filter(r => r.brokerageId !== activeBrokerageId);
-        const recalculated = recalculateBalances(updatedRecordsForBrokerage, activeBrokerage);
-        setRecords([...otherRecords, ...recalculated]);
-    }, [records, activeBrokerageId, activeBrokerage, recalculateBalances]);
-
-
-    const addRecord = useCallback((winCount: number, lossCount: number, customEntryValueUSD?: number, customPayoutPercentage?: number) => {
-        if (!activeBrokerage) return;
-        
-        const startBalanceUSD = startBalanceForSelectedDay;
-        const defaultEntrySizeUSD = activeBrokerage.entryMode === 'percentage'
-            ? startBalanceUSD * (activeBrokerage.entryValue / 100)
-            : activeBrokerage.entryValue;
-        
-        // Handle cases where startBalance is 0 and we are in percentage mode, or fallback is needed
-        let entrySizeUSD = customEntryValueUSD !== undefined ? customEntryValueUSD : defaultEntrySizeUSD;
-        if (entrySizeUSD <= 0 && activeBrokerage.entryMode === 'percentage') {
-             // If calculated entry is 0, maybe fallback to a minimum or check if balance is 0
-             // For now, allow 0 but logic above ensures positive math usually.
-        }
-        
-        const payoutPercentage = customPayoutPercentage ?? activeBrokerage.payoutPercentage;
-        
-        const newTrades: Trade[] = [];
-        const entryValue = Math.max(0.01, entrySizeUSD); // Ensure positive
-
-        for (let i = 0; i < winCount; i++) newTrades.push({ id: `trade_${Date.now()}_${i}_w`, result: 'win', entryValue, payoutPercentage });
-        for (let i = 0; i < lossCount; i++) newTrades.push({ id: `trade_${Date.now()}_${i}_l`, result: 'loss', entryValue, payoutPercentage });
-
-        const existingRecord = filteredRecords.find(r => r.recordType === 'day' && r.id === selectedDateString) as DailyRecord | undefined;
-        let updatedRecordsForBrokerage: AppRecord[];
-
-        if (existingRecord) {
-            const updatedRecord: DailyRecord = { ...existingRecord, trades: [...(existingRecord.trades || []), ...newTrades] };
-            updatedRecordsForBrokerage = filteredRecords.map(r => (r.id === selectedDateString ? updatedRecord : r));
-        } else {
-            const newRecord: DailyRecord = {
-                recordType: 'day', brokerageId: activeBrokerage.id, id: selectedDateString, date: formatDateBR(selectedDate),
-                startBalanceUSD: 0, trades: newTrades, winCount: 0, lossCount: 0, netProfitUSD: 0, endBalanceUSD: 0,
-            };
-            updatedRecordsForBrokerage = [...filteredRecords, newRecord];
-        }
-        updateRecordsForBrokerage(updatedRecordsForBrokerage);
-
-    }, [filteredRecords, activeBrokerage, selectedDateString, startBalanceForSelectedDay, selectedDate, formatDateBR, updateRecordsForBrokerage]);
-    
-    const handleSaveTransaction = useCallback((data: { type: 'deposit' | 'withdrawal'; date: Date; amount: number; notes: string }) => {
-        if (!activeBrokerageId) return;
-        const newTransaction: TransactionRecord = {
-            recordType: data.type, brokerageId: activeBrokerageId, id: `trans_${Date.now()}`,
-            date: formatDateISO(data.date), displayDate: formatDateBR(data.date), amountUSD: data.amount, notes: data.notes,
-        };
-        updateRecordsForBrokerage([...filteredRecords, newTransaction]);
-    }, [filteredRecords, activeBrokerageId, updateRecordsForBrokerage, formatDateISO, formatDateBR]);
-    
-    const handleDeleteRecord = useCallback((recordId: string) => {
-        if (window.confirm('Tem certeza que deseja excluir este registro?')) {
-            const updated = filteredRecords.filter(r => r.id !== recordId);
-            updateRecordsForBrokerage(updated);
-        }
-    }, [filteredRecords, updateRecordsForBrokerage]);
-
-    const handleUpdateBrokerage = useCallback((brokerage: Brokerage) => {
-        const index = brokerages.findIndex(b => b.id === brokerage.id);
-        if (index > -1) {
-            const updatedBrokerages = [...brokerages];
-            updatedBrokerages[index] = brokerage;
-            setBrokerages(updatedBrokerages);
-            if (activeBrokerage && brokerage.initialBalance !== activeBrokerage.initialBalance) {
-                 const updatedRecords = recalculateBalances(filteredRecords, brokerage);
-                 const otherRecords = records.filter(r => r.brokerageId !== brokerage.id);
-                 setRecords([...otherRecords, ...updatedRecords]);
-            }
-        } 
-    }, [brokerages, activeBrokerage, filteredRecords, records, recalculateBalances]);
-    
-    const handleDeleteBrokerage = useCallback((brokerageId: string) => {
-        if (window.confirm('Tem certeza que deseja excluir esta corretora?')) {
-            const newBrokerages = brokerages.filter(b => b.id !== brokerageId);
-            const newRecords = records.filter(r => r.brokerageId !== brokerageId);
-            setBrokerages(newBrokerages);
-            setRecords(newRecords);
-            setActiveBrokerageId(newBrokerages.length > 0 ? newBrokerages[0].id : null);
-            setIsBrokerageModalOpen(false);
-        }
-    }, [brokerages, records]);
-
+        return balance;
+    }, [records, activeBrokerage, selectedDate]);
 
     const dailyRecordForSelectedDay = useMemo(() => {
-        return sortedFilteredRecords.find(r => r.recordType === 'day' && r.id === selectedDateString) as DailyRecord | undefined;
-    }, [sortedFilteredRecords, selectedDateString]);
+        if (!activeBrokerage) return undefined;
+        const dateString = selectedDate.toISOString().split('T')[0];
+        return records.find(r => r.recordType === 'day' && r.id === dateString && r.brokerageId === activeBrokerage.id) as DailyRecord | undefined;
+    }, [records, activeBrokerage, selectedDate]);
 
-    const stopLossLimitReached = useMemo(() => {
-        if (!activeBrokerage?.stopLossTrades || activeBrokerage.stopLossTrades <= 0) return false;
-        return dailyRecordForSelectedDay ? dailyRecordForSelectedDay.lossCount >= activeBrokerage.stopLossTrades : false;
-    }, [dailyRecordForSelectedDay, activeBrokerage]);
-
-    const stopGainLimitReached = useMemo(() => {
-        if (!activeBrokerage?.stopGainTrades || activeBrokerage.stopGainTrades <= 0) return false;
-        return dailyRecordForSelectedDay ? dailyRecordForSelectedDay.winCount >= activeBrokerage.stopGainTrades : false;
-    }, [dailyRecordForSelectedDay, activeBrokerage]);
-
-    const isTradingHalted = useMemo(() => {
-        if (stopLimitOverride[selectedDateString]) return false;
-        return stopLossLimitReached || stopGainLimitReached;
-    }, [stopLossLimitReached, stopGainLimitReached, stopLimitOverride, selectedDateString]);
-
+    // Simplified Daily Goal Logic
     const dailyGoalTarget = useMemo(() => {
-        if (!goal || !goal.amount) return 0;
-        if (goal.type === 'weekly') return goal.amount / 5;
-        return goal.amount / 22;
+        const amount = typeof goal.amount === 'number' ? goal.amount : 0;
+        if (amount === 0) return 0;
+        
+        // Simple fixed divisor logic as requested
+        if (goal.type === 'monthly') return amount / 22;
+        return amount / 5;
     }, [goal]);
 
-    const getPerformanceStats = (startDate: Date, endDate: Date) => {
-        const relevantRecords = sortedFilteredRecords.filter(r => {
-            if (r.recordType !== 'day') return false;
-            const recordDate = new Date(r.id + 'T00:00:00Z');
-            return recordDate >= startDate && recordDate <= endDate;
-        }) as DailyRecord[];
+    const isTradingHalted = useMemo(() => {
+        if (!activeBrokerage || !dailyRecordForSelectedDay) return false;
+        const dateString = selectedDate.toISOString().split('T')[0];
+        if (stopLimitOverride[dateString]) return false;
 
-        const stats = relevantRecords.reduce((acc, r) => {
-            acc.profit += r.netProfitUSD; acc.wins += r.winCount; acc.losses += r.lossCount; return acc;
-        }, { profit: 0, wins: 0, losses: 0 });
+        const stopWin = activeBrokerage.stopGainTrades > 0 && dailyRecordForSelectedDay.winCount >= activeBrokerage.stopGainTrades;
+        const stopLoss = activeBrokerage.stopLossTrades > 0 && dailyRecordForSelectedDay.lossCount >= activeBrokerage.stopLossTrades;
 
-        const totalTrades = stats.wins + stats.losses;
-        const winRate = totalTrades > 0 ? (stats.wins / totalTrades) * 100 : 0;
-        return { ...stats, totalTrades, winRate };
-    };
+        return stopWin || stopLoss;
+    }, [activeBrokerage, dailyRecordForSelectedDay, stopLimitOverride, selectedDate]);
+    
+    const stopLossLimitReached = useMemo(() => {
+         if (!activeBrokerage || !dailyRecordForSelectedDay) return false;
+         return activeBrokerage.stopLossTrades > 0 && dailyRecordForSelectedDay.lossCount >= activeBrokerage.stopLossTrades;
+    }, [activeBrokerage, dailyRecordForSelectedDay]);
 
     const weeklyStats = useMemo(() => {
-        const today = new Date(now);
-        const dayOfWeek = today.getUTCDay();
-        const diff = today.getUTCDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); 
-        const startOfWeek = new Date(today.setDate(diff));
-        startOfWeek.setUTCHours(0,0,0,0);
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
-        endOfWeek.setUTCHours(23,59,59,999);
-        
-        const stats = getPerformanceStats(startOfWeek, endOfWeek);
-        return { ...stats, startBalance: 0, currentBalance: 0 }; 
-    }, [now, sortedFilteredRecords]);
-    
-    // Close Briefing Handler
-    const handleCloseBriefing = () => {
-        setIsDailyBriefingOpen(false);
-        const today = new Date().toISOString().split('T')[0];
-        localStorage.setItem(getStorageKey('lastBriefingDate'), today);
-    };
+         // Placeholder for more complex stats if needed later
+         return { profit: 0, wins: 0, losses: 0, totalTrades: 0, winRate: 0, startBalance: 0, currentBalance: 0 };
+    }, []);
 
-    if (isLoading) {
-        return (
-            <div className={`flex h-screen w-full items-center justify-center ${isDarkMode ? 'bg-slate-950 text-green-500' : 'bg-slate-50 text-green-600'}`}>
-                <svg className="animate-spin h-10 w-10" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-            </div>
-        );
-    }
+    // Theme object for useThemeClasses
+    const theme = useThemeClasses(isDarkMode);
 
-    // Latest Balance for Briefing (based on latest record or start balance)
-    const latestBalance = sortedFilteredRecords.length > 0 && sortedFilteredRecords[sortedFilteredRecords.length-1].recordType === 'day' 
-        ? (sortedFilteredRecords[sortedFilteredRecords.length-1] as DailyRecord).endBalanceUSD 
-        : activeBrokerage ? activeBrokerage.initialBalance : 0;
-
-    const theme = isDarkMode ? 'bg-slate-950 text-slate-50' : 'bg-slate-50 text-slate-900';
-
-    if (!activeBrokerage) {
-        return (
-           <div className={`flex items-center justify-center min-h-screen ${theme}`}>
-               <div className={`text-center p-8 rounded-lg shadow-xl border ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-                   <p className={`mb-4 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Configure sua primeira corretora para começar.</p>
-                   <button 
-                       onClick={() => { setIsBrokerageModalOpen(true); setBrokerageToEdit(null); }}
-                       className="bg-green-500 text-slate-950 px-6 py-2 rounded font-bold hover:bg-green-400"
-                   >
-                       Adicionar Corretora
-                   </button>
-               </div>
-                {isBrokerageModalOpen && (
-                   <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4">
-                       <div className={`p-6 rounded-lg max-w-md w-full border ${isDarkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
-                           <h2 className="text-xl font-bold mb-4">Adicionar Corretora</h2>
-                            <p className="text-sm text-slate-400 mb-4">Por favor, recarregue a página após configurar se este modal não estiver completo.</p>
-                            <button onClick={() => window.location.reload()} className="text-blue-400 underline">Recarregar</button>
-                       </div>
-                   </div>
-               )}
-           </div>
-        );
-   }
+    if (isLoading) return <div className={`flex items-center justify-center h-screen ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>Carregando...</div>;
 
     return (
-        <div className={`flex h-screen font-sans overflow-hidden transition-colors ${theme} selection:bg-green-500/30`}>
-            {isDailyBriefingOpen && activeBrokerage && (
-                <DailyBriefingModal 
-                    onClose={handleCloseBriefing}
-                    activeBrokerage={activeBrokerage}
-                    dailyGoalTarget={dailyGoalTarget}
-                    currentBalance={latestBalance}
-                    isDarkMode={isDarkMode}
-                />
-            )}
-
+        <div className={`flex h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
+            {/* Sidebar */}
             <Sidebar 
                 activeTab={activeTab} 
                 setActiveTab={setActiveTab} 
-                onLogout={onLogout}
+                onLogout={onLogout} 
                 isDarkMode={isDarkMode}
                 toggleTheme={toggleTheme}
+                isOpen={isMobileMenuOpen}
+                onClose={() => setIsMobileMenuOpen(false)}
             />
-            
-            <div className="flex-1 flex flex-col h-screen min-w-0">
+
+            {/* Main Content */}
+            <div className="flex-1 flex flex-col overflow-hidden">
                 <Header 
-                    user={user}
-                    activeBrokerage={activeBrokerage}
-                    brokerages={brokerages}
-                    setActiveBrokerageId={setActiveBrokerageId}
+                    user={user} 
+                    activeBrokerage={activeBrokerage} 
+                    brokerages={brokerages} 
+                    setActiveBrokerageId={setActiveBrokerageId} 
                     usdToBrlRate={usdToBrlRate}
                     isDarkMode={isDarkMode}
                     onOpenBriefing={() => setIsDailyBriefingOpen(true)}
+                    onOpenMenu={() => setIsMobileMenuOpen(true)}
+                    onSyncTrades={handleSyncTrades}
                 />
-                
-                <main className={`flex-1 overflow-y-auto scrollbar-thin ${isDarkMode ? 'scrollbar-thumb-slate-700 scrollbar-track-slate-900' : 'scrollbar-thumb-slate-300 scrollbar-track-slate-100'}`}>
-                    {activeTab === 'dashboard' && activeBrokerage && (
-                        <DashboardPanel 
-                            activeBrokerage={activeBrokerage}
-                            customEntryValue={customEntryValue}
-                            setCustomEntryValue={setCustomEntryValue}
-                            customPayout={customPayout}
-                            setCustomPayout={setCustomPayout}
-                            addRecord={addRecord}
-                            selectedDateString={selectedDateString}
-                            setSelectedDate={setSelectedDate}
-                            isTradingHalted={isTradingHalted}
-                            stopLossLimitReached={stopLossLimitReached}
-                            setStopLimitOverride={setStopLimitOverride}
-                            startBalanceForSelectedDay={startBalanceForSelectedDay}
-                            dailyRecordForSelectedDay={dailyRecordForSelectedDay}
-                            dailyGoalTarget={dailyGoalTarget}
-                            weeklyStats={weeklyStats}
-                            sortedFilteredRecords={sortedFilteredRecords}
-                            handleDeleteRecord={handleDeleteRecord}
-                            setTransactionType={setTransactionType}
-                            setIsTransactionModalOpen={setIsTransactionModalOpen}
-                            goal={goal}
-                            usdToBrlRate={usdToBrlRate}
-                            isDarkMode={isDarkMode}
-                        />
-                    )}
-                    {activeTab === 'operations' && (
-                        <OperationsPanel 
-                            sortedFilteredRecords={sortedFilteredRecords}
-                            handleDeleteRecord={handleDeleteRecord}
-                            isDarkMode={isDarkMode}
-                        />
-                    )}
-                    {activeTab === 'goals' && (
-                         <GoalPanel 
-                            goal={goal}
-                            setGoal={setGoal}
-                            sortedFilteredRecords={sortedFilteredRecords}
-                            now={now}
-                            isDarkMode={isDarkMode}
-                        />
-                    )}
-                    {activeTab === 'settings' && activeBrokerage && (
-                        <SettingsPanel 
-                            activeBrokerage={activeBrokerage}
-                            onUpdateBrokerage={handleUpdateBrokerage}
-                            onDeleteBrokerage={handleDeleteBrokerage}
-                            isDarkMode={isDarkMode}
-                        />
+
+                <main className="flex-1 overflow-x-hidden overflow-y-auto">
+                    {!activeBrokerage ? (
+                         <div className="flex flex-col items-center justify-center h-full text-slate-500">
+                            <p className="mb-4">Nenhuma corretora selecionada.</p>
+                            <button 
+                                onClick={() => { setIsBrokerageModalOpen(true); setBrokerageToEdit(null); }}
+                                className="px-4 py-2 bg-green-500 text-slate-900 font-bold rounded-lg hover:bg-green-400"
+                            >
+                                Criar Corretora
+                            </button>
+                         </div>
+                    ) : (
+                        <>
+                            {activeTab === 'dashboard' && (
+                                <DashboardPanel 
+                                    activeBrokerage={activeBrokerage}
+                                    customEntryValue={customEntryValue}
+                                    setCustomEntryValue={setCustomEntryValue}
+                                    customPayout={customPayout}
+                                    setCustomPayout={setCustomPayout}
+                                    addRecord={addRecord}
+                                    selectedDateString={selectedDate.toISOString().split('T')[0]}
+                                    setSelectedDate={setSelectedDate}
+                                    isTradingHalted={isTradingHalted}
+                                    stopLossLimitReached={stopLossLimitReached}
+                                    setStopLimitOverride={setStopLimitOverride}
+                                    startBalanceForSelectedDay={startBalanceForSelectedDay}
+                                    dailyRecordForSelectedDay={dailyRecordForSelectedDay}
+                                    dailyGoalTarget={dailyGoalTarget}
+                                    weeklyStats={weeklyStats}
+                                    sortedFilteredRecords={sortedFilteredRecords}
+                                    handleDeleteRecord={handleDeleteRecord}
+                                    setTransactionType={setTransactionType}
+                                    setIsTransactionModalOpen={setIsTransactionModalOpen}
+                                    goal={goal}
+                                    usdToBrlRate={usdToBrlRate}
+                                    isDarkMode={isDarkMode}
+                                />
+                            )}
+                            {activeTab === 'operations' && (
+                                <OperationsPanel 
+                                    sortedFilteredRecords={sortedFilteredRecords}
+                                    handleDeleteRecord={handleDeleteRecord}
+                                    isDarkMode={isDarkMode}
+                                />
+                            )}
+                            {activeTab === 'analyze' && (
+                                <AnalysisPanel isDarkMode={isDarkMode} />
+                            )}
+                            {activeTab === 'settings' && (
+                                <SettingsPanel 
+                                    activeBrokerage={activeBrokerage}
+                                    onUpdateBrokerage={handleUpdateBrokerage}
+                                    onDeleteBrokerage={handleDeleteBrokerage}
+                                    isDarkMode={isDarkMode}
+                                />
+                            )}
+                             {activeTab === 'goals' && (
+                                <GoalPanel 
+                                    goal={goal}
+                                    setGoal={setGoal}
+                                    sortedFilteredRecords={sortedFilteredRecords}
+                                    now={now}
+                                    isDarkMode={isDarkMode}
+                                />
+                            )}
+                        </>
                     )}
                 </main>
             </div>
+
+            {/* Modals */}
+             {/* Brokerage Modal (Simplified for brevity, usually in own component) */}
+            {isBrokerageModalOpen && (
+                 <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm ${isDarkMode ? 'bg-black/80' : 'bg-slate-900/50'}`}>
+                    <div className={`w-full max-w-md p-6 rounded-2xl ${theme.modalContent}`}>
+                        <h2 className={`text-xl font-bold mb-4 ${theme.text}`}>{brokerageToEdit ? 'Editar Corretora' : 'Nova Corretora'}</h2>
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            const formData = new FormData(e.currentTarget);
+                            const newBrokerage: Brokerage = {
+                                id: brokerageToEdit?.id || Date.now().toString(),
+                                name: formData.get('name') as string,
+                                initialBalance: parseFloat(formData.get('initialBalance') as string),
+                                entryMode: 'fixed',
+                                entryValue: 10,
+                                payoutPercentage: 85,
+                                stopGainTrades: 0,
+                                stopLossTrades: 0
+                            };
+                            if (brokerageToEdit) handleUpdateBrokerage(newBrokerage);
+                            else handleAddBrokerage(newBrokerage);
+                             setIsBrokerageModalOpen(false);
+                        }}>
+                             <div className="space-y-4">
+                                <div>
+                                    <label className={`block text-sm font-medium mb-1 ${theme.textMuted}`}>Nome</label>
+                                    <input name="name" defaultValue={brokerageToEdit?.name} required className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:border-green-500 ${theme.input}`} />
+                                </div>
+                                <div>
+                                    <label className={`block text-sm font-medium mb-1 ${theme.textMuted}`}>Saldo Inicial ($)</label>
+                                    <input name="initialBalance" type="number" step="0.01" defaultValue={brokerageToEdit?.initialBalance} required className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:border-green-500 ${theme.input}`} />
+                                </div>
+                             </div>
+                             <div className="flex justify-end gap-3 mt-6">
+                                <button type="button" onClick={() => setIsBrokerageModalOpen(false)} className="px-4 py-2 text-slate-500 hover:text-slate-700">Cancelar</button>
+                                <button type="submit" className="px-4 py-2 bg-green-500 text-slate-900 font-bold rounded-lg hover:bg-green-400">Salvar</button>
+                             </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {isTransactionModalOpen && activeBrokerage && (
+                 <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm ${isDarkMode ? 'bg-black/80' : 'bg-slate-900/50'}`}>
+                    <div className={`w-full max-w-sm p-6 rounded-2xl ${theme.modalContent}`}>
+                         <h2 className={`text-xl font-bold mb-4 ${theme.text}`}>{transactionType === 'deposit' ? 'Novo Depósito' : 'Novo Saque'}</h2>
+                         <form onSubmit={(e) => {
+                             e.preventDefault();
+                             const amount = parseFloat((e.currentTarget.elements.namedItem('amount') as HTMLInputElement).value);
+                             addTransaction(amount, transactionType!);
+                         }}>
+                              <div>
+                                <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Valor ($)</label>
+                                <input name="amount" type="number" step="0.01" required autoFocus className={`w-full px-4 py-3 rounded-lg border text-xl font-bold focus:outline-none focus:border-green-500 ${theme.input}`} />
+                             </div>
+                             <div className="flex justify-end gap-3 mt-6">
+                                <button type="button" onClick={() => setIsTransactionModalOpen(false)} className="px-4 py-2 text-slate-500 hover:text-slate-700">Cancelar</button>
+                                <button type="submit" className={`px-4 py-2 font-bold rounded-lg text-white ${transactionType === 'deposit' ? 'bg-green-500 hover:bg-green-400 text-slate-900' : 'bg-red-500 hover:bg-red-400'}`}>Confirmar</button>
+                             </div>
+                         </form>
+                    </div>
+                 </div>
+            )}
+            
+            {isDailyBriefingOpen && activeBrokerage && (
+                <DailyBriefingModal 
+                    onClose={() => setIsDailyBriefingOpen(false)}
+                    activeBrokerage={activeBrokerage}
+                    dailyGoalTarget={dailyGoalTarget}
+                    currentBalance={dailyRecordForSelectedDay?.endBalanceUSD ?? startBalanceForSelectedDay}
+                    isDarkMode={isDarkMode}
+                />
+            )}
         </div>
     );
 };
