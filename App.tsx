@@ -158,15 +158,26 @@ const Header: React.FC<{
             </button>
 
             <div className="flex items-center gap-4 md:gap-6">
-                <div className={`flex items-center gap-3 text-sm pr-4 md:pr-6 border-r ${isDarkMode ? 'text-slate-400 border-slate-800' : 'text-slate-500 border-slate-200'}`}>
+                <div className={`flex items-center gap-3 text-sm pr-4 md:pr-6 border-r ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
                      {brokerages.length > 0 && (
-                        <select
-                            value={activeBrokerage?.id || ''}
-                            onChange={(e) => setActiveBrokerageId(e.target.value)}
-                            className={`bg-transparent border-none cursor-pointer text-xs focus:ring-0 max-w-[120px] md:max-w-none truncate ${isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'}`}
-                        >
-                            {brokerages.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                        </select>
+                        <div className="relative">
+                            <select
+                                value={activeBrokerage?.id || ''}
+                                onChange={(e) => setActiveBrokerageId(e.target.value)}
+                                className={`bg-transparent border-none cursor-pointer text-sm font-semibold focus:ring-0 max-w-[150px] md:max-w-none truncate pr-8 ${isDarkMode ? 'text-slate-200 hover:text-white' : 'text-slate-700 hover:text-slate-900'}`}
+                                style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
+                            >
+                                {brokerages.map(b => (
+                                    <option 
+                                        key={b.id} 
+                                        value={b.id}
+                                        className={isDarkMode ? 'bg-slate-900 text-slate-200' : 'bg-white text-slate-900'}
+                                    >
+                                        {b.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     )}
                 </div>
 
