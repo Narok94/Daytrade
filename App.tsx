@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Trade, User } from './types';
 import { fetchUSDBRLRate } from './services/currencyService';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -146,19 +145,8 @@ const Header: React.FC<{
     isDarkMode: boolean;
     onOpenBriefing: () => void;
     onOpenMenu: () => void;
-    onSyncTrades: () => Promise<void>;
-}> = ({ user, activeBrokerage, brokerages, setActiveBrokerageId, usdToBrlRate, isDarkMode, onOpenBriefing, onOpenMenu, onSyncTrades }) => {
+}> = ({ user, activeBrokerage, brokerages, setActiveBrokerageId, usdToBrlRate, isDarkMode, onOpenBriefing, onOpenMenu }) => {
     const theme = useThemeClasses(isDarkMode);
-    const [isSyncing, setIsSyncing] = useState(false);
-
-    const handleSync = async () => {
-        setIsSyncing(true);
-        try {
-            await onSyncTrades();
-        } finally {
-            setTimeout(() => setIsSyncing(false), 1000);
-        }
-    }
 
     return (
         <header className={`h-20 flex items-center justify-between md:justify-end px-4 md:px-8 flex-shrink-0 ${theme.header}`}>
@@ -170,16 +158,6 @@ const Header: React.FC<{
             </button>
 
             <div className="flex items-center gap-4 md:gap-6">
-                 {/* Sync Button */}
-                <button
-                    onClick={handleSync}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${isDarkMode ? 'border-slate-800 text-slate-400 hover:text-green-400 hover:bg-slate-900' : 'border-slate-200 text-slate-500 hover:text-green-600 hover:bg-slate-50'}`}
-                    disabled={isSyncing}
-                >
-                    <ArrowPathIcon className={`w-4 h-4 ${isSyncing ? 'animate-spin text-green-500' : ''}`} />
-                    <span className="hidden sm:inline">{isSyncing ? 'Sincronizando...' : 'Sincronizar'}</span>
-                </button>
-
                 <div className={`flex items-center gap-3 text-sm pr-4 md:pr-6 border-r ${isDarkMode ? 'text-slate-400 border-slate-800' : 'text-slate-500 border-slate-200'}`}>
                      {brokerages.length > 0 && (
                         <select
@@ -685,7 +663,7 @@ const OperationsPanel: React.FC<{
 
 const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
     const theme = useThemeClasses(isDarkMode);
-    const [asset, setAsset] = useState('');
+    const [asset, setAsset] = useState('BTC/USD');
     const [time, setTime] = useState('');
     const [timeframe, setTimeframe] = useState('5m');
     const [isLoading, setIsLoading] = useState(false);
@@ -705,6 +683,20 @@ const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
         "EUR/USD", // Keeping common forex
         "GBP/USD"
     ];
+    
+    // Mapping for TradingView Symbols (Kept for internal logic if needed later, but widget is removed)
+    const getTradingViewSymbol = (assetName: string) => {
+        switch(assetName) {
+            case "BTC/USD": return "BINANCE:BTCUSDT";
+            case "ETH/USD": return "BINANCE:ETHUSDT";
+            case "SOL/USD": return "BINANCE:SOLUSDT";
+            case "XRP/USD": return "BINANCE:XRPUSDT";
+            case "ADA/USD": return "BINANCE:ADAUSDT";
+            case "EUR/USD": return "FX:EURUSD";
+            case "GBP/USD": return "FX:GBPUSD";
+            default: return "BINANCE:BTCUSDT";
+        }
+    }
 
     const handleAnalyze = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -730,7 +722,7 @@ const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
 
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
-                contents: prompt,
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
                 config: {
                     responseMimeType: "application/json",
                     responseSchema: {
@@ -745,27 +737,29 @@ const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
                 }
             });
 
-            const text = response.text;
+            let text = response.text;
             if (text) {
+                // Sanitize potential markdown wrapping (case insensitive)
+                text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
                 const json = JSON.parse(text);
                 setAnalysisResult(json);
             }
 
         } catch (error) {
             console.error("AI Analysis failed:", error);
-            alert("Falha na análise. Verifique sua conexão.");
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            alert(`Falha na análise: ${errorMessage}`);
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="p-4 md:p-8">
-            <h2 className={`text-2xl md:text-3xl font-bold mb-6 md:mb-8 ${theme.text}`}>Analisar Operações (IA)</h2>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className={`p-6 md:p-8 rounded-2xl border ${theme.card}`}>
-                    <h3 className={`text-xl font-bold mb-6 border-b pb-4 ${theme.text} ${theme.border}`}>Dados da Operação</h3>
+        <div className="flex flex-col h-full items-center justify-start p-4 md:p-8">
+             <div className="w-full max-w-2xl">
+                <h2 className={`text-2xl md:text-3xl font-bold mb-6 md:mb-8 ${theme.text} text-center`}>Analisar Operação (IA)</h2>
+                
+                <div className={`p-6 lg:p-8 rounded-2xl border ${theme.border} ${theme.bg} shadow-lg`}>
                     <form onSubmit={handleAnalyze} className="space-y-6">
                         <div>
                             <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Ativo</label>
@@ -775,14 +769,13 @@ const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
                                 required
                                 className={`block w-full px-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors uppercase ${theme.input}`}
                             >
-                                <option value="" disabled>Selecione um ativo</option>
                                 {cryptoAssets.map(a => (
                                     <option key={a} value={a}>{a}</option>
                                 ))}
                             </select>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                             <div>
+                                <div>
                                 <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Horário</label>
                                 <input
                                     type="time"
@@ -825,52 +818,50 @@ const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
                             )}
                         </button>
                     </form>
-                </div>
 
-                {/* Results Panel */}
-                <div className={`p-6 md:p-8 rounded-2xl border flex flex-col justify-center items-center text-center ${theme.card}`}>
-                    {!analysisResult && !isLoading && (
-                        <div className="opacity-50">
-                            <CpuChipIcon className="w-16 h-16 mx-auto mb-4 text-slate-500" />
-                            <p className={theme.textMuted}>Preencha os dados ao lado para solicitar uma análise de probabilidade à Inteligência Artificial.</p>
-                        </div>
-                    )}
-
-                    {isLoading && (
-                        <div className="animate-pulse">
-                            <div className="w-16 h-16 rounded-full bg-slate-700 mx-auto mb-4"></div>
-                            <div className="h-4 bg-slate-700 rounded w-3/4 mx-auto mb-2"></div>
-                            <div className="h-4 bg-slate-700 rounded w-1/2 mx-auto"></div>
-                        </div>
-                    )}
-
-                    {analysisResult && (
-                        <div className="w-full animate-fade-in-up">
-                            <h3 className={`text-xl font-bold mb-8 ${theme.text}`}>Probabilidade Estimada</h3>
-                            
-                            <div className="flex justify-between items-end mb-2 px-2">
-                                <span className="font-bold text-green-500 text-lg">COMPRA ({analysisResult.buyChance}%)</span>
-                                <span className="font-bold text-red-500 text-lg">VENDA ({analysisResult.sellChance}%)</span>
+                        {/* Result Section */}
+                        <div className="mt-8 border-t pt-8 border-slate-800/50">
+                        {!analysisResult && !isLoading && (
+                            <div className="text-center opacity-50 py-4">
+                                <CpuChipIcon className="w-12 h-12 mx-auto mb-2 text-slate-500" />
+                                <p className={`text-sm ${theme.textMuted}`}>Selecione os parâmetros e clique em gerar para ver a probabilidade.</p>
                             </div>
+                        )}
 
-                            <div className="w-full h-6 bg-slate-800 rounded-full overflow-hidden flex mb-8">
-                                <div 
-                                    className="h-full bg-green-500 transition-all duration-1000 ease-out" 
-                                    style={{ width: `${analysisResult.buyChance}%` }}
-                                ></div>
-                                <div 
-                                    className="h-full bg-red-500 transition-all duration-1000 ease-out" 
-                                    style={{ width: `${analysisResult.sellChance}%` }}
-                                ></div>
+                        {isLoading && (
+                            <div className="animate-pulse space-y-3">
+                                <div className="h-4 bg-slate-700 rounded w-3/4 mx-auto"></div>
+                                <div className="h-4 bg-slate-700 rounded w-1/2 mx-auto"></div>
                             </div>
+                        )}
 
-                            <div className={`p-4 rounded-xl text-left border ${isDarkMode ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                                <p className={`text-sm font-semibold mb-1 ${theme.textMuted}`}>Análise Técnica (IA):</p>
-                                <p className={`italic ${theme.text}`}>"{analysisResult.reasoning}"</p>
+                        {analysisResult && (
+                            <div className="w-full animate-fade-in-up">
+                                <h3 className={`text-lg font-bold mb-4 ${theme.text}`}>Resultado da Análise</h3>
+                                
+                                <div className="flex justify-between items-end mb-2 px-2">
+                                    <span className="font-bold text-green-500">COMPRA ({analysisResult.buyChance}%)</span>
+                                    <span className="font-bold text-red-500">VENDA ({analysisResult.sellChance}%)</span>
+                                </div>
+
+                                <div className="w-full h-4 bg-slate-800 rounded-full overflow-hidden flex mb-6">
+                                    <div 
+                                        className="h-full bg-green-500 transition-all duration-1000 ease-out" 
+                                        style={{ width: `${analysisResult.buyChance}%` }}
+                                    ></div>
+                                    <div 
+                                        className="h-full bg-red-500 transition-all duration-1000 ease-out" 
+                                        style={{ width: `${analysisResult.sellChance}%` }}
+                                    ></div>
+                                </div>
+
+                                <div className={`p-4 rounded-xl text-left border ${isDarkMode ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                                    <p className={`text-xs font-bold uppercase mb-2 ${theme.textMuted}`}>Motivo Técnico (IA):</p>
+                                    <p className={`text-sm italic ${theme.text}`}>"{analysisResult.reasoning}"</p>
+                                </div>
                             </div>
-                             <p className="text-xs text-slate-500 mt-4">*Isso é uma simulação baseada em IA e não constitui conselho financeiro real.</p>
+                        )}
                         </div>
-                    )}
                 </div>
             </div>
         </div>
@@ -1595,41 +1586,6 @@ const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout })
         setIsTransactionModalOpen(false);
     };
 
-    const handleSyncTrades = async () => {
-        if (!activeBrokerage) return;
-        try {
-            const response = await fetch('http://localhost:5000/api/trades');
-             if (!response.ok) throw new Error('Falha na sincronização');
-             
-            const externalTrades = await response.json();
-            
-            // Logic to merge trades (avoid duplicates by ID if possible, or simple append)
-            // For MVP: assume local script sends only new trades or handles diff. 
-            // We'll iterate and add them if they don't exist.
-            
-            let addedCount = 0;
-             // Mocking the structure of externalTrades based on our internal Trade type
-             // Expecting: { result: 'win'|'loss', entryValue: number, payout: number, date: string }
-             
-             externalTrades.forEach((t: any) => {
-                 // For simplicity, we just trigger addRecord for each. 
-                 // In production, we'd match IDs to avoid duplicates.
-                 const isWin = t.result === 'win';
-                 // NOTE: This adds to SELECTED DATE in current implementation. 
-                 // Ideally, sync should respect the trade's date.
-                 addRecord(isWin ? 1 : 0, isWin ? 0 : 1, t.entryValue, t.payout);
-                 addedCount++;
-             });
-             
-             if (addedCount > 0) alert(`${addedCount} operações sincronizadas com sucesso!`);
-             else alert('Nenhuma nova operação encontrada.');
-
-        } catch (error) {
-            console.error("Sync error:", error);
-            alert("Erro ao sincronizar. Verifique se o script Python está rodando.");
-        }
-    };
-
     const handleUpdateBrokerage = (updatedBrokerage: Brokerage) => {
         const updated = brokerages.map(b => b.id === updatedBrokerage.id ? updatedBrokerage : b);
         setBrokerages(updated);
@@ -1766,7 +1722,6 @@ const App: React.FC<{ user: User, onLogout: () => void }> = ({ user, onLogout })
                     isDarkMode={isDarkMode}
                     onOpenBriefing={() => setIsDailyBriefingOpen(true)}
                     onOpenMenu={() => setIsMobileMenuOpen(true)}
-                    onSyncTrades={handleSyncTrades}
                 />
 
                 <main className="flex-1 overflow-x-hidden overflow-y-auto">
