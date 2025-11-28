@@ -736,10 +736,6 @@ const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
                 SECONDARY CHECKS (SMC):
                 - Order Blocks, FVG, Liquidity Sweeps (Smart Money Concepts).
                 
-                CRITICAL INSTRUCTION:
-                Evaluate both LONG (Buy) and SHORT (Sell) scenarios.
-                If the trend is bearish or there is a rejection at resistance, favor a SELL signal.
-                
                 Task: Perform a deep technical analysis simulation. If "Strategy 2" conditions are met (MACD + 3 Confluences), give a high probability score.
                 
                 Output Calculation:
@@ -809,13 +805,8 @@ const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
                 Constraint: The timeframe MUST ALWAYS be 'M1' (1 Minute) for scalping.
                 Constraint: Provide a specific 'entryTime' (e.g., current time or +1 min).
                 
-                CRITICAL INSTRUCTION:
-                You must actively look for SHORT (Sell) opportunities. Do not bias towards Long (Buy).
-                - Bearish Signals: Rejection at Supply Zones, Break of Structure (BOS) Down, Bearish Divergence.
-                - Bullish Signals: Rejection at Demand Zones, BOS Up, Bullish Divergence.
-                
                 Objective:
-                Identify the SINGLE BEST high-probability entry opportunity right now among these assets, whether it is a BUY or a SELL.
+                Identify the SINGLE BEST high-probability entry opportunity right now among these assets.
                 
                 Output Format:
                 Return strictly JSON:
@@ -825,7 +816,7 @@ const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
                     "confidence": number (0-100),
                     "suggestedTimeframe": "M1",
                     "entryTime": string (The specific time to enter, e.g., "${new Date().toLocaleTimeString()}"),
-                    "reasoning": string (Short professional explanation in PORTUGUESE. Mention the specific technical reason for the signal, e.g., "Rejeição no Order Block de Venda com cruzamento de MACD")
+                    "reasoning": string (Short professional explanation in PORTUGUESE. Mention the specific technical reason for the signal, e.g., "Rejection at Order Block with MACD crossover")
                 }
              `;
 
@@ -973,7 +964,7 @@ const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
                             <div className="py-6">
                                 <p className={`text-sm mb-6 ${theme.textMuted}`}>
                                     A IA irá escanear os 5 principais ativos cripto (BTC, ETH, SOL, XRP, ADA) 
-                                    em busca da melhor confluência técnica neste exato momento (Compra ou Venda).
+                                    em busca da melhor confluência técnica neste exato momento.
                                 </p>
                                 <button 
                                     onClick={handleScanMarket}
