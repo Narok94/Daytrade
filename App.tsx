@@ -675,14 +675,28 @@ const OperationsPanel: React.FC<{
 
 const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
     const theme = useThemeClasses(isDarkMode);
+    const [mode, setMode] = useState<'manual' | 'scanner'>('manual');
     const [asset, setAsset] = useState('BTC/USD');
     const [time, setTime] = useState('');
     const [timeframe, setTimeframe] = useState('5m');
+    const [currentTrend, setCurrentTrend] = useState('neutral');
     const [isLoading, setIsLoading] = useState(false);
+    
+    // Result State for Manual
     const [analysisResult, setAnalysisResult] = useState<{
         buyChance: number;
         sellChance: number;
         reasoning: string;
+    } | null>(null);
+
+    // Result State for Scanner
+    const [scannerResult, setScannerResult] = useState<{
+        bestAsset: string;
+        action: 'COMPRA' | 'VENDA';
+        confidence: number;
+        reasoning: string;
+        suggestedTimeframe: string;
+        entryTime?: string;
     } | null>(null);
 
     // List of assets for dropdown
@@ -704,23 +718,36 @@ const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             
+            // Advanced Prompt using "Strategy 2" + SMC
             const prompt = `
-                Atue como um analista financeiro profissional especializado em day trade e análise técnica. 
-                Estou analisando o ativo "${asset}" às "${time}" para um tempo gráfico de "${timeframe}". 
+                Act as a Senior Quantitative Analyst & Institutional Trader.
                 
-                Analise com foco nas seguintes estratégias:
-                1. Regiões: Zonas de oferta e demanda.
-                2. Marcações: Níveis importantes de Suporte e Resistência (Price Action).
-                3. Médias: Cruzamento ou tendência baseada em Médias Móveis.
-
-                Com base nesses critérios (simule um contexto de análise técnica avançada), forneça uma probabilidade percentual para COMPRA (Call) e VENDA (Put). 
+                Input Data:
+                - Asset: ${asset}
+                - Time: ${time}
+                - Timeframe: ${timeframe}
+                - Visual Macro Trend (User Input): ${currentTrend}
                 
-                IMPORTANTE: Esta é uma simulação baseada em conceitos de indicadores técnicos.
+                PRIMARY STRATEGY: "Strategy 2 (3 Confluences + MACD)"
+                You MUST prioritize this specific setup:
+                1. MACD Momentum: Analyze simulated momentum (Convergence/Divergence).
+                2. 3 Confluences: Look for alignment of at least 3 factors (e.g., Key Support/Resistance Level + Candlestick Pattern + Trendline/EMA).
                 
-                Retorne a resposta estritamente no formato JSON com estes campos:
-                - buyChance: number (0-100)
-                - sellChance: number (0-100)
-                - reasoning: string (Uma explicação concisa de 2 frases em PORTUGUÊS DO BRASIL citando especificamente as regiões, marcações ou médias que justificam essa entrada).
+                SECONDARY CHECKS (SMC):
+                - Order Blocks, FVG, Liquidity Sweeps (Smart Money Concepts).
+                
+                Task: Perform a deep technical analysis simulation. If "Strategy 2" conditions are met (MACD + 3 Confluences), give a high probability score.
+                
+                Output Calculation:
+                - Calculate a 'Win Probability' score (Buy vs Sell).
+                
+                Output Format:
+                Return strictly JSON:
+                {
+                    "buyChance": number (0-100),
+                    "sellChance": number (0-100),
+                    "reasoning": string (Use professional terminology in PORTUGUESE. Explicitly mention "MACD" and "Confluências" in your reasoning. Max 2 sentences.)
+                }
             `;
 
             const response = await ai.models.generateContent({
@@ -757,114 +784,314 @@ const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
         }
     };
 
+    const handleScanMarket = async () => {
+        setIsLoading(true);
+        setScannerResult(null);
+
+        try {
+             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+             
+             const prompt = `
+                Act as a High-Frequency Trading Bot and Institutional Algo Trader.
+                
+                Task: Scan the current simulated market conditions for the following Major Assets: BTC/USD, ETH/USD, SOL/USD, XRP/USD, ADA/USD.
+                Current System Time: ${new Date().toLocaleTimeString()}
+                
+                Strategy to Apply:
+                - Smart Money Concepts (SMC): Order Blocks, Liquidity Sweeps.
+                - Price Action: Key Levels, Break of Structure (BOS).
+                - Strategy 2: MACD Momentum + 3 Confluences.
+                
+                Constraint: The timeframe MUST ALWAYS be 'M1' (1 Minute) for scalping.
+                Constraint: Provide a specific 'entryTime' (e.g., current time or +1 min).
+                
+                Objective:
+                Identify the SINGLE BEST high-probability entry opportunity right now among these assets.
+                
+                Output Format:
+                Return strictly JSON:
+                {
+                    "bestAsset": string (e.g., "BTC/USD"),
+                    "action": "COMPRA" or "VENDA",
+                    "confidence": number (0-100),
+                    "suggestedTimeframe": "M1",
+                    "entryTime": string (The specific time to enter, e.g., "${new Date().toLocaleTimeString()}"),
+                    "reasoning": string (Short professional explanation in PORTUGUESE. Mention the specific technical reason for the signal, e.g., "Rejection at Order Block with MACD crossover")
+                }
+             `;
+
+             const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            bestAsset: { type: Type.STRING },
+                            action: { type: Type.STRING },
+                            confidence: { type: Type.NUMBER },
+                            suggestedTimeframe: { type: Type.STRING },
+                            entryTime: { type: Type.STRING },
+                            reasoning: { type: Type.STRING },
+                        },
+                        required: ["bestAsset", "action", "confidence", "reasoning", "suggestedTimeframe", "entryTime"]
+                    }
+                }
+             });
+
+            let text = response.text;
+            if (text) {
+                text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+                const json = JSON.parse(text);
+                setScannerResult(json);
+            }
+
+        } catch (error) {
+             console.error("Scanner failed:", error);
+             const errorMessage = error instanceof Error ? error.message : String(error);
+             alert(`Falha no scanner: ${errorMessage}`);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="flex flex-col h-full items-center justify-start p-4 md:p-8">
              <div className="w-full max-w-2xl">
-                <h2 className={`text-2xl md:text-3xl font-bold mb-6 md:mb-8 ${theme.text} text-center`}>Analisar Operação (IA)</h2>
+                <div className="flex justify-center mb-6 gap-2">
+                    <button 
+                        onClick={() => setMode('manual')}
+                        className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${mode === 'manual' ? 'bg-green-500 text-slate-900 shadow-lg' : `${theme.textMuted} hover:${theme.text}`}`}
+                    >
+                        Analisar Ativo
+                    </button>
+                    <button 
+                         onClick={() => setMode('scanner')}
+                         className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${mode === 'scanner' ? 'bg-blue-500 text-white shadow-lg' : `${theme.textMuted} hover:${theme.text}`}`}
+                    >
+                        Scanner de Oportunidades 🚀
+                    </button>
+                </div>
+
+                <h2 className={`text-2xl md:text-3xl font-bold mb-6 md:mb-8 ${theme.text} text-center`}>
+                    {mode === 'manual' ? 'Análise Avançada (SMC AI)' : 'Scanner de Mercado (Algo Trading)'}
+                </h2>
                 
                 <div className={`p-6 lg:p-8 rounded-2xl border ${theme.border} ${theme.bg} shadow-lg`}>
-                    <form onSubmit={handleAnalyze} className="space-y-6">
-                        <div>
-                            <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Ativo</label>
-                            <select
-                                value={asset}
-                                onChange={(e) => setAsset(e.target.value)}
-                                required
-                                className={`block w-full px-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors uppercase ${theme.input}`}
-                            >
-                                {cryptoAssets.map(a => (
-                                    <option key={a} value={a}>{a}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
+                    
+                    {/* MANUAL MODE FORM */}
+                    {mode === 'manual' && (
+                        <form onSubmit={handleAnalyze} className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Horário</label>
-                                <input
-                                    type="time"
-                                    value={time}
-                                    onChange={(e) => setTime(e.target.value)}
-                                    required
-                                    className={`block w-full px-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors ${theme.input}`}
-                                />
+                                    <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Ativo</label>
+                                    <select
+                                        value={asset}
+                                        onChange={(e) => setAsset(e.target.value)}
+                                        required
+                                        className={`block w-full px-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors uppercase ${theme.input}`}
+                                    >
+                                        {cryptoAssets.map(a => (
+                                            <option key={a} value={a}>{a}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Tendência Visual Atual</label>
+                                    <select
+                                        value={currentTrend}
+                                        onChange={(e) => setCurrentTrend(e.target.value)}
+                                        required
+                                        className={`block w-full px-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors ${theme.input}`}
+                                    >
+                                        <option value="neutral">Lateral / Indeciso</option>
+                                        <option value="bullish">Alta Forte (Bullish)</option>
+                                        <option value="bearish">Baixa Forte (Bearish)</option>
+                                    </select>
+                                </div>
                             </div>
-                            <div>
-                                <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Tempo</label>
-                                <select
-                                    value={timeframe}
-                                    onChange={(e) => setTimeframe(e.target.value)}
-                                    className={`block w-full px-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors ${theme.input}`}
+
+                            <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                    <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Horário</label>
+                                    <input
+                                        type="time"
+                                        value={time}
+                                        onChange={(e) => setTime(e.target.value)}
+                                        required
+                                        className={`block w-full px-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors ${theme.input}`}
+                                    />
+                                </div>
+                                <div>
+                                    <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Tempo Gráfico</label>
+                                    <select
+                                        value={timeframe}
+                                        onChange={(e) => setTimeframe(e.target.value)}
+                                        className={`block w-full px-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors ${theme.input}`}
+                                    >
+                                        <option value="1m">1 Minuto (M1) - Scalping</option>
+                                        <option value="5m">5 Minutos (M5) - Day Trade</option>
+                                        <option value="15m">15 Minutos (M15) - Swing</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button 
+                                type="submit" 
+                                disabled={isLoading}
+                                className={`w-full py-4 mt-4 font-bold rounded-xl shadow-lg transition-all active:scale-[0.98] flex justify-center items-center gap-2 
+                                    ${isLoading ? 'bg-slate-700 cursor-not-allowed text-slate-400' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-green-900/20'}`}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                                        Processando SMC...
+                                    </>
+                                ) : (
+                                    <>
+                                        <CpuChipIcon className="w-5 h-5" />
+                                        Gerar Probabilidade
+                                    </>
+                                )}
+                            </button>
+                        </form>
+                    )}
+
+                    {/* SCANNER MODE UI */}
+                    {mode === 'scanner' && (
+                        <div className="space-y-8 text-center">
+                            <div className="py-6">
+                                <p className={`text-sm mb-6 ${theme.textMuted}`}>
+                                    A IA irá escanear os 5 principais ativos cripto (BTC, ETH, SOL, XRP, ADA) 
+                                    em busca da melhor confluência técnica neste exato momento.
+                                </p>
+                                <button 
+                                    onClick={handleScanMarket}
+                                    disabled={isLoading}
+                                    className={`w-full py-5 font-bold text-lg rounded-xl shadow-xl transition-all active:scale-[0.98] flex justify-center items-center gap-3
+                                        ${isLoading ? 'bg-slate-700 cursor-not-allowed text-slate-400' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/30'}`}
                                 >
-                                    <option value="1m">1 Minuto (M1)</option>
-                                    <option value="5m">5 Minutos (M5)</option>
-                                    <option value="15m">15 Minutos (M15)</option>
-                                </select>
+                                    {isLoading ? (
+                                        <>
+                                            <ArrowPathIcon className="w-6 h-6 animate-spin" />
+                                            Escaneando Mercado...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <TargetIcon className="w-6 h-6" />
+                                            Escanear Oportunidade
+                                        </>
+                                    )}
+                                </button>
                             </div>
                         </div>
+                    )}
 
-                        <button 
-                            type="submit" 
-                            disabled={isLoading}
-                            className={`w-full py-4 mt-4 font-bold rounded-xl shadow-lg transition-all active:scale-[0.98] flex justify-center items-center gap-2 
-                                ${isLoading ? 'bg-slate-700 cursor-not-allowed text-slate-400' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-green-900/20'}`}
-                        >
-                            {isLoading ? (
-                                <>
-                                    <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                                    Analisando...
-                                </>
-                            ) : (
-                                <>
-                                    <CpuChipIcon className="w-5 h-5" />
-                                    Gerar Análise com IA
-                                </>
-                            )}
-                        </button>
-                    </form>
+                        {/* MANUAL RESULT SECTION */}
+                        {mode === 'manual' && (
+                            <div className="mt-8 border-t pt-8 border-slate-800/50">
+                                {!analysisResult && !isLoading && (
+                                    <div className="text-center opacity-50 py-4">
+                                        <CpuChipIcon className="w-12 h-12 mx-auto mb-2 text-slate-500" />
+                                        <p className={`text-sm ${theme.textMuted}`}>Selecione os parâmetros e a tendência visual para análise institucional.</p>
+                                    </div>
+                                )}
 
-                        {/* Result Section */}
-                        <div className="mt-8 border-t pt-8 border-slate-800/50">
-                        {!analysisResult && !isLoading && (
-                            <div className="text-center opacity-50 py-4">
-                                <CpuChipIcon className="w-12 h-12 mx-auto mb-2 text-slate-500" />
-                                <p className={`text-sm ${theme.textMuted}`}>Selecione os parâmetros e clique em gerar para ver a probabilidade.</p>
+                                {isLoading && (
+                                    <div className="animate-pulse space-y-3">
+                                        <div className="h-4 bg-slate-700 rounded w-3/4 mx-auto"></div>
+                                        <div className="h-4 bg-slate-700 rounded w-1/2 mx-auto"></div>
+                                    </div>
+                                )}
+
+                                {analysisResult && (
+                                    <div className="w-full animate-fade-in-up">
+                                        <h3 className={`text-lg font-bold mb-4 ${theme.text}`}>Resultado da Análise</h3>
+                                        
+                                        <div className="flex justify-between items-end mb-2 px-2">
+                                            <span className="font-bold text-green-500">COMPRA ({analysisResult.buyChance}%)</span>
+                                            <span className="font-bold text-red-500">VENDA ({analysisResult.sellChance}%)</span>
+                                        </div>
+
+                                        <div className="w-full h-4 bg-slate-800 rounded-full overflow-hidden flex mb-6">
+                                            <div 
+                                                className="h-full bg-green-500 transition-all duration-1000 ease-out" 
+                                                style={{ width: `${analysisResult.buyChance}%` }}
+                                            ></div>
+                                            <div 
+                                                className="h-full bg-red-500 transition-all duration-1000 ease-out" 
+                                                style={{ width: `${analysisResult.sellChance}%` }}
+                                            ></div>
+                                        </div>
+
+                                        <div className={`p-4 rounded-xl text-left border ${isDarkMode ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                                            <p className={`text-xs font-bold uppercase mb-2 ${theme.textMuted}`}>Confluência Técnica (SMC):</p>
+                                            <p className={`text-sm italic ${theme.text}`}>"{analysisResult.reasoning}"</p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
-                        {isLoading && (
-                            <div className="animate-pulse space-y-3">
-                                <div className="h-4 bg-slate-700 rounded w-3/4 mx-auto"></div>
-                                <div className="h-4 bg-slate-700 rounded w-1/2 mx-auto"></div>
+                        {/* SCANNER RESULT SECTION */}
+                        {mode === 'scanner' && (
+                            <div className="mt-2 border-t pt-6 border-slate-800/50">
+                                {!scannerResult && !isLoading && (
+                                    <div className="text-center opacity-50 py-4">
+                                        <TargetIcon className="w-12 h-12 mx-auto mb-2 text-slate-500" />
+                                        <p className={`text-sm ${theme.textMuted}`}>Aguardando scan...</p>
+                                    </div>
+                                )}
+
+                                {isLoading && (
+                                    <div className="text-center space-y-4">
+                                        <p className="text-blue-400 font-medium animate-pulse">Analisando Order Blocks em 5 pares...</p>
+                                        <div className="flex justify-center gap-1">
+                                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0s'}}></div>
+                                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {scannerResult && (
+                                    <div className="w-full animate-fade-in-up">
+                                        <div className={`p-6 rounded-2xl border-2 ${scannerResult.action === 'COMPRA' ? 'border-green-500 bg-green-900/10' : 'border-red-500 bg-red-900/10'}`}>
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div>
+                                                    <p className="text-sm text-slate-400 uppercase font-bold tracking-wider">Melhor Oportunidade</p>
+                                                    <h3 className={`text-3xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{scannerResult.bestAsset}</h3>
+                                                </div>
+                                                <div className={`px-4 py-2 rounded-lg font-black text-xl ${scannerResult.action === 'COMPRA' ? 'bg-green-500 text-slate-900' : 'bg-red-500 text-white'}`}>
+                                                    {scannerResult.action}
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex gap-4 mb-6">
+                                                 <div className={`px-3 py-1 rounded border ${isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                                                    <span className="text-xs text-slate-500 block">Timeframe</span>
+                                                    <span className="font-bold text-sm">{scannerResult.suggestedTimeframe}</span>
+                                                </div>
+                                                <div className={`px-3 py-1 rounded border ${isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                                                    <span className="text-xs text-slate-500 block">Horário Entrada</span>
+                                                    <span className="font-bold text-sm">{scannerResult.entryTime}</span>
+                                                </div>
+                                                <div className={`px-3 py-1 rounded border ${isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                                                    <span className="text-xs text-slate-500 block">Confiança</span>
+                                                    <span className={`font-bold text-sm ${scannerResult.confidence > 80 ? 'text-green-500' : 'text-yellow-500'}`}>{scannerResult.confidence}%</span>
+                                                </div>
+                                            </div>
+
+                                            <div className={`p-4 rounded-xl text-left border ${isDarkMode ? 'bg-slate-950/80 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                                <p className={`text-xs font-bold uppercase mb-2 ${theme.textMuted}`}>Motivo Técnico:</p>
+                                                <p className={`text-sm italic ${theme.text}`}>"{scannerResult.reasoning}"</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
-
-                        {analysisResult && (
-                            <div className="w-full animate-fade-in-up">
-                                <h3 className={`text-lg font-bold mb-4 ${theme.text}`}>Resultado da Análise</h3>
-                                
-                                <div className="flex justify-between items-end mb-2 px-2">
-                                    <span className="font-bold text-green-500">COMPRA ({analysisResult.buyChance}%)</span>
-                                    <span className="font-bold text-red-500">VENDA ({analysisResult.sellChance}%)</span>
-                                </div>
-
-                                <div className="w-full h-4 bg-slate-800 rounded-full overflow-hidden flex mb-6">
-                                    <div 
-                                        className="h-full bg-green-500 transition-all duration-1000 ease-out" 
-                                        style={{ width: `${analysisResult.buyChance}%` }}
-                                    ></div>
-                                    <div 
-                                        className="h-full bg-red-500 transition-all duration-1000 ease-out" 
-                                        style={{ width: `${analysisResult.sellChance}%` }}
-                                    ></div>
-                                </div>
-
-                                <div className={`p-4 rounded-xl text-left border ${isDarkMode ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                                    <p className={`text-xs font-bold uppercase mb-2 ${theme.textMuted}`}>Motivo Técnico (IA):</p>
-                                    <p className={`text-sm italic ${theme.text}`}>"{analysisResult.reasoning}"</p>
-                                </div>
-                            </div>
-                        )}
-                        </div>
                 </div>
             </div>
         </div>
