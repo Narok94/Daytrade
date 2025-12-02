@@ -9,7 +9,6 @@ const INITIAL_USERS: Record<string, string> = {
   admin: 'admin',
   larissa: 'lari@2025',
   adailton: '1345',
-  charles: '12345',
 };
 
 const Auth: React.FC = () => {
@@ -24,6 +23,11 @@ const Auth: React.FC = () => {
             // storedUsers overrides existing ones (if passwords changed or registered).
             // This ensures 'adailton' appears even if localStorage exists.
             const mergedUsers = { ...INITIAL_USERS, ...storedUsers };
+
+            // Explicitly remove charles if he exists in storage (cleanup)
+            if (mergedUsers['charles']) {
+                delete mergedUsers['charles'];
+            }
             
             // Update localStorage with the merged result so it persists
             localStorage.setItem('app_users', JSON.stringify(mergedUsers));
