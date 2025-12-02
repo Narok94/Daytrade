@@ -98,7 +98,7 @@ const Sidebar: React.FC<{
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${activeTab === 'analyze' ? theme.navActive : theme.navInactive}`}
                     >
                         <CpuChipIcon className={`w-5 h-5 ${activeTab === 'analyze' ? 'text-green-500' : (isDarkMode ? 'text-slate-500 group-hover:text-slate-300' : 'text-slate-400 group-hover:text-slate-600')}`} />
-                        <span className="font-medium">Analisar</span>
+                        <span className="font-medium">Analisar (IA)</span>
                     </button>
                     
                     <button 
@@ -247,10 +247,10 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
          const payout = customPayout ? parseFloat(customPayout) : undefined;
          const qty = parseInt(quantity) || 1;
          
-         if (qty > 0) {
-             if (type === 'win') addRecord(qty, 0, entryValue, payout);
-             else addRecord(0, qty, entryValue, payout);
-         }
+         if (type === 'win') addRecord(qty, 0, entryValue, payout);
+         else addRecord(0, qty, entryValue, payout);
+         
+         setQuantity('1'); // Reset
     };
 
     const currentProfit = dailyRecordForSelectedDay?.netProfitUSD ?? 0;
@@ -424,7 +424,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                 </div>
 
                 <div className="flex flex-col gap-4">
-                     {/* Row 1: Inputs with Quantity */}
+                     {/* Row 1: Large Inputs */}
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="group">
                             <span className={`block mb-2 text-xs font-bold uppercase tracking-wider group-focus-within:text-green-500 transition-colors ml-1 ${theme.textMuted}`}>VALOR DE ENTRADA</span>
@@ -457,8 +457,9 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                              <div className="relative">
                                 <input
                                     type="number"
-                                    min="1"
                                     value={quantity}
+                                    min="1"
+                                    max="10"
                                     onChange={(e) => setQuantity(e.target.value)}
                                     className={`w-full h-14 border-2 rounded-xl px-4 text-xl font-bold focus:border-green-500 focus:ring-0 focus:outline-none transition-all text-center ${theme.input}`}
                                 />
@@ -692,99 +693,181 @@ const OperationsPanel: React.FC<{
 const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
     const theme = useThemeClasses(isDarkMode);
     const [isLoading, setIsLoading] = useState(false);
-    
-    // Result State for Scanner
-    const [scannerResult, setScannerResult] = useState<{
-        bestAsset: string;
-        action: 'COMPRA' | 'VENDA';
+    const [scanResult, setScanResult] = useState<{
+        symbol: string;
+        direction: 'BUY' | 'SELL' | 'WAIT';
         confidence: number;
         reasoning: string;
-        suggestedTimeframe: string;
-        entryTime?: string;
+        entryTime: string;
     } | null>(null);
+
+    // List of assets to scan
+    const assets = useMemo(() => [
+        { symbol: 'BTCUSDT', name: 'Bitcoin' },
+        { symbol: 'ETHUSDT', name: 'Ethereum' },
+        { symbol: 'SOLUSDT', name: 'Solana' },
+        { symbol: 'XRPUSDT', name: 'Ripple' },
+        { symbol: 'ADAUSDT', name: 'Cardano' }
+    ], []);
+
+    // --- Technical Analysis Helpers ---
+    const calculateRSI = (closes: number[], period: number = 14) => {
+        if (closes.length < period + 1) return 50;
+        let gains = 0, losses = 0;
+        for (let i = 1; i <= period; i++) {
+            const diff = closes[closes.length - 1 - (period - i)] - closes[closes.length - 1 - (period - i + 1)];
+            if (diff >= 0) gains += diff;
+            else losses -= diff;
+        }
+        let avgGain = gains / period;
+        let avgLoss = losses / period;
+        const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+        return 100 - (100 / (1 + rs));
+    };
+
+    const calculateEMA = (closes: number[], period: number) => {
+        if (closes.length < period) return 0;
+        const k = 2 / (period + 1);
+        let ema = closes[0];
+        for (let i = 1; i < closes.length; i++) {
+            ema = closes[i] * k + ema * (1 - k);
+        }
+        return ema;
+    };
+
+    // --- TradingView Scanner API Fetcher (Robust) ---
+    const fetchTradingViewData = async (symbol: string) => {
+         try {
+            // TradingView Widget API - often more accessible
+            const response = await fetch('https://scanner.tradingview.com/crypto/scan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    symbols: { tickers: [`BINANCE:${symbol}`], query: { types: [] } },
+                    columns: [
+                        "RSI", "MACD.macd", "MACD.signal", "EMA5", "EMA10", "EMA20", "close"
+                    ]
+                })
+            });
+
+            if (!response.ok) throw new Error('TV API blocked');
+            const data = await response.json();
+            if (!data.data || data.data.length === 0) throw new Error('No data');
+            
+            const d = data.data[0].d;
+            return {
+                rsi: d[0],
+                macd: d[1],
+                macdSignal: d[2],
+                ema5: d[3],
+                ema10: d[4],
+                ema20: d[5],
+                close: d[6],
+                source: 'TradingView'
+            };
+        } catch (e) {
+            // Fallback to Binance + Local Calc
+            console.log(`TV failed for ${symbol}, using Binance fallback`);
+            return await fetchBinanceData(symbol);
+        }
+    };
+
+    const fetchBinanceData = async (symbol: string) => {
+        const response = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=30`);
+        if (!response.ok) throw new Error('Binance fetch failed');
+        const data = await response.json();
+        const closes = data.map((k: any) => parseFloat(k[4]));
+        
+        return {
+            rsi: calculateRSI(closes),
+            macd: 0, // Simplified fallback
+            macdSignal: 0,
+            ema5: calculateEMA(closes, 5),
+            ema10: calculateEMA(closes, 10),
+            ema20: calculateEMA(closes, 20),
+            close: closes[closes.length - 1],
+            source: 'Binance (Calc)'
+        };
+    };
 
     const handleScanMarket = async () => {
         setIsLoading(true);
-        setScannerResult(null);
-
-        // Calculate time for prompt: "Now + 1 minute"
-        const now = new Date();
-        const futureTime = new Date(now.getTime() + 60000); // +1 minute
-        const entryTimeStr = futureTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setScanResult(null);
 
         try {
-             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-             
-             const prompt = `
-                Act as a STRICT Institutional Risk Manager and Algo Trader.
-                
-                Task: Scan simulated live market conditions for: BTC/USD, ETH/USD, SOL/USD, XRP/USD, ADA/USD.
-                Current System Time: ${new Date().toLocaleTimeString()}
-                REQUIRED Entry Time: Must be after ${entryTimeStr}.
-                
-                Strategy:
-                - Strategy 2: MACD Momentum + 3 Confluences.
-                - SMC: Order Blocks, FVG.
-                
-                IMPORTANT - SCORING RULES:
-                - Start with a base confidence of 50%.
-                - Add 10% ONLY if trend is clearly aligned.
-                - Add 10% ONLY if simulated volume is high.
-                - Add 10% ONLY if there is a clear Order Block or Key Level nearby.
-                - PENALIZE (-15%) if market is choppy or sideways.
-                
-                CRUCIAL - UNBIASED EVALUATION (EQUAL WEIGHT):
-                1. You MUST evaluate LONG (Buy) and SHORT (Sell) scenarios with EQUAL INTENSITY.
-                2. Do NOT prioritize Selling or Buying. Look for the CLEANEST technical setup.
-                3. Compare the best SHORT setup against the best LONG setup.
-                4. Select the one with the highest technical probability, regardless of direction.
-                
-                Objective:
-                Identify the SINGLE BEST high-probability entry opportunity right now (Buy OR Sell).
-                
-                Output Format:
-                Return strictly JSON:
-                {
-                    "bestAsset": string (e.g., "BTC/USD"),
-                    "action": "COMPRA" or "VENDA",
-                    "confidence": number (0-100),
-                    "suggestedTimeframe": "M1",
-                    "entryTime": string (Use the ${entryTimeStr} or later),
-                    "reasoning": string (Short professional explanation in PORTUGUESE. Mention the specific technical reason for the signal, e.g., "Rejection at Order Block with MACD crossover")
-                }
-             `;
+            // 1. Fetch Real Data for ALL assets in parallel
+            const allMarketData = await Promise.all(assets.map(async (asset) => {
+                const data = await fetchTradingViewData(asset.symbol);
+                return {
+                    symbol: asset.symbol,
+                    name: asset.name,
+                    ...data
+                };
+            }));
 
-             const response = await ai.models.generateContent({
+            // 2. Prepare Context for AI
+            const currentTime = new Date();
+            // Ensure the entry time is for the NEXT candle (or 2 mins from now) so user has time to prepare
+            const targetDate = new Date(currentTime.getTime() + 2 * 60000); 
+            const entryTime = targetDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            // Construct a prompt with data from all assets
+            let assetsDataString = "";
+            allMarketData.forEach(m => {
+                assetsDataString += `
+                ASSET: ${m.name} (${m.symbol})
+                Price: ${m.close} | RSI: ${m.rsi?.toFixed(2)} | EMA5: ${m.ema5?.toFixed(2)} | EMA20: ${m.ema20?.toFixed(2)} | MACD: ${m.macd?.toFixed(4)}
+                --------------------------------`;
+            });
+
+            const prompt = `
+                ACT AS AN ELITE HIGH-FREQUENCY CRYPTO SNIPER.
+                I have scanned 5 major assets. Here is their REAL-TIME technical data (M1 Timeframe):
+                ${assetsDataString}
+                
+                TIME CONTEXT: Current time is ${currentTime.toLocaleTimeString()}.
+                TARGET ENTRY TIME: ${entryTime} (In approx 2 minutes).
+
+                YOUR TASK:
+                1. Compare all 5 assets.
+                2. Predict the likely movement for the specific candle starting at ${entryTime}. Do NOT predict the current candle.
+                3. Identify the SINGLE BEST trade opportunity (Buy or Sell) among them for that future time.
+                4. If all markets are choppy/bad, choose the "least bad" one but lower confidence, or signal WAIT.
+                
+                STRATEGY (Impartial):
+                - Strong Trend: Price > EMA20 (Bull) or Price < EMA20 (Bear).
+                - Momentum: RSI divergence or extreme levels (Overbought > 75 / Oversold < 25).
+                - Entry: Pullbacks to EMA5 are good entries.
+                
+                OUTPUT FORMAT (JSON ONLY):
+                {
+                    "symbol": "BTCUSDT" (or whichever is best),
+                    "direction": "BUY" or "SELL" or "WAIT",
+                    "confidence": number (50-95),
+                    "reasoning": "Explain WHY this asset was chosen over others based on the indicators for the UPCOMING minute.",
+                    "entryTime": "Use EXACTLY this time: ${entryTime}"
+                }
+            `;
+
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            bestAsset: { type: Type.STRING },
-                            action: { type: Type.STRING },
-                            confidence: { type: Type.NUMBER },
-                            suggestedTimeframe: { type: Type.STRING },
-                            entryTime: { type: Type.STRING },
-                            reasoning: { type: Type.STRING },
-                        },
-                        required: ["bestAsset", "action", "confidence", "reasoning", "suggestedTimeframe", "entryTime"]
-                    }
-                }
-             });
+                config: { responseMimeType: "application/json" }
+            });
 
             let text = response.text;
             if (text) {
                 text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
                 const json = JSON.parse(text);
-                setScannerResult(json);
+                setScanResult({
+                    ...json
+                });
             }
 
         } catch (error) {
-             console.error("Scanner failed:", error);
-             const errorMessage = error instanceof Error ? error.message : String(error);
-             alert(`Falha no scanner: ${errorMessage}`);
+            console.error(error);
+            alert("Erro na análise. Verifique sua conexão ou tente novamente.");
         } finally {
             setIsLoading(false);
         }
@@ -792,97 +875,92 @@ const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
 
     return (
         <div className="flex flex-col h-full items-center justify-start p-4 md:p-8">
-             <div className="w-full max-w-2xl">
-                <h2 className={`text-2xl md:text-3xl font-bold mb-6 md:mb-8 ${theme.text} text-center`}>
-                    Scanner de Mercado (Algo Trading)
-                </h2>
+             <div className="w-full max-w-xl">
+                <div className="text-center mb-8">
+                    <h2 className={`text-2xl md:text-3xl font-bold ${theme.text}`}>Scanner Automático (IA)</h2>
+                    <p className={`text-sm mt-2 ${theme.textMuted}`}>A IA analisa BTC, ETH, SOL, XRP e ADA simultaneamente</p>
+                </div>
                 
-                <div className={`p-6 lg:p-8 rounded-2xl border ${theme.border} ${theme.bg} shadow-lg`}>
-                    
-                    {/* SCANNER MODE UI */}
-                    <div className="space-y-8 text-center">
-                        <div className="py-6">
-                            <p className={`text-sm mb-6 ${theme.textMuted}`}>
-                                A IA irá escanear os 5 principais ativos cripto (BTC, ETH, SOL, XRP, ADA) 
-                                em busca da melhor confluência técnica neste exato momento.
-                            </p>
-                            <button 
-                                onClick={handleScanMarket}
-                                disabled={isLoading}
-                                className={`w-full py-5 font-bold text-lg rounded-xl shadow-xl transition-all active:scale-[0.98] flex justify-center items-center gap-3
-                                    ${isLoading ? 'bg-slate-700 cursor-not-allowed text-slate-400' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/30'}`}
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <ArrowPathIcon className="w-6 h-6 animate-spin" />
-                                        Escaneando Mercado...
-                                    </>
-                                ) : (
-                                    <>
-                                        <TargetIcon className="w-6 h-6" />
-                                        Escanear Oportunidade
-                                    </>
-                                )}
-                            </button>
-                        </div>
+                <div className={`p-6 md:p-8 rounded-3xl border ${theme.border} ${theme.bg} shadow-2xl relative overflow-hidden`}>
+                    {/* Background decoration */}
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-green-500 to-transparent opacity-50"></div>
+
+                    <div className="space-y-6 relative z-10">
+                        <button 
+                            onClick={handleScanMarket}
+                            disabled={isLoading}
+                            className={`w-full py-5 font-black text-lg rounded-2xl shadow-xl transition-all active:scale-[0.98] flex justify-center items-center gap-3 relative overflow-hidden group
+                                ${isLoading ? 'bg-slate-800 cursor-not-allowed text-slate-500' : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white shadow-green-900/30'}`}
+                        >
+                            {isLoading ? (
+                                <>
+                                    <div className="absolute inset-0 bg-white/10 skew-x-12 animate-shimmer"></div>
+                                    <ArrowPathIcon className="w-6 h-6 animate-spin" />
+                                    <span>Escaneando Todos os Ativos...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <CpuChipIcon className="w-6 h-6" />
+                                    <span>ENCONTRAR MELHOR OPORTUNIDADE</span>
+                                </>
+                            )}
+                        </button>
                     </div>
 
-                    {/* SCANNER RESULT SECTION */}
-                    <div className="mt-2 border-t pt-6 border-slate-800/50">
-                        {!scannerResult && !isLoading && (
-                            <div className="text-center opacity-50 py-4">
-                                <TargetIcon className="w-12 h-12 mx-auto mb-2 text-slate-500" />
-                                <p className={`text-sm ${theme.textMuted}`}>Aguardando scan...</p>
-                            </div>
-                        )}
-
-                        {isLoading && (
-                            <div className="text-center space-y-4">
-                                <p className="text-blue-400 font-medium animate-pulse">Analisando Order Blocks em 5 pares...</p>
-                                <div className="flex justify-center gap-1">
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0s'}}></div>
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                    {/* Result Section */}
+                    {scanResult && (
+                        <div className="mt-8 animate-fade-in-up">
+                            <div className={`p-6 rounded-2xl border-2 ${
+                                scanResult.direction === 'BUY' ? 'border-green-500/50 bg-green-500/10' : 
+                                scanResult.direction === 'SELL' ? 'border-red-500/50 bg-red-500/10' : 
+                                'border-slate-500/50 bg-slate-500/10'
+                            }`}>
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <span className={`text-xs font-bold uppercase ${theme.textMuted}`}>Melhor Ativo Encontrado</span>
+                                        <h3 className={`text-2xl font-black tracking-tight ${theme.text}`}>
+                                            {scanResult.symbol.replace('USDT', '')}
+                                        </h3>
+                                        <h2 className={`text-4xl font-black tracking-tighter mt-2 ${
+                                            scanResult.direction === 'BUY' ? 'text-green-500' : 
+                                            scanResult.direction === 'SELL' ? 'text-red-500' : 
+                                            'text-slate-400'
+                                        }`}>
+                                            {scanResult.direction === 'BUY' ? 'COMPRA' : 
+                                             scanResult.direction === 'SELL' ? 'VENDA' : 'AGUARDAR'}
+                                        </h2>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className={`text-xs font-bold uppercase ${theme.textMuted}`}>Confiança</span>
+                                        <div className={`text-2xl font-bold ${
+                                            scanResult.confidence > 80 ? 'text-green-400' : 'text-yellow-400'
+                                        }`}>
+                                            {scanResult.confidence}%
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
 
-                        {scannerResult && (
-                            <div className="w-full animate-fade-in-up">
-                                <div className={`p-6 rounded-2xl border-2 ${scannerResult.action === 'COMPRA' ? 'border-green-500 bg-green-900/10' : 'border-red-500 bg-red-900/10'}`}>
-                                    <div className="flex justify-between items-start mb-4">
+                                {scanResult.direction !== 'WAIT' && (
+                                    <div className="flex items-center gap-3 mb-6 bg-slate-950/30 p-3 rounded-lg">
+                                        <div className="p-2 bg-slate-800 rounded-lg text-white">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
                                         <div>
-                                            <p className="text-sm text-slate-400 uppercase font-bold tracking-wider">Melhor Oportunidade</p>
-                                            <h3 className={`text-3xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{scannerResult.bestAsset}</h3>
-                                        </div>
-                                        <div className={`px-4 py-2 rounded-lg font-black text-xl ${scannerResult.action === 'COMPRA' ? 'bg-green-500 text-slate-900' : 'bg-red-500 text-white'}`}>
-                                            {scannerResult.action}
+                                            <p className="text-xs text-slate-400 uppercase font-bold">Horário da Entrada</p>
+                                            <p className="text-lg font-mono font-bold text-white">{scanResult.entryTime}</p>
                                         </div>
                                     </div>
-                                    
-                                    <div className="flex gap-4 mb-6">
-                                            <div className={`px-3 py-1 rounded border ${isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
-                                            <span className="text-xs text-slate-500 block">Timeframe</span>
-                                            <span className="font-bold text-sm">{scannerResult.suggestedTimeframe}</span>
-                                        </div>
-                                        <div className={`px-3 py-1 rounded border ${isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
-                                            <span className="text-xs text-slate-500 block">Horário Entrada</span>
-                                            <span className="font-bold text-sm">{scannerResult.entryTime}</span>
-                                        </div>
-                                        <div className={`px-3 py-1 rounded border ${isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
-                                            <span className="text-xs text-slate-500 block">Confiança</span>
-                                            <span className={`font-bold text-sm ${scannerResult.confidence > 80 ? 'text-green-500' : 'text-yellow-500'}`}>{scannerResult.confidence}%</span>
-                                        </div>
-                                    </div>
+                                )}
 
-                                    <div className={`p-4 rounded-xl text-left border ${isDarkMode ? 'bg-slate-950/80 border-slate-800' : 'bg-white border-slate-200'}`}>
-                                        <p className={`text-xs font-bold uppercase mb-2 ${theme.textMuted}`}>Motivo Técnico:</p>
-                                        <p className={`text-sm italic ${theme.text}`}>"{scannerResult.reasoning}"</p>
-                                    </div>
+                                <div>
+                                    <p className={`text-xs font-bold uppercase mb-1 ${theme.textMuted}`}>Motivo da Escolha</p>
+                                    <p className={`text-sm italic leading-relaxed ${theme.text}`}>"{scanResult.reasoning}"</p>
                                 </div>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -1518,32 +1596,24 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         
         const payout = customPayoutPercentage !== undefined ? customPayoutPercentage : activeBrokerage.payoutPercentage;
         
-        // Handle bulk addition logic
-        const totalToAdd = winCount > 0 ? winCount : lossCount;
-        const newTrades: Trade[] = [];
-        
-        for (let i = 0; i < totalToAdd; i++) {
-             newTrades.push({
-                id: Date.now().toString() + Math.random(), // Ensure unique ID for bulk ops
-                result: winCount > 0 ? 'win' : 'loss',
-                entryValue: entry,
-                payoutPercentage: payout
-            });
-        }
-        
-        // Calculate raw profit/loss for the batch to update current view immediately if needed, 
-        // though the state update recalculates everything from trades array anyway.
-        const profit = winCount > 0 ? (entry * (payout / 100) * winCount) : (lossCount > 0 ? -entry * lossCount : 0);
+        const profit = winCount > 0 ? (entry * (payout / 100)) : (lossCount > 0 ? -entry : 0);
 
         setRecords(prev => {
             const existingRecordIndex = prev.findIndex(r => r.recordType === 'day' && r.id === selectedDateString);
             
+            const newTrade: Trade = {
+                id: Date.now().toString(),
+                result: winCount > 0 ? 'win' : 'loss',
+                entryValue: entry,
+                payoutPercentage: payout
+            };
+
             if (existingRecordIndex >= 0) {
                 const updated = [...prev];
                 const rec = updated[existingRecordIndex] as DailyRecord;
                 
                 // Recalculate record completely from trades to ensure accuracy
-                const updatedTrades = [...rec.trades, ...newTrades];
+                const updatedTrades = [...rec.trades, newTrade];
                 const wins = updatedTrades.filter(t => t.result === 'win').length;
                 const losses = updatedTrades.filter(t => t.result === 'loss').length;
                 const netProfit = updatedTrades.reduce((acc, t) => {
@@ -1566,7 +1636,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     id: selectedDateString,
                     date: selectedDateString,
                     startBalanceUSD: startBalanceForSelectedDay,
-                    trades: newTrades,
+                    trades: [newTrade],
                     winCount: winCount,
                     lossCount: lossCount,
                     netProfitUSD: profit,
