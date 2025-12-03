@@ -834,17 +834,22 @@ const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
                 3. Identify the SINGLE BEST trade opportunity (Buy or Sell) among them for that future time.
                 4. If all markets are choppy/bad, choose the "least bad" one but lower confidence, or signal WAIT.
                 
-                STRATEGY (Impartial):
-                - Strong Trend: Price > EMA20 (Bull) or Price < EMA20 (Bear).
-                - Momentum: RSI divergence or extreme levels (Overbought > 75 / Oversold < 25).
-                - Entry: Pullbacks to EMA5 are good entries.
+                STRATEGY (Regiões, Marcações e Médias):
+                1. **Médias Móveis (Averages)**: 
+                   - Use EMA20 (and EMA200 if inferred) to define the macro trend. 
+                   - Look for price rejecting off the EMA20 or EMA5 as dynamic support/resistance (Pullback).
+                2. **Regiões e Marcações (Regions/Levels)**:
+                   - Identify implicit Support/Resistance levels based on recent price action.
+                   - Look for Order Blocks or Liquidity Sweeps near the current price.
+                3. **Confluência**: 
+                   - The best entry is when Price touches a Key Region (Marking) + Dynamic Average (EMA) + RSI confirmation.
                 
                 OUTPUT FORMAT (JSON ONLY):
                 {
                     "symbol": "BTCUSDT" (or whichever is best),
                     "direction": "BUY" or "SELL" or "WAIT",
                     "confidence": number (50-95),
-                    "reasoning": "Explain WHY this asset was chosen over others based on the indicators for the UPCOMING minute.",
+                    "reasoning": "Explain in Portuguese (PT-BR) WHY this asset was chosen, citing Regions (Regiões), Markings (Marcações) and Averages (Médias).",
                     "entryTime": "Use EXACTLY this time: ${entryTime}"
                 }
             `;
