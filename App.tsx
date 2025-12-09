@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Trade, User } from './types';
-// Removed fetchUSDBRLRate import as it is no longer needed for main currency
+import { fetchUSDBRLRate } from './services/currencyService';
 import { GoogleGenAI, Type } from "@google/genai";
 import { 
     SettingsIcon, PlusIcon, DepositIcon, WithdrawalIcon, XMarkIcon, 
@@ -145,7 +145,8 @@ const Header: React.FC<{
     isDarkMode: boolean;
     onOpenBriefing: () => void;
     onOpenMenu: () => void;
-}> = ({ user, activeBrokerage, brokerages, setActiveBrokerageId, isDarkMode, onOpenBriefing, onOpenMenu }) => {
+    usdRate: number;
+}> = ({ user, activeBrokerage, brokerages, setActiveBrokerageId, isDarkMode, onOpenBriefing, onOpenMenu, usdRate }) => {
     const theme = useThemeClasses(isDarkMode);
 
     return (
@@ -158,6 +159,12 @@ const Header: React.FC<{
             </button>
 
             <div className="flex items-center gap-4 md:gap-6">
+                 {/* USD Rate Indicator - Show only if using USD brokerage or just as info */}
+                 <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                    <span className="text-xs font-bold text-emerald-500">USD Hoje</span>
+                    <span className={`text-sm font-bold ${theme.text}`}>R$ {usdRate.toFixed(2)}</span>
+                </div>
+
                 <div className={`flex items-center gap-3 text-sm pr-4 md:pr-6 border-r ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
                      {brokerages.length > 0 && (
                         <div className="relative">
@@ -173,7 +180,7 @@ const Header: React.FC<{
                                         value={b.id}
                                         className={isDarkMode ? 'bg-slate-900 text-slate-200' : 'bg-white text-slate-900'}
                                     >
-                                        {b.name}
+                                        {b.name} ({b.currency})
                                     </option>
                                 ))}
                             </select>
@@ -227,6 +234,8 @@ interface DashboardPanelProps {
     setIsTransactionModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
     goal: Omit<GoalSettings, 'amount'> & { amount: number };
     isDarkMode: boolean;
+    formatCurrency: (value: number) => string;
+    currencySymbol: string;
 }
 
 const DashboardPanel: React.FC<DashboardPanelProps> = ({
@@ -234,7 +243,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
     customPayout, setCustomPayout, addRecord, selectedDateString,
     setSelectedDate, isTradingHalted, stopLossLimitReached, setStopLimitOverride, startBalanceForSelectedDay,
     dailyRecordForSelectedDay, dailyGoalTarget, weeklyStats, sortedFilteredRecords,
-    handleDeleteRecord, setTransactionType, setIsTransactionModalOpen, goal, isDarkMode
+    handleDeleteRecord, setTransactionType, setIsTransactionModalOpen, goal, isDarkMode, formatCurrency, currencySymbol
 }) => {
     const theme = useThemeClasses(isDarkMode);
     const [areKpisVisible, setAreKpisVisible] = useState(true);
@@ -277,7 +286,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
             <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
                 <div>
                     <h2 className={`text-2xl md:text-3xl font-bold mb-1 ${theme.text}`}>Dashboard</h2>
-                    <p className={`text-sm md:text-base ${theme.textMuted}`}>Acompanhe sua performance em tempo real</p>
+                    <p className={`text-sm md:text-base ${theme.textMuted}`}>Acompanhe sua performance em tempo real ({activeBrokerage.currency})</p>
                 </div>
                 <div className="flex items-center gap-4">
                      <input
@@ -323,7 +332,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                     <div className="flex justify-between items-start mb-2">
                         <div>
                             <p className={`${theme.textMuted} text-[9px] md:text-[10px] font-bold uppercase tracking-widest`}>Banca Atual</p>
-                            <p className={`text-xl md:text-2xl font-bold mt-1 ${theme.text}`}>R$ {currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                            <p className={`text-xl md:text-2xl font-bold mt-1 ${theme.text}`}>{formatCurrency(currentBalance)}</p>
                         </div>
                         <div className={`p-1.5 md:p-2 rounded-lg text-green-500 border ${isDarkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-green-50 border-green-100'}`}>
                              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" /></svg>
@@ -337,7 +346,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                         <div>
                             <p className={`${theme.textMuted} text-[9px] md:text-[10px] font-bold uppercase tracking-widest`}>Lucro Diário</p>
                             <p className={`text-xl md:text-2xl font-bold mt-1 ${currentProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                {currentProfit >= 0 ? '+' : ''}R$ {currentProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                {currentProfit >= 0 ? '+' : ''}{formatCurrency(currentProfit)}
                             </p>
                         </div>
                          <div className={`p-1.5 md:p-2 rounded-lg border ${currentProfit >= 0 ? (isDarkMode ? 'bg-green-500/10 text-green-500 border-slate-700/50' : 'bg-green-50 text-green-600 border-green-100') : (isDarkMode ? 'bg-red-500/10 text-red-500 border-slate-700/50' : 'bg-red-50 text-red-600 border-red-100')}`}>
@@ -358,7 +367,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                                 <p className={`text-xl md:text-2xl font-bold ${currentProfit >= dailyGoalTarget ? 'text-green-500' : theme.text}`}>
                                      {dailyGoalTarget > 0 ? ((currentProfit / dailyGoalTarget) * 100).toFixed(0) : 0}%
                                 </p>
-                                <span className={`text-[10px] md:text-xs ${theme.textMuted}`}>/ R$ {dailyGoalTarget.toFixed(2)}</span>
+                                <span className={`text-[10px] md:text-xs ${theme.textMuted}`}>/ {formatCurrency(dailyGoalTarget)}</span>
                             </div>
                         </div>
                         <div className={`p-1.5 md:p-2 rounded-lg text-blue-400 border ${isDarkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
@@ -412,9 +421,9 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                      {/* Row 1: Large Inputs */}
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="group">
-                            <span className={`block mb-2 text-xs font-bold uppercase tracking-wider group-focus-within:text-green-500 transition-colors ml-1 ${theme.textMuted}`}>VALOR DE ENTRADA (R$)</span>
+                            <span className={`block mb-2 text-xs font-bold uppercase tracking-wider group-focus-within:text-green-500 transition-colors ml-1 ${theme.textMuted}`}>VALOR DE ENTRADA ({activeBrokerage.currency})</span>
                             <div className="relative">
-                                <span className={`absolute left-4 top-1/2 -translate-y-1/2 font-bold ${theme.textMuted}`}>R$</span>
+                                <span className={`absolute left-4 top-1/2 -translate-y-1/2 font-bold ${theme.textMuted}`}>{currencySymbol}</span>
                                 <input
                                     type="number"
                                     value={customEntryValue}
@@ -486,10 +495,11 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                         <LineChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? "#1e293b" : "#e2e8f0"} vertical={false} />
                             <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                            <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} dx={-10} />
+                            <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${currencySymbol}${value}`} dx={-10} />
                             <Tooltip 
                                 contentStyle={{ backgroundColor: isDarkMode ? '#0f172a' : '#fff', borderColor: isDarkMode ? '#1e293b' : '#e2e8f0', color: isDarkMode ? '#f8fafc' : '#0f172a', borderRadius: '8px' }}
                                 itemStyle={{ color: '#22c55e' }}
+                                formatter={(value: number) => formatCurrency(value)}
                             />
                             <Line type="area" dataKey="balance" stroke="#22c55e" strokeWidth={3} dot={{ r: 4, fill: isDarkMode ? '#0f172a' : '#fff', stroke: '#22c55e', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#22c55e' }} />
                         </LineChart>
@@ -501,10 +511,11 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                         <BarChart data={chartData}>
                              <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? "#1e293b" : "#e2e8f0"} vertical={false} />
                             <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                            <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} dx={-10} />
+                            <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${currencySymbol}${value}`} dx={-10} />
                             <Tooltip 
                                 cursor={{fill: isDarkMode ? '#1e293b' : '#f1f5f9', opacity: 0.4}}
                                 contentStyle={{ backgroundColor: isDarkMode ? '#0f172a' : '#fff', borderColor: isDarkMode ? '#1e293b' : '#e2e8f0', color: isDarkMode ? '#f8fafc' : '#0f172a', borderRadius: '8px' }}
+                                formatter={(value: number) => formatCurrency(value)}
                             />
                             <ReferenceLine y={0} stroke="#475569" />
                             <Bar dataKey="profit" fill="#ef4444" radius={[4, 4, 0, 0]}>
@@ -561,9 +572,9 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                                             : (isDarkMode ? 'text-slate-200' : 'text-slate-800')
                                     }`}>
                                          {record.recordType === 'day' ? (
-                                            `R$ ${record.netProfitUSD.toFixed(2)}`
+                                            formatCurrency(record.netProfitUSD)
                                          ) : (
-                                            `R$ ${record.amountUSD.toFixed(2)}`
+                                            formatCurrency(record.amountUSD)
                                          )}
                                     </td>
                                     <td className="px-6 py-4 text-center whitespace-nowrap">
@@ -591,7 +602,8 @@ const OperationsPanel: React.FC<{
     sortedFilteredRecords: AppRecord[];
     handleDeleteRecord: (recordId: string) => void;
     isDarkMode: boolean;
-}> = ({ sortedFilteredRecords, handleDeleteRecord, isDarkMode }) => {
+    formatCurrency: (value: number) => string;
+}> = ({ sortedFilteredRecords, handleDeleteRecord, isDarkMode, formatCurrency }) => {
     const theme = useThemeClasses(isDarkMode);
     
     return (
@@ -640,9 +652,9 @@ const OperationsPanel: React.FC<{
                                     </td>
                                     <td className={`px-6 py-4 text-right whitespace-nowrap ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                                          {record.recordType === 'day' ? (
-                                            `R$ ${record.endBalanceUSD.toFixed(2)}`
+                                            formatCurrency(record.endBalanceUSD)
                                          ) : (
-                                            `R$ ${record.amountUSD.toFixed(2)}`
+                                            formatCurrency(record.amountUSD)
                                          )}
                                     </td>
                                      <td className={`px-6 py-4 text-right font-bold whitespace-nowrap ${
@@ -651,7 +663,7 @@ const OperationsPanel: React.FC<{
                                             : 'text-slate-500'
                                     }`}>
                                          {record.recordType === 'day' ? (
-                                            `R$ ${record.netProfitUSD.toFixed(2)}`
+                                            formatCurrency(record.netProfitUSD)
                                          ) : '-'}
                                     </td>
                                     <td className="px-6 py-4 text-center whitespace-nowrap">
@@ -675,7 +687,10 @@ const OperationsPanel: React.FC<{
     );
 };
 
+// ... AnalysisPanel remains mostly same ...
+
 const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
+    // ... logic same as before ...
     const theme = useThemeClasses(isDarkMode);
     const [isLoading, setIsLoading] = useState(false);
     const [scanResult, setScanResult] = useState<{
@@ -963,9 +978,10 @@ interface SettingsPanelProps {
     onDeleteBrokerage: (id: string) => void;
     onOpenAddBrokerage: () => void;
     isDarkMode: boolean;
+    currencySymbol: string;
 }
 
-const SettingsPanel: React.FC<SettingsPanelProps> = ({ activeBrokerage, onUpdateBrokerage, onDeleteBrokerage, onOpenAddBrokerage, isDarkMode }) => {
+const SettingsPanel: React.FC<SettingsPanelProps> = ({ activeBrokerage, onUpdateBrokerage, onDeleteBrokerage, onOpenAddBrokerage, isDarkMode, currencySymbol }) => {
     const theme = useThemeClasses(isDarkMode);
     const [formData, setFormData] = useState<Brokerage>({ ...activeBrokerage });
 
@@ -1010,9 +1026,21 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ activeBrokerage, onUpdate
                         </div>
                         
                         <div>
-                             <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Saldo Inicial (R$)</label>
+                             <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Moeda Principal</label>
+                             <div className={`px-4 py-3 rounded-lg border flex items-center gap-2 opacity-50 cursor-not-allowed ${theme.input}`}>
+                                {formData.currency === 'BRL' ? (
+                                    <><span>🇧🇷</span> Real Brasileiro (BRL)</>
+                                ) : (
+                                    <><span>🇺🇸</span> Dólar Americano (USD)</>
+                                )}
+                             </div>
+                             <p className="text-xs text-slate-500 mt-1">* A moeda não pode ser alterada após criar a corretora.</p>
+                        </div>
+                        
+                        <div>
+                             <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Saldo Inicial ({activeBrokerage.currency})</label>
                              <div className="relative">
-                                <span className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>R$</span>
+                                <span className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{currencySymbol}</span>
                                 <input
                                     type="number"
                                     value={formData.initialBalance}
@@ -1042,7 +1070,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ activeBrokerage, onUpdate
                              </div>
                              <div>
                                 <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>
-                                    {formData.entryMode === 'fixed' ? 'Valor da Entrada (R$)' : 'Porcentagem da Banca (%)'}
+                                    {formData.entryMode === 'fixed' ? `Valor da Entrada (${activeBrokerage.currency})` : 'Porcentagem da Banca (%)'}
                                 </label>
                                 <input
                                     type="number"
@@ -1113,7 +1141,8 @@ const GoalsPanel: React.FC<{
     setGoal: (goal: GoalSettings) => void;
     activeBrokerage: Brokerage;
     isDarkMode: boolean;
-}> = ({ goal, setGoal, activeBrokerage, isDarkMode }) => {
+    formatCurrency: (value: number) => string;
+}> = ({ goal, setGoal, activeBrokerage, isDarkMode, formatCurrency }) => {
     const theme = useThemeClasses(isDarkMode);
     const [localAmount, setLocalAmount] = useState<string>(goal.amount.toString());
     const [localType, setLocalType] = useState<'weekly' | 'monthly'>(goal.type);
@@ -1160,7 +1189,7 @@ const GoalsPanel: React.FC<{
                         </div>
                         
                         <div>
-                            <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Valor da Meta (R$)</label>
+                            <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Valor da Meta ({activeBrokerage.currency})</label>
                             <input
                                 type="number"
                                 value={localAmount}
@@ -1180,20 +1209,20 @@ const GoalsPanel: React.FC<{
 
                 <div className={`p-6 md:p-8 rounded-2xl border ${theme.card}`}>
                     <h3 className={`text-xl font-bold mb-6 ${theme.text}`}>Projeção da Meta</h3>
-                    <p className={`text-sm mb-6 ${theme.textMuted}`}>Com base na meta {localType === 'weekly' ? 'semanal' : 'mensal'} de <strong className="text-green-500">R$ {amountVal.toFixed(2)}</strong>, aqui está o quanto você precisa fazer:</p>
+                    <p className={`text-sm mb-6 ${theme.textMuted}`}>Com base na meta {localType === 'weekly' ? 'semanal' : 'mensal'} de <strong className="text-green-500">{formatCurrency(amountVal)}</strong>, aqui está o quanto você precisa fazer:</p>
 
                     <div className="space-y-4">
                         <div className={`p-4 rounded-xl border flex justify-between items-center ${isDarkMode ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                             <span className={`text-sm font-bold ${theme.textMuted}`}>Diário (média)</span>
-                            <span className={`text-lg font-bold ${theme.text}`}>R$ {dailyProjection.toFixed(2)}</span>
+                            <span className={`text-lg font-bold ${theme.text}`}>{formatCurrency(dailyProjection)}</span>
                         </div>
                         <div className={`p-4 rounded-xl border flex justify-between items-center ${isDarkMode ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                             <span className={`text-sm font-bold ${theme.textMuted}`}>Semanal</span>
-                            <span className={`text-lg font-bold ${theme.text}`}>R$ {weeklyProjection.toFixed(2)}</span>
+                            <span className={`text-lg font-bold ${theme.text}`}>{formatCurrency(weeklyProjection)}</span>
                         </div>
                         <div className={`p-4 rounded-xl border flex justify-between items-center ${isDarkMode ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                             <span className={`text-sm font-bold ${theme.textMuted}`}>Mensal</span>
-                            <span className={`text-lg font-bold ${theme.text}`}>R$ {monthlyProjection.toFixed(2)}</span>
+                            <span className={`text-lg font-bold ${theme.text}`}>{formatCurrency(monthlyProjection)}</span>
                         </div>
                     </div>
                 </div>
@@ -1207,21 +1236,23 @@ const GoalsPanel: React.FC<{
 const AddBrokerageModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    onConfirm: (name: string, initialBalance: number) => void;
+    onConfirm: (name: string, initialBalance: number, currency: 'BRL' | 'USD') => void;
     isDarkMode: boolean;
 }> = ({ isOpen, onClose, onConfirm, isDarkMode }) => {
     const theme = useThemeClasses(isDarkMode);
     const [name, setName] = useState('');
     const [balance, setBalance] = useState('');
+    const [currency, setCurrency] = useState<'BRL' | 'USD'>('BRL');
 
     if (!isOpen) return null;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!name.trim()) return;
-        onConfirm(name, parseFloat(balance) || 0);
+        onConfirm(name, parseFloat(balance) || 0, currency);
         setName('');
         setBalance('');
+        setCurrency('BRL');
         onClose();
     };
 
@@ -1243,8 +1274,29 @@ const AddBrokerageModal: React.FC<{
                             placeholder="Ex: Binance, IQ Option..."
                         />
                     </div>
+                    
+                    <div>
+                        <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Moeda da Conta</label>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div 
+                                onClick={() => setCurrency('BRL')}
+                                className={`cursor-pointer rounded-xl border p-3 flex flex-col items-center justify-center gap-1 transition-all ${currency === 'BRL' ? 'border-green-500 bg-green-500/10' : `${theme.border} hover:bg-slate-800/50`}`}
+                            >
+                                <span className="text-2xl">🇧🇷</span>
+                                <span className={`text-xs font-bold ${currency === 'BRL' ? 'text-green-500' : theme.textMuted}`}>Real (BRL)</span>
+                            </div>
+                            <div 
+                                onClick={() => setCurrency('USD')}
+                                className={`cursor-pointer rounded-xl border p-3 flex flex-col items-center justify-center gap-1 transition-all ${currency === 'USD' ? 'border-green-500 bg-green-500/10' : `${theme.border} hover:bg-slate-800/50`}`}
+                            >
+                                <span className="text-2xl">🇺🇸</span>
+                                <span className={`text-xs font-bold ${currency === 'USD' ? 'text-green-500' : theme.textMuted}`}>Dólar (USD)</span>
+                            </div>
+                        </div>
+                    </div>
+
                      <div>
-                        <label className={`block text-sm font-medium mb-1 ${theme.textMuted}`}>Saldo Inicial (R$)</label>
+                        <label className={`block text-sm font-medium mb-1 ${theme.textMuted}`}>Saldo Inicial ({currency})</label>
                         <input
                             type="number"
                             step="0.01"
@@ -1270,7 +1322,8 @@ const DailyBriefingModal: React.FC<{
     dailyGoal: number;
     activeBrokerage: Brokerage;
     isDarkMode: boolean;
-}> = ({ onClose, currentBalance, dailyGoal, activeBrokerage, isDarkMode }) => {
+    formatCurrency: (value: number) => string;
+}> = ({ onClose, currentBalance, dailyGoal, activeBrokerage, isDarkMode, formatCurrency }) => {
     const theme = useThemeClasses(isDarkMode);
     
     // Calculate strategy
@@ -1296,11 +1349,11 @@ const DailyBriefingModal: React.FC<{
                 <div className="space-y-4 mb-8">
                      <div className={`p-4 rounded-xl flex justify-between items-center ${isDarkMode ? 'bg-slate-800/50 border border-slate-700' : 'bg-slate-100 border border-slate-200'}`}>
                         <span className={`text-sm font-semibold ${theme.textMuted}`}>Banca Atual</span>
-                        <span className={`text-xl font-bold ${theme.text}`}>R$ {currentBalance.toFixed(2)}</span>
+                        <span className={`text-xl font-bold ${theme.text}`}>{formatCurrency(currentBalance)}</span>
                      </div>
                      <div className={`p-4 rounded-xl flex justify-between items-center ${isDarkMode ? 'bg-slate-800/50 border border-slate-700' : 'bg-slate-100 border border-slate-200'}`}>
                         <span className={`text-sm font-semibold ${theme.textMuted}`}>Meta do Dia</span>
-                        <span className="text-xl font-bold text-green-500">R$ {dailyGoal.toFixed(2)}</span>
+                        <span className="text-xl font-bold text-green-500">{formatCurrency(dailyGoal)}</span>
                      </div>
                      
                      <div className={`p-4 rounded-xl border border-green-500/30 bg-green-500/10`}>
@@ -1309,7 +1362,7 @@ const DailyBriefingModal: React.FC<{
                             <span className={`text-sm ${theme.textMuted}`}>Para bater a meta, você precisa de aprox:</span>
                             <span className={`text-lg font-bold ${theme.text}`}>{winsNeeded} Wins</span>
                         </div>
-                        <p className="text-[10px] text-slate-500 mt-1">*Considerando entradas de R$ {entryValue.toFixed(2)} e Payout {activeBrokerage.payoutPercentage}%</p>
+                        <p className="text-[10px] text-slate-500 mt-1">*Considerando entradas de {formatCurrency(entryValue)} e Payout {activeBrokerage.payoutPercentage}%</p>
                      </div>
                 </div>
 
@@ -1330,7 +1383,8 @@ const TransactionModal: React.FC<{
     type: 'deposit' | 'withdrawal';
     onConfirm: (amount: number, notes: string) => void;
     isDarkMode: boolean;
-}> = ({ isOpen, onClose, type, onConfirm, isDarkMode }) => {
+    currencySymbol: string;
+}> = ({ isOpen, onClose, type, onConfirm, isDarkMode, currencySymbol }) => {
     const theme = useThemeClasses(isDarkMode);
     const [amount, setAmount] = useState('');
     const [notes, setNotes] = useState('');
@@ -1354,7 +1408,7 @@ const TransactionModal: React.FC<{
                 </h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className={`block text-sm font-medium mb-1 ${theme.textMuted}`}>Valor (R$)</label>
+                        <label className={`block text-sm font-medium mb-1 ${theme.textMuted}`}>Valor ({currencySymbol})</label>
                         <input
                             type="number"
                             required
@@ -1389,7 +1443,7 @@ const TransactionModal: React.FC<{
 const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout }) => {
     // --- State ---
     const [activeTab, setActiveTab] = useState<'dashboard' | 'operations' | 'goals' | 'settings' | 'analyze'>('dashboard');
-    // Removed usdToBrlRate state
+    const [usdToBrlRate, setUsdToBrlRate] = useState<number>(5.50); // Default fallback
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(() => {
         const saved = localStorage.getItem('app_theme');
@@ -1414,6 +1468,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         id: '1',
         name: 'Corretora Principal',
         initialBalance: 100,
+        currency: 'BRL',
         entryMode: 'percentage',
         entryValue: 1, // 1%
         payoutPercentage: 87,
@@ -1424,7 +1479,15 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     // Load Brokerages
     const [brokerages, setBrokerages] = useState<Brokerage[]>(() => {
         const saved = localStorage.getItem(`app_brokerages_${user.username}`);
-        return saved ? JSON.parse(saved) : [defaultBrokerage];
+        let loaded: Brokerage[] = saved ? JSON.parse(saved) : [defaultBrokerage];
+        
+        // Ensure existing brokerages have a currency (migration fix)
+        loaded = loaded.map(b => ({
+            ...b,
+            currency: b.currency || 'BRL' // Default old records to BRL
+        }));
+
+        return loaded;
     });
 
     const [activeBrokerageId, setActiveBrokerageId] = useState<string>(() => {
@@ -1435,6 +1498,18 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const activeBrokerage = useMemo(() => 
         brokerages.find(b => b.id === activeBrokerageId) || brokerages[0], 
     [brokerages, activeBrokerageId]);
+
+    // Formatters Helper
+    const formatCurrency = useCallback((value: number) => {
+        const currency = activeBrokerage.currency;
+        if (currency === 'BRL') {
+            return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        } else {
+            return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        }
+    }, [activeBrokerage.currency]);
+
+    const currencySymbol = activeBrokerage.currency === 'BRL' ? 'R$' : '$';
 
     // Load Records (Unified State)
     const [records, setRecords] = useState<AppRecord[]>([]);
@@ -1462,7 +1537,14 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     // --- Effects ---
 
-    // Removed fetchUSDBRLRate effect
+    // Fetch USD Rate
+    useEffect(() => {
+        const getRate = async () => {
+          const rate = await fetchUSDBRLRate();
+          setUsdToBrlRate(rate);
+        };
+        getRate();
+    }, []);
 
     // Load user specific data and handle migration
     useEffect(() => {
@@ -1471,19 +1553,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             // Load Records
             const savedRecords = localStorage.getItem(`app_records_${user.username}_${activeBrokerageId}`);
             let loadedRecords: AppRecord[] = savedRecords ? JSON.parse(savedRecords) : [];
-
-            // DATA MIGRATION LOGIC (Old format -> New format)
-            if (loadedRecords.length === 0) {
-                 const oldBrokerageData = localStorage.getItem('brokerages_v2'); // Global old data
-                 if (oldBrokerageData && user.username === 'henrique') { // Only migrate for main user or logic
-                     try {
-                        const parsedOld = JSON.parse(oldBrokerageData);
-                        // Assuming old structure, we'll just skip complex migration for this snippet safety
-                        // unless specifically requested to parse deep structures. 
-                        // Instead, we ensure the app starts clean if no new records exist.
-                     } catch (e) { console.error("Migration error", e); }
-                 }
-            }
             setRecords(loadedRecords);
 
             // Load Goal
@@ -1673,12 +1742,13 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         }
     };
 
-    const handleAddBrokerage = (name: string, initialBalance: number) => {
+    const handleAddBrokerage = (name: string, initialBalance: number, currency: 'BRL' | 'USD') => {
         const newBrokerage: Brokerage = {
             ...defaultBrokerage,
             id: Date.now().toString(),
             name,
-            initialBalance
+            initialBalance,
+            currency
         };
         setBrokerages(prev => [...prev, newBrokerage]);
         setActiveBrokerageId(newBrokerage.id);
@@ -1718,6 +1788,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     isDarkMode={isDarkMode}
                     onOpenBriefing={() => setIsBriefingModalOpen(true)}
                     onOpenMenu={() => setIsMobileMenuOpen(true)}
+                    usdRate={usdToBrlRate}
                 />
 
                 <div className="flex-1 overflow-y-auto w-full">
@@ -1744,6 +1815,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             setIsTransactionModalOpen={setIsTransactionModalOpen}
                             goal={{...goal, amount: typeof goal.amount === 'number' ? goal.amount : 0}}
                             isDarkMode={isDarkMode}
+                            formatCurrency={formatCurrency}
+                            currencySymbol={currencySymbol}
                         />
                     )}
 
@@ -1752,6 +1825,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             sortedFilteredRecords={sortedRecords} 
                             handleDeleteRecord={handleDeleteRecord}
                             isDarkMode={isDarkMode}
+                            formatCurrency={formatCurrency}
                         />
                     )}
 
@@ -1765,6 +1839,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             setGoal={setGoal} 
                             activeBrokerage={activeBrokerage}
                             isDarkMode={isDarkMode}
+                            formatCurrency={formatCurrency}
                         />
                     )}
 
@@ -1775,6 +1850,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             onDeleteBrokerage={deleteBrokerage}
                             onOpenAddBrokerage={() => setIsAddBrokerageModalOpen(true)}
                             isDarkMode={isDarkMode}
+                            currencySymbol={currencySymbol}
                         />
                     )}
                 </div>
@@ -1787,6 +1863,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 type={transactionType || 'deposit'} 
                 onConfirm={handleTransaction}
                 isDarkMode={isDarkMode}
+                currencySymbol={currencySymbol}
             />
             
             <AddBrokerageModal 
@@ -1803,6 +1880,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     dailyGoal={dailyGoalTarget}
                     activeBrokerage={activeBrokerage}
                     isDarkMode={isDarkMode}
+                    formatCurrency={formatCurrency}
                 />
             )}
         </div>

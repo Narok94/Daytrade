@@ -2,6 +2,7 @@ export interface Brokerage {
   id: string;
   name: string;
   initialBalance: number;
+  currency: 'BRL' | 'USD'; // New field
   entryMode: 'percentage' | 'fixed';
   entryValue: number;
   payoutPercentage: number;
@@ -21,12 +22,12 @@ export interface DailyRecord {
   brokerageId: string;
   id: string; // YYYY-MM-DD format
   date: string; // pt-BR format for display
-  startBalanceUSD: number;
+  startBalanceUSD: number; // Keeps the name for compatibility, but holds value in brokerage currency
   trades: Trade[];
   winCount: number;
   lossCount: number;
-  netProfitUSD: number;
-  endBalanceUSD: number;
+  netProfitUSD: number; // Value in brokerage currency
+  endBalanceUSD: number; // Value in brokerage currency
 }
 
 export interface TransactionRecord {
@@ -35,7 +36,7 @@ export interface TransactionRecord {
     id: string; // Unique ID, e.g., from Date.now()
     date: string; // YYYY-MM-DD, for sorting
     displayDate: string; // pt-BR format for display
-    amountUSD: number;
+    amountUSD: number; // Value in brokerage currency
     notes: string;
 }
 
