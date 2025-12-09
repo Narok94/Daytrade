@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Trade, User } from './types';
-import { fetchUSDBRLRate } from './services/currencyService';
+// Removed fetchUSDBRLRate import as it is no longer needed for main currency
 import { GoogleGenAI, Type } from "@google/genai";
 import { 
     SettingsIcon, PlusIcon, DepositIcon, WithdrawalIcon, XMarkIcon, 
@@ -142,11 +142,10 @@ const Header: React.FC<{
     activeBrokerage: Brokerage | undefined;
     brokerages: Brokerage[];
     setActiveBrokerageId: (id: string) => void;
-    usdToBrlRate: number | null;
     isDarkMode: boolean;
     onOpenBriefing: () => void;
     onOpenMenu: () => void;
-}> = ({ user, activeBrokerage, brokerages, setActiveBrokerageId, usdToBrlRate, isDarkMode, onOpenBriefing, onOpenMenu }) => {
+}> = ({ user, activeBrokerage, brokerages, setActiveBrokerageId, isDarkMode, onOpenBriefing, onOpenMenu }) => {
     const theme = useThemeClasses(isDarkMode);
 
     return (
@@ -227,7 +226,6 @@ interface DashboardPanelProps {
     setTransactionType: React.Dispatch<React.SetStateAction<'deposit' | 'withdrawal' | null>>;
     setIsTransactionModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
     goal: Omit<GoalSettings, 'amount'> & { amount: number };
-    usdToBrlRate: number | null;
     isDarkMode: boolean;
 }
 
@@ -236,7 +234,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
     customPayout, setCustomPayout, addRecord, selectedDateString,
     setSelectedDate, isTradingHalted, stopLossLimitReached, setStopLimitOverride, startBalanceForSelectedDay,
     dailyRecordForSelectedDay, dailyGoalTarget, weeklyStats, sortedFilteredRecords,
-    handleDeleteRecord, setTransactionType, setIsTransactionModalOpen, goal, usdToBrlRate, isDarkMode
+    handleDeleteRecord, setTransactionType, setIsTransactionModalOpen, goal, isDarkMode
 }) => {
     const theme = useThemeClasses(isDarkMode);
     const [areKpisVisible, setAreKpisVisible] = useState(true);
@@ -258,9 +256,6 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
     const winRate = ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0)) > 0 
         ? (((dailyRecordForSelectedDay?.winCount || 0) / ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0))) * 100).toFixed(1) 
         : '0.0';
-
-    const profitInBRL = currentProfit * (usdToBrlRate || 1);
-    const balanceInBRL = currentBalance * (usdToBrlRate || 1);
     
     // Chart Data Preparation
     const chartData = useMemo(() => {
@@ -328,16 +323,11 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                     <div className="flex justify-between items-start mb-2">
                         <div>
                             <p className={`${theme.textMuted} text-[9px] md:text-[10px] font-bold uppercase tracking-widest`}>Banca Atual</p>
-                            <p className={`text-xl md:text-2xl font-bold mt-1 ${theme.text}`}>${currentBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                            <p className={`text-xl md:text-2xl font-bold mt-1 ${theme.text}`}>R$ {currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                         <div className={`p-1.5 md:p-2 rounded-lg text-green-500 border ${isDarkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-green-50 border-green-100'}`}>
                              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" /></svg>
                         </div>
-                    </div>
-                    <div className="flex items-center">
-                        <span className={`text-[10px] md:text-xs font-medium px-1.5 py-0.5 rounded border ${isDarkMode ? 'text-slate-500 bg-slate-950/30 border-slate-800/50' : 'text-slate-600 bg-slate-100 border-slate-200'}`}>
-                            R$ {balanceInBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
                     </div>
                 </div>
 
@@ -347,7 +337,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                         <div>
                             <p className={`${theme.textMuted} text-[9px] md:text-[10px] font-bold uppercase tracking-widest`}>Lucro Diário</p>
                             <p className={`text-xl md:text-2xl font-bold mt-1 ${currentProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                {currentProfit >= 0 ? '+' : ''}${currentProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                {currentProfit >= 0 ? '+' : ''}R$ {currentProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                         </div>
                          <div className={`p-1.5 md:p-2 rounded-lg border ${currentProfit >= 0 ? (isDarkMode ? 'bg-green-500/10 text-green-500 border-slate-700/50' : 'bg-green-50 text-green-600 border-green-100') : (isDarkMode ? 'bg-red-500/10 text-red-500 border-slate-700/50' : 'bg-red-50 text-red-600 border-red-100')}`}>
@@ -356,11 +346,6 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                                 <TrendingDownIcon className="w-4 h-4 md:w-5 md:h-5" />
                              }
                         </div>
-                    </div>
-                     <div className="flex items-center gap-2">
-                         <span className={`text-[10px] md:text-xs font-medium px-1.5 py-0.5 rounded border ${isDarkMode ? 'text-slate-500 bg-slate-950/30 border-slate-800/50' : 'text-slate-600 bg-slate-100 border-slate-200'}`}>
-                             R$ {profitInBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                         </span>
                     </div>
                 </div>
 
@@ -373,7 +358,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                                 <p className={`text-xl md:text-2xl font-bold ${currentProfit >= dailyGoalTarget ? 'text-green-500' : theme.text}`}>
                                      {dailyGoalTarget > 0 ? ((currentProfit / dailyGoalTarget) * 100).toFixed(0) : 0}%
                                 </p>
-                                <span className={`text-[10px] md:text-xs ${theme.textMuted}`}>/ ${dailyGoalTarget.toFixed(2)}</span>
+                                <span className={`text-[10px] md:text-xs ${theme.textMuted}`}>/ R$ {dailyGoalTarget.toFixed(2)}</span>
                             </div>
                         </div>
                         <div className={`p-1.5 md:p-2 rounded-lg text-blue-400 border ${isDarkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
@@ -427,14 +412,14 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                      {/* Row 1: Large Inputs */}
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="group">
-                            <span className={`block mb-2 text-xs font-bold uppercase tracking-wider group-focus-within:text-green-500 transition-colors ml-1 ${theme.textMuted}`}>VALOR DE ENTRADA</span>
+                            <span className={`block mb-2 text-xs font-bold uppercase tracking-wider group-focus-within:text-green-500 transition-colors ml-1 ${theme.textMuted}`}>VALOR DE ENTRADA (R$)</span>
                             <div className="relative">
-                                <span className={`absolute left-4 top-1/2 -translate-y-1/2 font-bold ${theme.textMuted}`}>$</span>
+                                <span className={`absolute left-4 top-1/2 -translate-y-1/2 font-bold ${theme.textMuted}`}>R$</span>
                                 <input
                                     type="number"
                                     value={customEntryValue}
                                     onChange={(e) => setCustomEntryValue(e.target.value)}
-                                    className={`w-full h-14 border-2 rounded-xl pl-8 pr-4 text-xl font-bold focus:border-green-500 focus:ring-0 focus:outline-none transition-all ${theme.input}`}
+                                    className={`w-full h-14 border-2 rounded-xl pl-12 pr-4 text-xl font-bold focus:border-green-500 focus:ring-0 focus:outline-none transition-all ${theme.input}`}
                                     placeholder={`${activeBrokerage.entryMode === 'fixed' ? activeBrokerage.entryValue.toFixed(2) : (startBalanceForSelectedDay * (activeBrokerage.entryValue / 100)).toFixed(2)}`}
                                 />
                             </div>
@@ -501,7 +486,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                         <LineChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? "#1e293b" : "#e2e8f0"} vertical={false} />
                             <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                            <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} dx={-10} />
+                            <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} dx={-10} />
                             <Tooltip 
                                 contentStyle={{ backgroundColor: isDarkMode ? '#0f172a' : '#fff', borderColor: isDarkMode ? '#1e293b' : '#e2e8f0', color: isDarkMode ? '#f8fafc' : '#0f172a', borderRadius: '8px' }}
                                 itemStyle={{ color: '#22c55e' }}
@@ -516,7 +501,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                         <BarChart data={chartData}>
                              <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? "#1e293b" : "#e2e8f0"} vertical={false} />
                             <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                            <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} dx={-10} />
+                            <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} dx={-10} />
                             <Tooltip 
                                 cursor={{fill: isDarkMode ? '#1e293b' : '#f1f5f9', opacity: 0.4}}
                                 contentStyle={{ backgroundColor: isDarkMode ? '#0f172a' : '#fff', borderColor: isDarkMode ? '#1e293b' : '#e2e8f0', color: isDarkMode ? '#f8fafc' : '#0f172a', borderRadius: '8px' }}
@@ -576,9 +561,9 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                                             : (isDarkMode ? 'text-slate-200' : 'text-slate-800')
                                     }`}>
                                          {record.recordType === 'day' ? (
-                                            `$${record.netProfitUSD.toFixed(2)}`
+                                            `R$ ${record.netProfitUSD.toFixed(2)}`
                                          ) : (
-                                            `$${record.amountUSD.toFixed(2)}`
+                                            `R$ ${record.amountUSD.toFixed(2)}`
                                          )}
                                     </td>
                                     <td className="px-6 py-4 text-center whitespace-nowrap">
@@ -655,9 +640,9 @@ const OperationsPanel: React.FC<{
                                     </td>
                                     <td className={`px-6 py-4 text-right whitespace-nowrap ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                                          {record.recordType === 'day' ? (
-                                            `$${record.endBalanceUSD.toFixed(2)}`
+                                            `R$ ${record.endBalanceUSD.toFixed(2)}`
                                          ) : (
-                                            `$${record.amountUSD.toFixed(2)}`
+                                            `R$ ${record.amountUSD.toFixed(2)}`
                                          )}
                                     </td>
                                      <td className={`px-6 py-4 text-right font-bold whitespace-nowrap ${
@@ -666,7 +651,7 @@ const OperationsPanel: React.FC<{
                                             : 'text-slate-500'
                                     }`}>
                                          {record.recordType === 'day' ? (
-                                            `$${record.netProfitUSD.toFixed(2)}`
+                                            `R$ ${record.netProfitUSD.toFixed(2)}`
                                          ) : '-'}
                                     </td>
                                     <td className="px-6 py-4 text-center whitespace-nowrap">
@@ -1025,14 +1010,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ activeBrokerage, onUpdate
                         </div>
                         
                         <div>
-                             <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Saldo Inicial (USD)</label>
+                             <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Saldo Inicial (R$)</label>
                              <div className="relative">
-                                <span className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>$</span>
+                                <span className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>R$</span>
                                 <input
                                     type="number"
                                     value={formData.initialBalance}
                                     onChange={(e) => handleChange('initialBalance', parseFloat(e.target.value))}
-                                    className={`block w-full pl-8 pr-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors ${theme.input}`}
+                                    className={`block w-full pl-10 pr-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors ${theme.input}`}
                                 />
                              </div>
                         </div>
@@ -1057,7 +1042,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ activeBrokerage, onUpdate
                              </div>
                              <div>
                                 <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>
-                                    {formData.entryMode === 'fixed' ? 'Valor da Entrada ($)' : 'Porcentagem da Banca (%)'}
+                                    {formData.entryMode === 'fixed' ? 'Valor da Entrada (R$)' : 'Porcentagem da Banca (%)'}
                                 </label>
                                 <input
                                     type="number"
@@ -1175,7 +1160,7 @@ const GoalsPanel: React.FC<{
                         </div>
                         
                         <div>
-                            <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Valor da Meta ($)</label>
+                            <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Valor da Meta (R$)</label>
                             <input
                                 type="number"
                                 value={localAmount}
@@ -1195,20 +1180,20 @@ const GoalsPanel: React.FC<{
 
                 <div className={`p-6 md:p-8 rounded-2xl border ${theme.card}`}>
                     <h3 className={`text-xl font-bold mb-6 ${theme.text}`}>Projeção da Meta</h3>
-                    <p className={`text-sm mb-6 ${theme.textMuted}`}>Com base na meta {localType === 'weekly' ? 'semanal' : 'mensal'} de <strong className="text-green-500">${amountVal.toFixed(2)}</strong>, aqui está o quanto você precisa fazer:</p>
+                    <p className={`text-sm mb-6 ${theme.textMuted}`}>Com base na meta {localType === 'weekly' ? 'semanal' : 'mensal'} de <strong className="text-green-500">R$ {amountVal.toFixed(2)}</strong>, aqui está o quanto você precisa fazer:</p>
 
                     <div className="space-y-4">
                         <div className={`p-4 rounded-xl border flex justify-between items-center ${isDarkMode ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                             <span className={`text-sm font-bold ${theme.textMuted}`}>Diário (média)</span>
-                            <span className={`text-lg font-bold ${theme.text}`}>${dailyProjection.toFixed(2)}</span>
+                            <span className={`text-lg font-bold ${theme.text}`}>R$ {dailyProjection.toFixed(2)}</span>
                         </div>
                         <div className={`p-4 rounded-xl border flex justify-between items-center ${isDarkMode ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                             <span className={`text-sm font-bold ${theme.textMuted}`}>Semanal</span>
-                            <span className={`text-lg font-bold ${theme.text}`}>${weeklyProjection.toFixed(2)}</span>
+                            <span className={`text-lg font-bold ${theme.text}`}>R$ {weeklyProjection.toFixed(2)}</span>
                         </div>
                         <div className={`p-4 rounded-xl border flex justify-between items-center ${isDarkMode ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                             <span className={`text-sm font-bold ${theme.textMuted}`}>Mensal</span>
-                            <span className={`text-lg font-bold ${theme.text}`}>${monthlyProjection.toFixed(2)}</span>
+                            <span className={`text-lg font-bold ${theme.text}`}>R$ {monthlyProjection.toFixed(2)}</span>
                         </div>
                     </div>
                 </div>
@@ -1259,7 +1244,7 @@ const AddBrokerageModal: React.FC<{
                         />
                     </div>
                      <div>
-                        <label className={`block text-sm font-medium mb-1 ${theme.textMuted}`}>Saldo Inicial ($)</label>
+                        <label className={`block text-sm font-medium mb-1 ${theme.textMuted}`}>Saldo Inicial (R$)</label>
                         <input
                             type="number"
                             step="0.01"
@@ -1311,11 +1296,11 @@ const DailyBriefingModal: React.FC<{
                 <div className="space-y-4 mb-8">
                      <div className={`p-4 rounded-xl flex justify-between items-center ${isDarkMode ? 'bg-slate-800/50 border border-slate-700' : 'bg-slate-100 border border-slate-200'}`}>
                         <span className={`text-sm font-semibold ${theme.textMuted}`}>Banca Atual</span>
-                        <span className={`text-xl font-bold ${theme.text}`}>${currentBalance.toFixed(2)}</span>
+                        <span className={`text-xl font-bold ${theme.text}`}>R$ {currentBalance.toFixed(2)}</span>
                      </div>
                      <div className={`p-4 rounded-xl flex justify-between items-center ${isDarkMode ? 'bg-slate-800/50 border border-slate-700' : 'bg-slate-100 border border-slate-200'}`}>
                         <span className={`text-sm font-semibold ${theme.textMuted}`}>Meta do Dia</span>
-                        <span className="text-xl font-bold text-green-500">${dailyGoal.toFixed(2)}</span>
+                        <span className="text-xl font-bold text-green-500">R$ {dailyGoal.toFixed(2)}</span>
                      </div>
                      
                      <div className={`p-4 rounded-xl border border-green-500/30 bg-green-500/10`}>
@@ -1324,7 +1309,7 @@ const DailyBriefingModal: React.FC<{
                             <span className={`text-sm ${theme.textMuted}`}>Para bater a meta, você precisa de aprox:</span>
                             <span className={`text-lg font-bold ${theme.text}`}>{winsNeeded} Wins</span>
                         </div>
-                        <p className="text-[10px] text-slate-500 mt-1">*Considerando entradas de ${entryValue.toFixed(2)} e Payout {activeBrokerage.payoutPercentage}%</p>
+                        <p className="text-[10px] text-slate-500 mt-1">*Considerando entradas de R$ {entryValue.toFixed(2)} e Payout {activeBrokerage.payoutPercentage}%</p>
                      </div>
                 </div>
 
@@ -1369,7 +1354,7 @@ const TransactionModal: React.FC<{
                 </h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className={`block text-sm font-medium mb-1 ${theme.textMuted}`}>Valor ($)</label>
+                        <label className={`block text-sm font-medium mb-1 ${theme.textMuted}`}>Valor (R$)</label>
                         <input
                             type="number"
                             required
@@ -1404,7 +1389,7 @@ const TransactionModal: React.FC<{
 const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout }) => {
     // --- State ---
     const [activeTab, setActiveTab] = useState<'dashboard' | 'operations' | 'goals' | 'settings' | 'analyze'>('dashboard');
-    const [usdToBrlRate, setUsdToBrlRate] = useState<number | null>(null);
+    // Removed usdToBrlRate state
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(() => {
         const saved = localStorage.getItem('app_theme');
@@ -1477,9 +1462,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     // --- Effects ---
 
-    useEffect(() => {
-        fetchUSDBRLRate().then(setUsdToBrlRate);
-    }, []);
+    // Removed fetchUSDBRLRate effect
 
     // Load user specific data and handle migration
     useEffect(() => {
@@ -1732,7 +1715,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     activeBrokerage={activeBrokerage} 
                     brokerages={brokerages} 
                     setActiveBrokerageId={setActiveBrokerageId}
-                    usdToBrlRate={usdToBrlRate}
                     isDarkMode={isDarkMode}
                     onOpenBriefing={() => setIsBriefingModalOpen(true)}
                     onOpenMenu={() => setIsMobileMenuOpen(true)}
@@ -1761,7 +1743,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             setTransactionType={setTransactionType}
                             setIsTransactionModalOpen={setIsTransactionModalOpen}
                             goal={{...goal, amount: typeof goal.amount === 'number' ? goal.amount : 0}}
-                            usdToBrlRate={usdToBrlRate}
                             isDarkMode={isDarkMode}
                         />
                     )}
