@@ -2,7 +2,6 @@ export interface Brokerage {
   id: string;
   name: string;
   initialBalance: number;
-  currency: 'BRL' | 'USD'; // New field
   entryMode: 'percentage' | 'fixed';
   entryValue: number;
   payoutPercentage: number;
@@ -12,6 +11,7 @@ export interface Brokerage {
 
 export interface Trade {
   id: string;
+  timestamp?: number; // Added for specific time tracking
   result: 'win' | 'loss';
   entryValue: number;
   payoutPercentage: number;
@@ -22,12 +22,12 @@ export interface DailyRecord {
   brokerageId: string;
   id: string; // YYYY-MM-DD format
   date: string; // pt-BR format for display
-  startBalanceUSD: number; // Keeps the name for compatibility, but holds value in brokerage currency
+  startBalanceUSD: number;
   trades: Trade[];
   winCount: number;
   lossCount: number;
-  netProfitUSD: number; // Value in brokerage currency
-  endBalanceUSD: number; // Value in brokerage currency
+  netProfitUSD: number;
+  endBalanceUSD: number;
 }
 
 export interface TransactionRecord {
@@ -36,8 +36,9 @@ export interface TransactionRecord {
     id: string; // Unique ID, e.g., from Date.now()
     date: string; // YYYY-MM-DD, for sorting
     displayDate: string; // pt-BR format for display
-    amountUSD: number; // Value in brokerage currency
+    amountUSD: number;
     notes: string;
+    timestamp?: number; // Added for specific time tracking
 }
 
 export type AppRecord = DailyRecord | TransactionRecord;
