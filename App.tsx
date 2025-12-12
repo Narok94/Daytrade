@@ -1650,25 +1650,41 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         
         const payout = customPayoutPercentage !== undefined ? customPayoutPercentage : activeBrokerage.payoutPercentage;
         
-        const profit = winCount > 0 ? (entry * (payout / 100)) : (lossCount > 0 ? -entry : 0);
-
         setRecords(prev => {
             const existingRecordIndex = prev.findIndex(r => r.recordType === 'day' && r.id === selectedDateString);
             
-            const newTrade: Trade = {
-                id: Date.now().toString(),
-                timestamp: Date.now(), // Store precise timestamp
-                result: winCount > 0 ? 'win' : 'loss',
-                entryValue: entry,
-                payoutPercentage: payout
-            };
+            const newTrades: Trade[] = [];
+            const baseId = Date.now();
+
+            // Generate Win Trades
+            for (let i = 0; i < winCount; i++) {
+                newTrades.push({
+                    id: `${baseId}-w-${i}`,
+                    timestamp: baseId + i, 
+                    result: 'win',
+                    entryValue: entry,
+                    payoutPercentage: payout
+                });
+            }
+
+            // Generate Loss Trades
+            for (let i = 0; i < lossCount; i++) {
+                newTrades.push({
+                    id: `${baseId}-l-${i}`,
+                    timestamp: baseId + winCount + i, // Offset so they don't have exact same timestamp if mixed
+                    result: 'loss',
+                    entryValue: entry,
+                    payoutPercentage: payout
+                });
+            }
 
             if (existingRecordIndex >= 0) {
                 const updated = [...prev];
                 const rec = updated[existingRecordIndex] as DailyRecord;
                 
-                // Recalculate record completely from trades to ensure accuracy
-                const updatedTrades = [...rec.trades, newTrade];
+                const updatedTrades = [...rec.trades, ...newTrades];
+                
+                // Recalculate stats from scratch based on all trades
                 const wins = updatedTrades.filter(t => t.result === 'win').length;
                 const losses = updatedTrades.filter(t => t.result === 'loss').length;
                 const netProfit = updatedTrades.reduce((acc, t) => {
@@ -1685,17 +1701,23 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 };
                 return updated;
             } else {
+                // New Day Record
+                // Calculate initial profit for the new trades
+                const netProfit = newTrades.reduce((acc, t) => {
+                     return acc + (t.result === 'win' ? (t.entryValue * (t.payoutPercentage/100)) : -t.entryValue);
+                }, 0);
+
                 return [...prev, {
                     recordType: 'day',
                     brokerageId: activeBrokerageId,
                     id: selectedDateString,
                     date: selectedDateString,
                     startBalanceUSD: startBalanceForSelectedDay,
-                    trades: [newTrade],
+                    trades: newTrades,
                     winCount: winCount,
                     lossCount: lossCount,
-                    netProfitUSD: profit,
-                    endBalanceUSD: startBalanceForSelectedDay + profit
+                    netProfitUSD: netProfit,
+                    endBalanceUSD: startBalanceForSelectedDay + netProfit
                 }];
             }
         });
