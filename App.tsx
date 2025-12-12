@@ -490,7 +490,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                                     value={customEntryValue}
                                     onChange={(e) => setCustomEntryValue(e.target.value)}
                                     className={`w-full h-14 border-2 rounded-xl pl-12 pr-4 text-xl font-bold focus:border-green-500 focus:ring-0 focus:outline-none transition-all ${theme.input}`}
-                                    placeholder={`${activeBrokerage.entryMode === 'fixed' ? activeBrokerage.entryValue.toFixed(2) : (startBalanceForSelectedDay * (activeBrokerage.entryValue / 100)).toFixed(2)}`}
+                                    placeholder={`${activeBrokerage.entryMode === 'fixed' ? activeBrokerage.entryValue.toFixed(2) : (currentBalance * (activeBrokerage.entryValue / 100)).toFixed(2)}`}
                                 />
                             </div>
                         </div>
@@ -1640,11 +1640,13 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     // Handlers
     const addRecord = (winCount: number, lossCount: number, customEntryValueUSD?: number, customPayoutPercentage?: number) => {
+        const currentDayBalance = dailyRecordForSelectedDay?.endBalanceUSD ?? startBalanceForSelectedDay;
+
         const entry = customEntryValueUSD !== undefined 
             ? customEntryValueUSD 
             : (activeBrokerage.entryMode === 'fixed' 
                 ? activeBrokerage.entryValue 
-                : startBalanceForSelectedDay * (activeBrokerage.entryValue / 100));
+                : currentDayBalance * (activeBrokerage.entryValue / 100));
         
         const payout = customPayoutPercentage !== undefined ? customPayoutPercentage : activeBrokerage.payoutPercentage;
         
