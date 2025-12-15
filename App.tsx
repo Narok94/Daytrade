@@ -7,7 +7,7 @@ import {
     TrashIcon, LogoutIcon, BellIcon, LayoutGridIcon, PieChartIcon, 
     TrendingUpIcon, TrendingDownIcon, ListBulletIcon, TargetIcon, 
     CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ChevronUpIcon, 
-    ChevronDownIcon, ArrowPathIcon, CpuChipIcon
+    ChevronDownIcon, ArrowPathIcon, CpuChipIcon, InformationCircleIcon
 } from './components/icons';
 import { 
     LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -979,35 +979,173 @@ const GoalsPanel: React.FC<{
     setGoal: React.Dispatch<React.SetStateAction<GoalSettings>>;
     activeBrokerage: Brokerage;
     isDarkMode: boolean;
-}> = ({ goal, setGoal, activeBrokerage, isDarkMode }) => {
+    currentMonthlyProfit: number;
+    currentWeeklyProfit: number;
+    currentDailyProfit: number;
+}> = ({ goal, setGoal, activeBrokerage, isDarkMode, currentMonthlyProfit, currentWeeklyProfit, currentDailyProfit }) => {
     const theme = useThemeClasses(isDarkMode);
-    
+    const [localGoal, setLocalGoal] = useState<GoalSettings>({ ...goal });
+    const [showSavedToast, setShowSavedToast] = useState(false);
+
+    useEffect(() => {
+        setLocalGoal({ ...goal });
+    }, [goal]);
+
+    const handleSave = () => {
+        setGoal(localGoal);
+        setShowSavedToast(true);
+        setTimeout(() => setShowSavedToast(false), 3000);
+    };
+
+    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+    const goalAmount = typeof localGoal.amount === 'number' ? localGoal.amount : 0;
+
+    // Calculate Targets based on input
+    // If input is "Monthly", we derive weekly/daily. If "Weekly", we derive monthly/daily.
+    let monthlyTarget = 0;
+    let weeklyTarget = 0;
+    let dailyTarget = 0;
+
+    if (localGoal.type === 'monthly') {
+        monthlyTarget = goalAmount;
+        weeklyTarget = goalAmount / 4.33; // Approx weeks in month
+        dailyTarget = goalAmount / 22; // Approx trading days
+    } else {
+        weeklyTarget = goalAmount;
+        monthlyTarget = goalAmount * 4.33;
+        dailyTarget = goalAmount / 5;
+    }
+
+    const calculateProgress = (current: number, target: number) => {
+        if (target <= 0) return { percent: 0, remaining: 0, remainingPercent: 100 };
+        const percent = Math.min((current / target) * 100, 100);
+        const remaining = Math.max(target - current, 0);
+        const remainingPercent = Math.max(100 - percent, 0);
+        return { percent, remaining, remainingPercent };
+    };
+
+    const monthlyStats = calculateProgress(Math.max(0, currentMonthlyProfit), monthlyTarget);
+    const weeklyStats = calculateProgress(Math.max(0, currentWeeklyProfit), weeklyTarget);
+    const dailyStats = calculateProgress(Math.max(0, currentDailyProfit), dailyTarget);
+
+    const formatMoney = (val: number) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const ProgressBar: React.FC<{ label: string; current: number; target: number; stats: any }> = ({ label, current, target, stats }) => (
+        <div className={`p-5 rounded-2xl border ${theme.card}`}>
+            <div className="flex justify-between items-end mb-2">
+                <div>
+                    <p className={`text-xs font-bold uppercase tracking-wider ${theme.textMuted}`}>{label}</p>
+                    <div className="flex items-baseline gap-2 mt-1">
+                        <span className={`text-xl font-bold ${theme.text}`}>{currencySymbol} {formatMoney(current)}</span>
+                        <span className={`text-xs ${theme.textMuted}`}>/ {formatMoney(target)}</span>
+                    </div>
+                </div>
+                <div className="text-right">
+                    <span className={`text-2xl font-black ${stats.percent >= 100 ? 'text-green-500' : 'text-blue-500'}`}>
+                        {stats.percent.toFixed(1)}%
+                    </span>
+                </div>
+            </div>
+            
+            <div className={`w-full h-3 rounded-full ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} overflow-hidden`}>
+                <div 
+                    className={`h-full rounded-full transition-all duration-500 ${stats.percent >= 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                    style={{ width: `${stats.percent}%` }}
+                ></div>
+            </div>
+
+            <div className="flex justify-between items-center mt-3 text-xs font-medium">
+                <span className={theme.textMuted}>Concluído</span>
+                <span className={`${stats.remaining > 0 ? 'text-red-400' : 'text-green-500'}`}>
+                    {stats.remaining > 0 ? `Faltam ${stats.remainingPercent.toFixed(1)}% (${currencySymbol} ${formatMoney(stats.remaining)})` : 'Meta Batida!'}
+                </span>
+            </div>
+        </div>
+    );
+
     return (
-        <div className="p-4 md:p-8">
-            <h2 className={`text-2xl font-bold mb-6 ${theme.text}`}>Metas</h2>
-            <div className={`p-6 rounded-2xl border max-w-xl ${theme.card}`}>
-                <div className="mb-4">
-                    <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Tipo de Meta</label>
-                    <select 
-                        value={goal.type}
-                        onChange={(e) => setGoal(prev => ({ ...prev, type: e.target.value as 'weekly' | 'monthly' }))}
-                        className={`w-full px-4 py-3 rounded-lg ${theme.input}`}
-                    >
-                        <option value="weekly">Semanal</option>
-                        <option value="monthly">Mensal</option>
-                    </select>
+        <div className="p-4 md:p-8 relative">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className={`text-2xl md:text-3xl font-bold ${theme.text}`}>Metas e Objetivos</h2>
+                {showSavedToast && (
+                    <div className="bg-green-500 text-slate-900 px-4 py-2 rounded-lg font-bold shadow-lg animate-bounce flex items-center gap-2 text-sm">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        Meta Salva!
+                    </div>
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Settings Card */}
+                <div className={`lg:col-span-4 h-fit p-6 rounded-2xl border ${theme.card}`}>
+                    <h3 className={`text-lg font-bold mb-6 border-b pb-4 ${theme.text} ${theme.border}`}>Configurar Meta</h3>
+                    
+                    <div className="space-y-6">
+                        <div>
+                            <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Definir por</label>
+                            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-800">
+                                <button
+                                    onClick={() => setLocalGoal(prev => ({ ...prev, type: 'weekly' }))}
+                                    className={`py-2 text-sm font-bold rounded-lg transition-all ${localGoal.type === 'weekly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                >
+                                    Semanal
+                                </button>
+                                <button
+                                    onClick={() => setLocalGoal(prev => ({ ...prev, type: 'monthly' }))}
+                                    className={`py-2 text-sm font-bold rounded-lg transition-all ${localGoal.type === 'monthly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                >
+                                    Mensal
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Valor Alvo ({currencySymbol})</label>
+                            <input 
+                                type="number"
+                                value={localGoal.amount}
+                                onChange={(e) => setLocalGoal(prev => ({ ...prev, amount: parseFloat(e.target.value) }))}
+                                className={`w-full px-4 py-3 rounded-lg text-lg font-bold ${theme.input} focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                                placeholder="0.00"
+                            />
+                        </div>
+
+                        <div className="p-4 bg-blue-500/10 text-blue-500 rounded-xl text-sm border border-blue-500/20">
+                            <p className="flex items-center gap-2 font-bold mb-1">
+                                <InformationCircleIcon className="w-4 h-4" /> Dica:
+                            </p>
+                            Defina uma meta realista para manter a consistência no longo prazo.
+                        </div>
+
+                        <button 
+                            onClick={handleSave}
+                            className="w-full py-3 bg-blue-500 text-white font-bold rounded-xl hover:bg-blue-600 transition-colors shadow-lg shadow-blue-500/30 active:scale-95"
+                        >
+                            Salvar Meta
+                        </button>
+                    </div>
                 </div>
-                <div className="mb-6">
-                    <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Valor Alvo ({activeBrokerage.currency})</label>
-                    <input 
-                        type="number"
-                        value={goal.amount}
-                        onChange={(e) => setGoal(prev => ({ ...prev, amount: parseFloat(e.target.value) }))}
-                        className={`w-full px-4 py-3 rounded-lg ${theme.input}`}
+
+                {/* Progress Dashboard */}
+                <div className="lg:col-span-8 space-y-4">
+                    <ProgressBar 
+                        label="Progresso Diário" 
+                        current={currentDailyProfit} 
+                        target={dailyTarget} 
+                        stats={dailyStats} 
                     />
-                </div>
-                <div className="p-4 bg-blue-500/10 text-blue-500 rounded-xl text-sm">
-                    Defina sua meta para acompanhar o progresso no Dashboard.
+                    <ProgressBar 
+                        label="Progresso Semanal" 
+                        current={currentWeeklyProfit} 
+                        target={weeklyTarget} 
+                        stats={weeklyStats} 
+                    />
+                    <ProgressBar 
+                        label="Progresso Mensal" 
+                        current={currentMonthlyProfit} 
+                        target={monthlyTarget} 
+                        stats={monthlyStats} 
+                    />
                 </div>
             </div>
         </div>
@@ -1503,6 +1641,44 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         return [...records].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }, [records]);
 
+    // CALCULATE AGGREGATED STATS (Monthly / Weekly)
+    const { currentMonthlyProfit, currentWeeklyProfit } = useMemo(() => {
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        
+        // Simple week calc (ISO week approximation for simplicity)
+        const getWeekNumber = (d: Date) => {
+            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+            var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+        };
+        const currentWeek = getWeekNumber(now);
+
+        let mProfit = 0;
+        let wProfit = 0;
+
+        sortedRecords.forEach(r => {
+            if (r.recordType === 'day') {
+                const rDate = new Date(r.date + 'T00:00:00Z'); // Force UTC
+                
+                // Monthly
+                if (rDate.getMonth() === currentMonth && rDate.getFullYear() === currentYear) {
+                    mProfit += r.netProfitUSD;
+                }
+
+                // Weekly
+                if (getWeekNumber(rDate) === currentWeek && rDate.getFullYear() === currentYear) {
+                    wProfit += r.netProfitUSD;
+                }
+            }
+        });
+
+        return { currentMonthlyProfit: mProfit, currentWeeklyProfit: wProfit };
+    }, [sortedRecords]);
+
+
     const getStartBalanceForDate = (dateStr: string) => {
         // Calculate balance sum of all records BEFORE this date + initial
         let balance = activeBrokerage.initialBalance;
@@ -1807,6 +1983,9 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             setGoal={setGoal} 
                             activeBrokerage={activeBrokerage}
                             isDarkMode={isDarkMode}
+                            currentMonthlyProfit={currentMonthlyProfit}
+                            currentWeeklyProfit={currentWeeklyProfit}
+                            currentDailyProfit={dailyRecordForSelectedDay?.netProfitUSD || 0}
                         />
                     )}
 
