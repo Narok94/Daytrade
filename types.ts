@@ -7,6 +7,7 @@ export interface Brokerage {
   payoutPercentage: number;
   stopGainTrades: number;
   stopLossTrades: number;
+  currency: 'BRL' | 'USD'; // New field
 }
 
 export interface Trade {
