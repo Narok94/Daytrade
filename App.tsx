@@ -7,7 +7,8 @@ import {
     TrashIcon, LogoutIcon, BellIcon, LayoutGridIcon, PieChartIcon, 
     TrendingUpIcon, TrendingDownIcon, ListBulletIcon, TargetIcon, 
     CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ChevronUpIcon, 
-    ChevronDownIcon, ArrowPathIcon, CpuChipIcon, InformationCircleIcon
+    ChevronDownIcon, ArrowPathIcon, CpuChipIcon, InformationCircleIcon,
+    EditIcon
 } from './components/icons';
 import { 
     LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -300,6 +301,7 @@ interface DashboardPanelProps {
     sortedFilteredRecords: AppRecord[];
     handleDeleteRecord: (recordId: string) => void;
     deleteTrade: (dayId: string, tradeId: string) => void;
+    handleOpenEditTradeModal: (dayId: string, tradeId: string) => void;
     setTransactionType: React.Dispatch<React.SetStateAction<'deposit' | 'withdrawal' | null>>;
     setIsTransactionModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
     goal: Omit<GoalSettings, 'amount'> & { amount: number };
@@ -312,7 +314,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
     customPayout, setCustomPayout, addRecord, selectedDateString,
     setSelectedDate, isTradingHalted, stopLossLimitReached, setStopLimitOverride, startBalanceForSelectedDay,
     dailyRecordForSelectedDay, dailyGoalTarget, weeklyStats, sortedFilteredRecords,
-    handleDeleteRecord, deleteTrade, setTransactionType, setIsTransactionModalOpen, goal, isDarkMode,
+    handleDeleteRecord, deleteTrade, handleOpenEditTradeModal, setTransactionType, setIsTransactionModalOpen, goal, isDarkMode,
     usdToBrlRate
 }) => {
     const theme = useThemeClasses(isDarkMode);
@@ -360,7 +362,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
     }, [sortedFilteredRecords]);
 
     // Flatten for Latest Operations table
-    const individualOperations = useMemo(() => getFlattenedOperations(sortedFilteredRecords), [sortedFilteredRecords]);
+    const individualOperations = useMemo(() => getFlattenedOperations(sortedFilteredRecords).slice(0, 10), [sortedFilteredRecords]);
 
     return (
         <div className="p-4 md:p-8 space-y-6 md:space-y-8">
@@ -633,6 +635,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                                 <th scope="col" className="px-6 py-4 text-center font-semibold whitespace-nowrap">Detalhes</th>
                                 <th scope="col" className="px-6 py-4 text-right font-semibold whitespace-nowrap">Valor Entrada</th>
                                 <th scope="col" className="px-6 py-4 text-right font-semibold whitespace-nowrap">Lucro / Prejuízo</th>
+                                <th scope="col" className="px-6 py-4 text-center font-semibold whitespace-nowrap">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -665,10 +668,18 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                                             <span className="text-slate-500">-</span>
                                          )}
                                     </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <div className="flex items-center justify-center gap-2">
+                                            {op.type === 'trade' && (
+                                                <button onClick={() => handleOpenEditTradeModal(op.originalRecordId, op.id)} className="p-1 text-slate-400 hover:text-blue-400 transition-colors"><EditIcon className="w-4 h-4" /></button>
+                                            )}
+                                            <button onClick={() => op.type === 'trade' ? deleteTrade(op.originalRecordId, op.id) : handleDeleteRecord(op.originalRecordId)} className="p-1 text-slate-400 hover:text-red-400 transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                                        </div>
+                                    </td>
                                 </tr>
                              )) : (
                                 <tr>
-                                    <td colSpan={5} className="text-center py-8 text-slate-600">
+                                    <td colSpan={6} className="text-center py-8 text-slate-600">
                                         Nenhum registro encontrado.
                                     </td>
                                 </tr>
@@ -684,8 +695,10 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
 const OperationsPanel: React.FC<{
     sortedFilteredRecords: AppRecord[];
     handleDeleteRecord: (id: string) => void;
+    deleteTrade: (dayId: string, tradeId: string) => void;
+    handleOpenEditTradeModal: (dayId: string, tradeId: string) => void;
     isDarkMode: boolean;
-}> = ({ sortedFilteredRecords, handleDeleteRecord, isDarkMode }) => {
+}> = ({ sortedFilteredRecords, handleDeleteRecord, deleteTrade, handleOpenEditTradeModal, isDarkMode }) => {
     const theme = useThemeClasses(isDarkMode);
     const operations = useMemo(() => getFlattenedOperations(sortedFilteredRecords), [sortedFilteredRecords]);
 
@@ -715,21 +728,23 @@ const OperationsPanel: React.FC<{
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        {/* SubType Badges similar to Dashboard */}
                                         {op.subType === 'win' && <span className="text-green-500 font-bold">WIN</span>}
                                         {op.subType === 'loss' && <span className="text-red-500 font-bold">LOSS</span>}
                                         {op.subType === 'deposit' && <span className="text-blue-500 font-bold">DEPÓSITO</span>}
                                         {op.subType === 'withdrawal' && <span className="text-orange-500 font-bold">SAQUE</span>}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">{op.details}</td>
-                                    <td className={`px-6 py-4 text-right whitespace-nowrap ${theme.text}`}>{op.value.toFixed(2)}</td>
+                                    <td className={`px-6 py-4 text-right whitespace-nowrap ${theme.text}`}>$ {op.value.toFixed(2)}</td>
                                     <td className={`px-6 py-4 text-right font-bold whitespace-nowrap ${op.profit !== null && op.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                        {op.profit !== null ? (op.profit >= 0 ? `+${op.profit.toFixed(2)}` : op.profit.toFixed(2)) : '-'}
+                                        {op.profit !== null ? (op.profit >= 0 ? `+$${op.profit.toFixed(2)}` : `-$${Math.abs(op.profit).toFixed(2)}`) : '-'}
                                     </td>
                                     <td className="px-6 py-4 text-center whitespace-nowrap">
-                                        <button onClick={() => handleDeleteRecord(op.originalRecordId)} className="text-slate-400 hover:text-red-500">
-                                            <TrashIcon className="w-5 h-5" />
-                                        </button>
+                                        <div className="flex items-center justify-center gap-2">
+                                            {op.type === 'trade' && (
+                                                <button onClick={() => handleOpenEditTradeModal(op.originalRecordId, op.id)} className="p-1 text-slate-400 hover:text-blue-400 transition-colors"><EditIcon className="w-4 h-4" /></button>
+                                            )}
+                                            <button onClick={() => op.type === 'trade' ? deleteTrade(op.originalRecordId, op.id) : handleDeleteRecord(op.originalRecordId)} className="p-1 text-slate-400 hover:text-red-400 transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -809,18 +824,24 @@ const AnalysisPanel: React.FC<{
     );
 };
 
-const SorosCalculatorPanel: React.FC<{ isDarkMode: boolean; activeBrokerage: Brokerage; usdToBrlRate: number; currentBalance: number }> = ({ isDarkMode, activeBrokerage, usdToBrlRate, currentBalance }) => {
+interface SorosCalculatorProps {
+    isDarkMode: boolean;
+    activeBrokerage: Brokerage;
+    usdToBrlRate: number;
+    currentBalance: number;
+    sorosState: { initialInvestment: number | ''; payout: number | ''; levels: number | '' };
+    setSorosState: React.Dispatch<React.SetStateAction<{ initialInvestment: number | ''; payout: number | ''; levels: number | '' }>>;
+}
+
+const SorosCalculatorPanel: React.FC<SorosCalculatorProps> = ({ isDarkMode, activeBrokerage, usdToBrlRate, currentBalance, sorosState, setSorosState }) => {
     const theme = useThemeClasses(isDarkMode);
-    // Initialize states as empty strings to keep input blank on load
-    const [initialInvestment, setInitialInvestment] = useState<number | ''>('');
-    const [payout, setPayout] = useState<number | ''>('');
-    const [levels, setLevels] = useState<number | ''>('');
+
+    const { initialInvestment, payout, levels } = sorosState;
 
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     const isUSD = activeBrokerage.currency === 'USD';
 
     const calculateSoros = () => {
-        // Use 0 for calculation if fields are empty, so the logic doesn't break
         let currentEntry = initialInvestment === '' ? 0 : initialInvestment;
         const currentPayout = payout === '' ? 0 : payout;
         const currentLevels = levels === '' ? 0 : levels;
@@ -840,11 +861,9 @@ const SorosCalculatorPanel: React.FC<{ isDarkMode: boolean; activeBrokerage: Bro
             });
             
             accumulatedProfit += profit;
-            // Soros: Next entry is previous entry + previous profit
             currentEntry = totalReturn; 
         }
 
-        // Avoid showing a negative total profit if investment is empty (0 - 0 = 0)
         const investmentValue = initialInvestment === '' ? 0 : initialInvestment;
         return { rows, totalReturn: currentEntry, totalProfit: currentEntry - investmentValue };
     };
@@ -870,7 +889,7 @@ const SorosCalculatorPanel: React.FC<{ isDarkMode: boolean; activeBrokerage: Bro
                                 <input
                                     type="number"
                                     value={initialInvestment}
-                                    onChange={(e) => setInitialInvestment(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                    onChange={(e) => setSorosState(prev => ({...prev, initialInvestment: e.target.value === '' ? '' : parseFloat(e.target.value)}))}
                                     placeholder="Ex: 100"
                                     className={`block w-full px-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors ${theme.input}`}
                                 />
@@ -882,7 +901,7 @@ const SorosCalculatorPanel: React.FC<{ isDarkMode: boolean; activeBrokerage: Bro
                             <input
                                 type="number"
                                 value={payout}
-                                onChange={(e) => setPayout(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                onChange={(e) => setSorosState(prev => ({...prev, payout: e.target.value === '' ? '' : parseFloat(e.target.value)}))}
                                 placeholder="Ex: 87"
                                 className={`block w-full px-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors ${theme.input}`}
                             />
@@ -895,7 +914,7 @@ const SorosCalculatorPanel: React.FC<{ isDarkMode: boolean; activeBrokerage: Bro
                                 min="1"
                                 max="10"
                                 value={levels}
-                                onChange={(e) => setLevels(e.target.value === '' ? '' : parseInt(e.target.value))}
+                                onChange={(e) => setSorosState(prev => ({...prev, levels: e.target.value === '' ? '' : parseInt(e.target.value)}))}
                                 placeholder="Ex: 3"
                                 className={`block w-full px-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors ${theme.input}`}
                             />
@@ -974,6 +993,7 @@ const SorosCalculatorPanel: React.FC<{ isDarkMode: boolean; activeBrokerage: Bro
     );
 };
 
+
 const GoalsPanel: React.FC<{
     goal: GoalSettings;
     setGoal: React.Dispatch<React.SetStateAction<GoalSettings>>;
@@ -1001,7 +1021,6 @@ const GoalsPanel: React.FC<{
     const goalAmount = typeof localGoal.amount === 'number' ? localGoal.amount : 0;
 
     // Calculate Targets based on input
-    // If input is "Monthly", we derive weekly/daily. If "Weekly", we derive monthly/daily.
     let monthlyTarget = 0;
     let weeklyTarget = 0;
     let dailyTarget = 0;
@@ -1478,6 +1497,79 @@ const DailyBriefingModal: React.FC<{
      );
 };
 
+const EditTradeModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (dayId: string, tradeId: string, updatedData: { entryValue: number; payoutPercentage: number; result: 'win' | 'loss' }) => void;
+    tradeData: { dayId: string; trade: Trade } | null;
+    isDarkMode: boolean;
+}> = ({ isOpen, onClose, onSave, tradeData, isDarkMode }) => {
+    const theme = useThemeClasses(isDarkMode);
+    const [formData, setFormData] = useState({ entryValue: '', payoutPercentage: '', result: 'win' });
+
+    useEffect(() => {
+        if (tradeData) {
+            setFormData({
+                entryValue: String(tradeData.trade.entryValue),
+                payoutPercentage: String(tradeData.trade.payoutPercentage),
+                result: tradeData.trade.result,
+            });
+        }
+    }, [tradeData]);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!tradeData) return;
+        onSave(tradeData.dayId, tradeData.trade.id, {
+            entryValue: parseFloat(formData.entryValue) || 0,
+            payoutPercentage: parseFloat(formData.payoutPercentage) || 0,
+            result: formData.result as 'win' | 'loss',
+        });
+        onClose();
+    };
+    
+    if (!isOpen) return null;
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Editar Operação" isDarkMode={isDarkMode}>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                    <label className={`block text-sm font-medium mb-1 ${theme.textMuted}`}>Resultado</label>
+                    <select
+                        value={formData.result}
+                        onChange={e => setFormData(prev => ({ ...prev, result: e.target.value }))}
+                        className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-green-500 focus:outline-none ${theme.input}`}
+                    >
+                        <option value="win">Win</option>
+                        <option value="loss">Loss</option>
+                    </select>
+                </div>
+                <div>
+                    <label className={`block text-sm font-medium mb-1 ${theme.textMuted}`}>Valor de Entrada</label>
+                    <input
+                        type="number"
+                        value={formData.entryValue}
+                        onChange={e => setFormData(prev => ({ ...prev, entryValue: e.target.value }))}
+                        className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-green-500 focus:outline-none ${theme.input}`}
+                    />
+                </div>
+                <div>
+                    <label className={`block text-sm font-medium mb-1 ${theme.textMuted}`}>Payout (%)</label>
+                    <input
+                        type="number"
+                        value={formData.payoutPercentage}
+                        onChange={e => setFormData(prev => ({ ...prev, payoutPercentage: e.target.value }))}
+                        className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-green-500 focus:outline-none ${theme.input}`}
+                    />
+                </div>
+                <button type="submit" className="w-full py-3 bg-green-500 text-slate-900 font-bold rounded-xl hover:bg-green-400 transition-colors mt-2">
+                    Salvar Alterações
+                </button>
+            </form>
+        </Modal>
+    );
+};
+
 // --- Main App Component ---
 
 const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout }) => {
@@ -1489,6 +1581,10 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         const saved = localStorage.getItem('app_theme');
         return saved ? saved === 'dark' : true; // Default dark
     });
+
+    const [sorosState, setSorosState] = useState({ initialInvestment: '', payout: '', levels: '' });
+    const [isEditTradeModalOpen, setIsEditTradeModalOpen] = useState(false);
+    const [editingTrade, setEditingTrade] = useState<{ dayId: string; trade: Trade } | null>(null);
     
     // Theme effect
     useEffect(() => {
@@ -1579,18 +1675,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             const savedRecords = localStorage.getItem(`app_records_${user.username}_${activeBrokerageId}`);
             let loadedRecords: AppRecord[] = savedRecords ? JSON.parse(savedRecords) : [];
 
-            // DATA MIGRATION LOGIC (Old format -> New format)
-            if (loadedRecords.length === 0) {
-                 const oldBrokerageData = localStorage.getItem('brokerages_v2'); // Global old data
-                 if (oldBrokerageData && user.username === 'henrique') { // Only migrate for main user or logic
-                     try {
-                        const parsedOld = JSON.parse(oldBrokerageData);
-                        // Assuming old structure, we'll just skip complex migration for this snippet safety
-                        // unless specifically requested to parse deep structures. 
-                        // Instead, we ensure the app starts clean if no new records exist.
-                     } catch (e) { console.error("Migration error", e); }
-                 }
-            }
             setRecords(loadedRecords);
 
             // Load Goal
@@ -1647,7 +1731,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
         
-        // Simple week calc (ISO week approximation for simplicity)
         const getWeekNumber = (d: Date) => {
             d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
             d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
@@ -1663,12 +1746,10 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             if (r.recordType === 'day') {
                 const rDate = new Date(r.date + 'T00:00:00Z'); // Force UTC
                 
-                // Monthly
                 if (rDate.getMonth() === currentMonth && rDate.getFullYear() === currentYear) {
                     mProfit += r.netProfitUSD;
                 }
 
-                // Weekly
                 if (getWeekNumber(rDate) === currentWeek && rDate.getFullYear() === currentYear) {
                     wProfit += r.netProfitUSD;
                 }
@@ -1680,7 +1761,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
 
     const getStartBalanceForDate = (dateStr: string) => {
-        // Calculate balance sum of all records BEFORE this date + initial
         let balance = activeBrokerage.initialBalance;
         for (const record of sortedRecords) {
             if (record.date < dateStr) {
@@ -1697,7 +1777,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     // Daily Goal Calculation
     const goalAmount = typeof goal.amount === 'number' ? goal.amount : 0;
-    // Simple average calculation as requested
     const dailyGoalTarget = goal.type === 'monthly' ? (goalAmount / 22) : (goalAmount / 5);
 
     // Stop Rules
@@ -1737,68 +1816,29 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             const newTrades: Trade[] = [];
             const baseId = Date.now();
 
-            // Generate Win Trades
             for (let i = 0; i < winCount; i++) {
-                newTrades.push({
-                    id: `${baseId}-w-${i}`,
-                    timestamp: baseId + i, 
-                    result: 'win',
-                    entryValue: entry,
-                    payoutPercentage: payout
-                });
+                newTrades.push({ id: `${baseId}-w-${i}`, timestamp: baseId + i, result: 'win', entryValue: entry, payoutPercentage: payout });
             }
-
-            // Generate Loss Trades
             for (let i = 0; i < lossCount; i++) {
-                newTrades.push({
-                    id: `${baseId}-l-${i}`,
-                    timestamp: baseId + winCount + i, // Offset so they don't have exact same timestamp if mixed
-                    result: 'loss',
-                    entryValue: entry,
-                    payoutPercentage: payout
-                });
+                newTrades.push({ id: `${baseId}-l-${i}`, timestamp: baseId + winCount + i, result: 'loss', entryValue: entry, payoutPercentage: payout });
             }
 
             if (existingRecordIndex >= 0) {
                 const updated = [...prev];
                 const rec = updated[existingRecordIndex] as DailyRecord;
-                
                 const updatedTrades = [...rec.trades, ...newTrades];
-                
-                // Recalculate stats from scratch based on all trades
                 const wins = updatedTrades.filter(t => t.result === 'win').length;
                 const losses = updatedTrades.filter(t => t.result === 'loss').length;
-                const netProfit = updatedTrades.reduce((acc, t) => {
-                     return acc + (t.result === 'win' ? (t.entryValue * (t.payoutPercentage/100)) : -t.entryValue);
-                }, 0);
+                const netProfit = updatedTrades.reduce((acc, t) => acc + (t.result === 'win' ? (t.entryValue * (t.payoutPercentage/100)) : -t.entryValue), 0);
 
-                updated[existingRecordIndex] = {
-                    ...rec,
-                    trades: updatedTrades,
-                    winCount: wins,
-                    lossCount: losses,
-                    netProfitUSD: netProfit,
-                    endBalanceUSD: rec.startBalanceUSD + netProfit
-                };
+                updated[existingRecordIndex] = { ...rec, trades: updatedTrades, winCount: wins, lossCount: losses, netProfitUSD: netProfit, endBalanceUSD: rec.startBalanceUSD + netProfit };
                 return updated;
             } else {
-                // New Day Record
-                // Calculate initial profit for the new trades
-                const netProfit = newTrades.reduce((acc, t) => {
-                     return acc + (t.result === 'win' ? (t.entryValue * (t.payoutPercentage/100)) : -t.entryValue);
-                }, 0);
-
+                const netProfit = newTrades.reduce((acc, t) => acc + (t.result === 'win' ? (t.entryValue * (t.payoutPercentage/100)) : -t.entryValue), 0);
                 return [...prev, {
-                    recordType: 'day',
-                    brokerageId: activeBrokerageId,
-                    id: selectedDateString,
-                    date: selectedDateString,
-                    startBalanceUSD: startBalanceForSelectedDay,
-                    trades: newTrades,
-                    winCount: winCount,
-                    lossCount: lossCount,
-                    netProfitUSD: netProfit,
-                    endBalanceUSD: startBalanceForSelectedDay + netProfit
+                    recordType: 'day', brokerageId: activeBrokerageId, id: selectedDateString, date: selectedDateString,
+                    startBalanceUSD: startBalanceForSelectedDay, trades: newTrades, winCount: winCount, lossCount: lossCount,
+                    netProfitUSD: netProfit, endBalanceUSD: startBalanceForSelectedDay + netProfit
                 }];
             }
         });
@@ -1820,21 +1860,16 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             const dayRecord = prev[dayIndex] as DailyRecord;
             const updatedTrades = dayRecord.trades.filter(t => t.id !== tradeId);
             
-            // Recalculate stats
+            if (updatedTrades.length === 0) {
+                // If no trades left, remove the whole day record
+                return prev.filter(r => r.id !== dayId);
+            }
+            
             const wins = updatedTrades.filter(t => t.result === 'win').length;
             const losses = updatedTrades.filter(t => t.result === 'loss').length;
-            const netProfit = updatedTrades.reduce((acc, t) => {
-                 return acc + (t.result === 'win' ? (t.entryValue * (t.payoutPercentage/100)) : -t.entryValue);
-            }, 0);
+            const netProfit = updatedTrades.reduce((acc, t) => acc + (t.result === 'win' ? (t.entryValue * (t.payoutPercentage/100)) : -t.entryValue), 0);
             
-            const updatedDay = {
-                ...dayRecord,
-                trades: updatedTrades,
-                winCount: wins,
-                lossCount: losses,
-                netProfitUSD: netProfit,
-                endBalanceUSD: dayRecord.startBalanceUSD + netProfit
-            };
+            const updatedDay = { ...dayRecord, trades: updatedTrades, winCount: wins, lossCount: losses, netProfitUSD: netProfit, endBalanceUSD: dayRecord.startBalanceUSD + netProfit };
             
             const newRecords = [...prev];
             newRecords[dayIndex] = updatedDay;
@@ -1842,17 +1877,42 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         });
     };
 
+    const handleOpenEditTradeModal = (dayId: string, tradeId: string) => {
+        const dayRecord = records.find(r => r.id === dayId && r.recordType === 'day') as DailyRecord;
+        const tradeToEdit = dayRecord?.trades.find(t => t.id === tradeId);
+        if (dayRecord && tradeToEdit) {
+            setEditingTrade({ dayId, trade: tradeToEdit });
+            setIsEditTradeModalOpen(true);
+        }
+    };
+
+    const handleUpdateTrade = (dayId: string, tradeId: string, updatedData: { entryValue: number; payoutPercentage: number; result: 'win' | 'loss' }) => {
+        setRecords(prev => {
+            const dayIndex = prev.findIndex(r => r.id === dayId && r.recordType === 'day');
+            if (dayIndex === -1) return prev;
+            
+            const dayRecord = prev[dayIndex] as DailyRecord;
+            const updatedTrades = dayRecord.trades.map(t => t.id === tradeId ? { ...t, ...updatedData } : t);
+            
+            const wins = updatedTrades.filter(t => t.result === 'win').length;
+            const losses = updatedTrades.filter(t => t.result === 'loss').length;
+            const netProfit = updatedTrades.reduce((acc, t) => acc + (t.result === 'win' ? (t.entryValue * (t.payoutPercentage/100)) : -t.entryValue), 0);
+            
+            const updatedDay = { ...dayRecord, trades: updatedTrades, winCount: wins, lossCount: losses, netProfitUSD: netProfit, endBalanceUSD: dayRecord.startBalanceUSD + netProfit };
+            
+            const newRecords = [...prev];
+            newRecords[dayIndex] = updatedDay;
+            return newRecords;
+        });
+        setIsEditTradeModalOpen(false);
+    };
+
     const handleTransaction = (amount: number, notes: string) => {
         if (!transactionType) return;
         const newRecord: TransactionRecord = {
-            recordType: transactionType,
-            brokerageId: activeBrokerageId,
-            id: Date.now().toString(),
-            timestamp: Date.now(),
-            date: selectedDateString,
-            displayDate: displayDateString,
-            amountUSD: amount,
-            notes: notes
+            recordType: transactionType, brokerageId: activeBrokerageId, id: Date.now().toString(),
+            timestamp: Date.now(), date: selectedDateString, displayDate: displayDateString,
+            amountUSD: amount, notes: notes
         };
         setRecords(prev => [...prev, newRecord]);
     };
@@ -1869,7 +1929,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         }
         if (confirm("Tem certeza? Todos os dados dessa corretora serão apagados.")) {
             setBrokerages(prev => prev.filter(b => b.id !== id));
-            // Also clean up local storage for that brokerage
             localStorage.removeItem(`app_records_${user.username}_${id}`);
             localStorage.removeItem(`app_goals_${user.username}_${id}`);
             setActiveBrokerageId(brokerages.find(b => b.id !== id)?.id || '');
@@ -1877,24 +1936,14 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     };
 
     const handleAddBrokerage = (name: string, initialBalance: number) => {
-        const newBrokerage: Brokerage = {
-            ...defaultBrokerage,
-            id: Date.now().toString(),
-            name,
-            initialBalance,
-            currency: 'BRL'
-        };
+        const newBrokerage: Brokerage = { ...defaultBrokerage, id: Date.now().toString(), name, initialBalance, currency: 'BRL' };
         setBrokerages(prev => [...prev, newBrokerage]);
         setActiveBrokerageId(newBrokerage.id);
         setActiveTab('settings');
     };
 
-    // Calculate Weekly Stats for Dashboard (Optional enhancement)
-    const weeklyStats = {
-        profit: 0, wins: 0, losses: 0, totalTrades: 0, winRate: 0, startBalance: 0, currentBalance: 0
-    };
+    const weeklyStats = { profit: 0, wins: 0, losses: 0, totalTrades: 0, winRate: 0, startBalance: 0, currentBalance: 0 };
 
-    // Render Logic
     const theme = useThemeClasses(isDarkMode);
     
     if (isLoading) {
@@ -1904,97 +1953,65 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     return (
         <div className={`flex h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
             <Sidebar 
-                activeTab={activeTab} 
-                setActiveTab={setActiveTab} 
-                onLogout={onLogout} 
-                isDarkMode={isDarkMode}
-                toggleTheme={toggleTheme}
-                isOpen={isMobileMenuOpen}
+                activeTab={activeTab} setActiveTab={setActiveTab} onLogout={onLogout} 
+                isDarkMode={isDarkMode} toggleTheme={toggleTheme} isOpen={isMobileMenuOpen}
                 onClose={() => setIsMobileMenuOpen(false)}
             />
             
             <main className="flex-1 flex flex-col overflow-hidden relative w-full">
                 <Header 
-                    user={user} 
-                    activeBrokerage={activeBrokerage} 
-                    brokerages={brokerages} 
-                    setActiveBrokerageId={setActiveBrokerageId}
-                    isDarkMode={isDarkMode}
-                    onOpenBriefing={() => setIsBriefingModalOpen(true)}
-                    onOpenMenu={() => setIsMobileMenuOpen(true)}
+                    user={user} activeBrokerage={activeBrokerage} brokerages={brokerages} 
+                    setActiveBrokerageId={setActiveBrokerageId} isDarkMode={isDarkMode}
+                    onOpenBriefing={() => setIsBriefingModalOpen(true)} onOpenMenu={() => setIsMobileMenuOpen(true)}
                 />
 
                 <div className="flex-1 overflow-y-auto w-full">
                     {activeTab === 'dashboard' && (
                         <DashboardPanel
-                            activeBrokerage={activeBrokerage}
-                            customEntryValue={customEntryValue}
-                            setCustomEntryValue={setCustomEntryValue}
-                            customPayout={customPayout}
-                            setCustomPayout={setCustomPayout}
-                            addRecord={addRecord}
-                            selectedDateString={selectedDateString}
-                            setSelectedDate={setSelectedDate}
-                            isTradingHalted={isTradingHalted}
-                            stopLossLimitReached={stopLossLimitReached}
-                            setStopLimitOverride={setStopLimitOverride}
-                            startBalanceForSelectedDay={startBalanceForSelectedDay}
-                            dailyRecordForSelectedDay={dailyRecordForSelectedDay}
-                            dailyGoalTarget={dailyGoalTarget}
-                            weeklyStats={weeklyStats}
-                            sortedFilteredRecords={sortedRecords}
-                            handleDeleteRecord={handleDeleteRecord}
-                            deleteTrade={deleteTrade}
-                            setTransactionType={setTransactionType}
-                            setIsTransactionModalOpen={setIsTransactionModalOpen}
-                            goal={{...goal, amount: typeof goal.amount === 'number' ? goal.amount : 0}}
-                            isDarkMode={isDarkMode}
+                            activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue}
+                            customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord}
+                            selectedDateString={selectedDateString} setSelectedDate={setSelectedDate} isTradingHalted={isTradingHalted}
+                            stopLossLimitReached={stopLossLimitReached} setStopLimitOverride={setStopLimitOverride} startBalanceForSelectedDay={startBalanceForSelectedDay}
+                            dailyRecordForSelectedDay={dailyRecordForSelectedDay} dailyGoalTarget={dailyGoalTarget} weeklyStats={weeklyStats}
+                            sortedFilteredRecords={sortedRecords} handleDeleteRecord={handleDeleteRecord} deleteTrade={deleteTrade}
+                            handleOpenEditTradeModal={handleOpenEditTradeModal} setTransactionType={setTransactionType} setIsTransactionModalOpen={setIsTransactionModalOpen}
+                            goal={{...goal, amount: typeof goal.amount === 'number' ? goal.amount : 0}} isDarkMode={isDarkMode}
                             usdToBrlRate={usdToBrlRate}
                         />
                     )}
 
                     {activeTab === 'operations' && (
                         <OperationsPanel 
-                            sortedFilteredRecords={sortedRecords} 
-                            handleDeleteRecord={handleDeleteRecord}
-                            isDarkMode={isDarkMode}
+                            sortedFilteredRecords={sortedRecords} handleDeleteRecord={handleDeleteRecord} deleteTrade={deleteTrade}
+                            handleOpenEditTradeModal={handleOpenEditTradeModal} isDarkMode={isDarkMode}
                         />
                     )}
 
                     {activeTab === 'analyze' && (
-                        <AnalysisPanel 
-                            records={sortedRecords}
-                            isDarkMode={isDarkMode} 
-                        />
+                        <AnalysisPanel records={sortedRecords} isDarkMode={isDarkMode} />
                     )}
 
                     {activeTab === 'soros' && (
                         <SorosCalculatorPanel 
-                            isDarkMode={isDarkMode} 
-                            activeBrokerage={activeBrokerage}
-                            usdToBrlRate={usdToBrlRate}
+                            isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} usdToBrlRate={usdToBrlRate}
                             currentBalance={dailyRecordForSelectedDay?.endBalanceUSD || startBalanceForSelectedDay}
+                            sorosState={sorosState} setSorosState={setSorosState}
                         />
                     )}
 
                     {activeTab === 'goals' && (
                         <GoalsPanel 
-                            goal={{...goal, amount: typeof goal.amount === 'number' ? goal.amount : 0}} 
-                            setGoal={setGoal} 
-                            activeBrokerage={activeBrokerage}
-                            isDarkMode={isDarkMode}
-                            currentMonthlyProfit={currentMonthlyProfit}
-                            currentWeeklyProfit={currentWeeklyProfit}
+                            goal={{...goal, amount: typeof goal.amount === 'number' ? goal.amount : 0}} setGoal={setGoal} 
+                            activeBrokerage={activeBrokerage} isDarkMode={isDarkMode}
+                            currentMonthlyProfit={currentMonthlyProfit} currentWeeklyProfit={currentWeeklyProfit}
                             currentDailyProfit={dailyRecordForSelectedDay?.netProfitUSD || 0}
                         />
                     )}
 
                     {activeTab === 'settings' && (
                         <SettingsPanel 
-                            activeBrokerage={activeBrokerage} 
-                            onUpdateBrokerage={updateBrokerage}
-                            onDeleteBrokerage={deleteBrokerage}
-                            onOpenAddBrokerage={() => setIsAddBrokerageModalOpen(true)}
+                            activeBrokerage={activeBrokerage} onUpdateBrokerage={updateBrokerage}
+                            onDeleteBrokerage={deleteBrokerage} onOpenAddBrokerage={() => setIsAddBrokerageModalOpen(true)}
                             isDarkMode={isDarkMode}
                         />
                     )}
@@ -2003,29 +2020,30 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
             {/* Modals */}
             <TransactionModal 
-                isOpen={isTransactionModalOpen} 
-                onClose={() => setIsTransactionModalOpen(false)} 
-                type={transactionType || 'deposit'} 
-                onConfirm={handleTransaction}
-                isDarkMode={isDarkMode}
+                isOpen={isTransactionModalOpen} onClose={() => setIsTransactionModalOpen(false)} 
+                type={transactionType || 'deposit'} onConfirm={handleTransaction} isDarkMode={isDarkMode}
             />
             
             <AddBrokerageModal 
-                isOpen={isAddBrokerageModalOpen}
-                onClose={() => setIsAddBrokerageModalOpen(false)}
-                onConfirm={handleAddBrokerage}
-                isDarkMode={isDarkMode}
+                isOpen={isAddBrokerageModalOpen} onClose={() => setIsAddBrokerageModalOpen(false)}
+                onConfirm={handleAddBrokerage} isDarkMode={isDarkMode}
             />
 
             {isBriefingModalOpen && (
                 <DailyBriefingModal 
                     onClose={() => setIsBriefingModalOpen(false)}
                     currentBalance={dailyRecordForSelectedDay?.endBalanceUSD || startBalanceForSelectedDay}
-                    dailyGoal={dailyGoalTarget}
-                    activeBrokerage={activeBrokerage}
-                    isDarkMode={isDarkMode}
+                    dailyGoal={dailyGoalTarget} activeBrokerage={activeBrokerage} isDarkMode={isDarkMode}
                 />
             )}
+
+            <EditTradeModal
+                isOpen={isEditTradeModalOpen}
+                onClose={() => setIsEditTradeModalOpen(false)}
+                onSave={handleUpdateTrade}
+                tradeData={editingTrade}
+                isDarkMode={isDarkMode}
+            />
         </div>
     );
 };
