@@ -16,7 +16,7 @@ import {
 } from 'recharts';
 
 interface GoalSettings {
-    type: 'weekly' | 'monthly';
+    type: 'weekly' | 'monthly' | 'annual';
     amount: number | '';
 }
 
@@ -1029,6 +1029,10 @@ const GoalsPanel: React.FC<{
         monthlyTarget = goalAmount;
         weeklyTarget = goalAmount / 4.33; // Approx weeks in month
         dailyTarget = goalAmount / 22; // Approx trading days
+    } else if (localGoal.type === 'annual') {
+        monthlyTarget = goalAmount / 12;
+        weeklyTarget = goalAmount / 52;
+        dailyTarget = goalAmount / 252; // standard trading days approx
     } else {
         weeklyTarget = goalAmount;
         monthlyTarget = goalAmount * 4.33;
@@ -1102,18 +1106,24 @@ const GoalsPanel: React.FC<{
                     <div className="space-y-6">
                         <div>
                             <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Definir por</label>
-                            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-800">
+                            <div className="grid grid-cols-3 gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-800">
                                 <button
                                     onClick={() => setLocalGoal(prev => ({ ...prev, type: 'weekly' }))}
-                                    className={`py-2 text-sm font-bold rounded-lg transition-all ${localGoal.type === 'weekly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                    className={`py-2 text-xs font-bold rounded-lg transition-all ${localGoal.type === 'weekly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                                 >
                                     Semanal
                                 </button>
                                 <button
                                     onClick={() => setLocalGoal(prev => ({ ...prev, type: 'monthly' }))}
-                                    className={`py-2 text-sm font-bold rounded-lg transition-all ${localGoal.type === 'monthly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                    className={`py-2 text-xs font-bold rounded-lg transition-all ${localGoal.type === 'monthly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                                 >
                                     Mensal
+                                </button>
+                                <button
+                                    onClick={() => setLocalGoal(prev => ({ ...prev, type: 'annual' }))}
+                                    className={`py-2 text-xs font-bold rounded-lg transition-all ${localGoal.type === 'annual' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                >
+                                    Anual
                                 </button>
                             </div>
                         </div>
@@ -1777,7 +1787,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     // Daily Goal Calculation
     const goalAmount = typeof goal.amount === 'number' ? goal.amount : 0;
-    const dailyGoalTarget = goal.type === 'monthly' ? (goalAmount / 22) : (goalAmount / 5);
+    const dailyGoalTarget = goal.type === 'monthly' ? (goalAmount / 22) : (goal.type === 'annual' ? (goalAmount / 252) : (goalAmount / 5));
 
     // Stop Rules
     const isTradingHalted = useMemo(() => {
