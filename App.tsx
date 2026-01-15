@@ -422,7 +422,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                             )}
                         </div>
                         <div className={`p-1.5 md:p-2 rounded-lg text-green-500 border ${isDarkMode ? 'bg-slate-800/80 border-slate-700/50' : 'bg-green-50 border-green-100'}`}>
-                             <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" /></svg>
+                             <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25-2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" /></svg>
                         </div>
                     </div>
                 </div>
@@ -761,75 +761,293 @@ const OperationsPanel: React.FC<{
     );
 };
 
+interface Signal {
+    asset: string;
+    entryTime: string;
+    action: 'COMPRA' | 'VENDA';
+    confidence: number;
+    justification: string[];
+}
+
+const CryptoIcon: React.FC<{
+    baseColor: string;
+    baseSymbol: React.ReactNode;
+    overlayColor: string;
+    overlaySymbol: React.ReactNode;
+}> = ({ baseColor, baseSymbol, overlayColor, overlaySymbol }) => (
+    <div className="relative w-8 h-8 flex-shrink-0">
+        <div className="absolute top-0 right-0 w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: baseColor }}>
+            {baseSymbol}
+        </div>
+        <div className="absolute bottom-0 left-0 w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-900" style={{ backgroundColor: overlayColor }}>
+            {overlaySymbol}
+        </div>
+    </div>
+);
+
+const assets = [
+    { name: 'BTC/USDT', shortName: 'BTCUSDT', icon: { overlayColor: '#f7931a', overlaySymbol: <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-white"><path d="M16.23 7.28a3.5 3.5 0 00-3.1-2.2H10.5v14h2.52a3.5 3.5 0 003.21-4.92 3.48 3.48 0 00-2.39-2.22 2.52 2.52 0 002.39-2.66zM13 14.8a1.5 1.5 0 01-1.44 1.63H10.5v-3.2h1.1c.8.01 1.44.73 1.4 1.57zM13.43 8.9a1.5 1.5 0 01-1.55 1.5H10.5v-3h1.4c.83 0 1.51.68 1.53 1.5z" /></svg> } },
+    { name: 'ETH/USDT', shortName: 'ETHUSDT', icon: { overlayColor: '#627eea', overlaySymbol: <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-white"><path d="M12 1.75l-6.25 10.45 6.25 3.8 6.25-3.8L12 1.75zM12 17.5l-6.25-3.8 6.25 8.55 6.25-8.55-6.25 3.8z" /></svg> } },
+    { name: 'XRP/USDT', shortName: 'XRPUSDT', icon: { overlayColor: '#23292f', overlaySymbol: <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 text-white"><path d="M6.51 7.74L12 10.5l5.49-2.76L12 5zm-.42 1.4L12 12.2l5.91-3.06L12 6.5zm.42 1.83L12 13.9l5.49-2.76L12 8.4zm-.42 1.4L12 15.4l5.91-3.06L12 9.7zm0 1.84L12 17.2l5.49-2.76L12 11.7zm11.49-.93L12 19.5 6.51 16.74 12 14z" /></svg> } },
+    { name: 'SOL/USDT', shortName: 'SOLUSDT', icon: { overlayColor: '#9945FF', overlaySymbol: <svg viewBox="0 0 18 18" fill="none" className="w-3.5 h-3.5 text-white"><path d="M2.21 4.54l13.59-2.3c.5-.09.9.48.65.94l-3.3 6.32a.75.75 0 01-1.12.26L9.4 8.12a.75.75 0 00-1.02-.07l-3.2 2.5c-.4.32-.96-.2-.73-.66l-1.9-3.7a.75.75 0 01.66-.65zm.84 8.65L16.64 16c.5.08.9-.48.65-.94l-3.3-6.32a.75.75 0 00-1.12-.26l-2.63 1.64a.75.75 0 01-1.02.07l-3.2-2.5c-.4-.32-.96.2-.73.66l1.9 3.7c.23.46.8.55.66.65z" fill="currentColor" /></svg> } },
+];
+
+
 const AnalysisPanel: React.FC<{
-    records: AppRecord[];
     isDarkMode: boolean;
     activeBrokerage: Brokerage;
-}> = ({ records, isDarkMode, activeBrokerage }) => {
+    setActiveTab: (tab: 'settings') => void;
+}> = ({ isDarkMode, activeBrokerage, setActiveTab }) => {
     const theme = useThemeClasses(isDarkMode);
-    const [analysis, setAnalysis] = useState<string>('');
+    const [signal, setSignal] = useState<Signal | null>(null);
     const [loading, setLoading] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState('');
+    const [countdown, setCountdown] = useState('');
+    const [selectedAsset, setSelectedAsset] = useState(assets[0]);
+    
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    const handleAnalyze = async () => {
-        if (records.length === 0) {
-            setAnalysis("Não há dados suficientes para análise.");
-            return;
-        }
+    const hasApiToken = useMemo(() => activeBrokerage.apiToken && activeBrokerage.apiToken.length > 5, [activeBrokerage.apiToken]);
+
+    const loadingSteps = [
+        "Acessando dados do TradingView...",
+        "Analisando RSI e Médias Móveis...",
+        "Verificando Bandas de Bollinger...",
+        "Identificando Padrões de Velas...",
+        "Calculando confluência com Fractais de Williams...",
+        "Gerando sinal..."
+    ];
+
+    const handleGenerateSignal = async () => {
         setLoading(true);
+        setSignal(null);
+        setLoadingMessage(loadingSteps[0]);
+
+        let step = 0;
+        const stepInterval = setInterval(() => {
+            step++;
+            if (step < loadingSteps.length) {
+                setLoadingMessage(loadingSteps[step]);
+            }
+        }, 1500);
+
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            // Simplify data for token limit
-            const simplifiedData = records.slice(-50).map(r => {
-                if(r.recordType === 'day') return { date: r.date, wins: r.winCount, losses: r.lossCount, profit: r.netProfitUSD };
-                return null;
-            }).filter(Boolean);
+            
+            const now = new Date();
+            // Random time between 1 and 3 minutes from now
+            const randomOffset = Math.floor(Math.random() * (180000 - 60000 + 1)) + 60000;
+            const entryTimestamp = now.getTime() + randomOffset;
+            const entryDate = new Date(entryTimestamp);
+            entryDate.setSeconds(0);
+            entryDate.setMilliseconds(0);
+            
+            const entryTime = entryDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-            const hasApiToken = activeBrokerage.apiToken && activeBrokerage.apiToken.length > 5;
-            const prompt = hasApiToken
-                ? `Você é um analista de trading. O token da API da corretora foi fornecido. No futuro, você receberá dados do gráfico em tempo real para análises mais profundas. Por enquanto, analise este histórico de operações manuais (últimos dias) e forneça 3 insights curtos e 1 sugestão de melhoria em formato de lista Markdown. Dados: ${JSON.stringify(simplifiedData)}`
-                : `Analise este histórico de trading (últimos dias) e forneça 3 insights curtos e 1 sugestão de melhoria em formato de lista Markdown. Dados: ${JSON.stringify(simplifiedData)}`;
+            const prompt = `Você é um analista de trading quantitativo de elite, especializado em prever movimentos de mercado de curto prazo (1 minuto) para o par de criptomoedas ${selectedAsset.name}. Sua tarefa é simular uma análise profunda do gráfico de 1 minuto (M1) no TradingView, utilizando uma combinação dos seguintes indicadores: Regiões de Suporte/Resistência, Médias Móveis, Bandas de Bollinger, RSI (Índice de Força Relativa) e Fractais de Williams. Com base na confluência desses indicadores, gere um sinal de trading para uma operação com expiração de 1 minuto.
+
+            A sua resposta DEVE ser um objeto JSON bem formatado, sem nenhum texto ou formatação markdown (como \`\`\`json) ao redor dele. O objeto JSON deve ter a seguinte estrutura:
+            {
+              "asset": "${selectedAsset.name}",
+              "entryTime": "${entryTime}",
+              "action": "COMPRA" ou "VENDA",
+              "confidence": um número inteiro entre 70 e 95,
+              "justification": [
+                "Uma justificativa concisa baseada no RSI.",
+                "Uma justificativa concisa baseada nas Bandas de Bollinger.",
+                "Uma justificativa concisa baseada em um padrão de vela ou Fractal de Williams."
+              ]
+            }`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-3-pro-preview',
                 contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                }
             });
-            setAnalysis(response.text);
+            
+            const parsedSignal: Signal = JSON.parse(response.text);
+            setSignal(parsedSignal);
+
         } catch (error) {
             console.error(error);
-            setAnalysis("Erro ao gerar análise. Verifique sua chave API ou tente novamente.");
+            setSignal({
+                asset: 'Error',
+                action: 'VENDA',
+                confidence: 0,
+                entryTime: '00:00:00',
+                justification: ['Ocorreu um erro ao gerar o sinal. Por favor, tente novamente.']
+            });
         } finally {
+            clearInterval(stepInterval);
             setLoading(false);
+            setLoadingMessage('');
         }
     };
 
-    return (
-        <div className="p-4 md:p-8">
-            <div className={`p-6 rounded-2xl border ${theme.card}`}>
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className={`text-2xl font-bold ${theme.text}`}>Análise de IA</h2>
+    useEffect(() => {
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+        }
+        if (signal && signal.entryTime) {
+            const [hour, minute, second] = signal.entryTime.split(':').map(Number);
+            const targetTime = new Date();
+            targetTime.setHours(hour, minute, second, 0);
+
+            if (targetTime.getTime() < new Date().getTime()) {
+                targetTime.setDate(targetTime.getDate() + 1);
+            }
+
+            timerRef.current = setInterval(() => {
+                const now = new Date().getTime();
+                const distance = targetTime.getTime() - now;
+
+                if (distance < 0) {
+                    setCountdown("00:00");
+                    clearInterval(timerRef.current!);
+                    return;
+                }
+
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                setCountdown(`${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+            }, 1000);
+        }
+
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    }, [signal]);
+    
+    if (!hasApiToken) {
+        return (
+            <div className="p-4 md:p-8">
+                <div className={`p-6 rounded-2xl border ${theme.card} max-w-2xl mx-auto text-center`}>
+                    <CpuChipIcon className="w-12 h-12 mx-auto text-yellow-500" />
+                    <h2 className="mt-4 text-2xl font-bold">Funcionalidade Avançada Bloqueada</h2>
+                    <p className="mt-2 text-slate-400">Para utilizar a IA Preditiva de Sinais, é necessário configurar o token da API da sua corretora. Isso permite que nossa IA simule uma análise em tempo real com maior precisão.</p>
                     <button 
-                        onClick={handleAnalyze} 
-                        disabled={loading}
-                        className="bg-green-500 text-slate-900 px-4 py-2 rounded-lg font-bold hover:bg-green-400 disabled:opacity-50 flex items-center gap-2"
+                        onClick={() => setActiveTab('settings')} 
+                        className="mt-6 bg-yellow-500 text-slate-900 font-bold px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all shadow-lg shadow-yellow-500/20"
                     >
-                        {loading ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CpuChipIcon className="w-5 h-5" />}
-                        {loading ? 'Analisando...' : 'Gerar Nova Análise'}
+                        Ir para Configurações
                     </button>
                 </div>
+            </div>
+        );
+    }
 
-                {activeBrokerage.apiToken && activeBrokerage.apiToken.length > 5 && (
-                    <div className="mb-6 p-3 bg-green-500/10 text-green-400 rounded-xl text-sm border border-green-500/20 flex items-center gap-3">
-                        <CpuChipIcon className="w-5 h-5 flex-shrink-0"/>
-                        <span><b>Token da API detectado!</b> A análise será aprimorada no futuro com dados de gráficos em tempo real.</span>
+    const isBuy = signal?.action === 'COMPRA';
+    const confidenceColor = signal && signal.confidence > 85 ? 'text-green-400' : signal && signal.confidence > 75 ? 'text-yellow-400' : 'text-orange-400';
+
+    const tetherSymbol = <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-white"><path d="M12 3.5v17m-8.5-17H21" /></svg>;
+
+    return (
+        <div className="p-4 md:p-8">
+            <div className={`grid grid-cols-1 md:grid-cols-12 gap-6 max-w-7xl mx-auto`}>
+                 <div className="md:col-span-3 lg:col-span-2">
+                    <div className={`p-3 rounded-2xl border ${theme.card}`}>
+                        <h3 className={`text-sm font-bold mb-3 px-2 ${theme.text}`}>Ativos</h3>
+                        <div className="space-y-1">
+                            {assets.map(asset => (
+                                <button
+                                    key={asset.shortName}
+                                    onClick={() => {setSelectedAsset(asset); setSignal(null);}}
+                                    className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors ${selectedAsset.shortName === asset.shortName ? 'bg-slate-800/50' : 'hover:bg-slate-800/30'}`}
+                                >
+                                    <CryptoIcon
+                                        baseColor="#26a17b"
+                                        baseSymbol={tetherSymbol}
+                                        overlayColor={asset.icon.overlayColor}
+                                        overlaySymbol={asset.icon.overlaySymbol}
+                                    />
+                                    <div>
+                                        <p className="font-bold text-sm text-slate-200">{asset.name}</p>
+                                        <p className="text-xs text-slate-500">{asset.shortName}</p>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                )}
-                
-                <div className={`prose ${isDarkMode ? 'prose-invert' : ''} max-w-none`}>
-                    {analysis ? (
-                        <div className={`whitespace-pre-wrap ${theme.text} mt-4`}>{analysis}</div>
-                    ) : (
-                        <p className={theme.textMuted}>Clique no botão para gerar uma análise baseada no seu histórico recente.</p>
+                </div>
+
+                <div className={`md:col-span-9 lg:col-span-10 p-6 rounded-2xl border ${theme.card}`}>
+                     <div className="text-center mb-8">
+                        <h2 className={`text-3xl font-black ${theme.text}`}>Central de Sinais IA</h2>
+                        <p className={theme.textMuted}>Análise de M1 para <span className='font-bold text-green-400'>{selectedAsset.name}</span> com expiração de 1 minuto.</p>
+                    </div>
+                    
+                    <div className="flex justify-center">
+                        {!signal && !loading && (
+                            <div className="text-center">
+                                 <p className="max-w-xl mx-auto text-slate-400 mb-6">
+                                    Clique no botão abaixo para que a IA realize uma análise técnica completa do mercado em tempo real e gere um sinal de alta probabilidade.
+                                </p>
+                                <button 
+                                    onClick={handleGenerateSignal} 
+                                    disabled={loading}
+                                    className="bg-green-500 text-slate-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-green-400 disabled:opacity-50 flex items-center justify-center gap-3 transition-all shadow-lg shadow-green-500/30 transform hover:scale-105 active:scale-100"
+                                >
+                                    <CpuChipIcon className="w-6 h-6" />
+                                    {loading ? 'Analisando...' : 'Analisar Mercado Agora'}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {loading && (
+                        <div className="text-center py-10 transition-all duration-500">
+                            <div className="relative w-24 h-24 mx-auto">
+                                <div className="absolute inset-0 border-4 border-slate-800 rounded-full"></div>
+                                <div className="absolute inset-0 border-4 border-t-green-500 rounded-full animate-spin"></div>
+                                <div className="w-full h-full flex items-center justify-center">
+                                     <CpuChipIcon className={`w-10 h-10 text-green-500 mx-auto animate-pulse`} />
+                                </div>
+                            </div>
+                            <p className="mt-6 text-xl font-semibold">{loadingMessage}</p>
+                            <p className="text-sm text-slate-500">Aguarde, a IA está processando os indicadores...</p>
+                        </div>
                     )}
+                    
+                    {signal && !loading && (
+                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 animate-float">
+                            <div className={`lg:col-span-3 p-6 rounded-2xl border ${isBuy ? 'border-green-500/30 bg-green-950/20' : 'border-red-500/30 bg-red-950/20'}`}>
+                                 <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{signal.asset}</p>
+                                 <p className={`text-6xl font-black my-4 ${isBuy ? 'text-green-400' : 'text-red-400'}`}>{signal.action}</p>
+                                 <div className="flex items-center gap-4">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${isBuy ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>Expiração M1</span>
+                                    <span className="text-slate-400 text-sm">Entrada para a vela das <b className="text-white">{signal.entryTime}</b></span>
+                                 </div>
+                            </div>
+                            <div className={`lg:col-span-2 p-6 rounded-2xl flex flex-col justify-center items-center gap-4 text-center border ${theme.border}`}>
+                                <div>
+                                    <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Tempo Restante</p>
+                                    <p className="text-5xl font-mono font-black tracking-tighter text-white">{countdown || '00:00'}</p>
+                                </div>
+                                 <div>
+                                    <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Confiança</p>
+                                    <p className={`text-3xl font-bold ${confidenceColor}`}>{signal.confidence}%</p>
+                                </div>
+                            </div>
+                             <div className={`lg:col-span-5 p-6 rounded-2xl border ${theme.border}`}>
+                                 <h4 className="font-bold text-slate-300 mb-3">Justificativa Técnica da IA</h4>
+                                 <ul className="space-y-2 list-none p-0 text-sm">
+                                    {signal.justification.map((item, index) => (
+                                        <li key={index} className="flex items-start gap-3 p-2 rounded-lg bg-slate-900/50">
+                                            <span className={`flex-shrink-0 mt-1 w-2 h-2 rounded-full ${isBuy ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                            <span className="text-slate-400">{item.trim()}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="mt-8 text-xs text-slate-500/70 text-center">
+                        <p><b>Aviso:</b> Esta é uma análise gerada por IA com base em dados simulados e não constitui aconselhamento financeiro. Use por sua conta e risco. A performance passada não garante resultados futuros.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2029,7 +2247,11 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     )}
 
                     {activeTab === 'analyze' && (
-                        <AnalysisPanel records={sortedRecords} isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} />
+                        <AnalysisPanel 
+                            isDarkMode={isDarkMode} 
+                            activeBrokerage={activeBrokerage} 
+                            setActiveTab={setActiveTab as (tab: 'settings') => void}
+                        />
                     )}
 
                     {activeTab === 'soros' && (
