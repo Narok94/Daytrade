@@ -764,7 +764,8 @@ const OperationsPanel: React.FC<{
 const AnalysisPanel: React.FC<{
     records: AppRecord[];
     isDarkMode: boolean;
-}> = ({ records, isDarkMode }) => {
+    activeBrokerage: Brokerage;
+}> = ({ records, isDarkMode, activeBrokerage }) => {
     const theme = useThemeClasses(isDarkMode);
     const [analysis, setAnalysis] = useState<string>('');
     const [loading, setLoading] = useState(false);
@@ -783,7 +784,10 @@ const AnalysisPanel: React.FC<{
                 return null;
             }).filter(Boolean);
 
-            const prompt = `Analise este histórico de trading (últimos dias) e forneça 3 insights curtos e 1 sugestão de melhoria em formato de lista Markdown. Dados: ${JSON.stringify(simplifiedData)}`;
+            const hasApiToken = activeBrokerage.apiToken && activeBrokerage.apiToken.length > 5;
+            const prompt = hasApiToken
+                ? `Você é um analista de trading. O token da API da corretora foi fornecido. No futuro, você receberá dados do gráfico em tempo real para análises mais profundas. Por enquanto, analise este histórico de operações manuais (últimos dias) e forneça 3 insights curtos e 1 sugestão de melhoria em formato de lista Markdown. Dados: ${JSON.stringify(simplifiedData)}`
+                : `Analise este histórico de trading (últimos dias) e forneça 3 insights curtos e 1 sugestão de melhoria em formato de lista Markdown. Dados: ${JSON.stringify(simplifiedData)}`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -812,6 +816,14 @@ const AnalysisPanel: React.FC<{
                         {loading ? 'Analisando...' : 'Gerar Nova Análise'}
                     </button>
                 </div>
+
+                {activeBrokerage.apiToken && activeBrokerage.apiToken.length > 5 && (
+                    <div className="mb-6 p-3 bg-green-500/10 text-green-400 rounded-xl text-sm border border-green-500/20 flex items-center gap-3">
+                        <CpuChipIcon className="w-5 h-5 flex-shrink-0"/>
+                        <span><b>Token da API detectado!</b> A análise será aprimorada no futuro com dados de gráficos em tempo real.</span>
+                    </div>
+                )}
+                
                 <div className={`prose ${isDarkMode ? 'prose-invert' : ''} max-w-none`}>
                     {analysis ? (
                         <div className={`whitespace-pre-wrap ${theme.text} mt-4`}>{analysis}</div>
@@ -1256,6 +1268,24 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ activeBrokerage, onUpdate
                                 />
                              </div>
                         </div>
+
+                        <div>
+                            <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Token da API da Corretora (Opcional)</label>
+                            <input
+                                type="text"
+                                value={formData.apiToken || ''}
+                                onChange={(e) => handleChange('apiToken', e.target.value)}
+                                className={`block w-full px-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors ${theme.input}`}
+                                placeholder="Cole seu token da API aqui"
+                            />
+                        </div>
+
+                        <div className="p-4 bg-blue-500/10 text-blue-500 rounded-xl text-sm border border-blue-500/20">
+                            <p className="flex items-center gap-2 font-bold mb-1">
+                                <InformationCircleIcon className="w-4 h-4" /> Para que serve?
+                            </p>
+                            O token da API permitirá, no futuro, que a IA analise os gráficos da sua corretora em tempo real.
+                        </div>
                     </div>
                  </div>
 
@@ -1619,7 +1649,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         payoutPercentage: 87,
         stopGainTrades: 3,
         stopLossTrades: 2,
-        currency: 'BRL'
+        currency: 'BRL',
+        apiToken: 'aj4mwhx2bw'
     };
 
     // Load Brokerages
@@ -1946,7 +1977,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     };
 
     const handleAddBrokerage = (name: string, initialBalance: number) => {
-        const newBrokerage: Brokerage = { ...defaultBrokerage, id: Date.now().toString(), name, initialBalance, currency: 'BRL' };
+        const newBrokerage: Brokerage = { ...defaultBrokerage, id: Date.now().toString(), name, initialBalance, currency: 'BRL', apiToken: '' };
         setBrokerages(prev => [...prev, newBrokerage]);
         setActiveBrokerageId(newBrokerage.id);
         setActiveTab('settings');
@@ -1998,7 +2029,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     )}
 
                     {activeTab === 'analyze' && (
-                        <AnalysisPanel records={sortedRecords} isDarkMode={isDarkMode} />
+                        <AnalysisPanel records={sortedRecords} isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} />
                     )}
 
                     {activeTab === 'soros' && (
