@@ -795,9 +795,7 @@ const assets = [
 
 const AnalysisPanel: React.FC<{
     isDarkMode: boolean;
-    activeBrokerage: Brokerage;
-    setActiveTab: (tab: 'settings') => void;
-}> = ({ isDarkMode, activeBrokerage, setActiveTab }) => {
+}> = ({ isDarkMode }) => {
     const theme = useThemeClasses(isDarkMode);
     const [signal, setSignal] = useState<Signal | null>(null);
     const [loading, setLoading] = useState(false);
@@ -806,8 +804,6 @@ const AnalysisPanel: React.FC<{
     const [selectedAsset, setSelectedAsset] = useState(assets[0]);
     
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-    const hasApiToken = useMemo(() => activeBrokerage.apiToken && activeBrokerage.apiToken.length > 5, [activeBrokerage.apiToken]);
 
     const loadingSteps = [
         "Acessando dados do TradingView...",
@@ -920,24 +916,6 @@ const AnalysisPanel: React.FC<{
             if (timerRef.current) clearInterval(timerRef.current);
         };
     }, [signal]);
-    
-    if (!hasApiToken) {
-        return (
-            <div className="p-4 md:p-8">
-                <div className={`p-6 rounded-2xl border ${theme.card} max-w-2xl mx-auto text-center`}>
-                    <CpuChipIcon className="w-12 h-12 mx-auto text-yellow-500" />
-                    <h2 className="mt-4 text-2xl font-bold">Funcionalidade Avançada Bloqueada</h2>
-                    <p className="mt-2 text-slate-400">Para utilizar a IA Preditiva de Sinais, é necessário configurar o token da API da sua corretora. Isso permite que nossa IA simule uma análise em tempo real com maior precisão.</p>
-                    <button 
-                        onClick={() => setActiveTab('settings')} 
-                        className="mt-6 bg-yellow-500 text-slate-900 font-bold px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all shadow-lg shadow-yellow-500/20"
-                    >
-                        Ir para Configurações
-                    </button>
-                </div>
-            </div>
-        );
-    }
 
     const isBuy = signal?.action === 'COMPRA';
     const confidenceColor = signal && signal.confidence > 85 ? 'text-green-400' : signal && signal.confidence > 75 ? 'text-yellow-400' : 'text-orange-400';
@@ -1486,24 +1464,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ activeBrokerage, onUpdate
                                 />
                              </div>
                         </div>
-
-                        <div>
-                            <label className={`block text-sm font-medium mb-2 ${theme.textMuted}`}>Token da API da Corretora (Opcional)</label>
-                            <input
-                                type="text"
-                                value={formData.apiToken || ''}
-                                onChange={(e) => handleChange('apiToken', e.target.value)}
-                                className={`block w-full px-4 py-3 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors ${theme.input}`}
-                                placeholder="Cole seu token da API aqui"
-                            />
-                        </div>
-
-                        <div className="p-4 bg-blue-500/10 text-blue-500 rounded-xl text-sm border border-blue-500/20">
-                            <p className="flex items-center gap-2 font-bold mb-1">
-                                <InformationCircleIcon className="w-4 h-4" /> Para que serve?
-                            </p>
-                            O token da API permitirá, no futuro, que a IA analise os gráficos da sua corretora em tempo real.
-                        </div>
                     </div>
                  </div>
 
@@ -1868,7 +1828,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         stopGainTrades: 3,
         stopLossTrades: 2,
         currency: 'BRL',
-        apiToken: 'aj4mwhx2bw'
     };
 
     // Load Brokerages
@@ -2195,7 +2154,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     };
 
     const handleAddBrokerage = (name: string, initialBalance: number) => {
-        const newBrokerage: Brokerage = { ...defaultBrokerage, id: Date.now().toString(), name, initialBalance, currency: 'BRL', apiToken: '' };
+        const newBrokerage: Brokerage = { ...defaultBrokerage, id: Date.now().toString(), name, initialBalance, currency: 'BRL' };
         setBrokerages(prev => [...prev, newBrokerage]);
         setActiveBrokerageId(newBrokerage.id);
         setActiveTab('settings');
@@ -2249,8 +2208,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {activeTab === 'analyze' && (
                         <AnalysisPanel 
                             isDarkMode={isDarkMode} 
-                            activeBrokerage={activeBrokerage} 
-                            setActiveTab={setActiveTab as (tab: 'settings') => void}
                         />
                     )}
 

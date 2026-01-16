@@ -8,7 +8,6 @@ export interface Brokerage {
   stopGainTrades: number;
   stopLossTrades: number;
   currency: 'BRL' | 'USD'; // New field
-  apiToken?: string;
 }
 
 export interface Trade {
