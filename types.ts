@@ -42,6 +42,14 @@ export interface TransactionRecord {
     timestamp?: number; // Added for specific time tracking
 }
 
+export interface Goal {
+  id: string;
+  name: string;
+  type: 'weekly' | 'monthly' | 'annual';
+  targetAmount: number;
+  createdAt: number;
+}
+
 export type AppRecord = DailyRecord | TransactionRecord;
 
 export interface User {

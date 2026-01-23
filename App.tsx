@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Trade, User } from './types';
+import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Trade, User, Goal } from './types';
 import { GoogleGenAI, Type } from "@google/genai";
 import { fetchUSDBRLRate } from './services/currencyService';
 import { 
@@ -225,7 +225,6 @@ const AnalysisPanel: React.FC<any> = ({ isDarkMode }) => {
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const prompt = `Analise o mercado de criptoativos e retorne um JSON puro para um sinal de trading no tempo ${timeframe}. { "action": "COMPRA" | "VENDA", "asset": "BTC/USDT", "timeframe": "M1|M2|M5", "confidence": 70-98, "reason": ["...", "..."] }`;
-            // FIX: Added responseSchema to ensure a structured JSON response from the Gemini API.
             const response = await ai.models.generateContent({
                 model: 'gemini-3-pro-preview',
                 contents: prompt,
@@ -247,7 +246,9 @@ const AnalysisPanel: React.FC<any> = ({ isDarkMode }) => {
                     }
                 }
             });
-            setSignal(JSON.parse(response.text));
+            if (response.text) {
+                setSignal(JSON.parse(response.text));
+            }
         } finally { setLoading(false); }
     };
 
@@ -330,7 +331,6 @@ const CompoundInterestPanel: React.FC<{
         const rows = [];
         const dateCursor = new Date(startDate + 'T00:00:00Z');
         
-        // FIX: Used a type guard to correctly filter for DailyRecord, resolving type errors.
         const dayRecords = records.filter((r): r is DailyRecord => r.recordType === 'day');
         const recordMap = new Map(dayRecords.map(r => [r.id, r]));
         const sortedRecords = [...dayRecords].sort((a, b) => a.date.localeCompare(b.date));
@@ -345,20 +345,22 @@ const CompoundInterestPanel: React.FC<{
             const realDayRecord = recordMap.get(dateStr);
 
             if (realDayRecord) {
-                const hasOps = realDayRecord.trades && realDayRecord.trades.length > 0;
-                const avgPayout = hasOps ? realDayRecord.trades.reduce((acc, t) => acc + t.payoutPercentage, 0) / realDayRecord.trades.length : 0;
+                // FIX: Cast realDayRecord to DailyRecord as TypeScript seems to lose the type info here, inferring it as 'unknown'.
+                const dailyRecord = realDayRecord as DailyRecord;
+                const hasOps = dailyRecord.trades && dailyRecord.trades.length > 0;
+                const avgPayout = hasOps ? dailyRecord.trades.reduce((acc, t) => acc + t.payoutPercentage, 0) / dailyRecord.trades.length : 0;
                 
                 rows.push({
                     isProjection: false,
                     dateStr, displayDate,
-                    initial: realDayRecord.startBalanceUSD,
-                    entry: realDayRecord.startBalanceUSD * 0.1,
+                    initial: dailyRecord.startBalanceUSD,
+                    entry: dailyRecord.startBalanceUSD * 0.1,
                     payoutPct: avgPayout,
-                    lucro: realDayRecord.netProfitUSD,
-                    win: realDayRecord.winCount,
-                    red: realDayRecord.lossCount
+                    lucro: dailyRecord.netProfitUSD,
+                    win: dailyRecord.winCount,
+                    red: dailyRecord.lossCount
                 });
-                lastKnownBalance = realDayRecord.endBalanceUSD;
+                lastKnownBalance = dailyRecord.endBalanceUSD;
             } else {
                 rows.push({
                     isProjection: true,
@@ -427,6 +429,249 @@ const CompoundInterestPanel: React.FC<{
     );
 };
 
+// --- Settings Panel ---
+
+const SettingsPanel: React.FC<{
+    activeBrokerage: Brokerage;
+    onSave: (updatedBrokerage: Brokerage) => void;
+    isDarkMode: boolean;
+}> = ({ activeBrokerage, onSave, isDarkMode }) => {
+    const theme = useThemeClasses(isDarkMode);
+    const [formData, setFormData] = useState<Brokerage>(activeBrokerage);
+    const [isSaved, setIsSaved] = useState(false);
+
+    useEffect(() => {
+        setFormData(activeBrokerage);
+    }, [activeBrokerage]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value, type } = e.target;
+        const processedValue = type === 'number' ? parseFloat(value) || 0 : value;
+        setFormData(prev => ({ ...prev, [name]: processedValue }));
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave(formData);
+        setIsSaved(true);
+        setTimeout(() => setIsSaved(false), 2500);
+    };
+
+    return (
+        <div className="p-4 md:p-8 space-y-6">
+            <div>
+                <h2 className={`text-2xl font-bold ${theme.text}`}>Configurações</h2>
+                <p className={theme.textMuted}>Ajuste os parâmetros da sua gestão de banca.</p>
+            </div>
+            
+            <form onSubmit={handleSubmit} className={`p-6 rounded-2xl border ${theme.card} max-w-3xl mx-auto`}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                    
+                    <div className="md:col-span-2">
+                        <label htmlFor="name" className="block text-xs font-black uppercase text-slate-500 mb-1">Nome da Gestão</label>
+                        <input type="text" id="name" name="name" value={formData.name} onChange={handleChange} className={`w-full h-12 px-4 rounded-xl border font-bold ${theme.input}`} />
+                    </div>
+
+                    <div>
+                        <label htmlFor="initialBalance" className="block text-xs font-black uppercase text-slate-500 mb-1">Banca Inicial ({formData.currency})</label>
+                        <input type="number" id="initialBalance" name="initialBalance" value={formData.initialBalance} onChange={handleChange} className={`w-full h-12 px-4 rounded-xl border font-bold ${theme.input}`} />
+                    </div>
+                    
+                    <div>
+                        <label htmlFor="payoutPercentage" className="block text-xs font-black uppercase text-slate-500 mb-1">Payout Padrão (%)</label>
+                        <input type="number" id="payoutPercentage" name="payoutPercentage" value={formData.payoutPercentage} onChange={handleChange} className={`w-full h-12 px-4 rounded-xl border font-bold ${theme.input}`} />
+                    </div>
+
+                    <div>
+                        <label htmlFor="stopGainTrades" className="block text-xs font-black uppercase text-slate-500 mb-1">Stop Gain (nº de wins)</label>
+                        <input type="number" id="stopGainTrades" name="stopGainTrades" value={formData.stopGainTrades} onChange={handleChange} className={`w-full h-12 px-4 rounded-xl border font-bold ${theme.input}`} />
+                    </div>
+
+                    <div>
+                        <label htmlFor="stopLossTrades" className="block text-xs font-black uppercase text-slate-500 mb-1">Stop Loss (nº de loss)</label>
+                        <input type="number" id="stopLossTrades" name="stopLossTrades" value={formData.stopLossTrades} onChange={handleChange} className={`w-full h-12 px-4 rounded-xl border font-bold ${theme.input}`} />
+                    </div>
+
+                </div>
+                <div className="mt-8 flex justify-end items-center gap-4">
+                    {isSaved && <p className="text-sm font-bold text-green-500 transition-opacity">Salvo com sucesso!</p>}
+                    <button type="submit" className="h-12 px-8 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-xl uppercase tracking-widest transition-all shadow-lg shadow-green-500/20">
+                        Salvar
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
+// --- Add Goal Modal ---
+const AddGoalModal: React.FC<{
+    isDarkMode: boolean;
+    onClose: () => void;
+    onSave: (goal: Omit<Goal, 'id' | 'createdAt'>) => void;
+}> = ({ isDarkMode, onClose, onSave }) => {
+    const [name, setName] = useState('');
+    const [targetAmount, setTargetAmount] = useState('');
+    const [type, setType] = useState<'weekly' | 'monthly' | 'annual'>('monthly');
+
+    const handleSave = () => {
+        if (name && targetAmount) {
+            onSave({
+                name,
+                targetAmount: parseFloat(targetAmount),
+                type,
+            });
+            onClose();
+        }
+    };
+    
+    const theme = useThemeClasses(isDarkMode);
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className={`w-full max-w-md rounded-3xl border p-6 shadow-2xl ${theme.card}`}>
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="font-black text-xl">Criar Nova Meta</h3>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-800/20 rounded-full transition-colors"><XMarkIcon className="w-6 h-6" /></button>
+                </div>
+                <div className="space-y-4">
+                    <div>
+                        <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Nome da Meta</label>
+                        <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Entrada do apartamento" className={`w-full h-12 px-4 rounded-xl border font-bold ${theme.input}`} />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Valor Alvo ($)</label>
+                        <input type="number" value={targetAmount} onChange={e => setTargetAmount(e.target.value)} placeholder="5000" className={`w-full h-12 px-4 rounded-xl border font-bold ${theme.input}`} />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Tipo de Meta</label>
+                         <div className="grid grid-cols-3 gap-2 mt-1">
+                            {(['weekly', 'monthly', 'annual'] as const).map(t => (
+                                <button key={t} onClick={() => setType(t)} className={`h-12 rounded-xl font-bold text-xs border transition-all capitalize ${type === t ? 'bg-green-500 text-slate-950 border-green-500' : 'text-slate-500 border-slate-800'}`}>{t === 'weekly' ? 'Semanal' : t === 'monthly' ? 'Mensal' : 'Anual'}</button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <button 
+                    onClick={handleSave}
+                    className="w-full h-14 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-xl mt-8 transition-all shadow-xl shadow-green-500/20 uppercase tracking-widest"
+                >
+                    Salvar Meta
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// --- Goals Panel ---
+const GoalsPanel: React.FC<{
+    goals: Goal[];
+    setGoals: React.Dispatch<React.SetStateAction<Goal[]>>;
+    records: AppRecord[];
+    isDarkMode: boolean;
+    activeBrokerage: Brokerage;
+}> = ({ goals, setGoals, records, isDarkMode, activeBrokerage }) => {
+    const theme = useThemeClasses(isDarkMode);
+    const [isAddingGoal, setIsAddingGoal] = useState(false);
+
+    const getProfitForPeriod = (type: 'weekly' | 'monthly' | 'annual') => {
+        const now = new Date();
+        let startDate = new Date();
+
+        if (type === 'weekly') {
+            startDate.setDate(now.getDate() - now.getDay());
+        } else if (type === 'monthly') {
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        } else if (type === 'annual') {
+            startDate = new Date(now.getFullYear(), 0, 1);
+        }
+        startDate.setHours(0,0,0,0);
+        
+        const relevantRecords = records.filter((r): r is DailyRecord => 
+            r.recordType === 'day' && new Date(r.date + 'T00:00:00Z') >= startDate
+        );
+
+        return relevantRecords.reduce((acc, rec) => acc + rec.netProfitUSD, 0);
+    };
+
+    const handleAddGoal = (goalData: Omit<Goal, 'id' | 'createdAt'>) => {
+        const newGoal: Goal = {
+            ...goalData,
+            id: Date.now().toString(),
+            createdAt: Date.now(),
+        };
+        setGoals(prev => [...prev, newGoal]);
+    };
+    
+    const handleDeleteGoal = (id: string) => {
+        setGoals(prev => prev.filter(g => g.id !== id));
+    };
+
+    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+
+    return (
+        <div className="p-4 md:p-8 space-y-6">
+             {isAddingGoal && (
+                <AddGoalModal 
+                    isDarkMode={isDarkMode} 
+                    onClose={() => setIsAddingGoal(false)} 
+                    onSave={handleAddGoal}
+                />
+            )}
+            <div className="flex justify-between items-center">
+                 <div>
+                    <h2 className={`text-2xl font-bold ${theme.text}`}>Metas Financeiras</h2>
+                    <p className={theme.textMuted}>Defina e acompanhe seus objetivos de lucro.</p>
+                </div>
+                <button onClick={() => setIsAddingGoal(true)} className="flex items-center gap-2 h-10 px-4 bg-green-500 hover:bg-green-400 text-slate-950 font-bold rounded-xl text-sm transition-all shadow-lg shadow-green-500/20">
+                    <PlusIcon className="w-5 h-5" />
+                    <span>Nova Meta</span>
+                </button>
+            </div>
+
+            {goals.length === 0 ? (
+                 <div className={`p-10 rounded-2xl border ${theme.card} text-center ${theme.textMuted}`}>
+                    <TrophyIcon className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                    <h3 className={`font-bold text-lg mb-1 ${theme.text}`}>Nenhuma meta definida</h3>
+                    <p>Clique em "Nova Meta" para começar a planejar seus objetivos.</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {goals.map(goal => {
+                        const currentProfit = getProfitForPeriod(goal.type);
+                        const progress = Math.min((currentProfit / goal.targetAmount) * 100, 100);
+
+                        return (
+                            <div key={goal.id} className={`p-6 rounded-2xl border ${theme.card} flex flex-col group`}>
+                                <div className="flex-1">
+                                    <div className="flex justify-between items-start">
+                                        <p className="text-xs uppercase font-black text-slate-500 tracking-wider">{goal.type === 'weekly' ? 'Semanal' : goal.type === 'monthly' ? 'Mensal' : 'Anual'}</p>
+                                        <button onClick={() => handleDeleteGoal(goal.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:bg-red-500/10 p-1.5 rounded-full">
+                                            <TrashIcon className="w-4 h-4"/>
+                                        </button>
+                                    </div>
+                                    <h3 className={`font-black text-lg ${theme.text} mt-1`}>{goal.name}</h3>
+                                    <p className="text-2xl font-black text-green-500 mt-2">
+                                        {currencySymbol} {formatMoney(currentProfit)}
+                                        <span className={`text-sm font-bold ml-2 ${theme.textMuted}`}>de {currencySymbol} {formatMoney(goal.targetAmount)}</span>
+                                    </p>
+                                </div>
+                                <div className="mt-4">
+                                    <div className="w-full bg-slate-800 rounded-full h-2.5">
+                                        <div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
+                                    </div>
+                                    <p className="text-right text-xs font-bold mt-2 text-slate-400">{progress.toFixed(1)}%</p>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
+
+
 // --- Sidebar Component ---
 
 const Sidebar: React.FC<{
@@ -443,6 +688,7 @@ const Sidebar: React.FC<{
         { id: 'dashboard', label: 'Dashboard', icon: LayoutGridIcon },
         { id: 'analyze', label: 'Analisar (IA)', icon: CpuChipIcon },
         { id: 'compound', label: 'Planilha Ganhos', icon: ChartBarIcon },
+        { id: 'goals', label: 'Metas', icon: TrophyIcon },
         { id: 'settings', label: 'Configurações', icon: SettingsIcon },
     ];
 
@@ -479,7 +725,7 @@ const Sidebar: React.FC<{
 // --- App Root Logic ---
 
 const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout }) => {
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'analyze' | 'compound' | 'settings'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'analyze' | 'compound' | 'settings' | 'goals'>('dashboard');
     const [isDarkMode, setIsDarkMode] = useState(true);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [customEntryValue, setCustomEntryValue] = useState('');
@@ -494,6 +740,10 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const activeBrokerage = useMemo(() => brokerages.find(b => b.id === activeBrokerageId) || brokerages[0], [brokerages, activeBrokerageId]);
     
     const [records, setRecords] = useState<AppRecord[]>([]);
+    const [goals, setGoals] = useState<Goal[]>(() => {
+        const s = localStorage.getItem(`app_goals_${user.username}`);
+        return s ? JSON.parse(s) : [];
+    });
     const [selectedDate, setSelectedDate] = useState(new Date());
 
     useEffect(() => {
@@ -504,13 +754,21 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     useEffect(() => {
         localStorage.setItem(`app_records_${user.username}_${activeBrokerageId}`, JSON.stringify(records));
         localStorage.setItem(`app_brokerages_${user.username}`, JSON.stringify(brokerages));
-    }, [records, brokerages, user.username, activeBrokerageId]);
+        localStorage.setItem(`app_goals_${user.username}`, JSON.stringify(goals));
+    }, [records, brokerages, goals, user.username, activeBrokerageId]);
+    
+    const handleUpdateBrokerage = (updatedBrokerage: Brokerage) => {
+        setBrokerages(prev => {
+            const newBrokerages = prev.map(b => b.id === updatedBrokerage.id ? updatedBrokerage : b);
+            return newBrokerages;
+        });
+    };
 
     const addRecord = (winCount: number, lossCount: number, customEntry?: number, customPayout?: number) => {
         const dateStr = selectedDate.toISOString().split('T')[0];
         setRecords(prev => {
             const tempRecords = [...prev];
-            const lastRec = tempRecords.filter(r => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.date.localeCompare(a.date))[0] as DailyRecord;
+            const lastRec = tempRecords.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.date.localeCompare(a.date))[0];
             const startBal = lastRec ? lastRec.endBalanceUSD : activeBrokerage.initialBalance;
             
             const existingIdx = tempRecords.findIndex(r => r.id === dateStr && r.recordType === 'day');
@@ -547,7 +805,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             if (recordIdx !== -1) {
                 recordToUpdate = { ...baseRecords[recordIdx] as DailyRecord };
             } else {
-                const lastRec = baseRecords.filter(r => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.date.localeCompare(a.date))[0] as DailyRecord;
+                const lastRec = baseRecords.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.date.localeCompare(a.date))[0];
                 const startBal = lastRec ? lastRec.endBalanceUSD : activeBrokerage.initialBalance;
                 recordToUpdate = { recordType: 'day', brokerageId: activeBrokerageId, id: dateStr, date: dateStr, startBalanceUSD: startBal, trades: [], winCount: 0, lossCount: 0, netProfitUSD: 0, endBalanceUSD: startBal };
             }
@@ -559,10 +817,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             const payout = activeBrokerage.payoutPercentage;
 
             if (winDiff > 0) for (let i = 0; i < winDiff; i++) trades.push({ id: `${Date.now()}-w-${i}`, result: 'win', entryValue: entry, payoutPercentage: payout, timestamp: new Date(dateStr).getTime() });
-            // FIX: Replaced `findLastIndex` with `map` and `lastIndexOf` for better compatibility.
             else if (winDiff < 0) for (let i = 0; i < Math.abs(winDiff); i++) { const idx = trades.map(t => t.result).lastIndexOf('win'); if(idx > -1) trades.splice(idx, 1); }
             if (lossDiff > 0) for (let i = 0; i < lossDiff; i++) trades.push({ id: `${Date.now()}-l-${i}`, result: 'loss', entryValue: entry, payoutPercentage: payout, timestamp: new Date(dateStr).getTime() });
-            // FIX: Replaced `findLastIndex` with `map` and `lastIndexOf` for better compatibility.
             else if (lossDiff < 0) for (let i = 0; i < Math.abs(lossDiff); i++) { const idx = trades.map(t => t.result).lastIndexOf('loss'); if(idx > -1) trades.splice(idx, 1); }
             
             recordToUpdate.trades = trades;
@@ -570,8 +826,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             if (recordIdx !== -1) baseRecords[recordIdx] = recordToUpdate;
             else baseRecords.push(recordToUpdate);
             
-            const dayRecords = baseRecords.filter(r => r.recordType === 'day').sort((a, b) => a.date.localeCompare(b.date));
-            let lastEndBalance = activeBrokerage.initialBalance;
+            const dayRecords = baseRecords.filter((r): r is DailyRecord => r.recordType === 'day').sort((a, b) => a.date.localeCompare(b.date));
             const recalculatedDayRecords = dayRecords.map((rec, index) => {
                 const startBalance = index === 0 ? activeBrokerage.initialBalance : dayRecords[index - 1].endBalanceUSD;
                 const netProfit = rec.trades.reduce((acc, t) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0);
@@ -591,15 +846,13 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             const record = newRecords[idx] as DailyRecord;
             const newTrades = record.trades.filter(t => t.id !== tradeId);
             
-            if (newTrades.length === 0 && record.trades.length > 0) { // If last trade is deleted, remove the daily record
+            if (newTrades.length === 0 && record.trades.length > 0) {
                 newRecords.splice(idx, 1);
             } else {
                 newRecords[idx] = { ...record, trades: newTrades };
             }
             
-            // Recalculate all subsequent balances
-            const dayRecords = newRecords.filter(r => r.recordType === 'day').sort((a, b) => a.date.localeCompare(b.date));
-            let lastEndBalance = activeBrokerage.initialBalance;
+            const dayRecords = newRecords.filter((r): r is DailyRecord => r.recordType === 'day').sort((a, b) => a.date.localeCompare(b.date));
             const recalculatedDayRecords = dayRecords.map((rec, index) => {
                 const startBalance = index === 0 ? activeBrokerage.initialBalance : dayRecords[index - 1].endBalanceUSD;
                 const netProfit = rec.trades.reduce((acc, t) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0);
@@ -620,8 +873,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             const newTrades = record.trades.map(t => t.id === tradeId ? { ...t, ...updatedData } : t);
             newRecords[idx] = { ...record, trades: newTrades };
 
-            const dayRecords = newRecords.filter(r => r.recordType === 'day').sort((a, b) => a.date.localeCompare(b.date));
-            let lastEndBalance = activeBrokerage.initialBalance;
+            const dayRecords = newRecords.filter((r): r is DailyRecord => r.recordType === 'day').sort((a, b) => a.date.localeCompare(b.date));
             const recalculatedDayRecords = dayRecords.map((rec, index) => {
                 const startBalance = index === 0 ? activeBrokerage.initialBalance : dayRecords[index - 1].endBalanceUSD;
                 const netProfit = rec.trades.reduce((acc, t) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0);
@@ -633,7 +885,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     };
 
     const dailyRecord = records.find(r => r.id === selectedDate.toISOString().split('T')[0] && r.recordType === 'day') as DailyRecord;
-    const startBal = records.filter(r => r.recordType === 'day' && r.date < selectedDate.toISOString().split('T')[0]).sort((a,b) => b.date.localeCompare(a.date))[0]?.endBalanceUSD || activeBrokerage.initialBalance;
+    const startBal = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < selectedDate.toISOString().split('T')[0]).sort((a,b) => b.date.localeCompare(a.date))[0]?.endBalanceUSD || activeBrokerage.initialBalance;
 
     return (
         <div className={`flex h-screen overflow-hidden font-sans ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
@@ -667,6 +919,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     )}
                     {activeTab === 'analyze' && <AnalysisPanel isDarkMode={isDarkMode} />}
                     {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} onUpdateDay={handleUpdateDayRecord} />}
+                    {activeTab === 'settings' && <SettingsPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} onSave={handleUpdateBrokerage} />}
+                    {activeTab === 'goals' && <GoalsPanel goals={goals} setGoals={setGoals} records={records} isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} />}
                 </div>
             </main>
         </div>
