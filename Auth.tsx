@@ -1,44 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import App from './App';
 import Login from './components/Login';
 import { User } from './types';
 
-// Initial users, will be seeded into localStorage if not present
-const INITIAL_USERS: Record<string, string> = {
-  henrique: '1345',
-  admin: 'admin',
-  larissa: 'lari@2025',
-  adailton: '1345',
-};
-
 const Auth: React.FC = () => {
-    // User accounts are now managed in state, sourced from localStorage
-    const [users, setUsers] = useState<Record<string, string>>(() => {
-        try {
-            const storedUsersStr = localStorage.getItem('app_users');
-            const storedUsers = storedUsersStr ? JSON.parse(storedUsersStr) : {};
-            
-            // Merge INITIAL_USERS with storedUsers. 
-            // INITIAL_USERS provides defaults/new hardcoded users.
-            // storedUsers overrides existing ones (if passwords changed or registered).
-            // This ensures 'adailton' appears even if localStorage exists.
-            const mergedUsers = { ...INITIAL_USERS, ...storedUsers };
-
-            // Explicitly remove charles if he exists in storage (cleanup)
-            if (mergedUsers['charles']) {
-                delete mergedUsers['charles'];
-            }
-            
-            // Update localStorage with the merged result so it persists
-            localStorage.setItem('app_users', JSON.stringify(mergedUsers));
-            
-            return mergedUsers;
-        } catch (error) {
-            console.error("Failed to load users from localStorage", error);
-            return INITIAL_USERS; // Fallback
-        }
-    });
-
     const [currentUser, setCurrentUser] = useState<User | null>(() => {
         try {
             const savedUser = sessionStorage.getItem('currentUser');
@@ -50,38 +15,55 @@ const Auth: React.FC = () => {
     });
     const [authError, setAuthError] = useState('');
 
-    const handleLogin = useCallback((username: string, password: string): boolean => {
-        const lowerUsername = username.toLowerCase();
-        if (users[lowerUsername] && users[lowerUsername] === password) {
-            const user: User = { username: lowerUsername };
-            setCurrentUser(user);
-            sessionStorage.setItem('currentUser', JSON.stringify(user));
-            setAuthError('');
-            return true;
+    const handleLogin = useCallback(async (username: string, password: string): Promise<boolean> => {
+        setAuthError('');
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                const user: User = data.user;
+                setCurrentUser(user);
+                sessionStorage.setItem('currentUser', JSON.stringify(user));
+                return true;
+            } else {
+                setAuthError(data.error || 'Falha ao fazer login.');
+                return false;
+            }
+        } catch (error) {
+            console.error(error);
+            setAuthError('Ocorreu um erro de rede. Tente novamente.');
+            return false;
         }
-        setAuthError('Usuário ou senha inválidos.');
-        return false;
-    }, [users]);
+    }, []);
 
-    const handleRegister = useCallback((username: string, password: string) => {
-        const lowerUsername = username.toLowerCase();
-        if (users[lowerUsername]) {
-            setAuthError('Este nome de usuário já existe.');
-            return;
+    const handleRegister = useCallback(async (username: string, password: string) => {
+        setAuthError('');
+        try {
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Automatically log in the new user
+                await handleLogin(username, password);
+            } else {
+                setAuthError(data.error || 'Falha ao registrar.');
+            }
+        } catch (error) {
+            console.error(error);
+            setAuthError('Ocorreu um erro de rede. Tente novamente.');
         }
-        if (password.length < 4) {
-            setAuthError('A senha deve ter pelo menos 4 caracteres.');
-            return;
-        }
-
-        const newUsers = { ...users, [lowerUsername]: password };
-        setUsers(newUsers);
-        localStorage.setItem('app_users', JSON.stringify(newUsers));
-
-        // Automatically log in the new user
-        handleLogin(lowerUsername, password);
-    }, [users, handleLogin]);
-
+    }, [handleLogin]);
 
     const handleLogout = useCallback(() => {
         setCurrentUser(null);

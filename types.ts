@@ -53,5 +53,6 @@ export interface Goal {
 export type AppRecord = DailyRecord | TransactionRecord;
 
 export interface User {
+  id: number;
   username: string;
 }

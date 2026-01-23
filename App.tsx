@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Trade, User, Goal } from './types';
 import { GoogleGenAI, Type } from "@google/genai";
+import { useDebouncedCallback } from './hooks/useDebouncedCallback';
 import { fetchUSDBRLRate } from './services/currencyService';
 import { 
     SettingsIcon, PlusIcon, DepositIcon, WithdrawalIcon, XMarkIcon, 
@@ -730,38 +731,81 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [customEntryValue, setCustomEntryValue] = useState('');
     const [customPayout, setCustomPayout] = useState('');
+
+    const [brokerages, setBrokerages] = useState<Brokerage[]>([]);
+    const [records, setRecords] = useState<AppRecord[]>([]);
+    const [goals, setGoals] = useState<Goal[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const isInitialLoad = useRef(true);
     
-    const [brokerages, setBrokerages] = useState<Brokerage[]>(() => {
-        const defaultBrokerage: Brokerage = { id: '1', name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' };
-        const s = localStorage.getItem(`app_brokerages_${user.username}`);
-        return s ? JSON.parse(s) : [defaultBrokerage];
-    });
-    const [activeBrokerageId, setActiveBrokerageId] = useState(brokerages[0]?.id || '');
+    // Fetch all user data from the server on initial load
+    useEffect(() => {
+        const fetchData = async () => {
+            isInitialLoad.current = true;
+            setIsLoading(true);
+            try {
+                const response = await fetch(`/api/get-data?userId=${user.id}`);
+                const data = await response.json();
+                if (response.ok) {
+                    // If no brokerage, create a default one
+                    if (!data.brokerages || data.brokerages.length === 0) {
+                        const defaultBrokerage: Brokerage = { id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' };
+                        setBrokerages([defaultBrokerage]);
+                    } else {
+                        setBrokerages(data.brokerages);
+                    }
+                    setRecords(data.records || []);
+                    setGoals(data.goals || []);
+                } else {
+                    console.error("Failed to fetch data:", data.error);
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            } finally {
+                setIsLoading(false);
+                // Allow saving after a short delay to prevent saving the initial fetched state
+                setTimeout(() => { isInitialLoad.current = false; }, 500);
+            }
+        };
+        fetchData();
+    }, [user.id]);
+
+    // Debounced function to save all data to the server
+    const saveDataToServer = useCallback(async () => {
+        if (isInitialLoad.current) return;
+        try {
+            await fetch('/api/save-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: user.id, brokerages, records, goals }),
+            });
+        } catch (error) {
+            console.error("Failed to save data:", error);
+        }
+    }, [user.id, brokerages, records, goals]);
+
+    const debouncedSave = useDebouncedCallback(saveDataToServer, 2000);
+
+    // Trigger debounced save when data changes
+    useEffect(() => {
+        if (!isInitialLoad.current) {
+            debouncedSave();
+        }
+    }, [brokerages, records, goals, debouncedSave]);
+
+    const [activeBrokerageId, setActiveBrokerageId] = useState('');
     const activeBrokerage = useMemo(() => brokerages.find(b => b.id === activeBrokerageId) || brokerages[0], [brokerages, activeBrokerageId]);
     
-    const [records, setRecords] = useState<AppRecord[]>([]);
-    const [goals, setGoals] = useState<Goal[]>(() => {
-        const s = localStorage.getItem(`app_goals_${user.username}`);
-        return s ? JSON.parse(s) : [];
-    });
+    useEffect(() => {
+        if (brokerages.length > 0 && !activeBrokerageId) {
+            setActiveBrokerageId(brokerages[0].id);
+        }
+    }, [brokerages, activeBrokerageId]);
+    
     const [selectedDate, setSelectedDate] = useState(new Date());
 
-    useEffect(() => {
-        const savedRecords = localStorage.getItem(`app_records_${user.username}_${activeBrokerageId}`);
-        if (savedRecords) setRecords(JSON.parse(savedRecords));
-    }, [activeBrokerageId, user.username]);
-
-    useEffect(() => {
-        localStorage.setItem(`app_records_${user.username}_${activeBrokerageId}`, JSON.stringify(records));
-        localStorage.setItem(`app_brokerages_${user.username}`, JSON.stringify(brokerages));
-        localStorage.setItem(`app_goals_${user.username}`, JSON.stringify(goals));
-    }, [records, brokerages, goals, user.username, activeBrokerageId]);
-    
     const handleUpdateBrokerage = (updatedBrokerage: Brokerage) => {
-        setBrokerages(prev => {
-            const newBrokerages = prev.map(b => b.id === updatedBrokerage.id ? updatedBrokerage : b);
-            return newBrokerages;
-        });
+        setBrokerages(prev => prev.map(b => b.id === updatedBrokerage.id ? updatedBrokerage : b));
     };
 
     const addRecord = (winCount: number, lossCount: number, customEntry?: number, customPayout?: number) => {
@@ -777,8 +821,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
             const createTrades = (w: number, l: number): Trade[] => {
                 const t: Trade[] = [];
-                for(let i=0; i<w; i++) t.push({id: `${Date.now()}-w-${i}`, result: 'win', entryValue: entry, payoutPercentage: payout, timestamp: Date.now()});
-                for(let i=0; i<l; i++) t.push({id: `${Date.now()}-l-${i}`, result: 'loss', entryValue: entry, payoutPercentage: payout, timestamp: Date.now()});
+                for(let i=0; i<w; i++) t.push({id: crypto.randomUUID(), result: 'win', entryValue: entry, payoutPercentage: payout, timestamp: Date.now()});
+                for(let i=0; i<l; i++) t.push({id: crypto.randomUUID(), result: 'loss', entryValue: entry, payoutPercentage: payout, timestamp: Date.now()});
                 return t;
             };
 
@@ -816,9 +860,9 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             const entry = recordToUpdate.startBalanceUSD * (activeBrokerage.entryValue / 100) || activeBrokerage.entryValue;
             const payout = activeBrokerage.payoutPercentage;
 
-            if (winDiff > 0) for (let i = 0; i < winDiff; i++) trades.push({ id: `${Date.now()}-w-${i}`, result: 'win', entryValue: entry, payoutPercentage: payout, timestamp: new Date(dateStr).getTime() });
+            if (winDiff > 0) for (let i = 0; i < winDiff; i++) trades.push({ id: crypto.randomUUID(), result: 'win', entryValue: entry, payoutPercentage: payout, timestamp: new Date(dateStr).getTime() });
             else if (winDiff < 0) for (let i = 0; i < Math.abs(winDiff); i++) { const idx = trades.map(t => t.result).lastIndexOf('win'); if(idx > -1) trades.splice(idx, 1); }
-            if (lossDiff > 0) for (let i = 0; i < lossDiff; i++) trades.push({ id: `${Date.now()}-l-${i}`, result: 'loss', entryValue: entry, payoutPercentage: payout, timestamp: new Date(dateStr).getTime() });
+            if (lossDiff > 0) for (let i = 0; i < lossDiff; i++) trades.push({ id: crypto.randomUUID(), result: 'loss', entryValue: entry, payoutPercentage: payout, timestamp: new Date(dateStr).getTime() });
             else if (lossDiff < 0) for (let i = 0; i < Math.abs(lossDiff); i++) { const idx = trades.map(t => t.result).lastIndexOf('loss'); if(idx > -1) trades.splice(idx, 1); }
             
             recordToUpdate.trades = trades;
@@ -885,7 +929,15 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     };
 
     const dailyRecord = records.find(r => r.id === selectedDate.toISOString().split('T')[0] && r.recordType === 'day') as DailyRecord;
-    const startBal = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < selectedDate.toISOString().split('T')[0]).sort((a,b) => b.date.localeCompare(a.date))[0]?.endBalanceUSD || activeBrokerage.initialBalance;
+    const startBal = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < selectedDate.toISOString().split('T')[0]).sort((a,b) => b.date.localeCompare(a.date))[0]?.endBalanceUSD || activeBrokerage?.initialBalance;
+
+    if (isLoading) {
+        return (
+            <div className={`flex h-screen w-full items-center justify-center ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
+                <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
 
     return (
         <div className={`flex h-screen overflow-hidden font-sans ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
@@ -899,7 +951,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     </div>
                 </header>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
-                    {activeTab === 'dashboard' && (
+                    {activeTab === 'dashboard' && activeBrokerage && (
                         <DashboardPanel 
                             activeBrokerage={activeBrokerage} 
                             addRecord={addRecord} 
@@ -918,9 +970,9 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                         />
                     )}
                     {activeTab === 'analyze' && <AnalysisPanel isDarkMode={isDarkMode} />}
-                    {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} onUpdateDay={handleUpdateDayRecord} />}
-                    {activeTab === 'settings' && <SettingsPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} onSave={handleUpdateBrokerage} />}
-                    {activeTab === 'goals' && <GoalsPanel goals={goals} setGoals={setGoals} records={records} isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} />}
+                    {activeTab === 'compound' && activeBrokerage && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} onUpdateDay={handleUpdateDayRecord} />}
+                    {activeTab === 'settings' && activeBrokerage && <SettingsPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} onSave={handleUpdateBrokerage} />}
+                    {activeTab === 'goals' && activeBrokerage && <GoalsPanel goals={goals} setGoals={setGoals} records={records} isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} />}
                 </div>
             </main>
         </div>
