@@ -9,7 +9,7 @@ import {
     TrendingUpIcon, TrendingDownIcon, ListBulletIcon, TargetIcon, 
     CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ChevronUpIcon, 
     ChevronDownIcon, ArrowPathIcon, CpuChipIcon, InformationCircleIcon,
-    EditIcon, TrophyIcon, ChartBarIcon
+    EditIcon, TrophyIcon, ChartBarIcon, CheckIcon
 } from './components/icons';
 import { 
     LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -101,7 +101,25 @@ const EditTradeModal: React.FC<{
 
 // --- Dashboard Panel ---
 
-const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, updateTrade, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, startBalanceForSelectedDay, isDarkMode, dailyGoalTarget }) => {
+// @FIX: Replaced `any` with a specific props interface for `DashboardPanel` to ensure type safety.
+interface DashboardPanelProps {
+    activeBrokerage: Brokerage;
+    customEntryValue: string;
+    setCustomEntryValue: React.Dispatch<React.SetStateAction<string>>;
+    customPayout: string;
+    setCustomPayout: React.Dispatch<React.SetStateAction<string>>;
+    addRecord: (winCount: number, lossCount: number, customEntry?: number, customPayout?: number) => void;
+    deleteTrade: (tradeId: string, dateStr: string) => void;
+    updateTrade: (tradeId: string, dateStr: string, updatedData: Partial<Trade>) => void;
+    selectedDateString: string;
+    setSelectedDate: React.Dispatch<React.SetStateAction<Date>>;
+    dailyRecordForSelectedDay: DailyRecord | undefined;
+    startBalanceForSelectedDay: number;
+    isDarkMode: boolean;
+    dailyGoalTarget: number;
+}
+
+const DashboardPanel: React.FC<DashboardPanelProps> = ({ activeBrokerage, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, updateTrade, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, startBalanceForSelectedDay, isDarkMode, dailyGoalTarget }) => {
     const theme = useThemeClasses(isDarkMode);
     const [quantity, setQuantity] = useState('1');
     const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
@@ -249,7 +267,8 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     );
 };
 
-const AnalysisPanel: React.FC<any> = ({ isDarkMode }) => {
+// @FIX: Replaced `any` with a specific props type to ensure type safety.
+const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
     const theme = useThemeClasses(isDarkMode);
     const [loading, setLoading] = useState(false);
     const [signal, setSignal] = useState<any>(null);
@@ -388,8 +407,6 @@ const CompoundInterestPanel: React.FC<{
             const realDayRecord = recordMap.get(dateStr);
 
             if (realDayRecord) {
-// FIX: Use `realDayRecord` directly after it has been type-narrowed by the `if` condition.
-// This resolves a potential type inference issue where a new `dailyRecord` variable was being treated as `unknown`.
                 const hasOps = realDayRecord.trades && realDayRecord.trades.length > 0;
                 const avgPayout = hasOps ? realDayRecord.trades.reduce((acc, t) => acc + t.payoutPercentage, 0) / realDayRecord.trades.length : activeBrokerage.payoutPercentage;
                 const avgEntry = hasOps ? realDayRecord.trades.reduce((acc, t) => acc + t.entryValue, 0) / realDayRecord.trades.length : calculateEntry(realDayRecord.startBalanceUSD);
@@ -406,24 +423,19 @@ const CompoundInterestPanel: React.FC<{
                 });
                 lastKnownBalance = realDayRecord.endBalanceUSD;
             } else {
-                const entryValue = calculateEntry(lastKnownBalance);
-                const projectedWins = activeBrokerage.stopGainTrades > 0 ? activeBrokerage.stopGainTrades : 1;
-                const projectedLosses = 0; // Assume a perfect day for projection
-                const projectedPayout = activeBrokerage.payoutPercentage;
-                const projectedProfit = (entryValue * (projectedPayout / 100)) * projectedWins;
-
+                // Projection for a future day with no operations
                 rows.push({
                     isProjection: true,
                     dateStr,
                     displayDate,
                     initial: lastKnownBalance,
-                    entry: entryValue,
-                    payoutPct: projectedPayout,
-                    lucro: projectedProfit,
-                    win: projectedWins,
-                    red: projectedLosses,
+                    entry: calculateEntry(lastKnownBalance),
+                    payoutPct: 0,
+                    lucro: 0,
+                    win: 0,
+                    red: 0,
                 });
-                lastKnownBalance += projectedProfit;
+                // Balance carries over without change for projected days
             }
             
             dateCursor.setDate(dateCursor.getDate() + 1);
@@ -864,6 +876,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const [isResetting, setIsResetting] = useState(false);
     const [customEntryValue, setCustomEntryValue] = useState('');
     const [customPayout, setCustomPayout] = useState('');
+    const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
     const [brokerages, setBrokerages] = useState<Brokerage[]>([]);
     const [records, setRecords] = useState<AppRecord[]>([]);
@@ -893,12 +906,13 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             setRecords(data.records || []);
             setGoals(data.goals || []);
             
-            isInitialLoad.current = false;
         } catch (error) {
             console.error("Critical error fetching data:", error);
             setDataError((error as Error).message || 'Não foi possível carregar seus dados. Verifique sua conexão.');
         } finally {
             setIsLoading(false);
+            // Set isInitialLoad to false after a short delay to allow initial state to settle
+            setTimeout(() => { isInitialLoad.current = false; }, 500);
         }
     }, [user.id]);
 
@@ -909,19 +923,28 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     const saveDataToServer = useCallback(async () => {
         if (isInitialLoad.current) return;
+        setSavingStatus('saving');
         try {
-            await fetch('/api/save-data', {
+            const response = await fetch('/api/save-data', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: user.id, brokerages, records, goals }),
             });
+             if (response.ok) {
+                setSavingStatus('saved');
+                setTimeout(() => setSavingStatus('idle'), 2000);
+            } else {
+                // Handle server-side save errors if necessary
+                console.error("Failed to save data to server.");
+                setSavingStatus('idle'); // Or an 'error' state
+            }
         } catch (error) {
             console.error("Failed to save data:", error);
-            // Optionally, set an error state here to notify the user
+            setSavingStatus('idle'); // Or an 'error' state
         }
     }, [user.id, brokerages, records, goals]);
 
-    const debouncedSave = useDebouncedCallback(saveDataToServer, 2000);
+    const debouncedSave = useDebouncedCallback(saveDataToServer, 1000);
 
     useEffect(() => {
         if (!isInitialLoad.current) {
@@ -1094,7 +1117,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         });
     };
 
-    const dailyRecord = records.find(r => r.id === selectedDate.toISOString().split('T')[0] && r.recordType === 'day') as DailyRecord;
+    // @FIX: Replaced unsafe type assertion `as DailyRecord` with a type predicate to correctly infer `DailyRecord | undefined`.
+    const dailyRecord = records.find((r): r is DailyRecord => r.id === selectedDate.toISOString().split('T')[0] && r.recordType === 'day');
     const startBal = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < selectedDate.toISOString().split('T')[0]).sort((a,b) => b.date.localeCompare(a.date))[0]?.endBalanceUSD || activeBrokerage?.initialBalance;
 
     const dailyGoalTarget = useMemo(() => {
@@ -1127,6 +1151,26 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     const themeClasses = useThemeClasses(isDarkMode);
 
+    const SavingStatusIndicator = () => {
+        if (savingStatus === 'saving') {
+            return (
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                    <span>Salvando...</span>
+                </div>
+            );
+        }
+        if (savingStatus === 'saved') {
+            return (
+                <div className="flex items-center gap-2 text-xs font-bold text-green-500">
+                    <CheckIcon className="w-4 h-4" />
+                    <span>Salvo!</span>
+                </div>
+            );
+        }
+        return null;
+    };
+
     if (isLoading) {
         return (
             <div className={`flex h-screen w-full items-center justify-center ${themeClasses.bg} ${themeClasses.text}`}>
@@ -1155,11 +1199,14 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             {isResetting && <ResetConfirmationModal isDarkMode={isDarkMode} onClose={() => setIsResetting(false)} onConfirm={handleDataReset} />}
             <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={onLogout} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
             <main className="flex-1 flex flex-col overflow-hidden w-full">
-                <header className={`h-20 flex items-center justify-between md:justify-end px-4 md:px-8 border-b ${themeClasses.header}`}>
+                <header className={`h-20 flex items-center justify-between px-4 md:px-8 border-b ${themeClasses.header}`}>
                     <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-slate-500 p-2"><MenuIcon className="w-6 h-6" /></button>
-                    <div className="flex items-center gap-4">
-                         <div className="text-right hidden sm:block"><p className="text-[10px] font-black uppercase text-slate-500">Daytrader</p><p className="text-sm font-black">{user.username}</p></div>
-                         <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-green-500/20 uppercase">{user.username.slice(0, 2)}</div>
+                    <div className="flex-1 flex items-center justify-end gap-6">
+                        <SavingStatusIndicator />
+                        <div className="flex items-center gap-4">
+                            <div className="text-right hidden sm:block"><p className="text-[10px] font-black uppercase text-slate-500">Daytrader</p><p className="text-sm font-black">{user.username}</p></div>
+                            <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-green-500/20 uppercase">{user.username.slice(0, 2)}</div>
+                        </div>
                     </div>
                 </header>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
