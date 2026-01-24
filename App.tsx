@@ -1059,6 +1059,27 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const dailyRecord = records.find(r => r.id === selectedDate.toISOString().split('T')[0] && r.recordType === 'day') as DailyRecord;
     const startBal = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < selectedDate.toISOString().split('T')[0]).sort((a,b) => b.date.localeCompare(a.date))[0]?.endBalanceUSD || activeBrokerage?.initialBalance;
 
+    const dailyGoalTarget = useMemo(() => {
+        const monthlyGoal = goals.find(g => g.type === 'monthly');
+        if (!monthlyGoal) return 0;
+
+        const now = new Date();
+        const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        startDate.setHours(0, 0, 0, 0);
+
+        const relevantRecords = records.filter((r): r is DailyRecord => 
+            r.recordType === 'day' && new Date(r.date + 'T00:00:00Z') >= startDate
+        );
+        const currentMonthlyProfit = relevantRecords.reduce((acc, rec) => acc + rec.netProfitUSD, 0);
+
+        const remainingAmount = Math.max(0, monthlyGoal.targetAmount - currentMonthlyProfit);
+        const remainingDays = getRemainingBusinessDays();
+
+        if (remainingAmount <= 0 || remainingDays <= 0) return 0;
+        
+        return remainingAmount / remainingDays;
+    }, [goals, records]);
+
     if (isLoading) {
         return (
             <div className={`flex h-screen w-full items-center justify-center ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
@@ -1095,7 +1116,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             dailyRecordForSelectedDay={dailyRecord} 
                             startBalanceForSelectedDay={startBal} 
                             isDarkMode={isDarkMode} 
-                            dailyGoalTarget={10} 
+                            dailyGoalTarget={dailyGoalTarget} 
                         />
                     )}
                     {activeTab === 'analyze' && <AnalysisPanel isDarkMode={isDarkMode} />}
