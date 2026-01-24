@@ -297,6 +297,7 @@ const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
                     }
                 }
             });
+            // FIX: The 'text' property on the GenerateContentResponse is a getter, not a method. It should be accessed as response.text, not response.text().
             if (response.text) {
                 setSignal(JSON.parse(response.text));
             }
@@ -391,7 +392,6 @@ const CompoundInterestPanel: React.FC<{
         const dateCursor = new Date(startDate + 'T00:00:00Z');
         
         const dayRecords = records.filter((r): r is DailyRecord => r.recordType === 'day');
-        // FIX: Explicitly type `recordMap` to help TypeScript correctly infer the type of items retrieved from it, preventing errors with `realDayRecord`.
         const recordMap: Map<string, DailyRecord> = new Map(dayRecords.map(r => [r.id, r]));
         const sortedRecords = [...dayRecords].sort((a, b) => a.date.localeCompare(b.date));
         
@@ -422,6 +422,7 @@ const CompoundInterestPanel: React.FC<{
                 lastKnownBalance = realDayRecord.endBalanceUSD;
             } else {
                 // Projection for a future day with no operations
+                const projectedProfit = 0;
                 rows.push({
                     isProjection: true,
                     dateStr,
@@ -429,11 +430,12 @@ const CompoundInterestPanel: React.FC<{
                     initial: lastKnownBalance,
                     entry: calculateEntry(lastKnownBalance),
                     payoutPct: 0,
-                    lucro: 0,
+                    lucro: projectedProfit,
                     win: 0,
                     red: 0,
                 });
-                // Balance carries over without change for projected days
+                // Correctly carry over the balance for the next day's projection
+                lastKnownBalance += projectedProfit;
             }
             
             dateCursor.setDate(dateCursor.getDate() + 1);
@@ -950,6 +952,27 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             debouncedSave();
         }
     }, [brokerages, records, goals, debouncedSave]);
+    
+    // Create a ref to hold the latest data for use in the beacon
+    const latestDataRef = useRef({ userId: user.id, brokerages, records, goals });
+    useEffect(() => {
+        latestDataRef.current = { userId: user.id, brokerages, records, goals };
+    }, [user.id, brokerages, records, goals]);
+
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden' && !isInitialLoad.current) {
+                // Use sendBeacon for a reliable background save on page hide/close.
+                const data = latestDataRef.current;
+                const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+                navigator.sendBeacon('/api/save-data', blob);
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []); // Empty dependency array ensures this runs only once.
 
     const [activeBrokerageId, setActiveBrokerageId] = useState('');
     const activeBrokerage = useMemo(() => brokerages.find(b => b.id === activeBrokerageId) || brokerages[0], [brokerages, activeBrokerageId]);
