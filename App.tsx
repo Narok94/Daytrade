@@ -100,8 +100,6 @@ const EditTradeModal: React.FC<{
 };
 
 // --- Dashboard Panel ---
-
-// @FIX: Replaced `any` with a specific props interface for `DashboardPanel` to ensure type safety.
 interface DashboardPanelProps {
     activeBrokerage: Brokerage;
     customEntryValue: string;
@@ -267,7 +265,6 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({ activeBrokerage, custom
     );
 };
 
-// @FIX: Replaced `any` with a specific props type to ensure type safety.
 const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
     const theme = useThemeClasses(isDarkMode);
     const [loading, setLoading] = useState(false);
@@ -394,7 +391,8 @@ const CompoundInterestPanel: React.FC<{
         const dateCursor = new Date(startDate + 'T00:00:00Z');
         
         const dayRecords = records.filter((r): r is DailyRecord => r.recordType === 'day');
-        const recordMap = new Map(dayRecords.map(r => [r.id, r]));
+        // FIX: Explicitly type `recordMap` to help TypeScript correctly infer the type of items retrieved from it, preventing errors with `realDayRecord`.
+        const recordMap: Map<string, DailyRecord> = new Map(dayRecords.map(r => [r.id, r]));
         const sortedRecords = [...dayRecords].sort((a, b) => a.date.localeCompare(b.date));
         
         const recordBeforeStart = sortedRecords.filter(r => r.date < startDate).pop();
@@ -876,7 +874,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const [isResetting, setIsResetting] = useState(false);
     const [customEntryValue, setCustomEntryValue] = useState('');
     const [customPayout, setCustomPayout] = useState('');
-    const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+    const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+    const [saveError, setSaveError] = useState<string | null>(null);
 
     const [brokerages, setBrokerages] = useState<Brokerage[]>([]);
     const [records, setRecords] = useState<AppRecord[]>([]);
@@ -911,8 +910,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             setDataError((error as Error).message || 'Não foi possível carregar seus dados. Verifique sua conexão.');
         } finally {
             setIsLoading(false);
-            // Set isInitialLoad to false after a short delay to allow initial state to settle
-            setTimeout(() => { isInitialLoad.current = false; }, 500);
+            isInitialLoad.current = false;
         }
     }, [user.id]);
 
@@ -924,6 +922,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const saveDataToServer = useCallback(async () => {
         if (isInitialLoad.current) return;
         setSavingStatus('saving');
+        setSaveError(null);
         try {
             const response = await fetch('/api/save-data', {
                 method: 'POST',
@@ -934,13 +933,13 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 setSavingStatus('saved');
                 setTimeout(() => setSavingStatus('idle'), 2000);
             } else {
-                // Handle server-side save errors if necessary
-                console.error("Failed to save data to server.");
-                setSavingStatus('idle'); // Or an 'error' state
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Falha ao salvar no servidor.');
             }
         } catch (error) {
             console.error("Failed to save data:", error);
-            setSavingStatus('idle'); // Or an 'error' state
+            setSavingStatus('error');
+            setSaveError((error as Error).message);
         }
     }, [user.id, brokerages, records, goals]);
 
@@ -1117,7 +1116,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         });
     };
 
-    // @FIX: Replaced unsafe type assertion `as DailyRecord` with a type predicate to correctly infer `DailyRecord | undefined`.
     const dailyRecord = records.find((r): r is DailyRecord => r.id === selectedDate.toISOString().split('T')[0] && r.recordType === 'day');
     const startBal = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < selectedDate.toISOString().split('T')[0]).sort((a,b) => b.date.localeCompare(a.date))[0]?.endBalanceUSD || activeBrokerage?.initialBalance;
 
@@ -1165,6 +1163,14 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 <div className="flex items-center gap-2 text-xs font-bold text-green-500">
                     <CheckIcon className="w-4 h-4" />
                     <span>Salvo!</span>
+                </div>
+            );
+        }
+        if (savingStatus === 'error') {
+            return (
+                <div className="flex items-center gap-2 text-xs font-bold text-red-500" title={saveError || 'Erro desconhecido'}>
+                    <InformationCircleIcon className="w-4 h-4" />
+                    <span>Falha ao salvar</span>
                 </div>
             );
         }
