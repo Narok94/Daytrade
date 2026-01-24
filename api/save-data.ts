@@ -2,6 +2,50 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { db } from '@vercel/postgres';
 import { Brokerage, DailyRecord, Goal } from '../../types';
 
+async function ensureTablesAndMigrate(client: any) {
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(50) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+    `);
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS operacoes_daytrade (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            record_id VARCHAR(10) NOT NULL,
+            brokerage_id UUID NOT NULL,
+            tipo_operacao TEXT NOT NULL,
+            valor_entrada DECIMAL(10, 2) NOT NULL,
+            payout_percentage INTEGER NOT NULL,
+            resultado DECIMAL(10, 2) NOT NULL,
+            data_operacao TIMESTAMPTZ DEFAULT NOW()
+        );
+    `);
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS user_settings (
+            user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            settings_json JSONB
+        );
+    `);
+
+    // Migração: Adiciona a coluna 'record_id' se ela não existir em uma tabela antiga.
+    const { rows } = await client.query(`
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'operacoes_daytrade' AND column_name = 'record_id';
+    `);
+
+    if (rows.length === 0) {
+        console.log("Applying migration during save: Adding 'record_id' to 'operacoes_daytrade' table.");
+        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN record_id VARCHAR(10);`);
+        await client.query(`UPDATE operacoes_daytrade SET record_id = TO_CHAR(data_operacao, 'YYYY-MM-DD');`);
+        await client.query(`ALTER TABLE operacoes_daytrade ALTER COLUMN record_id SET NOT NULL;`);
+        console.log("Save-data migration successful.");
+    }
+}
+
 export default async function handler(
     req: VercelRequest,
     res: VercelResponse,
@@ -13,6 +57,9 @@ export default async function handler(
     const client = await db.connect();
 
     try {
+        // Garante que a estrutura do DB esteja correta antes de tentar salvar
+        await ensureTablesAndMigrate(client);
+        
         const { userId, brokerages, records, goals } = req.body as {
             userId: number;
             brokerages: Brokerage[];

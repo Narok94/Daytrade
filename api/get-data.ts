@@ -2,7 +2,7 @@ import { db } from '@vercel/postgres';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Brokerage, DailyRecord, Goal, Trade } from '../../types';
 
-async function ensureTables(client: any) {
+async function ensureTablesAndMigrate(client: any) {
     await client.query(`
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
@@ -30,6 +30,20 @@ async function ensureTables(client: any) {
             settings_json JSONB
         );
     `);
+
+    // Migração: Adiciona a coluna 'record_id' se ela não existir em uma tabela antiga.
+    const { rows } = await client.query(`
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'operacoes_daytrade' AND column_name = 'record_id';
+    `);
+
+    if (rows.length === 0) {
+        console.log("Applying migration: Adding 'record_id' to 'operacoes_daytrade' table.");
+        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN record_id VARCHAR(10);`);
+        await client.query(`UPDATE operacoes_daytrade SET record_id = TO_CHAR(data_operacao, 'YYYY-MM-DD');`);
+        await client.query(`ALTER TABLE operacoes_daytrade ALTER COLUMN record_id SET NOT NULL;`);
+        console.log("Migration successful.");
+    }
 }
 
 export default async function handler(
@@ -42,7 +56,7 @@ export default async function handler(
 
     const client = await db.connect();
     try {
-        await ensureTables(client);
+        await ensureTablesAndMigrate(client);
 
         const userId = req.query.userId as string;
         if (!userId) {
