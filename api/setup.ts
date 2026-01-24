@@ -33,7 +33,7 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
         );
     `);
 
-    // 2. CHECK & ADD MISSING COLUMNS
+    // 2. CHECK & ADD ALL POTENTIALLY MISSING COLUMNS
     const { rows: columnsResult } = await client.query(`
         SELECT column_name FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'operacoes_daytrade';
@@ -52,6 +52,10 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
         console.log("Applying migration: Adding 'brokerage_id' column.");
         await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN brokerage_id UUID;`);
     }
+    if (!existingColumns.includes('payout_percentage')) {
+        console.log("Applying migration: Adding 'payout_percentage' column.");
+        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN payout_percentage INTEGER;`);
+    }
     
     // 3. POPULATE DATA FOR MIGRATED COLUMNS (if user context is available)
     if (userId) {
@@ -60,6 +64,9 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
 
         // Populate record_id for any records missing it
         await client.query(`UPDATE operacoes_daytrade SET record_id = TO_CHAR(data_operacao, 'YYYY-MM-DD') WHERE record_id IS NULL;`);
+
+        // Populate payout_percentage with a default value if missing
+        await client.query(`UPDATE operacoes_daytrade SET payout_percentage = 80 WHERE payout_percentage IS NULL;`);
 
         // Populate brokerage_id for records belonging to this user that are missing it
         const { rows: brokeragelessRows } = await client.query(
