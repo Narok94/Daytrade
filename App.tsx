@@ -121,6 +121,24 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
         ? (((dailyRecordForSelectedDay?.winCount || 0) / ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0))) * 100).toFixed(1) : '0.0';
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     
+    const dailyGoalAchievedPercent = dailyGoalTarget > 0 ? (currentProfit / dailyGoalTarget) * 100 : 0;
+    const isGoalMet = dailyGoalAchievedPercent >= 100;
+
+    const kpis = [
+        { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-green-500' },
+        { label: 'Lucro Diário', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol} ${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-green-500' : 'text-red-500' },
+        { 
+            label: 'Meta Diária', 
+            val: `${Math.min(100, dailyGoalAchievedPercent).toFixed(0)}%`, 
+            subVal: dailyGoalTarget > 0 
+                ? (isGoalMet ? 'Meta Atingida!' : `${currencySymbol}${formatMoney(currentProfit)} de ${currencySymbol}${formatMoney(dailyGoalTarget)}`)
+                : 'Nenhuma meta definida',
+            icon: TargetIcon, 
+            color: isGoalMet ? 'text-green-500' : 'text-blue-400'
+        },
+        { label: 'Win Rate', val: `${winRate}%`, icon: TrophyIcon, color: 'text-purple-400' },
+    ];
+    
     return (
         <div className="p-4 md:p-8 space-y-6">
             {editingTrade && (
@@ -138,15 +156,14 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                    { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-green-500' },
-                    { label: 'Lucro Diário', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol} ${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-green-500' : 'text-red-500' },
-                    { label: 'Meta Diária', val: `${dailyGoalTarget > 0 ? ((currentProfit / dailyGoalTarget) * 100).toFixed(0) : 0}%`, icon: TargetIcon, color: 'text-blue-400' },
-                    { label: 'Win Rate', val: `${winRate}%`, icon: TrophyIcon, color: 'text-purple-400' },
-                ].map((kpi, i) => (
+                {kpis.map((kpi, i) => (
                     <div key={i} className={`p-4 rounded-2xl border ${theme.card}`}>
-                        <div className="flex justify-between items-start mb-1">
-                            <div><p className="text-[10px] uppercase font-black text-slate-500 tracking-wider">{kpi.label}</p><p className={`text-lg font-black ${kpi.color}`}>{kpi.val}</p></div>
+                        <div className="flex justify-between items-start">
+                             <div>
+                                <p className="text-[10px] uppercase font-black text-slate-500 tracking-wider">{kpi.label}</p>
+                                <p className={`text-lg font-black ${kpi.color}`}>{kpi.val}</p>
+                                {kpi.subVal && <p className={`text-xs font-bold mt-1 ${isGoalMet && kpi.label === 'Meta Diária' ? 'text-green-400' : theme.textMuted}`}>{kpi.subVal}</p>}
+                            </div>
                             <kpi.icon className={`w-5 h-5 ${kpi.color} opacity-80`} />
                         </div>
                     </div>
@@ -840,31 +857,29 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             setIsLoading(true);
             try {
                 const response = await fetch(`/api/get-data?userId=${user.id}`);
-                const data = await response.json();
-                if (response.ok) {
-                    if (!data.brokerages || data.brokerages.length === 0) {
-                        setBrokerages([defaultBrokerage]);
-                    } else {
-                        setBrokerages(data.brokerages);
-                    }
-                    setRecords(data.records || []);
-                    setGoals(data.goals || []);
-                } else {
-                    console.error("Failed to fetch data:", data.error);
-                    // Fallback for non-OK but valid JSON response
-                    setBrokerages([defaultBrokerage]);
-                    setRecords([]);
-                    setGoals([]);
+                if (!response.ok) {
+                    // Throw an error to be caught by the catch block
+                    const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
+                    throw new Error(errorData.error || `Server responded with status ${response.status}`);
                 }
+                const data = await response.json();
+                if (!data.brokerages || data.brokerages.length === 0) {
+                    setBrokerages([defaultBrokerage]);
+                } else {
+                    setBrokerages(data.brokerages);
+                }
+                setRecords(data.records || []);
+                setGoals(data.goals || []);
+
             } catch (error) {
-                console.error("Error fetching data:", error);
-                // Fallback for network errors or unparseable responses
-                setBrokerages([defaultBrokerage]);
-                setRecords([]);
-                setGoals([]);
+                console.error("Critical error fetching data:", error);
+                // IMPORTANT: Do not reset state here. This prevents data loss on temporary network errors.
+                // A user-facing error could be shown here instead.
             } finally {
                 setIsLoading(false);
-                setTimeout(() => { isInitialLoad.current = false; }, 500);
+                // Use a short timeout to ensure state updates from this fetch
+                // have rendered before we start listening for user changes to save.
+                setTimeout(() => { isInitialLoad.current = false; }, 100);
             }
         };
         fetchData();
