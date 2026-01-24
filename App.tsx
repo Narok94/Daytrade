@@ -600,7 +600,7 @@ const AddGoalModal: React.FC<{
 }> = ({ isDarkMode, onClose, onSave }) => {
     const [name, setName] = useState('');
     const [targetAmount, setTargetAmount] = useState('');
-    const [type, setType] = useState<'weekly' | 'monthly' | 'annual'>('monthly');
+    const [type, setType] = useState<'daily' | 'weekly' | 'monthly' | 'annual'>('monthly');
 
     const handleSave = () => {
         if (name && targetAmount) {
@@ -633,9 +633,9 @@ const AddGoalModal: React.FC<{
                     </div>
                     <div>
                         <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Tipo de Meta</label>
-                         <div className="grid grid-cols-3 gap-2 mt-1">
-                            {(['weekly', 'monthly', 'annual'] as const).map(t => (
-                                <button key={t} onClick={() => setType(t)} className={`h-12 rounded-xl font-bold text-xs border transition-all capitalize ${type === t ? 'bg-green-500 text-slate-950 border-green-500' : 'text-slate-500 border-slate-800'}`}>{t === 'weekly' ? 'Semanal' : t === 'monthly' ? 'Mensal' : 'Anual'}</button>
+                         <div className="grid grid-cols-4 gap-2 mt-1">
+                            {(['daily', 'weekly', 'monthly', 'annual'] as const).map(t => (
+                                <button key={t} onClick={() => setType(t)} className={`h-12 rounded-xl font-bold text-xs border transition-all capitalize ${type === t ? 'bg-green-500 text-slate-950 border-green-500' : 'text-slate-500 border-slate-800'}`}>{t === 'daily' ? 'Diária' : t === 'weekly' ? 'Semanal' : t === 'monthly' ? 'Mensal' : 'Anual'}</button>
                             ))}
                         </div>
                     </div>
@@ -662,19 +662,21 @@ const GoalsPanel: React.FC<{
     const theme = useThemeClasses(isDarkMode);
     const [isAddingGoal, setIsAddingGoal] = useState(false);
 
-    const getProfitForPeriod = (type: 'weekly' | 'monthly' | 'annual') => {
-        const now = new Date();
-        let startDate = new Date();
+    const getProfitForPeriod = (type: 'daily' | 'weekly' | 'monthly' | 'annual', selectedDate?: Date) => {
+        const now = selectedDate || new Date();
+        let startDate = new Date(now);
 
-        if (type === 'weekly') {
+        if (type === 'daily') {
+            startDate.setHours(0,0,0,0);
+        } else if (type === 'weekly') {
             const firstDayOfWeek = now.getDate() - now.getDay();
             startDate = new Date(now.setDate(firstDayOfWeek));
+            startDate.setHours(0,0,0,0);
         } else if (type === 'monthly') {
             startDate = new Date(now.getFullYear(), now.getMonth(), 1);
         } else if (type === 'annual') {
             startDate = new Date(now.getFullYear(), 0, 1);
         }
-        startDate.setHours(0,0,0,0);
         
         const relevantRecords = records.filter((r): r is DailyRecord => 
             r.recordType === 'day' && new Date(r.date + 'T00:00:00Z') >= startDate
@@ -743,7 +745,7 @@ const GoalsPanel: React.FC<{
                             <div key={goal.id} className={`p-6 rounded-2xl border ${theme.card} flex flex-col group`}>
                                 <div className="flex-1">
                                     <div className="flex justify-between items-start">
-                                        <p className="text-xs uppercase font-black text-slate-500 tracking-wider">{goal.type === 'weekly' ? 'Semanal' : goal.type === 'monthly' ? 'Mensal' : 'Anual'}</p>
+                                        <p className="text-xs uppercase font-black text-slate-500 tracking-wider">{goal.type === 'daily' ? 'Diária' : goal.type === 'weekly' ? 'Semanal' : goal.type === 'monthly' ? 'Mensal' : 'Anual'}</p>
                                         <button onClick={() => handleDeleteGoal(goal.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:bg-red-500/10 p-1.5 rounded-full">
                                             <TrashIcon className="w-4 h-4"/>
                                         </button>
@@ -858,7 +860,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             try {
                 const response = await fetch(`/api/get-data?userId=${user.id}`);
                 if (!response.ok) {
-                    // Throw an error to be caught by the catch block
                     const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
                     throw new Error(errorData.error || `Server responded with status ${response.status}`);
                 }
@@ -870,16 +871,15 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 }
                 setRecords(data.records || []);
                 setGoals(data.goals || []);
+                
+                // CRITICAL FIX: Only mark initial load as complete on SUCCESS
+                isInitialLoad.current = false;
 
             } catch (error) {
                 console.error("Critical error fetching data:", error);
-                // IMPORTANT: Do not reset state here. This prevents data loss on temporary network errors.
-                // A user-facing error could be shown here instead.
+                // On failure, isInitialLoad remains true, preventing accidental overwrites.
             } finally {
                 setIsLoading(false);
-                // Use a short timeout to ensure state updates from this fetch
-                // have rendered before we start listening for user changes to save.
-                setTimeout(() => { isInitialLoad.current = false; }, 100);
             }
         };
         fetchData();
@@ -1075,6 +1075,13 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const startBal = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < selectedDate.toISOString().split('T')[0]).sort((a,b) => b.date.localeCompare(a.date))[0]?.endBalanceUSD || activeBrokerage?.initialBalance;
 
     const dailyGoalTarget = useMemo(() => {
+        // Prioritize a specific daily goal
+        const dailyGoal = goals.find(g => g.type === 'daily');
+        if (dailyGoal) {
+            return dailyGoal.targetAmount;
+        }
+
+        // Fallback to calculating from a monthly goal
         const monthlyGoal = goals.find(g => g.type === 'monthly');
         if (!monthlyGoal) return 0;
 
