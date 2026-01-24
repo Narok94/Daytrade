@@ -848,42 +848,43 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const [records, setRecords] = useState<AppRecord[]>([]);
     const [goals, setGoals] = useState<Goal[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [dataError, setDataError] = useState<string | null>(null);
     const isInitialLoad = useRef(true);
 
     const defaultBrokerage: Brokerage = { id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' };
     
-    // Fetch all user data from the server on initial load
-    useEffect(() => {
-        const fetchData = async () => {
-            isInitialLoad.current = true;
-            setIsLoading(true);
-            try {
-                const response = await fetch(`/api/get-data?userId=${user.id}`);
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
-                    throw new Error(errorData.error || `Server responded with status ${response.status}`);
-                }
-                const data = await response.json();
-                if (!data.brokerages || data.brokerages.length === 0) {
-                    setBrokerages([defaultBrokerage]);
-                } else {
-                    setBrokerages(data.brokerages);
-                }
-                setRecords(data.records || []);
-                setGoals(data.goals || []);
-                
-                // CRITICAL FIX: Only mark initial load as complete on SUCCESS
-                isInitialLoad.current = false;
-
-            } catch (error) {
-                console.error("Critical error fetching data:", error);
-                // On failure, isInitialLoad remains true, preventing accidental overwrites.
-            } finally {
-                setIsLoading(false);
+    const fetchData = useCallback(async () => {
+        isInitialLoad.current = true;
+        setIsLoading(true);
+        setDataError(null);
+        try {
+            const response = await fetch(`/api/get-data?userId=${user.id}&_=${Date.now()}`);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: 'Falha ao carregar os dados.' }));
+                throw new Error(errorData.error || `Erro no servidor: ${response.status}`);
             }
-        };
-        fetchData();
+            const data = await response.json();
+            if (!data.brokerages || data.brokerages.length === 0) {
+                setBrokerages([defaultBrokerage]);
+            } else {
+                setBrokerages(data.brokerages);
+            }
+            setRecords(data.records || []);
+            setGoals(data.goals || []);
+            
+            isInitialLoad.current = false;
+        } catch (error) {
+            console.error("Critical error fetching data:", error);
+            setDataError((error as Error).message || 'Não foi possível carregar seus dados. Verifique sua conexão.');
+        } finally {
+            setIsLoading(false);
+        }
     }, [user.id]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
 
     const saveDataToServer = useCallback(async () => {
         if (isInitialLoad.current) return;
@@ -895,6 +896,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             });
         } catch (error) {
             console.error("Failed to save data:", error);
+            // Optionally, set an error state here to notify the user
         }
     }, [user.id, brokerages, records, goals]);
 
@@ -1102,20 +1104,37 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         return remainingAmount / remainingDays;
     }, [goals, records]);
 
+    const themeClasses = useThemeClasses(isDarkMode);
+
     if (isLoading) {
         return (
-            <div className={`flex h-screen w-full items-center justify-center ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
+            <div className={`flex h-screen w-full items-center justify-center ${themeClasses.bg} ${themeClasses.text}`}>
                 <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
         );
     }
+    
+    if (dataError) {
+        return (
+            <div className={`flex h-screen w-full flex-col items-center justify-center p-4 text-center ${themeClasses.bg} ${themeClasses.text}`}>
+                <div className={`p-8 rounded-2xl border ${themeClasses.card}`}>
+                    <InformationCircleIcon className="w-12 h-12 mx-auto text-red-500 mb-4"/>
+                    <h2 className="text-xl font-bold mb-2">Ocorreu um Erro</h2>
+                    <p className={`text-sm ${themeClasses.textMuted}`}>{dataError}</p>
+                    <button onClick={fetchData} className="mt-6 h-12 px-8 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-xl uppercase tracking-widest transition-all shadow-lg shadow-green-500/20">
+                        Tentar Novamente
+                    </button>
+                </div>
+            </div>
+        )
+    }
 
     return (
-        <div className={`flex h-screen overflow-hidden font-sans ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
+        <div className={`flex h-screen overflow-hidden font-sans ${themeClasses.bg} ${themeClasses.text}`}>
             {isResetting && <ResetConfirmationModal isDarkMode={isDarkMode} onClose={() => setIsResetting(false)} onConfirm={handleDataReset} />}
             <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={onLogout} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
             <main className="flex-1 flex flex-col overflow-hidden w-full">
-                <header className={`h-20 flex items-center justify-between md:justify-end px-4 md:px-8 border-b ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'}`}>
+                <header className={`h-20 flex items-center justify-between md:justify-end px-4 md:px-8 border-b ${themeClasses.header}`}>
                     <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-slate-500 p-2"><MenuIcon className="w-6 h-6" /></button>
                     <div className="flex items-center gap-4">
                          <div className="text-right hidden sm:block"><p className="text-[10px] font-black uppercase text-slate-500">Daytrader</p><p className="text-sm font-black">{user.username}</p></div>
