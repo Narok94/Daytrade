@@ -2,6 +2,36 @@ import { db } from '@vercel/postgres';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Brokerage, DailyRecord, Goal, Trade } from '../../types';
 
+async function ensureTables(client: any) {
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(50) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+    `);
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS operacoes_daytrade (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            record_id VARCHAR(10) NOT NULL,
+            brokerage_id UUID NOT NULL,
+            tipo_operacao TEXT NOT NULL,
+            valor_entrada DECIMAL(10, 2) NOT NULL,
+            payout_percentage INTEGER NOT NULL,
+            resultado DECIMAL(10, 2) NOT NULL,
+            data_operacao TIMESTAMPTZ DEFAULT NOW()
+        );
+    `);
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS user_settings (
+            user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            settings_json JSONB
+        );
+    `);
+}
+
 export default async function handler(
     req: VercelRequest,
     res: VercelResponse,
@@ -12,6 +42,8 @@ export default async function handler(
 
     const client = await db.connect();
     try {
+        await ensureTables(client);
+
         const userId = req.query.userId as string;
         if (!userId) {
             return res.status(400).json({ error: 'User ID is required.' });

@@ -851,9 +851,17 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     setGoals(data.goals || []);
                 } else {
                     console.error("Failed to fetch data:", data.error);
+                    // Fallback for non-OK but valid JSON response
+                    setBrokerages([defaultBrokerage]);
+                    setRecords([]);
+                    setGoals([]);
                 }
             } catch (error) {
                 console.error("Error fetching data:", error);
+                // Fallback for network errors or unparseable responses
+                setBrokerages([defaultBrokerage]);
+                setRecords([]);
+                setGoals([]);
             } finally {
                 setIsLoading(false);
                 setTimeout(() => { isInitialLoad.current = false; }, 500);
