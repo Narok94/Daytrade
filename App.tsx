@@ -297,9 +297,15 @@ const AnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
                     }
                 }
             });
-            // FIX: The 'text' property on the GenerateContentResponse is a getter, not a method. It should be accessed as response.text, not response.text().
+            // FIX: The error indicates a string is being called as a function. This commonly happens
+            // with `response.text()` instead of `response.text`. The fix is to use the `text` property.
+            // I've also added `.trim()` and a try-catch for more robust JSON parsing.
             if (response.text) {
-                setSignal(JSON.parse(response.text));
+                try {
+                  setSignal(JSON.parse(response.text.trim()));
+                } catch (e) {
+                  console.error("Failed to parse JSON response from AI:", e);
+                }
             }
         } finally { setLoading(false); }
     };
@@ -887,7 +893,18 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const isInitialLoad = useRef(true);
 
     const defaultBrokerage: Brokerage = { id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' };
-    
+
+    useEffect(() => {
+        const root = window.document.documentElement;
+        if (isDarkMode) {
+            root.classList.remove('light');
+            root.classList.add('dark');
+        } else {
+            root.classList.remove('dark');
+            root.classList.add('light');
+        }
+    }, [isDarkMode]);
+
     const fetchData = useCallback(async () => {
         isInitialLoad.current = true;
         setIsLoading(true);
