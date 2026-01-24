@@ -310,7 +310,7 @@ const AnalysisPanel: React.FC<any> = ({ isDarkMode }) => {
     );
 };
 
-// --- COMPOUND INTEREST PANEL (Planilha de Ganhos) ---
+// --- COMPOUND INTEREST PANEL (Planilha de Juros) ---
 
 const EditableCell: React.FC<{
     value: number;
@@ -362,6 +362,14 @@ const CompoundInterestPanel: React.FC<{
         return today.toISOString().split('T')[0];
     });
 
+    const calculateEntry = useCallback((balance: number) => {
+        if (activeBrokerage.entryMode === 'percentage') {
+            return balance * (activeBrokerage.entryValue / 100);
+        }
+        return activeBrokerage.entryValue;
+    }, [activeBrokerage.entryMode, activeBrokerage.entryValue]);
+
+
     const tableData = useMemo(() => {
         const rows = [];
         const dateCursor = new Date(startDate + 'T00:00:00Z');
@@ -380,41 +388,54 @@ const CompoundInterestPanel: React.FC<{
             const realDayRecord = recordMap.get(dateStr);
 
             if (realDayRecord) {
-                const dailyRecord = realDayRecord as DailyRecord;
-                const hasOps = dailyRecord.trades && dailyRecord.trades.length > 0;
-                const avgPayout = hasOps ? dailyRecord.trades.reduce((acc, t) => acc + t.payoutPercentage, 0) / dailyRecord.trades.length : 0;
+// FIX: Use `realDayRecord` directly after it has been type-narrowed by the `if` condition.
+// This resolves a potential type inference issue where a new `dailyRecord` variable was being treated as `unknown`.
+                const hasOps = realDayRecord.trades && realDayRecord.trades.length > 0;
+                const avgPayout = hasOps ? realDayRecord.trades.reduce((acc, t) => acc + t.payoutPercentage, 0) / realDayRecord.trades.length : activeBrokerage.payoutPercentage;
+                const avgEntry = hasOps ? realDayRecord.trades.reduce((acc, t) => acc + t.entryValue, 0) / realDayRecord.trades.length : calculateEntry(realDayRecord.startBalanceUSD);
                 
                 rows.push({
                     isProjection: false,
                     dateStr, displayDate,
-                    initial: dailyRecord.startBalanceUSD,
-                    entry: dailyRecord.startBalanceUSD * 0.1,
+                    initial: realDayRecord.startBalanceUSD,
+                    entry: avgEntry,
                     payoutPct: avgPayout,
-                    lucro: dailyRecord.netProfitUSD,
-                    win: dailyRecord.winCount,
-                    red: dailyRecord.lossCount
+                    lucro: realDayRecord.netProfitUSD,
+                    win: realDayRecord.winCount,
+                    red: realDayRecord.lossCount
                 });
-                lastKnownBalance = dailyRecord.endBalanceUSD;
+                lastKnownBalance = realDayRecord.endBalanceUSD;
             } else {
+                const entryValue = calculateEntry(lastKnownBalance);
+                const projectedWins = activeBrokerage.stopGainTrades > 0 ? activeBrokerage.stopGainTrades : 1;
+                const projectedLosses = 0; // Assume a perfect day for projection
+                const projectedPayout = activeBrokerage.payoutPercentage;
+                const projectedProfit = (entryValue * (projectedPayout / 100)) * projectedWins;
+
                 rows.push({
                     isProjection: true,
-                    dateStr, displayDate,
+                    dateStr,
+                    displayDate,
                     initial: lastKnownBalance,
-                    entry: lastKnownBalance * 0.1,
-                    payoutPct: 0, lucro: 0, win: 0, red: 0
+                    entry: entryValue,
+                    payoutPct: projectedPayout,
+                    lucro: projectedProfit,
+                    win: projectedWins,
+                    red: projectedLosses,
                 });
+                lastKnownBalance += projectedProfit;
             }
             
             dateCursor.setDate(dateCursor.getDate() + 1);
         }
         return rows;
-    }, [records, activeBrokerage.initialBalance, startDate]);
+    }, [records, activeBrokerage, startDate, calculateEntry]);
 
     return (
         <div className="p-4 md:p-8 space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className={`text-2xl font-bold ${theme.text}`}>Planilha de Ganhos</h2>
+                    <h2 className={`text-2xl font-bold ${theme.text}`}>Planilha de Juros</h2>
                     <p className="text-xs text-slate-500 font-medium">Controle e projeção de juros compostos</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -799,7 +820,7 @@ const Sidebar: React.FC<{
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutGridIcon },
         { id: 'analyze', label: 'Analisar (IA)', icon: CpuChipIcon },
-        { id: 'compound', label: 'Planilha Ganhos', icon: ChartBarIcon },
+        { id: 'compound', label: 'Planilha de Juros', icon: ChartBarIcon },
         { id: 'goals', label: 'Metas', icon: TrophyIcon },
         { id: 'settings', label: 'Configurações', icon: SettingsIcon },
     ];
