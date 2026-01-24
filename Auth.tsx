@@ -32,12 +32,14 @@ const Auth: React.FC = () => {
                 sessionStorage.setItem('currentUser', JSON.stringify(user));
                 return true;
             } else {
-                setAuthError(data.error || 'Falha ao fazer login.');
+                // Se houver detalhes do erro (como erro do banco), exibe eles
+                const errorMessage = data.details ? `${data.error}: ${data.details}` : (data.error || 'Falha ao fazer login.');
+                setAuthError(errorMessage);
                 return false;
             }
         } catch (error) {
             console.error(error);
-            setAuthError('Ocorreu um erro de rede. Tente novamente.');
+            setAuthError('Erro de conexão. Verifique sua internet e tente novamente.');
             return false;
         }
     }, []);
@@ -57,11 +59,12 @@ const Auth: React.FC = () => {
                 // Automatically log in the new user
                 await handleLogin(username, password);
             } else {
-                setAuthError(data.error || 'Falha ao registrar.');
+                const errorMessage = data.details ? `${data.error}: ${data.details}` : (data.error || 'Falha ao registrar.');
+                setAuthError(errorMessage);
             }
         } catch (error) {
             console.error(error);
-            setAuthError('Ocorreu um erro de rede. Tente novamente.');
+            setAuthError('Erro de conexão ao tentar registrar.');
         }
     }, [handleLogin]);
 

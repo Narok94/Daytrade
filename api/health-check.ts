@@ -1,14 +1,15 @@
-import { sql } from '@vercel/postgres';
+import { db } from '@vercel/postgres';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(
     req: VercelRequest,
     res: VercelResponse,
 ) {
+    const client = await db.connect();
     try {
         // Executa uma consulta simples para obter a hora atual do banco de dados.
         // Se isso funcionar, a conexão está ativa.
-        const { rows } = await sql`SELECT NOW();`;
+        const { rows } = await client.query('SELECT NOW();');
         const time = rows[0].now;
 
         return res.status(200).json({ 
@@ -21,5 +22,7 @@ export default async function handler(
             error: 'Não foi possível conectar ao banco de dados.',
             details: (error as Error).message 
         });
+    } finally {
+        client.release();
     }
 }

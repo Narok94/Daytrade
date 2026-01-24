@@ -1,4 +1,4 @@
-import { sql } from '@vercel/postgres';
+import { db } from '@vercel/postgres';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Brokerage, DailyRecord, Goal, Trade } from '../../types';
 
@@ -10,6 +10,7 @@ export default async function handler(
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
+    const client = await db.connect();
     try {
         const userId = req.query.userId as string;
         if (!userId) {
@@ -17,18 +18,20 @@ export default async function handler(
         }
         
         // 1. Fetch settings (Brokerages and Goals) from the JSON blob
-        const { rows: settingsResult } = await sql`
-            SELECT settings_json FROM user_settings WHERE user_id = ${userId};
-        `;
+        const { rows: settingsResult } = await client.query(
+            `SELECT settings_json FROM user_settings WHERE user_id = $1;`,
+            [userId]
+        );
         const settings = settingsResult[0]?.settings_json || {};
         const brokerages: Brokerage[] = settings.brokerages || [];
         const goals: Goal[] = settings.goals || [];
 
         // 2. Fetch all trades for the user from the flat operations table
-        const { rows: operationsResult } = await sql`
-            SELECT id, record_id, brokerage_id, tipo_operacao, valor_entrada, payout_percentage, resultado, data_operacao 
-            FROM operacoes_daytrade WHERE user_id = ${userId} ORDER BY data_operacao ASC;
-        `;
+        const { rows: operationsResult } = await client.query(
+            `SELECT id, record_id, brokerage_id, tipo_operacao, valor_entrada, payout_percentage, resultado, data_operacao 
+            FROM operacoes_daytrade WHERE user_id = $1 ORDER BY data_operacao ASC;`,
+            [userId]
+        );
         
         // 3. Reconstruct the DailyRecord structure from the flat list of trades
         const recordsMap = new Map<string, DailyRecord>();
@@ -81,5 +84,7 @@ export default async function handler(
     } catch (error) {
         console.error('Error in get-data:', error);
         return res.status(500).json({ error: (error as Error).message });
+    } finally {
+        client.release();
     }
 }
