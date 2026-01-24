@@ -1,4 +1,4 @@
-import { sql } from '@vercel/postgres';
+import { db } from '@vercel/postgres';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
 
@@ -9,7 +9,8 @@ export default async function handler(
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
-
+    
+    const client = await db.connect();
     try {
         const { username, password } = req.body;
         const lowerUsername = username.toLowerCase();
@@ -19,7 +20,7 @@ export default async function handler(
         }
 
         // Find user
-        const { rows } = await sql`SELECT * FROM users WHERE username = ${lowerUsername};`;
+        const { rows } = await client.query('SELECT * FROM users WHERE username = $1', [lowerUsername]);
         if (rows.length === 0) {
             return res.status(401).json({ error: 'Usuário ou senha inválidos.' });
         }
@@ -32,7 +33,6 @@ export default async function handler(
             return res.status(401).json({ error: 'Usuário ou senha inválidos.' });
         }
 
-        // Return user data (without password hash)
         const userData = {
             id: user.id,
             username: user.username,
@@ -40,7 +40,9 @@ export default async function handler(
 
         return res.status(200).json({ message: 'Login successful.', user: userData });
     } catch (error) {
-        console.error(error);
+        console.error('Login API Error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
+    } finally {
+        client.release();
     }
 }
