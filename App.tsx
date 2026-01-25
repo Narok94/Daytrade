@@ -9,7 +9,7 @@ import {
     CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ArrowPathIcon, 
     InformationCircleIcon, TrophyIcon, 
     ChartBarIcon, CheckIcon, DocumentTextIcon,
-    CpuChipIcon, ChevronUpIcon, ChevronDownIcon
+    CpuChipIcon, ChevronUpIcon, ChevronDownIcon, PlusIcon, TrashIcon
 } from './components/icons';
 import { generateInitialData, getNextCandle } from './services/tradingDataService';
 import { calculateBollingerBands, calculateRSI, findFractals } from './services/indicatorService';
@@ -152,7 +152,6 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
         const dayRecords = records.filter((r: any) => r.recordType === 'day');
         const recordMap = new Map(dayRecords.map((r: any) => [r.id, r]));
         
-        // Determina o saldo anterior ao início da visualização
         const recordsBefore = dayRecords
             .filter((r: any) => r.date < startDateStr)
             .sort((a: any, b: any) => b.id.localeCompare(a.id));
@@ -164,7 +163,6 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             currentCursor.setDate(startOfView.getDate() + i);
             const dateKey = currentCursor.toISOString().split('T')[0];
             
-            // Se o mês mudar, paramos a planilha
             if (currentCursor.getMonth() !== startOfView.getMonth()) break;
 
             const realRecord = recordMap.get(dateKey) as DailyRecord | undefined;
@@ -235,7 +233,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                         <span className={row.loss > 0 ? 'bg-red-500/10 text-red-500 px-3 py-1 rounded-xl' : 'opacity-20'}>{row.loss}</span>
                                     </td>
                                     <td className={`py-4 px-3 font-black ${row.profit > 0 ? 'text-green-500' : row.profit < 0 ? 'text-red-500' : 'opacity-30'}`}>
-                                        {row.profit !== 0 ? `${row.profit > 0 ? '+' : ''}${currencySymbol} {formatMoney(row.profit)}` : '-'}
+                                        {row.profit !== 0 ? `${row.profit > 0 ? '+' : ''}${currencySymbol} ${formatMoney(row.profit)}` : '-'}
                                     </td>
                                     <td className="py-4 px-3 font-black opacity-90">{currencySymbol} {formatMoney(row.final)}</td>
                                 </tr>
@@ -256,8 +254,6 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) =>
 
     const reportData = useMemo(() => {
         const filteredDays = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.id.startsWith(selectedMonth));
-        
-        // Coleta todos os trades para a listagem
         const allTrades = filteredDays.flatMap(day => day.trades.map(t => ({
             ...t,
             date: day.date,
@@ -356,9 +352,175 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) =>
     );
 };
 
-// --- Standard UI Panels ---
-const SettingsPanel: React.FC<{ theme: any }> = ({ theme }) => <div className="p-8 text-center opacity-40"><SettingsIcon className="w-12 h-12 mx-auto mb-4" /><h2 className="font-black">Configurações em Breve</h2></div>;
-const GoalsPanel: React.FC<{ theme: any }> = ({ theme }) => <div className="p-8 text-center opacity-40"><TargetIcon className="w-12 h-12 mx-auto mb-4" /><h2 className="font-black">Metas em Breve</h2></div>;
+// --- Settings Panel ---
+const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages }) => {
+    const handleUpdate = (field: keyof Brokerage, value: any) => {
+        setBrokerages((prev: Brokerage[]) => prev.map((b, i) => i === 0 ? { ...b, [field]: value } : b));
+    };
+
+    return (
+        <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8">
+            <div>
+                <h2 className={`text-2xl font-black ${theme.text}`}>Configurações</h2>
+                <p className={theme.textMuted}>Gerencie seus parâmetros operacionais e corretora.</p>
+            </div>
+
+            <div className={`p-8 rounded-3xl border ${theme.card} space-y-6`}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase opacity-50">Nome da Corretora / Gestão</label>
+                        <input type="text" value={brokerage.name} onChange={e => handleUpdate('name', e.target.value)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase opacity-50">Moeda Base</label>
+                        <select value={brokerage.currency} onChange={e => handleUpdate('currency', e.target.value)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`}>
+                            <option value="USD">Dólar ($)</option>
+                            <option value="BRL">Real (R$)</option>
+                        </select>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase opacity-50">Banca Inicial</label>
+                        <input type="number" value={brokerage.initialBalance} onChange={e => handleUpdate('initialBalance', parseFloat(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase opacity-50">Payout Padrão (%)</label>
+                        <input type="number" value={brokerage.payoutPercentage} onChange={e => handleUpdate('payoutPercentage', parseInt(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
+                    </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-800/10">
+                    <h3 className="text-xs font-black uppercase mb-4 opacity-70">Gerenciamento de Entrada</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase opacity-50">Modo de Entrada</label>
+                            <div className="flex bg-slate-900 p-1 rounded-xl">
+                                <button onClick={() => handleUpdate('entryMode', 'percentage')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${brokerage.entryMode === 'percentage' ? 'bg-green-500 text-slate-950' : 'text-slate-500'}`}>Porcentagem</button>
+                                <button onClick={() => handleUpdate('entryMode', 'fixed')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${brokerage.entryMode === 'fixed' ? 'bg-green-500 text-slate-950' : 'text-slate-500'}`}>Valor Fixo</button>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase opacity-50">{brokerage.entryMode === 'percentage' ? 'Porcentagem (%)' : 'Valor ($)'}</label>
+                            <input type="number" value={brokerage.entryValue} onChange={e => handleUpdate('entryValue', parseFloat(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-800/10">
+                    <h3 className="text-xs font-black uppercase mb-4 opacity-70">Trava de Segurança (Stop)</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase opacity-50 text-green-500">Stop Gain (Wins Seguídos)</label>
+                            <input type="number" value={brokerage.stopGainTrades} onChange={e => handleUpdate('stopGainTrades', parseInt(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase opacity-50 text-red-500">Stop Loss (Loss Seguídos)</label>
+                            <input type="number" value={brokerage.stopLossTrades} onChange={e => handleUpdate('stopLossTrades', parseInt(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- Goals Panel ---
+const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrokerage }) => {
+    const [newName, setNewName] = useState('');
+    const [newTarget, setNewTarget] = useState('');
+    const [newType, setNewType] = useState<'daily'|'weekly'|'monthly'|'annual'>('monthly');
+
+    const totalProfit = useMemo(() => {
+        return records.filter((r: any) => r.recordType === 'day').reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
+    }, [records]);
+
+    const handleAddGoal = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newName || !newTarget) return;
+        const newGoal: Goal = { id: crypto.randomUUID(), name: newName, targetAmount: parseFloat(newTarget), type: newType, createdAt: Date.now() };
+        setGoals((prev: Goal[]) => [...prev, newGoal]);
+        setNewName(''); setNewTarget('');
+    };
+
+    const handleDelete = (id: string) => {
+        setGoals((prev: Goal[]) => prev.filter((g: Goal) => g.id !== id));
+    };
+
+    return (
+        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8">
+            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
+                <div>
+                    <h2 className={`text-2xl font-black ${theme.text}`}>Metas Financeiras</h2>
+                    <p className={theme.textMuted}>Visualize seus objetivos de longo prazo.</p>
+                </div>
+            </div>
+
+            <form onSubmit={handleAddGoal} className={`p-6 rounded-3xl border ${theme.card} grid grid-cols-1 md:grid-cols-4 gap-4 items-end`}>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase opacity-50">Objetivo</label>
+                    <input type="text" placeholder="Ex: Viagem, Carro..." value={newName} onChange={e => setNewName(e.target.value)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`} />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase opacity-50">Valor Alvo</label>
+                    <input type="number" placeholder="0.00" value={newTarget} onChange={e => setNewTarget(e.target.value)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`} />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase opacity-50">Período</label>
+                    <select value={newType} onChange={e => setNewType(e.target.value as any)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`}>
+                        <option value="daily">Diária</option>
+                        <option value="weekly">Semanal</option>
+                        <option value="monthly">Mensal</option>
+                        <option value="annual">Anual</option>
+                    </select>
+                </div>
+                <button type="submit" className="h-[42px] bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/20">
+                    <PlusIcon className="w-4 h-4" /> Criar Meta
+                </button>
+            </form>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {goals.length > 0 ? goals.map((goal: Goal) => {
+                    const progress = Math.max(0, Math.min(100, (totalProfit / goal.targetAmount) * 100));
+                    return (
+                        <div key={goal.id} className={`p-6 rounded-3xl border ${theme.card} relative overflow-hidden group`}>
+                            <div className="flex justify-between items-start mb-6">
+                                <div>
+                                    <span className="text-[9px] font-black uppercase px-2 py-1 bg-slate-800 rounded-lg text-slate-500 tracking-tighter mb-2 inline-block">Meta {goal.type}</span>
+                                    <h3 className="text-xl font-black">{goal.name}</h3>
+                                </div>
+                                <button onClick={() => handleDelete(goal.id)} className="p-2 text-red-500/30 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"><TrashIcon className="w-4 h-4" /></button>
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-end">
+                                    <p className="text-[10px] font-black uppercase opacity-50">Progresso Atual</p>
+                                    <p className="text-sm font-black text-green-500">{progress.toFixed(1)}%</p>
+                                </div>
+                                <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden">
+                                    <div className="h-full bg-green-500 transition-all duration-1000" style={{ width: `${progress}%` }} />
+                                </div>
+                                <div className="flex justify-between text-[10px] font-bold opacity-60">
+                                    <span>{activeBrokerage.currency === 'USD' ? '$' : 'R$'} {formatMoney(totalProfit)}</span>
+                                    <span>{activeBrokerage.currency === 'USD' ? '$' : 'R$'} {formatMoney(goal.targetAmount)}</span>
+                                </div>
+                            </div>
+
+                            {progress >= 100 && (
+                                <div className="absolute top-0 right-0 p-1">
+                                    <div className="bg-green-500 text-slate-950 text-[8px] font-black px-2 py-1 rounded-bl-xl uppercase tracking-tighter">Concluído!</div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                }) : (
+                    <div className={`col-span-full p-12 text-center rounded-3xl border border-dashed border-slate-800/30 opacity-30`}>
+                        <TargetIcon className="w-12 h-12 mx-auto mb-4" />
+                        <p className="font-black uppercase text-xs">Nenhuma meta ativa</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 // --- AI Analysis Panel (Simplified View) ---
 const Candlestick = (props: any) => {
@@ -368,7 +530,7 @@ const Candlestick = (props: any) => {
     return (
         <g stroke={color} fill="none">
             <path d={`M ${x + width/2} ${y} L ${x + width/2} ${y + height}`} />
-            <rect x={x} y={isBullish ? y + (high-close) : y + (high-open)} width={width} height={Math.abs(open-close) || 1} fill={color} />
+            <rect x={x} y={isBullish ? y + (high-close) : y + (high-open)} width={width} height={Math.max(1, Math.abs(open-close))} fill={color} />
         </g>
     );
 };
@@ -383,7 +545,7 @@ const AIPanel: React.FC<{ theme: any }> = ({ theme }) => {
         if (!data.length) return;
         const last = data[data.length-1];
         try {
-            const prompt = `Analise este trade BTC/USD M1. RSI: ${last.rsi.toFixed(2)}. Posição BB: ${last.close > last.bb.upper ? 'Sobrecomprado' : last.close < last.bb.lower ? 'Sobrevendido' : 'Neutro'}. Dê um sinal: COMPRA | VENDA | NEUTRO e uma justificativa curta. Formato: SINAL | Justificativa | Confiança(0-100)`;
+            const prompt = `Analise este trade BTC/USD M1. RSI: ${last.rsi?.toFixed(2)}. Posição BB: ${last.close > last.bb.upper ? 'Sobrecomprado' : last.close < last.bb.lower ? 'Sobrevendido' : 'Neutro'}. Dê um sinal: COMPRA | VENDA | NEUTRO e uma justificativa curta. Formato: SINAL | Justificativa | Confiança(0-100)`;
             const resp = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
             const parts = (resp.text || 'NEUTRO | Analisando | 50').split('|').map(p => p.trim());
             setSignal({ action: parts[0], reason: parts[1], conf: parts[2] });
@@ -506,7 +668,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const dateStr = selectedDate.toISOString().split('T')[0];
     const dailyRecord = records.find((r): r is DailyRecord => r.id === dateStr && r.recordType === 'day');
     
-    // Calcula saldo inicial para o Dashboard com base no histórico real anterior ao dia selecionado
     const startBal = useMemo(() => {
         const sorted = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.id.localeCompare(a.id));
         return sorted.length > 0 ? sorted[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
@@ -533,14 +694,11 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         setRecords(prev => {
             const newRecords = [...prev];
             const idx = newRecords.findIndex(r => r.id === dateStr && r.recordType === 'day');
-            
             const entryValue = customEntry || (activeBrokerage.entryMode === 'fixed' ? activeBrokerage.entryValue : startBal * (activeBrokerage.entryValue / 100));
             const payout = customPayout || activeBrokerage.payoutPercentage;
-            
             const newTrades: Trade[] = [];
             for(let i=0; i<win; i++) newTrades.push({ id: crypto.randomUUID(), result: 'win', entryValue, payoutPercentage: payout, timestamp: Date.now() });
             for(let i=0; i<loss; i++) newTrades.push({ id: crypto.randomUUID(), result: 'loss', entryValue, payoutPercentage: payout, timestamp: Date.now() });
-
             if (idx >= 0) {
                 const rec = newRecords[idx] as DailyRecord;
                 newRecords[idx] = { ...rec, trades: [...rec.trades, ...newTrades] };
@@ -559,15 +717,14 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     };
 
     const theme = useThemeClasses(isDarkMode);
-    
     const renderContent = () => {
         switch (activeTab) {
             case 'dashboard': return <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBal} isDarkMode={isDarkMode} dailyGoalTarget={activeBrokerage.initialBalance * 0.03} />;
             case 'compound': return <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />;
             case 'report': return <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />;
             case 'ai-analysis': return <AIPanel theme={theme} />;
-            case 'goals': return <GoalsPanel theme={theme} />;
-            case 'settings': return <SettingsPanel theme={theme} />;
+            case 'goals': return <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />;
+            case 'settings': return <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} />;
             default: return null;
         }
     };
