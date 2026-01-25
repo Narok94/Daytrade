@@ -116,14 +116,14 @@ export default async function handler(
 
     const client = await db.connect();
     try {
-        const userIdStr = req.query.userId as string;
-        if (!userIdStr) {
+        const rawUserId = req.query.userId as string;
+        if (!rawUserId) {
             return res.status(400).json({ error: 'User ID (userId) é obrigatório nos parâmetros da query.' });
         }
-
-        const userId = parseInt(userIdStr, 10);
-        if (isNaN(userId) || !Number.isInteger(userId)) {
-            return res.status(400).json({ error: `Formato de User ID inválido. Esperava-se um inteiro na query string, mas recebeu: "${userIdStr}".` });
+        
+        const userId = Number(rawUserId);
+        if (!Number.isInteger(userId)) {
+            return res.status(400).json({ error: `Formato de User ID inválido. Esperava-se um inteiro, mas recebeu: "${rawUserId}".` });
         }
         
         await ensureTablesAndMigrate(client, userId);

@@ -110,28 +110,16 @@ export default async function handler(
             goals: Goal[];
         };
         
-        // --- BUG FIX: Robust validation for userId to prevent DB errors ---
         const rawUserId = req.body.userId;
         if (rawUserId === null || rawUserId === undefined) {
             return res.status(400).json({ error: 'User ID (userId) é obrigatório no corpo da requisição.' });
         }
 
-        let userId: number;
-        if (typeof rawUserId === 'number') {
-            userId = rawUserId;
-        } else if (typeof rawUserId === 'string') {
-            userId = parseInt(rawUserId, 10);
-            if (isNaN(userId)) {
-                return res.status(400).json({ error: `Formato de User ID inválido. Esperava-se um inteiro, mas recebeu a string: "${rawUserId}".` });
-            }
-        } else {
-            return res.status(400).json({ error: `Tipo de User ID inválido. Esperava-se um número ou string, mas recebeu ${typeof rawUserId}.` });
-        }
+        const userId = Number(rawUserId);
 
         if (!Number.isInteger(userId)) {
-             return res.status(400).json({ error: `User ID deve ser um inteiro. Recebido: ${rawUserId}`});
+            return res.status(400).json({ error: `User ID inválido. Deve ser um inteiro. Recebido: "${rawUserId}".` });
         }
-        // --- END BUG FIX ---
         
         await ensureTablesAndMigrate(client, userId);
         
