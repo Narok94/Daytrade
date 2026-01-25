@@ -3,13 +3,13 @@ import { GoogleGenAI } from '@google/genai';
 import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
 import { 
-    SettingsIcon, XMarkIcon, 
+    SettingsIcon, 
     LogoutIcon, LayoutGridIcon, PieChartIcon, 
     TrendingUpIcon, ListBulletIcon, TargetIcon, 
     CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ArrowPathIcon, 
     InformationCircleIcon, TrophyIcon, 
     ChartBarIcon, CheckIcon, DocumentTextIcon,
-    CpuChipIcon, PlusIcon, TrashIcon, EditIcon
+    CpuChipIcon, PlusIcon, TrashIcon
 } from './components/icons';
 import { generateInitialData, getNextCandle } from './services/tradingDataService';
 import { calculateBollingerBands, calculateRSI, findFractals } from './services/indicatorService';
@@ -65,7 +65,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
-                <div><h2 className={`text-2xl font-black ${theme.text}`}>Dashboard</h2><p className={theme.textMuted}>Gestão ativa de operações</p></div>
+                <div><h2 className={`text-2xl font-black ${theme.text}`}>Dashboard</h2><p className={theme.textMuted}>Operações em tempo real</p></div>
                 <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T00:00:00Z'))} className={`border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-900 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
             </div>
 
@@ -84,10 +84,10 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div className={`p-6 rounded-3xl border ${theme.card}`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-green-500" /> Registrar Operação</h3>
+                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-green-500" /> Nova Ordem</h3>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Entrada</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} placeholder="1.00" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} placeholder="1.00" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                             <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout %</label><input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} placeholder="80" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                             <div className="space-y-1 col-span-2 md:col-span-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                         </div>
@@ -99,7 +99,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                 </div>
 
                 <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60 text-blue-400"><ListBulletIcon className="w-5 h-5" /> Últimas Operações</h3>
+                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60 text-blue-400"><ListBulletIcon className="w-5 h-5" /> Histórico do Dia</h3>
                     <div className="flex-1 overflow-y-auto max-h-[350px] pr-2 custom-scrollbar">
                         {dailyRecordForSelectedDay?.trades?.length ? (
                              <div className="space-y-2">
@@ -125,7 +125,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center opacity-30 py-10">
                                 <InformationCircleIcon className="w-10 h-10 mb-2" />
-                                <p className="text-xs font-black uppercase">Nenhuma operação</p>
+                                <p className="text-xs font-black uppercase">Nenhuma operação hoje</p>
                             </div>
                         )}
                     </div>
@@ -140,67 +140,48 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
 
-    const [startDateStr, setStartDateStr] = useState(() => {
-        const d = new Date();
-        d.setDate(1);
-        return d.toISOString().split('T')[0];
-    });
-
     const tableData = useMemo(() => {
         const rows = [];
-        const startOfView = new Date(startDateStr + 'T00:00:00Z');
-        const dayRecords = records.filter((r: any) => r.recordType === 'day');
-        const recordMap = new Map(dayRecords.map((r: any) => [r.id, r]));
+        // Filtra apenas dias que tiveram operações de fato
+        const operatedDays = records
+            .filter((r: any): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0)
+            .sort((a, b) => a.id.localeCompare(b.id));
         
-        // Saldo anterior ao início da visualização
-        const recordsBefore = dayRecords
-            .filter((r: any) => r.date < startDateStr)
-            .sort((a: any, b: any) => b.id.localeCompare(a.id));
-            
-        let runningBalance = recordsBefore.length > 0 ? recordsBefore[0].endBalanceUSD : activeBrokerage.initialBalance;
+        let runningBalance = activeBrokerage.initialBalance;
 
-        // Loop fixo de 30 dias a partir da data inicial
+        // Gerar 30 linhas fixas de trade
         for (let i = 0; i < 30; i++) {
-            const currentCursor = new Date(startOfView);
-            currentCursor.setDate(startOfView.getDate() + i);
-            const dateKey = currentCursor.toISOString().split('T')[0];
+            const realRecord = operatedDays[i];
             
-            const realRecord = recordMap.get(dateKey) as DailyRecord | undefined;
-            
-            const initial = realRecord ? realRecord.startBalanceUSD : runningBalance;
-            const hasTrades = realRecord && realRecord.trades.length > 0;
+            const initial = runningBalance;
+            const hasTrades = !!realRecord;
             const win = hasTrades ? realRecord.winCount : 0;
             const loss = hasTrades ? realRecord.lossCount : 0;
             const profit = hasTrades ? realRecord.netProfitUSD : 0;
             const final = hasTrades ? realRecord.endBalanceUSD : initial;
 
             rows.push({
-                dia: i + 1,
-                dateKey,
+                diaTrade: i + 1,
+                dateDisplay: hasTrades ? new Date(realRecord.id + 'T00:00:00Z').toLocaleDateString('pt-BR') : 'Aguardando...',
                 initial,
                 win,
                 loss,
                 profit,
                 final,
-                hasTrades,
-                isToday: dateKey === new Date().toISOString().split('T')[0]
+                hasTrades
             });
 
             runningBalance = final;
         }
         return rows;
-    }, [records, activeBrokerage, startDateStr]);
+    }, [records, activeBrokerage.initialBalance]);
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros (30 Dias)</h2>
-                    <p className="text-[10px] uppercase font-bold text-slate-500 opacity-60">Projeção e histórico baseado na data inicial</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <label className="text-xs font-black uppercase text-slate-500">Início:</label>
-                    <input type="date" value={startDateStr} onChange={(e) => setStartDateStr(e.target.value)} className={`border rounded-xl px-3 py-1.5 text-sm font-bold ${isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-700'}`} />
+                    <h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros Compostos</h2>
+                    <p className="text-[10px] uppercase font-bold text-slate-500 opacity-60">Foco em 30 Dias de Operação Consistente</p>
                 </div>
             </div>
 
@@ -209,29 +190,29 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                     <table className="w-full text-center border-collapse min-w-[800px]">
                         <thead>
                             <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Dia</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Data</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20"># Trade</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Data Operada</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Saldo Inicial</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20 text-green-500">Win</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20 text-red-500">Loss</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20 text-green-500">Wins</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20 text-red-500">Losses</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Lucro do Dia</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Saldo Final</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/10">
                             {tableData.map((row) => (
-                                <tr key={row.dateKey} className={`text-sm font-bold transition-colors ${row.isToday ? 'bg-green-500/5' : ''} hover:bg-slate-800/5`}>
-                                    <td className="py-4 px-3 opacity-40 font-mono text-xs">{row.dia}</td>
-                                    <td className="py-4 px-3 text-[10px] uppercase opacity-60">{new Date(row.dateKey + 'T00:00:00Z').toLocaleDateString('pt-BR')}</td>
+                                <tr key={row.diaTrade} className={`text-sm font-bold transition-colors hover:bg-slate-800/5`}>
+                                    <td className="py-4 px-3 opacity-40 font-mono text-xs">Dia {row.diaTrade}</td>
+                                    <td className="py-4 px-3 text-[10px] uppercase opacity-60 font-black">{row.dateDisplay}</td>
                                     <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
                                     <td className="py-4 px-3">
-                                        {row.hasTrades ? <span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-xl">{row.win}</span> : '-'}
+                                        {row.hasTrades ? <span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-xl">{row.win}</span> : <span className="opacity-10">-</span>}
                                     </td>
                                     <td className="py-4 px-3">
-                                        {row.hasTrades ? <span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-xl">{row.loss}</span> : '-'}
+                                        {row.hasTrades ? <span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-xl">{row.loss}</span> : <span className="opacity-10">-</span>}
                                     </td>
                                     <td className={`py-4 px-3 font-black ${row.profit > 0 ? 'text-green-500' : row.profit < 0 ? 'text-red-500' : 'opacity-30'}`}>
-                                        {row.hasTrades ? `${row.profit > 0 ? '+' : ''}${currencySymbol} ${formatMoney(row.profit)}` : '-'}
+                                        {row.hasTrades ? `${row.profit > 0 ? '+' : ''}${currencySymbol} ${formatMoney(row.profit)}` : <span className="opacity-10">-</span>}
                                     </td>
                                     <td className="py-4 px-3 font-black opacity-90">{currencySymbol} {formatMoney(row.final)}</td>
                                 </tr>
@@ -258,80 +239,63 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
             dayId: day.id
         }))).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-        const lastRecordBefore = records
+        // Cálculo de banca anterior ao mês selecionado
+        const dayRecordsBefore = records
             .filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.id < `${selectedMonth}-01`)
-            .sort((a, b) => b.id.localeCompare(a.id))[0];
+            .sort((a, b) => b.id.localeCompare(a.id));
         
-        const initialMonthBalance = lastRecordBefore ? lastRecordBefore.endBalanceUSD : activeBrokerage.initialBalance;
+        const initialMonthBalance = dayRecordsBefore.length > 0 ? dayRecordsBefore[0].endBalanceUSD : activeBrokerage.initialBalance;
         const finalMonthBalance = filteredDays.length > 0 ? filteredDays[filteredDays.length - 1].endBalanceUSD : initialMonthBalance;
         const totalProfit = filteredDays.reduce((acc, r) => acc + r.netProfitUSD, 0);
-        const wins = filteredDays.reduce((acc, r) => acc + r.winCount, 0);
-        const losses = filteredDays.reduce((acc, r) => acc + r.lossCount, 0);
         
-        return { totalProfit, initialMonthBalance, finalMonthBalance, wins, losses, allTrades };
+        return { totalProfit, finalMonthBalance, allTrades };
     }, [records, selectedMonth, activeBrokerage.initialBalance]);
 
-    const winRate = (reportData.wins + reportData.losses) > 0 ? (reportData.wins / (reportData.wins + reportData.losses) * 100) : 0;
-    
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
              <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
-                <div><h2 className={`text-2xl font-black ${theme.text}`}>Relatório Mensal</h2><p className={theme.textMuted}>Histórico detalhado de operações e performance.</p></div>
+                <div><h2 className={`text-2xl font-black ${theme.text}`}>Relatório Detalhado</h2><p className={theme.textMuted}>Controle total de suas ordens mensais.</p></div>
                 <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className={`border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-900 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                <div className={`p-4 rounded-3xl border ${theme.card}`}><p className="text-[9px] uppercase font-black text-slate-500 mb-1">Lucro/Prejuízo</p><p className={`text-xl font-black ${reportData.totalProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{reportData.totalProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(reportData.totalProfit)}</p></div>
-                <div className={`p-4 rounded-3xl border ${theme.card}`}><p className="text-[9px] uppercase font-black text-slate-500 mb-1">Banca Consolidada</p><p className="text-xl font-black text-blue-400">{currencySymbol} {formatMoney(reportData.finalMonthBalance)}</p></div>
-                <div className={`p-4 rounded-3xl border ${theme.card}`}><p className="text-[9px] uppercase font-black text-slate-500 mb-1">Volume</p><p className="text-xl font-black">{reportData.allTrades.length} Trades</p></div>
-                <div className={`p-4 rounded-3xl border ${theme.card}`}><p className="text-[9px] uppercase font-black text-slate-500 mb-1">Win Rate</p><p className="text-xl font-black text-purple-400">{winRate.toFixed(1)}%</p></div>
+                <div className={`p-4 rounded-3xl border ${theme.card}`}><p className="text-[9px] uppercase font-black text-slate-500 mb-1">Resultado Mês</p><p className={`text-xl font-black ${reportData.totalProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{reportData.totalProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(reportData.totalProfit)}</p></div>
+                <div className={`p-4 rounded-3xl border ${theme.card}`}><p className="text-[9px] uppercase font-black text-slate-500 mb-1">Banca Atual</p><p className="text-xl font-black text-blue-400">{currencySymbol} {formatMoney(reportData.finalMonthBalance)}</p></div>
+                <div className={`p-4 rounded-3xl border ${theme.card}`}><p className="text-[9px] uppercase font-black text-slate-500 mb-1">Total Trades</p><p className="text-xl font-black">{reportData.allTrades.length}</p></div>
             </div>
 
             <div className={`rounded-3xl border overflow-hidden ${theme.card}`}>
-                <div className="p-6 border-b border-slate-800/10">
-                    <h3 className="font-black text-[10px] uppercase tracking-widest opacity-60 flex items-center gap-2">
-                        <ListBulletIcon className="w-4 h-4" /> Gestão Individual de Operações
-                    </h3>
-                </div>
+                <div className="p-6 border-b border-slate-800/10"><h3 className="font-black text-[10px] uppercase tracking-widest opacity-60 flex items-center gap-2"><ListBulletIcon className="w-4 h-4" /> Operações Individuais</h3></div>
                 {reportData.allTrades.length > 0 ? (
                     <div className="overflow-x-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
                                     <th className="py-4 px-6 border-b border-slate-800/10">Data / Hora</th>
-                                    <th className="py-4 px-6 border-b border-slate-800/10">Status</th>
+                                    <th className="py-4 px-6 border-b border-slate-800/10">Resultado</th>
                                     <th className="py-4 px-6 border-b border-slate-800/10">Entrada</th>
-                                    <th className="py-4 px-6 border-b border-slate-800/10">Payout</th>
-                                    <th className="py-4 px-6 border-b border-slate-800/10">Lucro</th>
+                                    <th className="py-4 px-6 border-b border-slate-800/10">Lucro Bruto</th>
                                     <th className="py-4 px-6 border-b border-slate-800/10 text-right">Ações</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/5">
                                 {reportData.allTrades.map((trade) => {
                                     const profit = trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)) : -trade.entryValue;
-                                    const tradeDate = new Date(trade.dayId + 'T00:00:00Z');
                                     return (
                                         <tr key={trade.id} className="hover:bg-slate-800/5 transition-colors group">
                                             <td className="py-4 px-6">
                                                 <div className="flex flex-col">
-                                                    <span className="font-bold text-sm">{tradeDate.toLocaleDateString('pt-BR')}</span>
+                                                    <span className="font-bold text-sm">{new Date(trade.dayId + 'T00:00:00Z').toLocaleDateString('pt-BR')}</span>
                                                     <span className="text-[10px] font-black opacity-40 uppercase">{new Date(trade.timestamp || 0).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                                 </div>
                                             </td>
                                             <td className="py-4 px-6">
-                                                <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg ${trade.result === 'win' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                                                    {trade.result === 'win' ? 'Win' : 'Loss'}
-                                                </span>
+                                                <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg ${trade.result === 'win' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>{trade.result === 'win' ? 'WIN' : 'LOSS'}</span>
                                             </td>
                                             <td className="py-4 px-6 font-mono text-sm opacity-60">{currencySymbol} {formatMoney(trade.entryValue)}</td>
-                                            <td className="py-4 px-6 font-mono text-sm opacity-60">{trade.payoutPercentage}%</td>
-                                            <td className={`py-4 px-6 font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                                {profit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(profit)}
-                                            </td>
+                                            <td className={`py-4 px-6 font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{profit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(profit)}</td>
                                             <td className="py-4 px-6 text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    <button onClick={() => deleteTrade(trade.id, trade.dayId)} className="p-2 text-red-500/30 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all" title="Excluir"><TrashIcon className="w-4 h-4" /></button>
-                                                </div>
+                                                <button onClick={() => deleteTrade(trade.id, trade.dayId)} className="p-2 text-red-500/30 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"><TrashIcon className="w-4 h-4" /></button>
                                             </td>
                                         </tr>
                                     );
@@ -340,10 +304,7 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
                         </table>
                     </div>
                 ) : (
-                    <div className="py-20 text-center opacity-20">
-                        <InformationCircleIcon className="w-12 h-12 mx-auto mb-2" />
-                        <p className="font-black uppercase text-xs">Sem dados</p>
-                    </div>
+                    <div className="py-20 text-center opacity-20"><InformationCircleIcon className="w-12 h-12 mx-auto mb-2" /><p className="font-black uppercase text-xs">Nenhum registro</p></div>
                 )}
             </div>
         </div>
@@ -351,20 +312,28 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
 };
 
 // --- Settings Panel ---
-const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages }) => {
+const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset }) => {
     const handleUpdate = (field: keyof Brokerage, value: any) => {
         setBrokerages((prev: Brokerage[]) => prev.map((b, i) => i === 0 ? { ...b, [field]: value } : b));
     };
 
     return (
         <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8">
-            <h2 className={`text-2xl font-black ${theme.text}`}>Configurações</h2>
+            <h2 className={`text-2xl font-black ${theme.text}`}>Ajustes e Gestão</h2>
             <div className={`p-8 rounded-3xl border ${theme.card} space-y-6`}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Nome / Gestão</label><input type="text" value={brokerage.name} onChange={e => handleUpdate('name', e.target.value)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
-                    <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Moeda</label><select value={brokerage.currency} onChange={e => handleUpdate('currency', e.target.value)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`}><option value="USD">Dólar ($)</option><option value="BRL">Real (R$)</option></select></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Nome / Broker</label><input type="text" value={brokerage.name} onChange={e => handleUpdate('name', e.target.value)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Câmbio</label><select value={brokerage.currency} onChange={e => handleUpdate('currency', e.target.value)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`}><option value="USD">USD ($)</option><option value="BRL">BRL (R$)</option></select></div>
                     <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Banca Inicial</label><input type="number" value={brokerage.initialBalance} onChange={e => handleUpdate('initialBalance', parseFloat(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
-                    <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Payout Padrão %</label><input type="number" value={brokerage.payoutPercentage} onChange={e => handleUpdate('payoutPercentage', parseInt(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Payout Padrão</label><input type="number" value={brokerage.payoutPercentage} onChange={e => handleUpdate('payoutPercentage', parseInt(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
+                </div>
+                
+                <div className="pt-8 border-t border-slate-800/10">
+                    <h3 className="text-sm font-black text-red-500 uppercase mb-4">Zona de Perigo</h3>
+                    <div className="p-4 bg-red-500/5 rounded-2xl border border-red-500/10">
+                        <p className="text-xs font-bold text-red-500/70 mb-4">Esta ação apagará todos os registros de trades permanentemente. A planilha de juros voltará ao dia 1.</p>
+                        <button onClick={onReset} className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl text-[10px] uppercase tracking-widest transition-all">Zerar Planilha Completa</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -380,71 +349,23 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
 
     return (
         <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8">
-            <h2 className={`text-2xl font-black ${theme.text}`}>Metas Financeiras</h2>
+            <h2 className={`text-2xl font-black ${theme.text}`}>Metas de Performance</h2>
             <form onSubmit={handleAddGoal} className={`p-6 rounded-3xl border ${theme.card} grid grid-cols-1 md:grid-cols-3 gap-4 items-end`}>
-                <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Objetivo</label><input type="text" value={newName} onChange={e => setNewName(e.target.value)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`} /></div>
-                <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Valor Alvo</label><input type="number" value={newTarget} onChange={e => setNewTarget(e.target.value)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`} /></div>
-                <button type="submit" className="h-[42px] bg-green-500 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-green-500/20"><PlusIcon className="w-4 h-4 mx-auto" /></button>
+                <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Nome do Objetivo</label><input type="text" value={newName} onChange={e => setNewName(e.target.value)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`} /></div>
+                <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Valor Objetivo</label><input type="number" value={newTarget} onChange={e => setNewTarget(e.target.value)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`} /></div>
+                <button type="submit" className="h-[42px] bg-green-500 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest transition-all"><PlusIcon className="w-4 h-4 mx-auto" /></button>
             </form>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {goals.map((goal: any) => {
                     const progress = Math.max(0, Math.min(100, (totalProfit / goal.targetAmount) * 100));
                     return (
                         <div key={goal.id} className={`p-6 rounded-3xl border ${theme.card}`}>
-                            <div className="flex justify-between items-start mb-6">
-                                <h3 className="text-xl font-black">{goal.name}</h3>
-                                <button onClick={() => setGoals((prev: any) => prev.filter((g: any) => g.id !== goal.id))} className="text-red-500/30 hover:text-red-500"><TrashIcon className="w-4 h-4" /></button>
-                            </div>
+                            <div className="flex justify-between items-start mb-6"><h3 className="text-xl font-black">{goal.name}</h3><button onClick={() => setGoals((prev: any) => prev.filter((g: any) => g.id !== goal.id))} className="text-red-500/30 hover:text-red-500"><TrashIcon className="w-4 h-4" /></button></div>
                             <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden mb-2"><div className="h-full bg-green-500 transition-all duration-1000" style={{ width: `${progress}%` }} /></div>
-                            <div className="flex justify-between text-[10px] font-bold opacity-60"><span>Progresso: {progress.toFixed(1)}%</span><span>Meta: {formatMoney(goal.targetAmount)}</span></div>
+                            <div className="flex justify-between text-[10px] font-bold opacity-60"><span>{progress.toFixed(1)}% Alcançado</span><span>Alvo: {formatMoney(goal.targetAmount)}</span></div>
                         </div>
                     );
                 })}
-            </div>
-        </div>
-    );
-};
-
-// --- AI Analysis Panel (View simplificada) ---
-const AIPanel: React.FC<{ theme: any }> = ({ theme }) => {
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [chartData, setChartData] = useState<any[]>([]);
-    const [signal, setSignal] = useState<any>(null);
-    const ai = useMemo(() => new GoogleGenAI({ apiKey: process.env.API_KEY as string }), []);
-    const runAnalysis = useCallback(async (data: any[]) => {
-        if (!data.length) return;
-        const last = data[data.length-1];
-        try {
-            const prompt = `Analise este trade BTC/USD. RSI: ${last.rsi?.toFixed(2)}. Dê um sinal: COMPRA | VENDA | NEUTRO e uma justificativa curta. Formato: SINAL | Justificativa | Confiança(0-100)`;
-            const resp = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
-            const parts = (resp.text || 'NEUTRO | Analisando | 50').split('|').map(p => p.trim());
-            setSignal({ action: parts[0], reason: parts[1], conf: parts[2] });
-        } catch (e) { console.error(e); }
-    }, [ai]);
-    useEffect(() => {
-        if (!isAnalyzing) return;
-        const data = calculateBollingerBands(calculateRSI(findFractals(generateInitialData(50))));
-        setChartData(data); runAnalysis(data);
-        const inv = setInterval(() => {
-            setChartData(prev => {
-                const processed = calculateBollingerBands(calculateRSI(findFractals([...prev.slice(1), getNextCandle(prev[prev.length-1])])));
-                runAnalysis(processed); return processed;
-            });
-        }, 5000);
-        return () => clearInterval(inv);
-    }, [isAnalyzing, runAnalysis]);
-    if (!isAnalyzing) return <div className="p-20 text-center"><button onClick={() => setIsAnalyzing(true)} className="bg-green-500 text-slate-950 font-black px-8 py-4 rounded-2xl shadow-xl shadow-green-500/20">INICIAR ANÁLISE IA</button></div>;
-    return (
-        <div className="p-6 h-full flex flex-col xl:flex-row gap-6">
-            <div className={`flex-1 rounded-3xl border ${theme.card} p-4 h-[400px]`}>
-                 <ResponsiveContainer><ComposedChart data={chartData}><XAxis dataKey="time" hide /><YAxis hide /><Tooltip /><Bar dataKey="close" fill="#10B981" /></ComposedChart></ResponsiveContainer>
-            </div>
-            <div className={`w-full xl:w-96 rounded-3xl border ${theme.card} p-8 flex flex-col justify-center text-center`}>
-                <h3 className="text-xs font-black uppercase opacity-40 mb-4 tracking-widest">Sinal Estratégico</h3>
-                {signal ? (
-                    <div className="animate-fade-in"><p className={`text-6xl font-black ${signal.action === 'COMPRA' ? 'text-green-500' : signal.action === 'VENDA' ? 'text-red-500' : 'text-yellow-500'}`}>{signal.action}</p><p className="text-sm font-bold mt-4 opacity-80">{signal.reason}</p></div>
-                ) : <div className="animate-pulse text-slate-500">Calculando...</div>}
-                <button onClick={() => setIsAnalyzing(false)} className="mt-8 py-3 border border-slate-700 rounded-xl font-bold opacity-60">Parar</button>
             </div>
         </div>
     );
@@ -467,21 +388,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const latestDataRef = useRef({ userId: user.id, brokerages, records, goals });
     useEffect(() => { latestDataRef.current = { userId: user.id, brokerages, records, goals }; }, [user.id, brokerages, records, goals]);
 
-    const fetchData = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const response = await fetch(`/api/get-data?userId=${user.id}&_=${Date.now()}`);
-            if (response.ok) {
-                const data = await response.json();
-                const loadedBrokerages = data.brokerages?.length ? data.brokerages : [{ id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' }];
-                setBrokerages(loadedBrokerages); setRecords(data.records || []); setGoals(data.goals || []);
-                if (loadedBrokerages[0]) { setCustomEntryValue(String(loadedBrokerages[0].entryValue)); setCustomPayout(String(loadedBrokerages[0].payoutPercentage)); }
-            }
-        } catch (e) { console.error(e); } finally { setIsLoading(false); }
-    }, [user.id]);
-
-    useEffect(() => { fetchData(); }, [fetchData]);
-
     const recalibrateHistory = useCallback((allRecords: AppRecord[], initialBal: number) => {
         let runningBalance = initialBal;
         return allRecords
@@ -498,6 +404,21 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 return updated;
             });
     }, []);
+
+    const fetchData = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch(`/api/get-data?userId=${user.id}&_=${Date.now()}`);
+            if (response.ok) {
+                const data = await response.json();
+                const loadedBrokerages = data.brokerages?.length ? data.brokerages : [{ id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' }];
+                setBrokerages(loadedBrokerages); setRecords(data.records || []); setGoals(data.goals || []);
+                if (loadedBrokerages[0]) { setCustomEntryValue(String(loadedBrokerages[0].entryValue)); setCustomPayout(String(loadedBrokerages[0].payoutPercentage)); }
+            }
+        } catch (e) { console.error(e); } finally { setIsLoading(false); }
+    }, [user.id]);
+
+    useEffect(() => { fetchData(); }, [fetchData]);
 
     const saveData = useCallback(async () => {
         setSavingStatus('saving');
@@ -544,10 +465,18 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         });
     };
 
+    const handleReset = () => {
+        if(confirm("Deseja realmente apagar todos os trades? Esta ação é irreversível.")) {
+            setRecords([]);
+            debouncedSave();
+        }
+    };
+
     const activeBrokerage = brokerages[0];
     const dateStr = selectedDate.toISOString().split('T')[0];
     const dailyRecord = records.find((r): r is DailyRecord => r.id === dateStr && r.recordType === 'day');
-    const startBalDashboard = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.id.localeCompare(a.id))[0]?.endBalanceUSD || activeBrokerage?.initialBalance || 0;
+    const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.id.localeCompare(a.id));
+    const startBalDashboard = sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
 
     const theme = useThemeClasses(isDarkMode);
     if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin" /></div>;
@@ -561,7 +490,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
                     <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Planilha Juros</button>
                     <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Relatório</button>
-                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
                     <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
                     <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Configurações</button>
                 </nav>
@@ -570,15 +498,14 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             <main className="flex-1 flex flex-col overflow-hidden">
                 <header className={`h-20 flex items-center justify-between px-6 md:px-8 border-b ${theme.header}`}>
                     <div className="flex items-center gap-4"><button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-6 h-6" /></button><SavingStatusIndicator status={savingStatus} /></div>
-                    <div className="flex items-center gap-3"><button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button><div className="w-10 h-10 rounded-2xl bg-green-500 flex items-center justify-center text-slate-950 font-black uppercase text-xs">{user.username.slice(0, 2)}</div></div>
+                    <div className="flex items-center gap-3"><button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button><div className="w-10 h-10 rounded-2xl bg-green-500 flex items-center justify-center text-slate-950 font-black text-xs">{user.username.slice(0, 2).toUpperCase()}</div></div>
                 </header>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeBrokerage.initialBalance * 0.03} />}
                     {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
                     {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
-                    {activeTab === 'ai-analysis' && <AIPanel theme={theme} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
-                    {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} />}
+                    {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} />}
                 </div>
             </main>
         </div>
@@ -586,8 +513,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 };
 
 const SavingStatusIndicator: React.FC<{status: string}> = ({status}) => {
-    if (status === 'saving') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500"><ArrowPathIcon className="w-3 h-3 animate-spin" /> Salvando</div>;
-    if (status === 'saved') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-green-500"><CheckIcon className="w-3 h-3" /> Salvo</div>;
+    if (status === 'saving') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500"><ArrowPathIcon className="w-3 h-3 animate-spin" /> Sincronizando</div>;
+    if (status === 'saved') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-green-500"><CheckIcon className="w-3 h-3" /> Nuvem Atualizada</div>;
     return null;
 };
 
