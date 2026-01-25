@@ -348,25 +348,55 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
 const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrokerage }) => {
     const [newName, setNewName] = useState('');
     const [newTarget, setNewTarget] = useState('');
+    const [newType, setNewType] = useState<'daily'|'weekly'|'monthly'|'annual'>('monthly');
     const totalProfit = useMemo(() => records.filter((r: any) => r.recordType === 'day').reduce((acc: number, r: any) => acc + r.netProfitUSD, 0), [records]);
-    const handleAddGoal = (e: React.FormEvent) => { e.preventDefault(); if (!newName || !newTarget) return; setGoals((prev: any) => [...prev, { id: crypto.randomUUID(), name: newName, targetAmount: parseFloat(newTarget), type: 'monthly', createdAt: Date.now() }]); setNewName(''); setNewTarget(''); };
+    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+
+    const handleAddGoal = (e: React.FormEvent) => { 
+        e.preventDefault(); 
+        if (!newName || !newTarget) return; 
+        setGoals((prev: any) => [...prev, { id: crypto.randomUUID(), name: newName, targetAmount: parseFloat(newTarget), type: newType, createdAt: Date.now() }]); 
+        setNewName(''); setNewTarget(''); 
+    };
 
     return (
         <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8">
             <h2 className={`text-2xl font-black ${theme.text}`}>Metas Financeiras</h2>
-            <form onSubmit={handleAddGoal} className={`p-6 rounded-3xl border ${theme.card} grid grid-cols-1 md:grid-cols-3 gap-4 items-end`}>
+            <form onSubmit={handleAddGoal} className={`p-6 rounded-3xl border ${theme.card} grid grid-cols-1 md:grid-cols-4 gap-4 items-end`}>
                 <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Objetivo</label><input type="text" value={newName} onChange={e => setNewName(e.target.value)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`} /></div>
                 <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Valor Alvo</label><input type="number" value={newTarget} onChange={e => setNewTarget(e.target.value)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`} /></div>
+                <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Período</label><select value={newType} onChange={e => setNewType(e.target.value as any)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`}><option value="daily">Diária</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option><option value="annual">Anual</option></select></div>
                 <button type="submit" className="h-[42px] bg-green-500 text-slate-950 font-black rounded-xl uppercase text-[10px] transition-all"><PlusIcon className="w-4 h-4 mx-auto" /></button>
             </form>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {goals.map((goal: any) => {
                     const progress = Math.max(0, Math.min(100, (totalProfit / goal.targetAmount) * 100));
+                    const isMonthly = goal.type === 'monthly';
                     return (
                         <div key={goal.id} className={`p-6 rounded-3xl border ${theme.card}`}>
-                            <div className="flex justify-between items-start mb-6"><h3 className="text-xl font-black">{goal.name}</h3><button onClick={() => setGoals((prev: any) => prev.filter((g: any) => g.id !== goal.id))} className="text-red-500/30 hover:text-red-500"><TrashIcon className="w-4 h-4" /></button></div>
+                            <div className="flex justify-between items-start mb-6">
+                                <div>
+                                    <span className="text-[8px] font-black uppercase px-2 py-0.5 bg-green-500 text-slate-950 rounded-full mb-1 inline-block">{goal.type}</span>
+                                    <h3 className="text-xl font-black">{goal.name}</h3>
+                                </div>
+                                <button onClick={() => setGoals((prev: any) => prev.filter((g: any) => g.id !== goal.id))} className="text-red-500/30 hover:text-red-500"><TrashIcon className="w-4 h-4" /></button>
+                            </div>
+                            
+                            {isMonthly && (
+                                <div className="mb-6 grid grid-cols-2 gap-3 p-3 bg-slate-950/20 rounded-2xl border border-slate-800/30">
+                                    <div>
+                                        <p className="text-[8px] uppercase font-black opacity-40">Meta Semanal Desdobrada</p>
+                                        <p className="text-xs font-black text-green-400">{currencySymbol} {formatMoney(goal.targetAmount / 4)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[8px] uppercase font-black opacity-40">Meta Diária Desdobrada</p>
+                                        <p className="text-xs font-black text-green-400">{currencySymbol} {formatMoney(goal.targetAmount / 22)}</p>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden mb-2"><div className="h-full bg-green-500 transition-all duration-1000" style={{ width: `${progress}%` }} /></div>
-                            <div className="flex justify-between text-[10px] font-bold opacity-60"><span>{progress.toFixed(1)}%</span><span>Meta: {formatMoney(goal.targetAmount)}</span></div>
+                            <div className="flex justify-between text-[10px] font-bold opacity-60"><span>{progress.toFixed(1)}% Alcançado</span><span>Alvo: {formatMoney(goal.targetAmount)}</span></div>
                         </div>
                     );
                 })}
@@ -482,6 +512,10 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.id.localeCompare(a.id));
     const startBalDashboard = sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
 
+    // Dynamic Daily Goal derived from Monthly Goal
+    const monthlyGoal = goals.find(g => g.type === 'monthly');
+    const activeDailyGoal = monthlyGoal ? (monthlyGoal.targetAmount / 22) : (activeBrokerage?.initialBalance * 0.03 || 1);
+
     const theme = useThemeClasses(isDarkMode);
     if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -506,7 +540,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     <div className="flex items-center gap-3"><button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button><div className="w-10 h-10 rounded-2xl bg-green-500 flex items-center justify-center text-slate-950 font-black text-xs">{user.username.slice(0, 2).toUpperCase()}</div></div>
                 </header>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
-                    {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeBrokerage.initialBalance * 0.03} />}
+                    {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeDailyGoal} />}
                     {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
                     {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
