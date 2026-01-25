@@ -1,3 +1,4 @@
+
 import { db } from '@vercel/postgres';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Brokerage, DailyRecord, Goal, Trade } from '../../types';
@@ -115,12 +116,17 @@ export default async function handler(
 
     const client = await db.connect();
     try {
-        const userId = req.query.userId as string;
-        if (!userId) {
-            return res.status(400).json({ error: 'User ID is required.' });
+        const userIdStr = req.query.userId as string;
+        if (!userIdStr) {
+            return res.status(400).json({ error: 'User ID (userId) é obrigatório nos parâmetros da query.' });
+        }
+
+        const userId = parseInt(userIdStr, 10);
+        if (isNaN(userId) || !Number.isInteger(userId)) {
+            return res.status(400).json({ error: `Formato de User ID inválido. Esperava-se um inteiro na query string, mas recebeu: "${userIdStr}".` });
         }
         
-        await ensureTablesAndMigrate(client, parseInt(userId, 10));
+        await ensureTablesAndMigrate(client, userId);
 
         // 1. Fetch settings (Brokerages and Goals) from the JSON blob
         const { rows: settingsResult } = await client.query(
