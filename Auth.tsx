@@ -6,10 +6,25 @@ import { User } from './types';
 const Auth: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(() => {
         try {
-            const savedUser = sessionStorage.getItem('currentUser');
-            return savedUser ? JSON.parse(savedUser) : null;
+            const savedUserJSON = sessionStorage.getItem('currentUser');
+            if (!savedUserJSON) return null;
+
+            const savedUser = JSON.parse(savedUserJSON);
+
+            // FIX: Validate the user object from sessionStorage.
+            // If the ID is not an integer, the data is corrupt/stale from a previous version.
+            // Clear the session and force re-login to get fresh, valid data.
+            if (savedUser && (typeof savedUser.id !== 'number' || !Number.isInteger(savedUser.id))) {
+                console.warn('Corrupt user session found. Clearing session to force re-authentication.');
+                sessionStorage.removeItem('currentUser');
+                return null; 
+            }
+            
+            return savedUser;
         } catch (error) {
-            console.error("Failed to parse user from sessionStorage", error);
+            console.error("Failed to parse user from sessionStorage. Clearing...", error);
+            // Also clear corrupt data if JSON parsing fails
+            sessionStorage.removeItem('currentUser');
             return null;
         }
     });
