@@ -9,11 +9,11 @@ import {
     CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ArrowPathIcon, 
     InformationCircleIcon, TrophyIcon, 
     ChartBarIcon, CheckIcon, DocumentTextIcon,
-    CpuChipIcon, ChevronUpIcon, ChevronDownIcon, PlusIcon, TrashIcon
+    CpuChipIcon, PlusIcon, TrashIcon, EditIcon
 } from './components/icons';
 import { generateInitialData, getNextCandle } from './services/tradingDataService';
 import { calculateBollingerBands, calculateRSI, findFractals } from './services/indicatorService';
-import { ComposedChart, Line, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
+import { ComposedChart, Line, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 // --- Helper Functions ---
 const formatMoney = (val: number) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -65,7 +65,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
-                <div><h2 className={`text-2xl font-black ${theme.text}`}>Dashboard</h2><p className={theme.textMuted}>Gerenciamento de ordens em tempo real</p></div>
+                <div><h2 className={`text-2xl font-black ${theme.text}`}>Dashboard</h2><p className={theme.textMuted}>Gestão ativa de operações</p></div>
                 <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T00:00:00Z'))} className={`border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-900 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
             </div>
 
@@ -125,7 +125,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center opacity-30 py-10">
                                 <InformationCircleIcon className="w-10 h-10 mb-2" />
-                                <p className="text-xs font-black uppercase">Sem registros hoje</p>
+                                <p className="text-xs font-black uppercase">Nenhuma operação</p>
                             </div>
                         )}
                     </div>
@@ -152,39 +152,37 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
         const dayRecords = records.filter((r: any) => r.recordType === 'day');
         const recordMap = new Map(dayRecords.map((r: any) => [r.id, r]));
         
+        // Saldo anterior ao início da visualização
         const recordsBefore = dayRecords
             .filter((r: any) => r.date < startDateStr)
             .sort((a: any, b: any) => b.id.localeCompare(a.id));
             
         let runningBalance = recordsBefore.length > 0 ? recordsBefore[0].endBalanceUSD : activeBrokerage.initialBalance;
 
-        for (let i = 0; i < 31; i++) {
+        // Loop fixo de 30 dias a partir da data inicial
+        for (let i = 0; i < 30; i++) {
             const currentCursor = new Date(startOfView);
             currentCursor.setDate(startOfView.getDate() + i);
             const dateKey = currentCursor.toISOString().split('T')[0];
             
-            if (currentCursor.getMonth() !== startOfView.getMonth()) break;
-
             const realRecord = recordMap.get(dateKey) as DailyRecord | undefined;
             
             const initial = realRecord ? realRecord.startBalanceUSD : runningBalance;
-            const win = realRecord ? realRecord.winCount : 0;
-            const loss = realRecord ? realRecord.lossCount : 0;
-            const profit = realRecord ? realRecord.netProfitUSD : 0;
-            const final = realRecord ? realRecord.endBalanceUSD : runningBalance;
-            const avgPayout = realRecord?.trades?.length 
-                ? (realRecord.trades.reduce((acc, t) => acc + t.payoutPercentage, 0) / realRecord.trades.length) 
-                : activeBrokerage.payoutPercentage;
+            const hasTrades = realRecord && realRecord.trades.length > 0;
+            const win = hasTrades ? realRecord.winCount : 0;
+            const loss = hasTrades ? realRecord.lossCount : 0;
+            const profit = hasTrades ? realRecord.netProfitUSD : 0;
+            const final = hasTrades ? realRecord.endBalanceUSD : initial;
 
             rows.push({
                 dia: i + 1,
                 dateKey,
                 initial,
-                payout: avgPayout,
                 win,
                 loss,
                 profit,
                 final,
+                hasTrades,
                 isToday: dateKey === new Date().toISOString().split('T')[0]
             });
 
@@ -197,11 +195,11 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros</h2>
-                    <p className="text-[10px] uppercase font-bold text-slate-500 opacity-60">Histórico acumulado de crescimento</p>
+                    <h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros (30 Dias)</h2>
+                    <p className="text-[10px] uppercase font-bold text-slate-500 opacity-60">Projeção e histórico baseado na data inicial</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <label className="text-xs font-black uppercase text-slate-500">Mês Início:</label>
+                    <label className="text-xs font-black uppercase text-slate-500">Início:</label>
                     <input type="date" value={startDateStr} onChange={(e) => setStartDateStr(e.target.value)} className={`border rounded-xl px-3 py-1.5 text-sm font-bold ${isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-700'}`} />
                 </div>
             </div>
@@ -212,11 +210,11 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                         <thead>
                             <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Dia</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Data</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Saldo Inicial</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20 text-blue-400">Payout (%)</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20 text-green-500">Win</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20 text-red-500">Loss</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Lucro/Prejuízo</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Lucro do Dia</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Saldo Final</th>
                             </tr>
                         </thead>
@@ -224,16 +222,16 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                             {tableData.map((row) => (
                                 <tr key={row.dateKey} className={`text-sm font-bold transition-colors ${row.isToday ? 'bg-green-500/5' : ''} hover:bg-slate-800/5`}>
                                     <td className="py-4 px-3 opacity-40 font-mono text-xs">{row.dia}</td>
+                                    <td className="py-4 px-3 text-[10px] uppercase opacity-60">{new Date(row.dateKey + 'T00:00:00Z').toLocaleDateString('pt-BR')}</td>
                                     <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
-                                    <td className="py-4 px-3 text-blue-400 font-mono">{row.payout.toFixed(0)}%</td>
                                     <td className="py-4 px-3">
-                                        <span className={row.win > 0 ? 'bg-green-500/10 text-green-500 px-3 py-1 rounded-xl' : 'opacity-20'}>{row.win}</span>
+                                        {row.hasTrades ? <span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-xl">{row.win}</span> : '-'}
                                     </td>
                                     <td className="py-4 px-3">
-                                        <span className={row.loss > 0 ? 'bg-red-500/10 text-red-500 px-3 py-1 rounded-xl' : 'opacity-20'}>{row.loss}</span>
+                                        {row.hasTrades ? <span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-xl">{row.loss}</span> : '-'}
                                     </td>
                                     <td className={`py-4 px-3 font-black ${row.profit > 0 ? 'text-green-500' : row.profit < 0 ? 'text-red-500' : 'opacity-30'}`}>
-                                        {row.profit !== 0 ? `${row.profit > 0 ? '+' : ''}${currencySymbol} ${formatMoney(row.profit)}` : '-'}
+                                        {row.hasTrades ? `${row.profit > 0 ? '+' : ''}${currencySymbol} ${formatMoney(row.profit)}` : '-'}
                                     </td>
                                     <td className="py-4 px-3 font-black opacity-90">{currencySymbol} {formatMoney(row.final)}</td>
                                 </tr>
@@ -247,7 +245,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 };
 
 // --- Report Panel ---
-const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
+const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, deleteTrade }) => {
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
@@ -275,33 +273,24 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) =>
 
     const winRate = (reportData.wins + reportData.losses) > 0 ? (reportData.wins / (reportData.wins + reportData.losses) * 100) : 0;
     
-    const kpis = [
-        { label: 'Lucro/Prejuízo no Mês', val: `${reportData.totalProfit >= 0 ? '+' : ''}${currencySymbol} ${formatMoney(reportData.totalProfit)}`, icon: TrendingUpIcon, color: reportData.totalProfit >= 0 ? 'text-green-500' : 'text-red-500' },
-        { label: 'Banca Atual (Consolidada)', val: `${currencySymbol} ${formatMoney(reportData.finalMonthBalance)}`, icon: PieChartIcon, color: 'text-blue-400' },
-        { label: 'Quantidade de Trades', val: reportData.allTrades.length, icon: ChartBarIcon, color: 'text-slate-400' },
-        { label: 'Aproveitamento', val: `${winRate.toFixed(1)}%`, icon: TrophyIcon, color: 'text-purple-400' },
-    ];
-
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
              <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
-                <div><h2 className={`text-2xl font-black ${theme.text}`}>Relatório Mensal</h2><p className={theme.textMuted}>Análise profunda de performance por período.</p></div>
+                <div><h2 className={`text-2xl font-black ${theme.text}`}>Relatório Mensal</h2><p className={theme.textMuted}>Histórico detalhado de operações e performance.</p></div>
                 <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className={`border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-900 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                {kpis.map((kpi, i) => (
-                    <div key={i} className={`p-4 rounded-3xl border ${theme.card}`}>
-                        <p className="text-[9px] uppercase font-black text-slate-500 tracking-wider mb-1">{kpi.label}</p>
-                        <p className={`text-base md:text-xl font-black ${kpi.color}`}>{kpi.val}</p>
-                    </div>
-                ))}
+                <div className={`p-4 rounded-3xl border ${theme.card}`}><p className="text-[9px] uppercase font-black text-slate-500 mb-1">Lucro/Prejuízo</p><p className={`text-xl font-black ${reportData.totalProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{reportData.totalProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(reportData.totalProfit)}</p></div>
+                <div className={`p-4 rounded-3xl border ${theme.card}`}><p className="text-[9px] uppercase font-black text-slate-500 mb-1">Banca Consolidada</p><p className="text-xl font-black text-blue-400">{currencySymbol} {formatMoney(reportData.finalMonthBalance)}</p></div>
+                <div className={`p-4 rounded-3xl border ${theme.card}`}><p className="text-[9px] uppercase font-black text-slate-500 mb-1">Volume</p><p className="text-xl font-black">{reportData.allTrades.length} Trades</p></div>
+                <div className={`p-4 rounded-3xl border ${theme.card}`}><p className="text-[9px] uppercase font-black text-slate-500 mb-1">Win Rate</p><p className="text-xl font-black text-purple-400">{winRate.toFixed(1)}%</p></div>
             </div>
 
             <div className={`rounded-3xl border overflow-hidden ${theme.card}`}>
                 <div className="p-6 border-b border-slate-800/10">
                     <h3 className="font-black text-[10px] uppercase tracking-widest opacity-60 flex items-center gap-2">
-                        <ListBulletIcon className="w-4 h-4" /> Histórico Individual de Operações
+                        <ListBulletIcon className="w-4 h-4" /> Gestão Individual de Operações
                     </h3>
                 </div>
                 {reportData.allTrades.length > 0 ? (
@@ -309,12 +298,12 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) =>
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
-                                    <th className="py-4 px-6 border-b border-slate-800/10">Data</th>
-                                    <th className="py-4 px-6 border-b border-slate-800/10">Hora</th>
-                                    <th className="py-4 px-6 border-b border-slate-800/10">Resultado</th>
-                                    <th className="py-4 px-6 border-b border-slate-800/10">Valor Entrada</th>
+                                    <th className="py-4 px-6 border-b border-slate-800/10">Data / Hora</th>
+                                    <th className="py-4 px-6 border-b border-slate-800/10">Status</th>
+                                    <th className="py-4 px-6 border-b border-slate-800/10">Entrada</th>
                                     <th className="py-4 px-6 border-b border-slate-800/10">Payout</th>
-                                    <th className="py-4 px-6 border-b border-slate-800/10 text-right">Lucro/Prej.</th>
+                                    <th className="py-4 px-6 border-b border-slate-800/10">Lucro</th>
+                                    <th className="py-4 px-6 border-b border-slate-800/10 text-right">Ações</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/5">
@@ -322,9 +311,13 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) =>
                                     const profit = trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)) : -trade.entryValue;
                                     const tradeDate = new Date(trade.dayId + 'T00:00:00Z');
                                     return (
-                                        <tr key={trade.id} className="hover:bg-slate-800/5 transition-colors">
-                                            <td className="py-4 px-6 font-bold text-sm">{tradeDate.toLocaleDateString('pt-BR')}</td>
-                                            <td className="py-4 px-6 text-[10px] font-black uppercase opacity-50">{new Date(trade.timestamp || 0).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                                        <tr key={trade.id} className="hover:bg-slate-800/5 transition-colors group">
+                                            <td className="py-4 px-6">
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-sm">{tradeDate.toLocaleDateString('pt-BR')}</span>
+                                                    <span className="text-[10px] font-black opacity-40 uppercase">{new Date(trade.timestamp || 0).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                </div>
+                                            </td>
                                             <td className="py-4 px-6">
                                                 <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg ${trade.result === 'win' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
                                                     {trade.result === 'win' ? 'Win' : 'Loss'}
@@ -332,8 +325,13 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) =>
                                             </td>
                                             <td className="py-4 px-6 font-mono text-sm opacity-60">{currencySymbol} {formatMoney(trade.entryValue)}</td>
                                             <td className="py-4 px-6 font-mono text-sm opacity-60">{trade.payoutPercentage}%</td>
-                                            <td className={`py-4 px-6 text-right font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                            <td className={`py-4 px-6 font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                                 {profit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(profit)}
+                                            </td>
+                                            <td className="py-4 px-6 text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <button onClick={() => deleteTrade(trade.id, trade.dayId)} className="p-2 text-red-500/30 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all" title="Excluir"><TrashIcon className="w-4 h-4" /></button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );
@@ -344,7 +342,7 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) =>
                 ) : (
                     <div className="py-20 text-center opacity-20">
                         <InformationCircleIcon className="w-12 h-12 mx-auto mb-2" />
-                        <p className="font-black uppercase text-xs">Nenhum trade este mês</p>
+                        <p className="font-black uppercase text-xs">Sem dados</p>
                     </div>
                 )}
             </div>
@@ -360,63 +358,13 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages }) => {
 
     return (
         <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8">
-            <div>
-                <h2 className={`text-2xl font-black ${theme.text}`}>Configurações</h2>
-                <p className={theme.textMuted}>Gerencie seus parâmetros operacionais e corretora.</p>
-            </div>
-
+            <h2 className={`text-2xl font-black ${theme.text}`}>Configurações</h2>
             <div className={`p-8 rounded-3xl border ${theme.card} space-y-6`}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase opacity-50">Nome da Corretora / Gestão</label>
-                        <input type="text" value={brokerage.name} onChange={e => handleUpdate('name', e.target.value)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase opacity-50">Moeda Base</label>
-                        <select value={brokerage.currency} onChange={e => handleUpdate('currency', e.target.value)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`}>
-                            <option value="USD">Dólar ($)</option>
-                            <option value="BRL">Real (R$)</option>
-                        </select>
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase opacity-50">Banca Inicial</label>
-                        <input type="number" value={brokerage.initialBalance} onChange={e => handleUpdate('initialBalance', parseFloat(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase opacity-50">Payout Padrão (%)</label>
-                        <input type="number" value={brokerage.payoutPercentage} onChange={e => handleUpdate('payoutPercentage', parseInt(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
-                    </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-800/10">
-                    <h3 className="text-xs font-black uppercase mb-4 opacity-70">Gerenciamento de Entrada</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black uppercase opacity-50">Modo de Entrada</label>
-                            <div className="flex bg-slate-900 p-1 rounded-xl">
-                                <button onClick={() => handleUpdate('entryMode', 'percentage')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${brokerage.entryMode === 'percentage' ? 'bg-green-500 text-slate-950' : 'text-slate-500'}`}>Porcentagem</button>
-                                <button onClick={() => handleUpdate('entryMode', 'fixed')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${brokerage.entryMode === 'fixed' ? 'bg-green-500 text-slate-950' : 'text-slate-500'}`}>Valor Fixo</button>
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black uppercase opacity-50">{brokerage.entryMode === 'percentage' ? 'Porcentagem (%)' : 'Valor ($)'}</label>
-                            <input type="number" value={brokerage.entryValue} onChange={e => handleUpdate('entryValue', parseFloat(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-800/10">
-                    <h3 className="text-xs font-black uppercase mb-4 opacity-70">Trava de Segurança (Stop)</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black uppercase opacity-50 text-green-500">Stop Gain (Wins Seguídos)</label>
-                            <input type="number" value={brokerage.stopGainTrades} onChange={e => handleUpdate('stopGainTrades', parseInt(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black uppercase opacity-50 text-red-500">Stop Loss (Loss Seguídos)</label>
-                            <input type="number" value={brokerage.stopLossTrades} onChange={e => handleUpdate('stopLossTrades', parseInt(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
-                        </div>
-                    </div>
+                    <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Nome / Gestão</label><input type="text" value={brokerage.name} onChange={e => handleUpdate('name', e.target.value)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Moeda</label><select value={brokerage.currency} onChange={e => handleUpdate('currency', e.target.value)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`}><option value="USD">Dólar ($)</option><option value="BRL">Real (R$)</option></select></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Banca Inicial</label><input type="number" value={brokerage.initialBalance} onChange={e => handleUpdate('initialBalance', parseFloat(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Payout Padrão %</label><input type="number" value={brokerage.payoutPercentage} onChange={e => handleUpdate('payoutPercentage', parseInt(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
                 </div>
             </div>
         </div>
@@ -427,183 +375,76 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages }) => {
 const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrokerage }) => {
     const [newName, setNewName] = useState('');
     const [newTarget, setNewTarget] = useState('');
-    const [newType, setNewType] = useState<'daily'|'weekly'|'monthly'|'annual'>('monthly');
-
-    const totalProfit = useMemo(() => {
-        return records.filter((r: any) => r.recordType === 'day').reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
-    }, [records]);
-
-    const handleAddGoal = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newName || !newTarget) return;
-        const newGoal: Goal = { id: crypto.randomUUID(), name: newName, targetAmount: parseFloat(newTarget), type: newType, createdAt: Date.now() };
-        setGoals((prev: Goal[]) => [...prev, newGoal]);
-        setNewName(''); setNewTarget('');
-    };
-
-    const handleDelete = (id: string) => {
-        setGoals((prev: Goal[]) => prev.filter((g: Goal) => g.id !== id));
-    };
+    const totalProfit = useMemo(() => records.filter((r: any) => r.recordType === 'day').reduce((acc: number, r: any) => acc + r.netProfitUSD, 0), [records]);
+    const handleAddGoal = (e: React.FormEvent) => { e.preventDefault(); if (!newName || !newTarget) return; setGoals((prev: any) => [...prev, { id: crypto.randomUUID(), name: newName, targetAmount: parseFloat(newTarget), type: 'monthly', createdAt: Date.now() }]); setNewName(''); setNewTarget(''); };
 
     return (
         <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8">
-            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
-                <div>
-                    <h2 className={`text-2xl font-black ${theme.text}`}>Metas Financeiras</h2>
-                    <p className={theme.textMuted}>Visualize seus objetivos de longo prazo.</p>
-                </div>
-            </div>
-
-            <form onSubmit={handleAddGoal} className={`p-6 rounded-3xl border ${theme.card} grid grid-cols-1 md:grid-cols-4 gap-4 items-end`}>
-                <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase opacity-50">Objetivo</label>
-                    <input type="text" placeholder="Ex: Viagem, Carro..." value={newName} onChange={e => setNewName(e.target.value)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`} />
-                </div>
-                <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase opacity-50">Valor Alvo</label>
-                    <input type="number" placeholder="0.00" value={newTarget} onChange={e => setNewTarget(e.target.value)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`} />
-                </div>
-                <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase opacity-50">Período</label>
-                    <select value={newType} onChange={e => setNewType(e.target.value as any)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`}>
-                        <option value="daily">Diária</option>
-                        <option value="weekly">Semanal</option>
-                        <option value="monthly">Mensal</option>
-                        <option value="annual">Anual</option>
-                    </select>
-                </div>
-                <button type="submit" className="h-[42px] bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/20">
-                    <PlusIcon className="w-4 h-4" /> Criar Meta
-                </button>
+            <h2 className={`text-2xl font-black ${theme.text}`}>Metas Financeiras</h2>
+            <form onSubmit={handleAddGoal} className={`p-6 rounded-3xl border ${theme.card} grid grid-cols-1 md:grid-cols-3 gap-4 items-end`}>
+                <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Objetivo</label><input type="text" value={newName} onChange={e => setNewName(e.target.value)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`} /></div>
+                <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Valor Alvo</label><input type="number" value={newTarget} onChange={e => setNewTarget(e.target.value)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`} /></div>
+                <button type="submit" className="h-[42px] bg-green-500 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-green-500/20"><PlusIcon className="w-4 h-4 mx-auto" /></button>
             </form>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {goals.length > 0 ? goals.map((goal: Goal) => {
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {goals.map((goal: any) => {
                     const progress = Math.max(0, Math.min(100, (totalProfit / goal.targetAmount) * 100));
                     return (
-                        <div key={goal.id} className={`p-6 rounded-3xl border ${theme.card} relative overflow-hidden group`}>
+                        <div key={goal.id} className={`p-6 rounded-3xl border ${theme.card}`}>
                             <div className="flex justify-between items-start mb-6">
-                                <div>
-                                    <span className="text-[9px] font-black uppercase px-2 py-1 bg-slate-800 rounded-lg text-slate-500 tracking-tighter mb-2 inline-block">Meta {goal.type}</span>
-                                    <h3 className="text-xl font-black">{goal.name}</h3>
-                                </div>
-                                <button onClick={() => handleDelete(goal.id)} className="p-2 text-red-500/30 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"><TrashIcon className="w-4 h-4" /></button>
+                                <h3 className="text-xl font-black">{goal.name}</h3>
+                                <button onClick={() => setGoals((prev: any) => prev.filter((g: any) => g.id !== goal.id))} className="text-red-500/30 hover:text-red-500"><TrashIcon className="w-4 h-4" /></button>
                             </div>
-                            
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-end">
-                                    <p className="text-[10px] font-black uppercase opacity-50">Progresso Atual</p>
-                                    <p className="text-sm font-black text-green-500">{progress.toFixed(1)}%</p>
-                                </div>
-                                <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full bg-green-500 transition-all duration-1000" style={{ width: `${progress}%` }} />
-                                </div>
-                                <div className="flex justify-between text-[10px] font-bold opacity-60">
-                                    <span>{activeBrokerage.currency === 'USD' ? '$' : 'R$'} {formatMoney(totalProfit)}</span>
-                                    <span>{activeBrokerage.currency === 'USD' ? '$' : 'R$'} {formatMoney(goal.targetAmount)}</span>
-                                </div>
-                            </div>
-
-                            {progress >= 100 && (
-                                <div className="absolute top-0 right-0 p-1">
-                                    <div className="bg-green-500 text-slate-950 text-[8px] font-black px-2 py-1 rounded-bl-xl uppercase tracking-tighter">Concluído!</div>
-                                </div>
-                            )}
+                            <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden mb-2"><div className="h-full bg-green-500 transition-all duration-1000" style={{ width: `${progress}%` }} /></div>
+                            <div className="flex justify-between text-[10px] font-bold opacity-60"><span>Progresso: {progress.toFixed(1)}%</span><span>Meta: {formatMoney(goal.targetAmount)}</span></div>
                         </div>
                     );
-                }) : (
-                    <div className={`col-span-full p-12 text-center rounded-3xl border border-dashed border-slate-800/30 opacity-30`}>
-                        <TargetIcon className="w-12 h-12 mx-auto mb-4" />
-                        <p className="font-black uppercase text-xs">Nenhuma meta ativa</p>
-                    </div>
-                )}
+                })}
             </div>
         </div>
     );
 };
 
-// --- AI Analysis Panel (Simplified View) ---
-const Candlestick = (props: any) => {
-    const { x, y, width, height, open, close, high, low } = props;
-    const isBullish = close > open;
-    const color = isBullish ? '#10B981' : '#EF4444';
-    return (
-        <g stroke={color} fill="none">
-            <path d={`M ${x + width/2} ${y} L ${x + width/2} ${y + height}`} />
-            <rect x={x} y={isBullish ? y + (high-close) : y + (high-open)} width={width} height={Math.max(1, Math.abs(open-close))} fill={color} />
-        </g>
-    );
-};
-
+// --- AI Analysis Panel (View simplificada) ---
 const AIPanel: React.FC<{ theme: any }> = ({ theme }) => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [chartData, setChartData] = useState<any[]>([]);
     const [signal, setSignal] = useState<any>(null);
     const ai = useMemo(() => new GoogleGenAI({ apiKey: process.env.API_KEY as string }), []);
-
     const runAnalysis = useCallback(async (data: any[]) => {
         if (!data.length) return;
         const last = data[data.length-1];
         try {
-            const prompt = `Analise este trade BTC/USD M1. RSI: ${last.rsi?.toFixed(2)}. Posição BB: ${last.close > last.bb.upper ? 'Sobrecomprado' : last.close < last.bb.lower ? 'Sobrevendido' : 'Neutro'}. Dê um sinal: COMPRA | VENDA | NEUTRO e uma justificativa curta. Formato: SINAL | Justificativa | Confiança(0-100)`;
+            const prompt = `Analise este trade BTC/USD. RSI: ${last.rsi?.toFixed(2)}. Dê um sinal: COMPRA | VENDA | NEUTRO e uma justificativa curta. Formato: SINAL | Justificativa | Confiança(0-100)`;
             const resp = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
             const parts = (resp.text || 'NEUTRO | Analisando | 50').split('|').map(p => p.trim());
             setSignal({ action: parts[0], reason: parts[1], conf: parts[2] });
         } catch (e) { console.error(e); }
     }, [ai]);
-
     useEffect(() => {
         if (!isAnalyzing) return;
         const data = calculateBollingerBands(calculateRSI(findFractals(generateInitialData(50))));
-        setChartData(data);
-        runAnalysis(data);
+        setChartData(data); runAnalysis(data);
         const inv = setInterval(() => {
             setChartData(prev => {
-                const next = [...prev.slice(1), getNextCandle(prev[prev.length-1])];
-                const processed = calculateBollingerBands(calculateRSI(findFractals(next)));
-                runAnalysis(processed);
-                return processed;
+                const processed = calculateBollingerBands(calculateRSI(findFractals([...prev.slice(1), getNextCandle(prev[prev.length-1])])));
+                runAnalysis(processed); return processed;
             });
         }, 5000);
         return () => clearInterval(inv);
     }, [isAnalyzing, runAnalysis]);
-
-    if (!isAnalyzing) return <div className="p-20 text-center"><button onClick={() => setIsAnalyzing(true)} className="bg-green-500 text-slate-950 font-black px-8 py-4 rounded-2xl shadow-xl shadow-green-500/20 active:scale-95 transition-all">INICIAR ANÁLISE IA EM TEMPO REAL</button></div>;
-
-    const domain = [Math.min(...chartData.map(d => d.low)), Math.max(...chartData.map(d => d.high))];
-
+    if (!isAnalyzing) return <div className="p-20 text-center"><button onClick={() => setIsAnalyzing(true)} className="bg-green-500 text-slate-950 font-black px-8 py-4 rounded-2xl shadow-xl shadow-green-500/20">INICIAR ANÁLISE IA</button></div>;
     return (
         <div className="p-6 h-full flex flex-col xl:flex-row gap-6">
-            <div className={`flex-1 rounded-3xl border ${theme.card} p-4 flex flex-col h-[500px]`}>
-                 <ResponsiveContainer>
-                    <ComposedChart data={chartData}>
-                        <XAxis dataKey="time" tick={{fontSize: 10}} />
-                        <YAxis domain={domain} tick={{fontSize: 10}} />
-                        <Tooltip />
-                        <Line dataKey="bb.upper" stroke="#38BDF8" dot={false} strokeOpacity={0.2} />
-                        <Line dataKey="bb.lower" stroke="#38BDF8" dot={false} strokeOpacity={0.2} />
-                        <Bar dataKey="close" shape={<Candlestick />} />
-                    </ComposedChart>
-                </ResponsiveContainer>
+            <div className={`flex-1 rounded-3xl border ${theme.card} p-4 h-[400px]`}>
+                 <ResponsiveContainer><ComposedChart data={chartData}><XAxis dataKey="time" hide /><YAxis hide /><Tooltip /><Bar dataKey="close" fill="#10B981" /></ComposedChart></ResponsiveContainer>
             </div>
-            <div className={`w-full xl:w-96 rounded-3xl border ${theme.card} p-8 flex flex-col justify-between`}>
-                <div className="text-center">
-                    <h3 className="text-xs font-black uppercase opacity-40 mb-4 tracking-widest">Sinal Estratégico</h3>
-                    {signal ? (
-                        <div className="animate-fade-in">
-                            <p className={`text-6xl font-black ${signal.action === 'COMPRA' ? 'text-green-500' : signal.action === 'VENDA' ? 'text-red-500' : 'text-yellow-500'}`}>{signal.action}</p>
-                            <p className="text-sm font-bold mt-4 opacity-80">{signal.reason}</p>
-                            <div className="mt-8 bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
-                                <p className="text-[10px] uppercase font-black opacity-40 mb-1">Confiança da IA</p>
-                                <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden">
-                                    <div className="h-full bg-green-500 transition-all duration-1000" style={{width: `${signal.conf}%`}} />
-                                </div>
-                                <p className="text-right text-[10px] font-black mt-1">{signal.conf}%</p>
-                            </div>
-                        </div>
-                    ) : <div className="animate-pulse text-slate-500">Calculando...</div>}
-                </div>
-                <button onClick={() => setIsAnalyzing(false)} className="mt-8 w-full py-4 border border-slate-700 rounded-xl font-bold opacity-60 hover:opacity-100 transition-all">Parar Análise</button>
+            <div className={`w-full xl:w-96 rounded-3xl border ${theme.card} p-8 flex flex-col justify-center text-center`}>
+                <h3 className="text-xs font-black uppercase opacity-40 mb-4 tracking-widest">Sinal Estratégico</h3>
+                {signal ? (
+                    <div className="animate-fade-in"><p className={`text-6xl font-black ${signal.action === 'COMPRA' ? 'text-green-500' : signal.action === 'VENDA' ? 'text-red-500' : 'text-yellow-500'}`}>{signal.action}</p><p className="text-sm font-bold mt-4 opacity-80">{signal.reason}</p></div>
+                ) : <div className="animate-pulse text-slate-500">Calculando...</div>}
+                <button onClick={() => setIsAnalyzing(false)} className="mt-8 py-3 border border-slate-700 rounded-xl font-bold opacity-60">Parar</button>
             </div>
         </div>
     );
@@ -615,16 +456,13 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const [isDarkMode, setIsDarkMode] = useState(true);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-    const [saveError, setSaveError] = useState<string | null>(null);
-
     const [brokerages, setBrokerages] = useState<Brokerage[]>([]);
     const [records, setRecords] = useState<AppRecord[]>([]);
     const [goals, setGoals] = useState<Goal[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const isInitialLoad = useRef(true);
-    
     const [customEntryValue, setCustomEntryValue] = useState('');
     const [customPayout, setCustomPayout] = useState('');
+    const [selectedDate, setSelectedDate] = useState(new Date());
 
     const latestDataRef = useRef({ userId: user.id, brokerages, records, goals });
     useEffect(() => { latestDataRef.current = { userId: user.id, brokerages, records, goals }; }, [user.id, brokerages, records, goals]);
@@ -636,45 +474,16 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             if (response.ok) {
                 const data = await response.json();
                 const loadedBrokerages = data.brokerages?.length ? data.brokerages : [{ id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' }];
-                setBrokerages(loadedBrokerages);
-                setRecords(data.records || []);
-                setGoals(data.goals || []);
-                if (loadedBrokerages[0]) {
-                    setCustomEntryValue(String(loadedBrokerages[0].entryValue));
-                    setCustomPayout(String(loadedBrokerages[0].payoutPercentage));
-                }
+                setBrokerages(loadedBrokerages); setRecords(data.records || []); setGoals(data.goals || []);
+                if (loadedBrokerages[0]) { setCustomEntryValue(String(loadedBrokerages[0].entryValue)); setCustomPayout(String(loadedBrokerages[0].payoutPercentage)); }
             }
-        } catch (e) { console.error(e); } finally { setIsLoading(false); isInitialLoad.current = false; }
+        } catch (e) { console.error(e); } finally { setIsLoading(false); }
     }, [user.id]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    const saveData = useCallback(async () => {
-        if (isInitialLoad.current) return;
-        setSavingStatus('saving');
-        try {
-            const payload = { userId: latestDataRef.current.userId, brokerages: latestDataRef.current.brokerages, records: latestDataRef.current.records, goals: latestDataRef.current.goals };
-            const response = await fetch('/api/save-data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (response.ok) { setSavingStatus('saved'); setTimeout(() => setSavingStatus('idle'), 2000); }
-            else { throw new Error('Erro ao salvar no servidor'); }
-        } catch (error: any) { setSavingStatus('error'); setSaveError(error.message); }
-    }, []);
-
-    const debouncedSave = useDebouncedCallback(saveData, 2000);
-    useEffect(() => { if (!isInitialLoad.current) debouncedSave(); }, [brokerages, records, goals, debouncedSave]);
-
-    const activeBrokerage = brokerages[0];
-    const [selectedDate, setSelectedDate] = useState(new Date());
-    const dateStr = selectedDate.toISOString().split('T')[0];
-    const dailyRecord = records.find((r): r is DailyRecord => r.id === dateStr && r.recordType === 'day');
-    
-    const startBal = useMemo(() => {
-        const sorted = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.id.localeCompare(a.id));
-        return sorted.length > 0 ? sorted[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
-    }, [records, dateStr, activeBrokerage?.initialBalance]);
-
-    const recalibrateHistory = (allRecords: AppRecord[]) => {
-        let runningBalance = activeBrokerage.initialBalance;
+    const recalibrateHistory = useCallback((allRecords: AppRecord[], initialBal: number) => {
+        let runningBalance = initialBal;
         return allRecords
             .sort((a, b) => a.id.localeCompare(b.id))
             .map(r => {
@@ -688,89 +497,97 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 runningBalance = endBalanceUSD;
                 return updated;
             });
-    };
+    }, []);
+
+    const saveData = useCallback(async () => {
+        setSavingStatus('saving');
+        try {
+            const payload = { userId: latestDataRef.current.userId, brokerages: latestDataRef.current.brokerages, records: latestDataRef.current.records, goals: latestDataRef.current.goals };
+            const response = await fetch('/api/save-data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (response.ok) { setSavingStatus('saved'); setTimeout(() => setSavingStatus('idle'), 2000); }
+        } catch (error: any) { setSavingStatus('error'); }
+    }, []);
+
+    const debouncedSave = useDebouncedCallback(saveData, 2000);
 
     const addRecord = (win: number, loss: number, customEntry?: number, customPayout?: number) => {
         setRecords(prev => {
-            const newRecords = [...prev];
-            const idx = newRecords.findIndex(r => r.id === dateStr && r.recordType === 'day');
-            const entryValue = customEntry || (activeBrokerage.entryMode === 'fixed' ? activeBrokerage.entryValue : startBal * (activeBrokerage.entryValue / 100));
-            const payout = customPayout || activeBrokerage.payoutPercentage;
+            const dateKey = selectedDate.toISOString().split('T')[0];
+            const sortedPrevious = prev.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateKey).sort((a,b) => b.id.localeCompare(a.id));
+            const startBal = sortedPrevious.length > 0 ? sortedPrevious[0].endBalanceUSD : (brokerages[0]?.initialBalance || 0);
+            const entryValue = customEntry || (brokerages[0].entryMode === 'fixed' ? brokerages[0].entryValue : startBal * (brokerages[0].entryValue / 100));
+            const payout = customPayout || brokerages[0].payoutPercentage;
             const newTrades: Trade[] = [];
             for(let i=0; i<win; i++) newTrades.push({ id: crypto.randomUUID(), result: 'win', entryValue, payoutPercentage: payout, timestamp: Date.now() });
             for(let i=0; i<loss; i++) newTrades.push({ id: crypto.randomUUID(), result: 'loss', entryValue, payoutPercentage: payout, timestamp: Date.now() });
-            if (idx >= 0) {
-                const rec = newRecords[idx] as DailyRecord;
-                newRecords[idx] = { ...rec, trades: [...rec.trades, ...newTrades] };
+            
+            const existingIdx = prev.findIndex(r => r.id === dateKey && r.recordType === 'day');
+            let updatedRecords = [...prev];
+            if (existingIdx >= 0) {
+                const rec = updatedRecords[existingIdx] as DailyRecord;
+                updatedRecords[existingIdx] = { ...rec, trades: [...rec.trades, ...newTrades] };
             } else {
-                newRecords.push({ recordType: 'day', brokerageId: activeBrokerage.id, id: dateStr, date: dateStr, trades: newTrades, startBalanceUSD: 0, winCount: 0, lossCount: 0, netProfitUSD: 0, endBalanceUSD: 0 });
+                updatedRecords.push({ recordType: 'day', brokerageId: brokerages[0].id, id: dateKey, date: dateKey, trades: newTrades, startBalanceUSD: 0, winCount: 0, lossCount: 0, netProfitUSD: 0, endBalanceUSD: 0 });
             }
-            return recalibrateHistory(newRecords);
+            const recalibrated = recalibrateHistory(updatedRecords, brokerages[0].initialBalance);
+            debouncedSave();
+            return recalibrated;
         });
     };
 
-    const deleteTrade = (id: string, d: string) => {
+    const deleteTrade = (id: string, dateId: string) => {
         setRecords(prev => {
-            const updated = prev.map(r => (r.id === d && r.recordType === 'day') ? { ...r, trades: r.trades.filter(t => t.id !== id) } : r);
-            return recalibrateHistory(updated);
+            const updated = prev.map(r => (r.id === dateId && r.recordType === 'day') ? { ...r, trades: r.trades.filter(t => t.id !== id) } : r);
+            const recalibrated = recalibrateHistory(updated, brokerages[0].initialBalance);
+            debouncedSave();
+            return recalibrated;
         });
     };
+
+    const activeBrokerage = brokerages[0];
+    const dateStr = selectedDate.toISOString().split('T')[0];
+    const dailyRecord = records.find((r): r is DailyRecord => r.id === dateStr && r.recordType === 'day');
+    const startBalDashboard = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.id.localeCompare(a.id))[0]?.endBalanceUSD || activeBrokerage?.initialBalance || 0;
 
     const theme = useThemeClasses(isDarkMode);
-    const renderContent = () => {
-        switch (activeTab) {
-            case 'dashboard': return <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBal} isDarkMode={isDarkMode} dailyGoalTarget={activeBrokerage.initialBalance * 0.03} />;
-            case 'compound': return <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />;
-            case 'report': return <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />;
-            case 'ai-analysis': return <AIPanel theme={theme} />;
-            case 'goals': return <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />;
-            case 'settings': return <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} />;
-            default: return null;
-        }
-    };
-
     if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin" /></div>;
 
     return (
-        <div className={`flex h-screen overflow-hidden font-sans ${theme.bg} ${theme.text}`}>
+        <div className={`flex h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
             {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
-            <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform duration-300 transform border-r ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
-                <div className="h-20 flex items-center px-8 border-b border-slate-800/50"><span className="text-xl font-black italic text-green-500 tracking-tighter">HRK <span className={isDarkMode ? 'text-white' : 'text-slate-900'}>ANALYTICS</span></span></div>
+            <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col border-r transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
+                <div className="h-20 flex items-center px-8 border-b border-slate-800/50"><span className="text-xl font-black italic text-green-500">HRK <span className={isDarkMode ? 'text-white' : 'text-slate-900'}>ANALYTICS</span></span></div>
                 <nav className="flex-1 p-4 space-y-1">
-                    <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
-                    <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Planilha Juros</button>
-                    <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Relatório</button>
-                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
-                    <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
-                    <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Configurações</button>
+                    <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
+                    <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Planilha Juros</button>
+                    <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Relatório</button>
+                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
+                    <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
+                    <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Configurações</button>
                 </nav>
-                <div className="p-4 border-t border-slate-800/50">
-                    <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 font-bold hover:bg-red-500/10 rounded-2xl transition-all"><LogoutIcon className="w-5 h-5" />Sair</button>
-                </div>
+                <div className="p-4 border-t border-slate-800/50"><button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 font-bold hover:bg-red-500/10 rounded-2xl"><LogoutIcon className="w-5 h-5" />Sair</button></div>
             </aside>
-            <main className="flex-1 flex flex-col overflow-hidden relative">
+            <main className="flex-1 flex flex-col overflow-hidden">
                 <header className={`h-20 flex items-center justify-between px-6 md:px-8 border-b ${theme.header}`}>
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-500"><MenuIcon className="w-6 h-6" /></button>
-                        <SavingStatusIndicator status={savingStatus} error={saveError} />
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 text-slate-500 hover:text-white transition-colors">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button>
-                        <div className="w-10 h-10 rounded-2xl bg-green-500 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-green-500/20 uppercase text-xs">{user.username.slice(0, 2)}</div>
-                    </div>
+                    <div className="flex items-center gap-4"><button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-6 h-6" /></button><SavingStatusIndicator status={savingStatus} /></div>
+                    <div className="flex items-center gap-3"><button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button><div className="w-10 h-10 rounded-2xl bg-green-500 flex items-center justify-center text-slate-950 font-black uppercase text-xs">{user.username.slice(0, 2)}</div></div>
                 </header>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
-                    {renderContent()}
+                    {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeBrokerage.initialBalance * 0.03} />}
+                    {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
+                    {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
+                    {activeTab === 'ai-analysis' && <AIPanel theme={theme} />}
+                    {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
+                    {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} />}
                 </div>
             </main>
         </div>
     );
 };
 
-const SavingStatusIndicator: React.FC<{status: string, error: string | null}> = ({status, error}) => {
+const SavingStatusIndicator: React.FC<{status: string}> = ({status}) => {
     if (status === 'saving') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500"><ArrowPathIcon className="w-3 h-3 animate-spin" /> Salvando</div>;
     if (status === 'saved') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-green-500"><CheckIcon className="w-3 h-3" /> Salvo</div>;
-    if (status === 'error') return <div title={error || 'Erro'} className="flex items-center gap-2 text-[10px] font-black uppercase text-red-500 cursor-help bg-red-500/10 px-3 py-1.5 rounded-xl border border-red-500/20"><InformationCircleIcon className="w-3.5 h-3.5" /> Erro ao salvar</div>;
     return null;
 };
 
