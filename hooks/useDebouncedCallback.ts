@@ -11,7 +11,9 @@ export function useDebouncedCallback<A extends any[]>(
   // always calls the most recent version of the callback without
   // resetting the timer.
   const callbackRef = useRef(callback);
-  const timeoutRef = useRef<number>();
+  // FIX: Initialize useRef with undefined to fix "Expected 1 arguments, but got 0" error.
+  // This can be caused by older React type versions not supporting the no-argument overload.
+  const timeoutRef = useRef<number | undefined>(undefined);
 
   // Update the ref to the latest callback function on every render.
   useEffect(() => {

@@ -14,16 +14,24 @@ export default async function handler(
     const client = await db.connect();
 
     try {
-        const { userId, brokerages, records, goals } = req.body as {
-            userId: number;
+        const { brokerages, records, goals } = req.body as {
             brokerages: Brokerage[];
             records: DailyRecord[];
             goals: Goal[];
         };
         
-        if (!userId) {
+        // --- BUG FIX: Add strict validation for userId ---
+        const userIdStr = req.body.userId as string;
+        if (!userIdStr) {
             return res.status(400).json({ error: 'User ID is required.' });
         }
+        
+        const userId = parseInt(userIdStr, 10);
+        if (isNaN(userId)) {
+            // This will catch if userIdStr is something invalid like a UUID
+            return res.status(400).json({ error: `Invalid User ID format. Expected integer, got "${userIdStr}".` });
+        }
+        // --- END BUG FIX ---
         
         await client.query('BEGIN');
 
