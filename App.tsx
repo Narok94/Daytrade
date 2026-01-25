@@ -610,9 +610,19 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const saveData = useCallback(async () => {
         if (isInitialLoad.current) return;
         setSavingStatus('saving');
+
+        // Definitive Fix: Pre-flight check on the client-side to ensure user ID is valid before sending.
+        const currentUserId = latestDataRef.current.userId;
+        if (typeof currentUserId !== 'number' || !Number.isInteger(currentUserId)) {
+            console.error("CRITICAL: Invalid user ID detected before save. Aborting.", currentUserId);
+            setSavingStatus('error');
+            setSaveError(`ID de usuário inválido (${currentUserId}). Por favor, saia e entre novamente para corrigir sua sessão.`);
+            return; // Stop the function here
+        }
+
         try {
             const payload = {
-                userId: latestDataRef.current.userId,
+                userId: currentUserId,
                 brokerages: latestDataRef.current.brokerages,
                 records: latestDataRef.current.records.map(r => r.recordType === 'day' ? {
                     ...r,

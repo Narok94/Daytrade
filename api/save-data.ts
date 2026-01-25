@@ -110,15 +110,25 @@ export default async function handler(
             goals: Goal[];
         };
         
+        // Definitive Fix: Stricter, more explicit validation for userId on the server.
         const rawUserId = req.body.userId;
+        let userId: number;
+
         if (rawUserId === null || rawUserId === undefined) {
             return res.status(400).json({ error: 'User ID (userId) é obrigatório no corpo da requisição.' });
         }
 
-        const userId = Number(rawUserId);
-
-        if (!Number.isInteger(userId)) {
-            return res.status(400).json({ error: `User ID inválido. Deve ser um inteiro. Recebido: "${rawUserId}".` });
+        if (typeof rawUserId === 'number' && Number.isInteger(rawUserId)) {
+            userId = rawUserId;
+        } else if (typeof rawUserId === 'string') {
+            const parsedId = parseInt(rawUserId, 10);
+            if (!isNaN(parsedId) && String(parsedId) === rawUserId) {
+                userId = parsedId;
+            } else {
+                return res.status(400).json({ error: `Formato de User ID inválido. String não representa um inteiro válido. Recebido: "${rawUserId}".` });
+            }
+        } else {
+            return res.status(400).json({ error: `Tipo de User ID inválido. Esperava-se número ou string. Recebido: ${typeof rawUserId}.` });
         }
         
         await ensureTablesAndMigrate(client, userId);
