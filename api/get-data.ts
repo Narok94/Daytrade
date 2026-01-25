@@ -5,7 +5,27 @@ import { Brokerage, DailyRecord, Goal, Trade } from '../../types';
 import { randomUUID } from 'crypto';
 
 async function ensureTablesAndMigrate(client: any, userId?: number) {
-    // 1. CREATE TABLES (idempotent)
+    const { rows: tableCheck } = await client.query(`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'operacoes_daytrade';
+    `);
+
+    if (tableCheck.length > 0) {
+        const userIdCol = tableCheck.find((c: any) => c.column_name === 'user_id');
+        const brokerageIdCol = tableCheck.find((c: any) => c.column_name === 'brokerage_id');
+        const idCol = tableCheck.find((c: any) => c.column_name === 'id');
+
+        const needsNuke = 
+            (userIdCol && userIdCol.data_type !== 'integer') || 
+            (brokerageIdCol && brokerageIdCol.data_type !== 'uuid') ||
+            (idCol && idCol.data_type !== 'uuid');
+
+        if (needsNuke) {
+            await client.query(`DROP TABLE IF EXISTS operacoes_daytrade CASCADE;`);
+        }
+    }
+
     await client.query(`
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
@@ -14,6 +34,7 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
             created_at TIMESTAMPTZ DEFAULT NOW()
         );
     `);
+    
     await client.query(`
         CREATE TABLE IF NOT EXISTS operacoes_daytrade (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -27,6 +48,7 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
             data_operacao TIMESTAMPTZ DEFAULT NOW()
         );
     `);
+
     await client.query(`
         CREATE TABLE IF NOT EXISTS user_settings (
             user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -34,73 +56,15 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
         );
     `);
 
-    // 2. CHECK & ADD ALL POTENTIALLY MISSING COLUMNS
-    const { rows: columnsResult } = await client.query(`
-        SELECT column_name FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'operacoes_daytrade';
-    `);
-    const existingColumns = columnsResult.map((c: { column_name: string }) => c.column_name);
-
-    if (!existingColumns.includes('user_id')) {
-        console.log("Applying migration: Adding 'user_id' column.");
-        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN user_id INTEGER;`);
-    }
-    if (!existingColumns.includes('record_id')) {
-        console.log("Applying migration: Adding 'record_id' column.");
-        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN record_id VARCHAR(10);`);
-    }
-    if (!existingColumns.includes('brokerage_id')) {
-        console.log("Applying migration: Adding 'brokerage_id' column.");
-        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN brokerage_id UUID;`);
-    }
-    if (!existingColumns.includes('payout_percentage')) {
-        console.log("Applying migration: Adding 'payout_percentage' column.");
-        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN payout_percentage INTEGER;`);
-    }
-    
-    // 3. POPULATE DATA FOR MIGRATED COLUMNS (if user context is available)
     if (userId) {
-        // Populate user_id for any orphaned records
-        await client.query(`UPDATE operacoes_daytrade SET user_id = $1 WHERE user_id IS NULL`, [userId]);
-
-        // Populate record_id for any records missing it
-        await client.query(`UPDATE operacoes_daytrade SET record_id = TO_CHAR(data_operacao, 'YYYY-MM-DD') WHERE record_id IS NULL;`);
-        
-        // Populate payout_percentage with a default value if missing
-        await client.query(`UPDATE operacoes_daytrade SET payout_percentage = 80 WHERE payout_percentage IS NULL;`);
-
-        // Populate brokerage_id for records belonging to this user that are missing it
-        const { rows: brokeragelessRows } = await client.query(
-            `SELECT 1 FROM operacoes_daytrade WHERE user_id = $1 AND brokerage_id IS NULL LIMIT 1`,
-            [userId]
-        );
-        
-        if (brokeragelessRows.length > 0) {
-            const { rows: settingsResult } = await client.query(
-                `SELECT settings_json FROM user_settings WHERE user_id = $1;`,
-                [userId]
-            );
-            const settings = settingsResult[0]?.settings_json || {};
-            let brokerages: Brokerage[] = settings.brokerages || [];
-            let brokerageIdToUse: string;
-
-            if (brokerages.length > 0 && brokerages[0].id) {
-                brokerageIdToUse = brokerages[0].id;
-            } else {
-                const defaultBrokerage: Brokerage = { id: randomUUID(), name: 'Gestão Principal', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' };
-                brokerageIdToUse = defaultBrokerage.id;
-                const goals = settings.goals || [];
-                const newSettings = { brokerages: [defaultBrokerage], goals };
-                await client.query(
-                    `INSERT INTO user_settings (user_id, settings_json) VALUES ($1, $2)
-                     ON CONFLICT (user_id) DO UPDATE SET settings_json = $2;`,
-                    [userId, JSON.stringify(newSettings)]
-                );
-            }
-
-            await client.query(
-                `UPDATE operacoes_daytrade SET brokerage_id = $1 WHERE user_id = $2 AND brokerage_id IS NULL;`,
-                [brokerageIdToUse, userId]
+        const { rows: settingsExist } = await client.query(`SELECT 1 FROM user_settings WHERE user_id = $1`, [userId]);
+        if (settingsExist.length === 0) {
+             const defaultBrokerage: Brokerage = { id: randomUUID(), name: 'Gestão Principal', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' };
+             const initialSettings = { brokerages: [defaultBrokerage], goals: [] };
+             await client.query(
+                `INSERT INTO user_settings (user_id, settings_json) VALUES ($1, $2)
+                 ON CONFLICT (user_id) DO UPDATE SET settings_json = $2;`,
+                [userId, JSON.stringify(initialSettings)]
             );
         }
     }
@@ -118,17 +82,16 @@ export default async function handler(
     try {
         const rawUserId = req.query.userId as string;
         if (!rawUserId) {
-            return res.status(400).json({ error: 'User ID (userId) é obrigatório nos parâmetros da query.' });
+            return res.status(400).json({ error: 'User ID é obrigatório.' });
         }
         
         const userId = Number(rawUserId);
         if (!Number.isInteger(userId)) {
-            return res.status(400).json({ error: `Formato de User ID inválido. Esperava-se um inteiro, mas recebeu: "${rawUserId}".` });
+            return res.status(400).json({ error: `ID de usuário inválido: "${rawUserId}".` });
         }
         
         await ensureTablesAndMigrate(client, userId);
 
-        // 1. Fetch settings (Brokerages and Goals) from the JSON blob
         const { rows: settingsResult } = await client.query(
             `SELECT settings_json FROM user_settings WHERE user_id = $1;`,
             [userId]
@@ -137,14 +100,12 @@ export default async function handler(
         const brokerages: Brokerage[] = settings.brokerages || [];
         const goals: Goal[] = settings.goals || [];
 
-        // 2. Fetch all trades for the user from the flat operations table
         const { rows: operationsResult } = await client.query(
             `SELECT id, record_id, brokerage_id, tipo_operacao, valor_entrada, payout_percentage, resultado, data_operacao 
             FROM operacoes_daytrade WHERE user_id = $1 ORDER BY data_operacao ASC;`,
             [userId]
         );
         
-        // 3. Reconstruct the DailyRecord structure from the flat list of trades
         const recordsMap = new Map<string, DailyRecord>();
 
         for (const op of operationsResult) {
@@ -156,16 +117,14 @@ export default async function handler(
                 timestamp: new Date(op.data_operacao).getTime(),
             };
 
-            const recordId = op.record_id; // YYYY-MM-DD
+            const recordId = op.record_id;
             if (!recordsMap.has(recordId)) {
-                // Initialize a new DailyRecord if it's the first trade of the day
                 recordsMap.set(recordId, {
                     recordType: 'day',
                     id: recordId,
                     date: recordId,
                     brokerageId: op.brokerage_id,
                     trades: [],
-                    // These will be calculated after all trades are grouped
                     startBalanceUSD: 0, 
                     winCount: 0,
                     lossCount: 0,
@@ -180,7 +139,6 @@ export default async function handler(
 
         const records = Array.from(recordsMap.values()).sort((a, b) => a.date.localeCompare(b.date));
 
-        // 4. Recalculate balances and stats for each day
         let previousDayEndBalance = brokerages[0]?.initialBalance || 0;
         for (const record of records) {
             record.startBalanceUSD = previousDayEndBalance;

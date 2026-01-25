@@ -5,7 +5,32 @@ import { Brokerage, DailyRecord, Goal } from '../../types';
 import { randomUUID } from 'crypto';
 
 async function ensureTablesAndMigrate(client: any, userId?: number) {
-    // 1. CREATE TABLES (idempotent)
+    // 1. Check Schema Integrity for 'operacoes_daytrade'
+    const { rows: tableCheck } = await client.query(`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'operacoes_daytrade';
+    `);
+
+    if (tableCheck.length > 0) {
+        const userIdCol = tableCheck.find((c: any) => c.column_name === 'user_id');
+        const brokerageIdCol = tableCheck.find((c: any) => c.column_name === 'brokerage_id');
+        const idCol = tableCheck.find((c: any) => c.column_name === 'id');
+
+        // Critical Check: If column types are wrong, we must nuke and recreate
+        // This solves the "invalid input syntax for type integer" if a UUID was previously stored in an integer col or vice versa
+        const needsNuke = 
+            (userIdCol && userIdCol.data_type !== 'integer') || 
+            (brokerageIdCol && brokerageIdCol.data_type !== 'uuid') ||
+            (idCol && idCol.data_type !== 'uuid');
+
+        if (needsNuke) {
+            console.warn("Schema mismatch detected. Nuking 'operacoes_daytrade' for reconstruction.");
+            await client.query(`DROP TABLE IF EXISTS operacoes_daytrade CASCADE;`);
+        }
+    }
+
+    // 2. CREATE TABLES (idempotent)
     await client.query(`
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
@@ -14,6 +39,24 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
             created_at TIMESTAMPTZ DEFAULT NOW()
         );
     `);
+    
+    // Ensure users.id is indeed SERIAL/INTEGER
+    const { rows: userTableCheck } = await client.query(`
+        SELECT data_type FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'id';
+    `);
+    if (userTableCheck.length > 0 && userTableCheck[0].data_type !== 'integer') {
+         await client.query(`DROP TABLE IF EXISTS users CASCADE;`);
+         await client.query(`
+            CREATE TABLE users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(50) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+         `);
+    }
+
     await client.query(`
         CREATE TABLE IF NOT EXISTS operacoes_daytrade (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -27,6 +70,7 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
             data_operacao TIMESTAMPTZ DEFAULT NOW()
         );
     `);
+
     await client.query(`
         CREATE TABLE IF NOT EXISTS user_settings (
             user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -34,59 +78,17 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
         );
     `);
 
-    // 2. CHECK & ADD ALL POTENTIALLY MISSING COLUMNS
-    const { rows: columnsResult } = await client.query(`
-        SELECT column_name FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'operacoes_daytrade';
-    `);
-    const existingColumns = columnsResult.map((c: { column_name: string }) => c.column_name);
-
-    if (!existingColumns.includes('user_id')) {
-        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN user_id INTEGER;`);
-    }
-    if (!existingColumns.includes('record_id')) {
-        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN record_id VARCHAR(10);`);
-    }
-    if (!existingColumns.includes('brokerage_id')) {
-        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN brokerage_id UUID;`);
-    }
-    if (!existingColumns.includes('payout_percentage')) {
-        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN payout_percentage INTEGER;`);
-    }
-    
     // 3. POPULATE DATA FOR MIGRATED COLUMNS (if user context is available)
     if (userId) {
-        await client.query(`UPDATE operacoes_daytrade SET user_id = $1 WHERE user_id IS NULL`, [userId]);
-        await client.query(`UPDATE operacoes_daytrade SET record_id = TO_CHAR(data_operacao, 'YYYY-MM-DD') WHERE record_id IS NULL;`);
-        await client.query(`UPDATE operacoes_daytrade SET payout_percentage = 80 WHERE payout_percentage IS NULL;`);
-        const { rows: brokeragelessRows } = await client.query(
-            `SELECT 1 FROM operacoes_daytrade WHERE user_id = $1 AND brokerage_id IS NULL LIMIT 1`,
-            [userId]
-        );
-        if (brokeragelessRows.length > 0) {
-            const { rows: settingsResult } = await client.query(
-                `SELECT settings_json FROM user_settings WHERE user_id = $1;`,
-                [userId]
-            );
-            const settings = settingsResult[0]?.settings_json || {};
-            let brokerages: Brokerage[] = settings.brokerages || [];
-            let brokerageIdToUse: string;
-            if (brokerages.length > 0 && brokerages[0].id) {
-                brokerageIdToUse = brokerages[0].id;
-            } else {
-                const defaultBrokerage: Brokerage = { id: randomUUID(), name: 'Gestão Principal', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' };
-                brokerageIdToUse = defaultBrokerage.id;
-                const goals = settings.goals || [];
-                const newSettings = { brokerages: [defaultBrokerage], goals };
-                await client.query(
-                    `INSERT INTO user_settings (user_id, settings_json) VALUES ($1, $2)
-                     ON CONFLICT (user_id) DO UPDATE SET settings_json = $2;`,
-                    [userId, JSON.stringify(newSettings)]
-                );
-            }
-            await client.query(
-                `UPDATE operacoes_daytrade SET brokerage_id = $1 WHERE user_id = $2 AND brokerage_id IS NULL;`,
-                [brokerageIdToUse, userId]
+        // Double check settings exist
+        const { rows: settingsExist } = await client.query(`SELECT 1 FROM user_settings WHERE user_id = $1`, [userId]);
+        if (settingsExist.length === 0) {
+             const defaultBrokerage: Brokerage = { id: randomUUID(), name: 'Gestão Principal', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' };
+             const initialSettings = { brokerages: [defaultBrokerage], goals: [] };
+             await client.query(
+                `INSERT INTO user_settings (user_id, settings_json) VALUES ($1, $2)
+                 ON CONFLICT (user_id) DO UPDATE SET settings_json = $2;`,
+                [userId, JSON.stringify(initialSettings)]
             );
         }
     }
@@ -110,14 +112,14 @@ export default async function handler(
             goals: Goal[];
         };
         
-        // Definitive Fix: Stricter, more explicit validation for userId on the server.
         const rawUserId = req.body.userId;
         let userId: number;
 
         if (rawUserId === null || rawUserId === undefined) {
-            return res.status(400).json({ error: 'User ID (userId) é obrigatório no corpo da requisição.' });
+            return res.status(400).json({ error: 'User ID (userId) é obrigatório.' });
         }
 
+        // Validate userId is strictly an integer
         if (typeof rawUserId === 'number' && Number.isInteger(rawUserId)) {
             userId = rawUserId;
         } else if (typeof rawUserId === 'string') {
@@ -125,10 +127,10 @@ export default async function handler(
             if (!isNaN(parsedId) && String(parsedId) === rawUserId) {
                 userId = parsedId;
             } else {
-                return res.status(400).json({ error: `Formato de User ID inválido. String não representa um inteiro válido. Recebido: "${rawUserId}".` });
+                return res.status(400).json({ error: `ID de usuário inválido. Esperava um número inteiro, recebeu: "${rawUserId}".` });
             }
         } else {
-            return res.status(400).json({ error: `Tipo de User ID inválido. Esperava-se número ou string. Recebido: ${typeof rawUserId}.` });
+            return res.status(400).json({ error: `Tipo de ID inválido: ${typeof rawUserId}` });
         }
         
         await ensureTablesAndMigrate(client, userId);
@@ -142,6 +144,7 @@ export default async function handler(
             [userId, JSON.stringify(settings_json)]
         );
 
+        // Delete previous records for this specific user
         await client.query(`DELETE FROM operacoes_daytrade WHERE user_id = $1;`, [userId]);
 
         const allTrades = records
@@ -173,7 +176,7 @@ export default async function handler(
         }
         
         await client.query('COMMIT');
-        return res.status(200).json({ message: 'Saved successfully.' });
+        return res.status(200).json({ message: 'Dados salvos com sucesso.' });
 
     } catch (error) {
         await client.query('ROLLBACK');
