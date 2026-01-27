@@ -143,11 +143,11 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             .sort((a, b) => a.id.localeCompare(b.id));
         
         let runningBalance = activeBrokerage.initialBalance;
-        const operationValue = activeBrokerage.initialBalance * 0.10;
 
         for (let i = 0; i < 30; i++) {
             const realRecord = operatedDays[i];
             const initial = runningBalance;
+            const operationValue = initial * 0.10; // Dynamic calculation
             const hasTrades = !!realRecord;
             const win = hasTrades ? realRecord.winCount : 0;
             const loss = hasTrades ? realRecord.lossCount : 0;
