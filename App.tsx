@@ -143,6 +143,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             .sort((a, b) => a.id.localeCompare(b.id));
         
         let runningBalance = activeBrokerage.initialBalance;
+        const operationValue = activeBrokerage.initialBalance * 0.10;
 
         for (let i = 0; i < 30; i++) {
             const realRecord = operatedDays[i];
@@ -161,6 +162,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                 loss,
                 profit,
                 final,
+                operationValue,
                 hasTrades
             });
             runningBalance = final;
@@ -173,12 +175,13 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             <h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros (30 Dias)</h2>
             <div className={`rounded-3xl border overflow-hidden shadow-2xl ${theme.card}`}>
                 <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-center border-collapse min-w-[800px]">
+                    <table className="w-full text-center border-collapse min-w-[900px]">
                         <thead>
                             <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Dia de Trade</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Data</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Saldo Inicial</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Valor Operação</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20 text-green-500">Win</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20 text-red-500">Loss</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Lucro</th>
@@ -191,6 +194,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                     <td className="py-4 px-3 opacity-40 font-mono text-xs">#{row.diaTrade}</td>
                                     <td className="py-4 px-3 text-[10px] uppercase font-black opacity-60">{row.dateDisplay}</td>
                                     <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
+                                    <td className="py-4 px-3 font-mono text-sm text-blue-400">{currencySymbol} {formatMoney(row.operationValue)}</td>
                                     <td className="py-4 px-3">{row.hasTrades ? <span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-xl">{row.win}</span> : '-'}</td>
                                     <td className="py-4 px-3">{row.hasTrades ? <span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-xl">{row.loss}</span> : '-'}</td>
                                     <td className={`py-4 px-3 font-black ${row.profit > 0 ? 'text-green-500' : row.profit < 0 ? 'text-red-500' : 'opacity-30'}`}>{row.hasTrades ? `${row.profit > 0 ? '+' : ''}${currencySymbol} ${formatMoney(row.profit)}` : '-'}</td>
