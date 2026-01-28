@@ -486,17 +486,17 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     useEffect(() => {
         if (!activeBrokerage) return;
 
-        const getStartBalanceForDate = (date: Date): number => {
-            const dateKey = date.toISOString().split('T')[0];
-            const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateKey).sort((a,b) => b.id.localeCompare(a.id));
-            return sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
-        };
+        const dateKey = selectedDate.toISOString().split('T')[0];
+        const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateKey).sort((a,b) => b.id.localeCompare(a.id));
+        const startBal = sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
 
-        const startBal = getStartBalanceForDate(selectedDate);
+        const dailyRecordForSelectedDay = records.find((r): r is DailyRecord => r.id === dateKey && r.recordType === 'day');
+        
+        const currentBalance = dailyRecordForSelectedDay?.endBalanceUSD ?? startBal;
         
         const suggestedValue = activeBrokerage.entryMode === 'fixed'
             ? activeBrokerage.entryValue
-            : startBal * (activeBrokerage.entryValue / 100);
+            : currentBalance * (activeBrokerage.entryValue / 100);
         
         setCustomEntryValue(String(suggestedValue.toFixed(2)));
         setCustomPayout(String(activeBrokerage.payoutPercentage));
@@ -552,9 +552,12 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             const sortedPrevious = prev.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateKey).sort((a,b) => b.id.localeCompare(a.id));
             const startBal = sortedPrevious.length > 0 ? sortedPrevious[0].endBalanceUSD : (brokerages[0]?.initialBalance || 0);
 
+            const dailyRecordForSelectedDay = prev.find((r): r is DailyRecord => r.id === dateKey && r.recordType === 'day');
+            const currentBalance = dailyRecordForSelectedDay?.endBalanceUSD ?? startBal;
+
             const suggestedEntryValue = brokerages[0].entryMode === 'fixed' 
                 ? brokerages[0].entryValue 
-                : startBal * (brokerages[0].entryValue / 100);
+                : currentBalance * (brokerages[0].entryValue / 100);
 
             const entryValue = (customEntry && customEntry > 0) ? customEntry : suggestedEntryValue;
             const payout = (customPayout && customPayout > 0) ? customPayout : brokerages[0].payoutPercentage;
