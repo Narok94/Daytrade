@@ -36,8 +36,8 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     
     const handleQuickAdd = (type: 'win' | 'loss') => {
-         const entryValue = parseFloat(customEntryValue) || activeBrokerage.entryValue || 0;
-         const payout = parseFloat(customPayout) || activeBrokerage.payoutPercentage || 0;
+         const entryValue = parseFloat(customEntryValue) || 0;
+         const payout = parseFloat(customPayout) || 0;
          const qty = parseInt(quantity) || 1;
          if (type === 'win') addRecord(qty, 0, entryValue, payout);
          else addRecord(0, qty, entryValue, payout);
@@ -362,6 +362,17 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                     <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Banca Inicial</label><input type="number" value={brokerage.initialBalance} onChange={e => handleUpdate('initialBalance', parseFloat(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
                     <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Payout Médio %</label><input type="number" value={brokerage.payoutPercentage} onChange={e => handleUpdate('payoutPercentage', parseInt(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
                     <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase opacity-50">Modo de Entrada Sugerido</label>
+                        <select value={brokerage.entryMode} onChange={e => handleUpdate('entryMode', e.target.value as 'percentage' | 'fixed')} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`}>
+                            <option value="percentage">Porcentagem da Banca (%)</option>
+                            <option value="fixed">Valor Fixo</option>
+                        </select>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase opacity-50">Valor de Entrada Sugerido</label>
+                        <input type="number" value={brokerage.entryValue} onChange={e => handleUpdate('entryValue', parseFloat(e.target.value) || 0)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
+                    </div>
+                    <div className="space-y-1">
                         <label className="text-[10px] font-black uppercase opacity-50 flex items-center gap-1.5">
                             Stop Win (Trades)
                              <Tooltip text="Número de vitórias para parar de operar no dia.">
@@ -469,6 +480,29 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     const latestDataRef = useRef({ userId: user.id, brokerages, records, goals });
     useEffect(() => { latestDataRef.current = { userId: user.id, brokerages, records, goals }; }, [user.id, brokerages, records, goals]);
+    
+    const activeBrokerage = brokerages[0];
+
+    useEffect(() => {
+        if (!activeBrokerage) return;
+
+        const getStartBalanceForDate = (date: Date): number => {
+            const dateKey = date.toISOString().split('T')[0];
+            const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateKey).sort((a,b) => b.id.localeCompare(a.id));
+            return sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
+        };
+
+        const startBal = getStartBalanceForDate(selectedDate);
+        
+        const suggestedValue = activeBrokerage.entryMode === 'fixed'
+            ? activeBrokerage.entryValue
+            : startBal * (activeBrokerage.entryValue / 100);
+        
+        setCustomEntryValue(String(suggestedValue.toFixed(2)));
+        setCustomPayout(String(activeBrokerage.payoutPercentage));
+
+    }, [activeBrokerage, records, selectedDate]);
+
 
     const recalibrateHistory = useCallback((allRecords: AppRecord[], initialBal: number) => {
         let runningBalance = initialBal;
@@ -495,7 +529,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 const data = await response.json();
                 const loadedBrokerages = data.brokerages?.length ? data.brokerages : [{ id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' }];
                 setBrokerages(loadedBrokerages); setRecords(data.records || []); setGoals(data.goals || []);
-                if (loadedBrokerages[0]) { setCustomEntryValue(String(loadedBrokerages[0].entryValue)); setCustomPayout(String(loadedBrokerages[0].payoutPercentage)); }
             }
         } catch (e) { console.error(e); } finally { setIsLoading(false); }
     }, [user.id]);
@@ -518,8 +551,14 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             const dateKey = selectedDate.toISOString().split('T')[0];
             const sortedPrevious = prev.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateKey).sort((a,b) => b.id.localeCompare(a.id));
             const startBal = sortedPrevious.length > 0 ? sortedPrevious[0].endBalanceUSD : (brokerages[0]?.initialBalance || 0);
-            const entryValue = customEntry || (brokerages[0].entryMode === 'fixed' ? brokerages[0].entryValue : startBal * (brokerages[0].entryValue / 100));
-            const payout = customPayout || brokerages[0].payoutPercentage;
+
+            const suggestedEntryValue = brokerages[0].entryMode === 'fixed' 
+                ? brokerages[0].entryValue 
+                : startBal * (brokerages[0].entryValue / 100);
+
+            const entryValue = (customEntry && customEntry > 0) ? customEntry : suggestedEntryValue;
+            const payout = (customPayout && customPayout > 0) ? customPayout : brokerages[0].payoutPercentage;
+            
             const newTrades: Trade[] = [];
             for(let i=0; i<win; i++) newTrades.push({ id: crypto.randomUUID(), result: 'win', entryValue, payoutPercentage: payout, timestamp: Date.now() });
             for(let i=0; i<loss; i++) newTrades.push({ id: crypto.randomUUID(), result: 'loss', entryValue, payoutPercentage: payout, timestamp: Date.now() });
@@ -554,7 +593,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         }
     };
 
-    const activeBrokerage = brokerages[0];
     const dateStr = selectedDate.toISOString().split('T')[0];
     const dailyRecord = records.find((r): r is DailyRecord => r.id === dateStr && r.recordType === 'day');
     const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.id.localeCompare(a.id));
