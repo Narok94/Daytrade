@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UserIcon, LockClosedIcon, MenuIcon, InformationCircleIcon } from './icons';
+import { UserIcon, LockClosedIcon } from './icons';
 
 interface LoginProps {
     onLogin: (username: string, password: string) => Promise<boolean>;
@@ -31,7 +31,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                  second: '2-digit',
                  timeZoneName: 'shortOffset',
              };
-             const formattedTime = date.toLocaleString('en-US', options).replace('GMT', 'UTC').replace(/,([^,]*)$/, '$1');
+             const formattedTime = date.toLocaleString('pt-BR', options).replace('GMT', 'UTC').replace(/,([^,]*)$/, '$1');
              setCurrentTime(formattedTime);
         }, 1000);
 
@@ -286,13 +286,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                     </div>
                 </form>
 
-                <div className="mt-8 flex items-center justify-between">
-                    <div className="flex flex-col items-center gap-1.5 group cursor-pointer">
-                        <button type="button" className="circle-btn text-white group-hover:scale-110 transition-transform">
-                            <span className="text-xl font-bold">?</span>
-                        </button>
-                        <span className="text-[9px] font-black text-white/50 tracking-widest uppercase">HELP</span>
-                    </div>
+                <div className="mt-8 flex items-center justify-center">
                     <button
                         type="button"
                         onClick={toggleView}
@@ -301,12 +295,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                     >
                         {isRegistering ? 'LOGIN' : `SIGN UP`}
                     </button>
-                    <div className="flex flex-col items-center gap-1.5 group cursor-pointer">
-                        <button type="button" className="circle-btn text-white group-hover:scale-110 transition-transform">
-                            <MenuIcon className="w-5 h-5" />
-                        </button>
-                        <span className="text-[9px] font-black text-white/50 tracking-widest uppercase">MENU</span>
-                    </div>
                 </div>
             </div>
             

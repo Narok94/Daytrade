@@ -51,6 +51,18 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     
     const dailyGoalPercent = dailyGoalTarget > 0 ? (currentProfit / dailyGoalTarget) * 100 : 0;
 
+    const stopWinTrades = activeBrokerage.stopGainTrades || 0;
+    const stopLossTrades = activeBrokerage.stopLossTrades || 0;
+    const stopWinReached = stopWinTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.winCount >= stopWinTrades;
+    const stopLossReached = stopLossTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.lossCount >= stopLossTrades;
+
+    let stopMessage = '';
+    if (stopWinReached) {
+        stopMessage = `Meta de Stop Win (${stopWinTrades} vitórias) atingida.`;
+    } else if (stopLossReached) {
+        stopMessage = `Meta de Stop Loss (${stopLossTrades} derrotas) atingida.`;
+    }
+
     const kpis = [
         { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-green-500' },
         { label: 'Lucro Diário', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol} ${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-green-500' : 'text-red-500' },
@@ -88,9 +100,14 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                             <div className="space-y-1 col-span-2 md:col-span-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                         </div>
                         <div className="grid grid-cols-2 gap-4 pt-2">
-                            <button onClick={() => handleQuickAdd('win')} className="h-14 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg shadow-green-500/20 active:scale-95">WIN</button>
-                            <button onClick={() => handleQuickAdd('loss')} className="h-14 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg shadow-red-500/20 active:scale-95">LOSS</button>
+                            <button onClick={() => handleQuickAdd('win')} disabled={stopWinReached || stopLossReached} className="h-14 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg shadow-green-500/20 active:scale-95 disabled:bg-slate-700 disabled:shadow-none disabled:cursor-not-allowed">WIN</button>
+                            <button onClick={() => handleQuickAdd('loss')} disabled={stopWinReached || stopLossReached} className="h-14 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg shadow-red-500/20 active:scale-95 disabled:bg-slate-700 disabled:shadow-none disabled:cursor-not-allowed">LOSS</button>
                         </div>
+                         {stopMessage && (
+                            <div className="mt-4 text-center text-xs font-bold text-yellow-500 p-3 bg-yellow-500/10 rounded-xl border border-yellow-500/20">
+                                {stopMessage} Operações bloqueadas por hoje.
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -326,6 +343,15 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
         setBrokerages((prev: Brokerage[]) => prev.map((b, i) => i === 0 ? { ...b, [field]: value } : b));
     };
 
+    const Tooltip: React.FC<{ text: string }> = ({ text, children }) => (
+        <div className="group relative flex items-center">
+            {children}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-950 text-white text-[10px] rounded-lg text-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg">
+                {text}
+            </div>
+        </div>
+    );
+
     return (
         <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8">
             <h2 className={`text-2xl font-black ${theme.text}`}>Configurações</h2>
@@ -335,6 +361,24 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                     <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Moeda</label><select value={brokerage.currency} onChange={e => handleUpdate('currency', e.target.value)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`}><option value="USD">USD ($)</option><option value="BRL">BRL (R$)</option></select></div>
                     <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Banca Inicial</label><input type="number" value={brokerage.initialBalance} onChange={e => handleUpdate('initialBalance', parseFloat(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
                     <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Payout Médio %</label><input type="number" value={brokerage.payoutPercentage} onChange={e => handleUpdate('payoutPercentage', parseInt(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase opacity-50 flex items-center gap-1.5">
+                            Stop Win (Trades)
+                             <Tooltip text="Número de vitórias para parar de operar no dia.">
+                                <InformationCircleIcon className="w-3.5 h-3.5" />
+                            </Tooltip>
+                        </label>
+                        <input type="number" value={brokerage.stopGainTrades} onChange={e => handleUpdate('stopGainTrades', parseInt(e.target.value) || 0)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
+                    </div>
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase opacity-50 flex items-center gap-1.5">
+                            Stop Loss (Trades)
+                            <Tooltip text="Número de derrotas para parar de operar no dia.">
+                                <InformationCircleIcon className="w-3.5 h-3.5" />
+                            </Tooltip>
+                        </label>
+                        <input type="number" value={brokerage.stopLossTrades} onChange={e => handleUpdate('stopLossTrades', parseInt(e.target.value) || 0)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
+                    </div>
                 </div>
                 <div className="pt-8 border-t border-slate-800/10">
                     <h3 className="text-sm font-black text-red-500 uppercase mb-4">Zona Crítica</h3>
