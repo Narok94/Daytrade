@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
@@ -74,7 +75,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div><h2 className={`text-2xl font-black ${theme.text}`}>Dashboard</h2><p className={theme.textMuted}>Gestão ativa de operações</p></div>
-                <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T00:00:00Z'))} className={`border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
+                <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
@@ -95,7 +96,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                     <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-green-500" /> Nova Ordem</h3>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} placeholder="1.00" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor (10% Banca)</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} placeholder="1.00" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                             <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout %</label><input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} placeholder="80" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                             <div className="space-y-1 col-span-2 md:col-span-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                         </div>
@@ -155,47 +156,80 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 
     const tableData = useMemo(() => {
         const rows = [];
-        const operatedDays = records
+        // Ordenar registros reais por data
+        const sortedRealRecords = records
             .filter((r: any): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0)
             .sort((a, b) => a.id.localeCompare(b.id));
         
+        // Data de início da simulação: Ou o primeiro dia operado, ou "Hoje"
+        let startDate: Date;
+        if (sortedRealRecords.length > 0) {
+            startDate = new Date(sortedRealRecords[0].id + 'T12:00:00');
+        } else {
+            startDate = new Date();
+            startDate.setHours(12,0,0,0);
+        }
+
         let runningBalance = activeBrokerage.initialBalance;
 
         for (let i = 0; i < 30; i++) {
-            const realRecord = operatedDays[i];
-            const initial = runningBalance;
-            const operationValue = initial * 0.10; // Dynamic calculation
-            const hasTrades = !!realRecord;
-            const win = hasTrades ? realRecord.winCount : 0;
-            const loss = hasTrades ? realRecord.lossCount : 0;
-            const profit = hasTrades ? realRecord.netProfitUSD : 0;
-            const final = hasTrades ? realRecord.endBalanceUSD : initial;
+            const currentDate = new Date(startDate);
+            currentDate.setDate(startDate.getDate() + i);
+            const dateId = currentDate.toISOString().split('T')[0];
+            
+            // Tentar achar registro real para este dia
+            const realRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateId && r.trades.length > 0);
+            
+            let initial = runningBalance;
+            let win, loss, profit, final, isProjection, operationValue;
+
+            if (realRecord) {
+                // Registro Real
+                win = realRecord.winCount;
+                loss = realRecord.lossCount;
+                profit = realRecord.netProfitUSD;
+                final = realRecord.endBalanceUSD;
+                operationValue = (realRecord.trades.length > 0) ? realRecord.trades[0].entryValue : (initial * 0.10);
+                isProjection = false;
+            } else {
+                // Projeção 3x0
+                isProjection = true;
+                operationValue = initial * 0.10;
+                win = 3;
+                loss = 0;
+                profit = (operationValue * (activeBrokerage.payoutPercentage / 100)) * 3;
+                final = initial + profit;
+            }
 
             rows.push({
                 diaTrade: i + 1,
-                dateDisplay: hasTrades ? new Date(realRecord.id + 'T00:00:00Z').toLocaleDateString('pt-BR') : 'Aguardando...',
+                dateId,
+                dateDisplay: currentDate.toLocaleDateString('pt-BR'),
                 initial,
                 win,
                 loss,
                 profit,
                 final,
                 operationValue,
-                hasTrades
+                isProjection
             });
             runningBalance = final;
         }
         return rows;
-    }, [records, activeBrokerage.initialBalance]);
+    }, [records, activeBrokerage.initialBalance, activeBrokerage.payoutPercentage]);
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros (30 Dias)</h2>
+            <div>
+                <h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros (30 Dias)</h2>
+                <p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Dias em baixa opacidade são projeções automáticas de 3x0.</p>
+            </div>
             <div className={`rounded-3xl border overflow-hidden shadow-2xl ${theme.card}`}>
                 <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-center border-collapse min-w-[900px]">
                         <thead>
                             <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Dia de Trade</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Dia</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Data</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Saldo Inicial</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Valor Operação</th>
@@ -207,14 +241,14 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                         </thead>
                         <tbody className="divide-y divide-slate-800/10">
                             {tableData.map((row) => (
-                                <tr key={row.diaTrade} className={`text-sm font-bold hover:bg-slate-800/5 transition-colors`}>
+                                <tr key={row.diaTrade} className={`text-sm font-bold hover:bg-slate-800/5 transition-colors ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : ''}`}>
                                     <td className="py-4 px-3 opacity-40 font-mono text-xs">#{row.diaTrade}</td>
                                     <td className="py-4 px-3 text-[10px] uppercase font-black opacity-60">{row.dateDisplay}</td>
                                     <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
                                     <td className="py-4 px-3 font-mono text-sm text-blue-400">{currencySymbol} {formatMoney(row.operationValue)}</td>
-                                    <td className="py-4 px-3">{row.hasTrades ? <span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-xl">{row.win}</span> : '-'}</td>
-                                    <td className="py-4 px-3">{row.hasTrades ? <span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-xl">{row.loss}</span> : '-'}</td>
-                                    <td className={`py-4 px-3 font-black ${row.profit > 0 ? 'text-green-500' : row.profit < 0 ? 'text-red-500' : 'opacity-30'}`}>{row.hasTrades ? `${row.profit > 0 ? '+' : ''}${currencySymbol} ${formatMoney(row.profit)}` : '-'}</td>
+                                    <td className="py-4 px-3"><span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-xl">{row.win}</span></td>
+                                    <td className="py-4 px-3"><span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-xl">{row.loss}</span></td>
+                                    <td className={`py-4 px-3 font-black ${row.profit > 0 ? 'text-green-500' : row.profit < 0 ? 'text-red-500' : 'opacity-30'}`}>{row.profit > 0 ? '+' : ''}{currencySymbol} {formatMoney(row.profit)}</td>
                                     <td className="py-4 px-3 font-black opacity-90">{currencySymbol} {formatMoney(row.final)}</td>
                                 </tr>
                             ))}
@@ -261,7 +295,7 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
                         <tbody className="divide-y divide-slate-800/5">
                             {reportData.allTrades.map((t) => {
                                 const profit = t.result === 'win' ? (t.entryValue * (t.payoutPercentage / 100)) : -t.entryValue;
-                                const tradeDate = t.timestamp ? new Date(t.timestamp) : new Date(t.dayId + 'T12:00:00Z');
+                                const tradeDate = t.timestamp ? new Date(t.timestamp) : new Date(t.dayId + 'T12:00:00');
                                 return (
                                     <tr key={t.id} className="hover:bg-slate-800/5 transition-colors">
                                         <td className="py-4 px-6 font-bold text-sm">
@@ -287,123 +321,61 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
 
 // --- Soros Calculator Panel ---
 const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
-    const [initialValue, setInitialValue] = useState('10');
-    const [payout, setPayout] = useState(String(activeBrokerage.payoutPercentage || 80));
-    const [levels, setLevels] = useState('5');
-    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+    const [initialEntry, setInitialEntry] = useState('10');
+    const [payout, setPayout] = useState(activeBrokerage?.payoutPercentage || '80');
+    const [levels, setLevels] = useState('4');
 
-    const sorosData = useMemo(() => {
-        const val = parseFloat(initialValue) || 0;
+    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
+
+    const calculations = useMemo(() => {
+        const entry = parseFloat(initialEntry) || 0;
         const p = (parseFloat(payout) || 0) / 100;
-        const lvl = parseInt(levels) || 1;
-        const table = [];
-        let currentEntry = val;
-        
-        for (let i = 1; i <= Math.min(lvl, 15); i++) {
+        const lvls = parseInt(levels) || 1;
+        const results = [];
+        let currentEntry = entry;
+
+        for (let i = 1; i <= lvls; i++) {
             const profit = currentEntry * p;
             const total = currentEntry + profit;
-            table.push({
-                level: i,
-                entry: currentEntry,
-                profit: profit,
-                total: total
-            });
+            results.push({ level: i, entry: currentEntry, profit, total });
             currentEntry = total;
         }
-        return table;
-    }, [initialValue, payout, levels]);
+        return results;
+    }, [initialEntry, payout, levels]);
 
     return (
-        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8">
-            <h2 className={`text-2xl font-black ${theme.text}`}>Calculadora de Soros</h2>
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+            <div>
+                <h2 className="text-2xl font-black">Calculadora de Soros</h2>
+                <p className={theme.textMuted}>Planeje seus ciclos de reinvestimento.</p>
+            </div>
             <div className={`p-6 rounded-3xl border ${theme.card} grid grid-cols-1 md:grid-cols-3 gap-6`}>
-                <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Entrada Inicial</label><input type="number" value={initialValue} onChange={e => setInitialValue(e.target.value)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
-                <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Payout %</label><input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
-                <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Níveis</label><input type="number" value={levels} onChange={e => setLevels(e.target.value)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
-            </div>
-
-            <div className={`rounded-3xl border overflow-hidden ${theme.card}`}>
-                <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-center">
-                        <thead><tr className={`text-[10px] uppercase font-black tracking-widest ${theme.header} bg-opacity-50`}><th className="py-4">Nível</th><th className="py-4">Valor Entrada</th><th className="py-4">Lucro Líquido</th><th className="py-4">Total para o Próximo</th></tr></thead>
-                        <tbody className="divide-y divide-slate-800/10">
-                            {sorosData.map((row) => (
-                                <tr key={row.level} className="text-sm font-bold">
-                                    <td className="py-5 font-mono opacity-50"># {row.level}</td>
-                                    <td className="py-5">{currencySymbol} {formatMoney(row.entry)}</td>
-                                    <td className="py-5 text-green-500">+ {currencySymbol} {formatMoney(row.profit)}</td>
-                                    <td className="py-5 font-black">{currencySymbol} {formatMoney(row.total)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase">Entrada Inicial ({currencySymbol})</label>
+                    <input type="number" value={initialEntry} onChange={e => setInitialEntry(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase">Payout %</label>
+                    <input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase">Níveis</label>
+                    <input type="number" value={levels} onChange={e => setLevels(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
                 </div>
             </div>
-        </div>
-    );
-};
-
-// --- Settings Panel ---
-const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset }) => {
-    const handleUpdate = (field: keyof Brokerage, value: any) => {
-        setBrokerages((prev: Brokerage[]) => prev.map((b, i) => i === 0 ? { ...b, [field]: value } : b));
-    };
-
-    const Tooltip: React.FC<{ text: string }> = ({ text, children }) => (
-        <div className="group relative flex items-center">
-            {children}
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-950 text-white text-[10px] rounded-lg text-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg">
-                {text}
-            </div>
-        </div>
-    );
-
-    return (
-        <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8">
-            <h2 className={`text-2xl font-black ${theme.text}`}>Configurações</h2>
-            <div className={`p-8 rounded-3xl border ${theme.card} space-y-6`}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Nome da Gestão</label><input type="text" value={brokerage.name} onChange={e => handleUpdate('name', e.target.value)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
-                    <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Moeda</label><select value={brokerage.currency} onChange={e => handleUpdate('currency', e.target.value)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`}><option value="USD">USD ($)</option><option value="BRL">BRL (R$)</option></select></div>
-                    <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Banca Inicial</label><input type="number" value={brokerage.initialBalance} onChange={e => handleUpdate('initialBalance', parseFloat(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
-                    <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Payout Médio %</label><input type="number" value={brokerage.payoutPercentage} onChange={e => handleUpdate('payoutPercentage', parseInt(e.target.value))} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} /></div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase opacity-50">Modo de Entrada Sugerido</label>
-                        <select value={brokerage.entryMode} onChange={e => handleUpdate('entryMode', e.target.value as 'percentage' | 'fixed')} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`}>
-                            <option value="percentage">Porcentagem da Banca (%)</option>
-                            <option value="fixed">Valor Fixo</option>
-                        </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {calculations.map((res) => (
+                    <div key={res.level} className={`p-6 rounded-3xl border ${theme.card} relative overflow-hidden group`}>
+                        <div className="absolute top-0 right-0 p-4 opacity-10 font-black text-4xl group-hover:scale-110 transition-transform">L{res.level}</div>
+                        <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Nível {res.level}</p>
+                        <div className="space-y-1">
+                            <p className="text-xs font-bold text-slate-400">Entrada: {currencySymbol} {formatMoney(res.entry)}</p>
+                            <p className="text-lg font-black text-green-500">Lucro: +{currencySymbol} {formatMoney(res.profit)}</p>
+                            <div className="h-px bg-slate-800/20 my-2" />
+                            <p className="text-xs font-bold opacity-60">Próxima: {currencySymbol} {formatMoney(res.total)}</p>
+                        </div>
                     </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase opacity-50">Valor de Entrada Sugerido</label>
-                        <input type="number" value={brokerage.entryValue} onChange={e => handleUpdate('entryValue', parseFloat(e.target.value) || 0)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase opacity-50 flex items-center gap-1.5">
-                            Stop Win (Trades)
-                             <Tooltip text="Número de vitórias para parar de operar no dia.">
-                                <InformationCircleIcon className="w-3.5 h-3.5" />
-                            </Tooltip>
-                        </label>
-                        <input type="number" value={brokerage.stopGainTrades} onChange={e => handleUpdate('stopGainTrades', parseInt(e.target.value) || 0)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
-                    </div>
-                     <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase opacity-50 flex items-center gap-1.5">
-                            Stop Loss (Trades)
-                            <Tooltip text="Número de derrotas para parar de operar no dia.">
-                                <InformationCircleIcon className="w-3.5 h-3.5" />
-                            </Tooltip>
-                        </label>
-                        <input type="number" value={brokerage.stopLossTrades} onChange={e => handleUpdate('stopLossTrades', parseInt(e.target.value) || 0)} className={`w-full p-3 rounded-xl border font-bold ${theme.input}`} />
-                    </div>
-                </div>
-                <div className="pt-8 border-t border-slate-800/10">
-                    <h3 className="text-sm font-black text-red-500 uppercase mb-4">Zona Crítica</h3>
-                    <div className="p-5 bg-red-500/5 rounded-2xl border border-red-500/10">
-                        <p className="text-xs font-bold text-red-500/70 mb-5">Ao zerar a planilha, todo o histórico de operações será excluído permanentemente.</p>
-                        <button onClick={onReset} className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl text-[10px] uppercase tracking-widest transition-all">Zerar Planilha</button>
-                    </div>
-                </div>
+                ))}
             </div>
         </div>
     );
@@ -411,60 +383,156 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
 
 // --- Goals Panel ---
 const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrokerage }) => {
-    const [newName, setNewName] = useState('');
-    const [newTarget, setNewTarget] = useState('');
-    const [newType, setNewType] = useState<'daily'|'weekly'|'monthly'|'annual'>('monthly');
-    const totalProfit = useMemo(() => records.filter((r: any) => r.recordType === 'day').reduce((acc: number, r: any) => acc + r.netProfitUSD, 0), [records]);
-    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+    const [name, setName] = useState('');
+    const [target, setTarget] = useState('');
+    const [type, setType] = useState<'daily' | 'weekly' | 'monthly' | 'annual'>('monthly');
 
-    const handleAddGoal = (e: React.FormEvent) => { 
-        e.preventDefault(); 
-        if (!newName || !newTarget) return; 
-        setGoals((prev: any) => [...prev, { id: crypto.randomUUID(), name: newName, targetAmount: parseFloat(newTarget), type: newType, createdAt: Date.now() }]); 
-        setNewName(''); setNewTarget(''); 
+    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
+
+    const addGoal = () => {
+        if (!name || !target) return;
+        const newGoal: Goal = {
+            id: crypto.randomUUID(),
+            name,
+            targetAmount: parseFloat(target),
+            type,
+            createdAt: Date.now()
+        };
+        setGoals((prev: Goal[]) => [...prev, newGoal]);
+        setName(''); setTarget('');
+    };
+
+    const deleteGoal = (id: string) => {
+        setGoals((prev: Goal[]) => prev.filter(g => g.id !== id));
     };
 
     return (
-        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8">
-            <h2 className={`text-2xl font-black ${theme.text}`}>Metas Financeiras</h2>
-            <form onSubmit={handleAddGoal} className={`p-6 rounded-3xl border ${theme.card} grid grid-cols-1 md:grid-cols-4 gap-4 items-end`}>
-                <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Objetivo</label><input type="text" value={newName} onChange={e => setNewName(e.target.value)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`} /></div>
-                <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Valor Alvo</label><input type="number" value={newTarget} onChange={e => setNewTarget(e.target.value)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`} /></div>
-                <div className="space-y-1"><label className="text-[10px] font-black uppercase opacity-50">Período</label><select value={newType} onChange={e => setNewType(e.target.value as any)} className={`w-full p-2.5 rounded-xl border text-sm font-bold ${theme.input}`}><option value="daily">Diária</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option><option value="annual">Anual</option></select></div>
-                <button type="submit" className="h-[42px] bg-green-500 text-slate-950 font-black rounded-xl uppercase text-[10px] transition-all"><PlusIcon className="w-4 h-4 mx-auto" /></button>
-            </form>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {goals.map((goal: any) => {
-                    const progress = Math.max(0, Math.min(100, (totalProfit / goal.targetAmount) * 100));
-                    const isMonthly = goal.type === 'monthly';
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-2xl font-black">Metas Financeiras</h2>
+                    <p className={theme.textMuted}>Defina e acompanhe seus objetivos.</p>
+                </div>
+            </div>
+
+            <div className={`p-6 rounded-3xl border ${theme.card}`}>
+                <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-6">Nova Meta</h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Nome</label><input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Viagem 2024" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Valor Alvo ({currencySymbol})</label><input type="number" value={target} onChange={e => setTarget(e.target.value)} placeholder="5000" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Tipo</label><select value={type} onChange={e => setType(e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`}><option value="daily">Diária</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option><option value="annual">Anual</option></select></div>
+                    <div className="flex items-end"><button onClick={addGoal} className="w-full h-12 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-xl uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"><PlusIcon className="w-4 h-4" /> Adicionar</button></div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {goals.map(goal => {
+                    const currentProfit = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day').reduce((acc, r) => acc + r.netProfitUSD, 0);
+                    const progress = Math.min(100, (currentProfit / goal.targetAmount) * 100);
                     return (
                         <div key={goal.id} className={`p-6 rounded-3xl border ${theme.card}`}>
-                            <div className="flex justify-between items-start mb-6">
-                                <div>
-                                    <span className="text-[8px] font-black uppercase px-2 py-0.5 bg-green-500 text-slate-950 rounded-full mb-1 inline-block">{goal.type}</span>
-                                    <h3 className="text-xl font-black">{goal.name}</h3>
-                                </div>
-                                <button onClick={() => setGoals((prev: any) => prev.filter((g: any) => g.id !== goal.id))} className="text-red-500/30 hover:text-red-500"><TrashIcon className="w-4 h-4" /></button>
+                            <div className="flex justify-between items-start mb-4">
+                                <div><p className="text-[10px] font-black uppercase text-slate-500">{goal.type}</p><h4 className="text-xl font-black">{goal.name}</h4></div>
+                                <button onClick={() => deleteGoal(goal.id)} className="text-red-500/50 hover:text-red-500 transition-colors"><TrashIcon className="w-5 h-5" /></button>
                             </div>
-                            
-                            {isMonthly && (
-                                <div className="mb-6 grid grid-cols-2 gap-3 p-3 bg-slate-950/20 rounded-2xl border border-slate-800/30">
-                                    <div>
-                                        <p className="text-[8px] uppercase font-black opacity-40">Meta Semanal Desdobrada</p>
-                                        <p className="text-xs font-black text-green-400">{currencySymbol} {formatMoney(goal.targetAmount / 4)}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[8px] uppercase font-black opacity-40">Meta Diária Desdobrada</p>
-                                        <p className="text-xs font-black text-green-400">{currencySymbol} {formatMoney(goal.targetAmount / 22)}</p>
-                                    </div>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-xs font-bold">
+                                    <span>Progresso Total</span>
+                                    <span>{progress.toFixed(1)}%</span>
                                 </div>
-                            )}
-
-                            <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden mb-2"><div className="h-full bg-green-500 transition-all duration-1000" style={{ width: `${progress}%` }} /></div>
-                            <div className="flex justify-between text-[10px] font-bold opacity-60"><span>{progress.toFixed(1)}% Alcançado</span><span>Alvo: {formatMoney(goal.targetAmount)}</span></div>
+                                <div className="h-2 w-full bg-slate-800/20 rounded-full overflow-hidden">
+                                    <div className="h-full bg-green-500 transition-all duration-1000" style={{ width: `${progress}%` }} />
+                                </div>
+                                <div className="flex justify-between items-baseline pt-2">
+                                    <p className="text-2xl font-black text-green-500">{currencySymbol} {formatMoney(currentProfit)}</p>
+                                    <p className="text-xs font-bold opacity-40">de {currencySymbol} {formatMoney(goal.targetAmount)}</p>
+                                </div>
+                            </div>
                         </div>
                     );
                 })}
+            </div>
+        </div>
+    );
+};
+
+// --- Settings Panel ---
+const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset }) => {
+    const updateBrokerage = (field: keyof Brokerage, value: any) => {
+        setBrokerages((prev: Brokerage[]) => prev.map((b, i) => i === 0 ? { ...b, [field]: value } : b));
+    };
+
+    return (
+        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
+            <div>
+                <h2 className="text-2xl font-black">Configurações</h2>
+                <p className={theme.textMuted}>Ajuste os parâmetros da sua gestão.</p>
+            </div>
+
+            <div className={`p-8 rounded-3xl border ${theme.card} space-y-8`}>
+                <section className="space-y-6">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">Parametrização de Banca</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Nome da Banca</label>
+                            <input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Moeda Principal</label>
+                            <select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`}>
+                                <option value="USD">Dólar ($)</option>
+                                <option value="BRL">Real (R$)</option>
+                            </select>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Saldo Inicial</label>
+                            <input type="number" value={brokerage.initialBalance} onChange={e => updateBrokerage('initialBalance', parseFloat(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Payout Padrão %</label>
+                            <input type="number" value={brokerage.payoutPercentage} onChange={e => updateBrokerage('payoutPercentage', parseInt(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
+                        </div>
+                    </div>
+                </section>
+
+                <section className="space-y-6 pt-8 border-t border-slate-800/10">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">Configuração de Entrada</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Modo de Entrada</label>
+                            <div className="flex bg-slate-800/10 p-1 rounded-xl">
+                                <button onClick={() => updateBrokerage('entryMode', 'percentage')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${brokerage.entryMode === 'percentage' ? 'bg-green-500 text-slate-950' : 'text-slate-500 hover:text-slate-300'}`}>Porcentagem</button>
+                                <button onClick={() => updateBrokerage('entryMode', 'fixed')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${brokerage.entryMode === 'fixed' ? 'bg-green-500 text-slate-950' : 'text-slate-500 hover:text-slate-300'}`}>Valor Fixo</button>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Valor da Entrada ({brokerage.entryMode === 'percentage' ? '%' : (brokerage.currency === 'USD' ? '$' : 'R$')})</label>
+                            <input type="number" value={brokerage.entryValue} onChange={e => updateBrokerage('entryValue', parseFloat(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
+                        </div>
+                    </div>
+                </section>
+
+                <section className="space-y-6 pt-8 border-t border-slate-800/10">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">Gerenciamento de Risco (Stop)</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Stop Gain (Vitórias)</label>
+                            <input type="number" value={brokerage.stopGainTrades} onChange={e => updateBrokerage('stopGainTrades', parseInt(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Stop Loss (Derrotas)</label>
+                            <input type="number" value={brokerage.stopLossTrades} onChange={e => updateBrokerage('stopLossTrades', parseInt(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
+                        </div>
+                    </div>
+                </section>
+
+                <section className="pt-12 space-y-4">
+                    <div className="p-6 rounded-3xl bg-red-500/5 border border-red-500/20">
+                        <h4 className="text-sm font-black text-red-500 uppercase mb-2">Zona de Perigo</h4>
+                        <p className="text-xs font-bold text-red-500/60 mb-6">Ao redefinir os dados, todo o seu histórico de operações será apagado permanentemente.</p>
+                        <button onClick={onReset} className="px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all active:scale-95">Apagar Todo Histórico</button>
+                    </div>
+                </section>
             </div>
         </div>
     );
