@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
@@ -57,36 +56,28 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         setError(null);
 
         try {
-            // USANDO GEMINI 3 PRO PARA MÁXIMA PRECISÃO EM TAREFAS COMPLEXAS
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const base64Data = image.split(',')[1];
             
-            const prompt = `Aja como o algoritmo de trading mais avançado do mundo, especializado em scalping M1 e Opções Binárias.
-            Analise esta imagem do gráfico de velas M1 com precisão matemática.
+            const prompt = `Aja como um trader profissional de Opções Binárias com 10 anos de experiência em M1.
+            Analise esta imagem do gráfico de velas (Timeframe de 1 minuto).
+            Procure por:
+            1. Price Action: Padrões de velas (engolfo, martelo, doji, estrelas).
+            2. Estrutura: Suporte, Resistência, LTA e LTB.
+            3. Dinâmica: Pullbacks, Rompimentos e Reversões.
+            4. Indicadores visuais: Médias Móveis e Estocástico (se visíveis).
             
-            ESTRATÉGIAS OBRIGATÓRIAS PARA ANÁLISE:
-            1. Price Action Puro: Analise força (corpo da vela) e rejeição (pavio). Identifique Padrões: Martelo, Estrela da Manhã, Engolfo, Doji de Reversão.
-            2. Estrutura de Mercado: Identifique Suportes e Resistências IMEDIATOS. Verifique se o preço está em zona de "Trap" ou "Vácuo".
-            3. Fluxo e Tendência: Médias Móveis (cruzamento ou inclinação), Pullbacks em níveis de 50/61.8 fibonacci visual.
-            4. Osciladores: Verifique Estocástico (Sobrecompra/Sobrevenda) se visível.
-
-            CÁLCULO DE CERTEZA (CONFLUÊNCIA):
-            - Inicie em 50%.
-            - Adicione +15% para cada indicador/padrão que confirma a entrada (ex: Martelo em Suporte Forte).
-            - Subtraia -10% para cada sinal contraditório (ex: Contra a tendência principal).
-            
-            RETORNE APENAS UM JSON PURO:
+            Retorne um JSON com:
             {
                 "operacao": "CALL" | "PUT" | "AGUARDAR",
-                "confianca": numero_inteiro_preciso,
-                "confluencias": ["lista de 4 pontos técnicos específicos encontrados"],
-                "analise_vela": "Explicação técnica sobre a formação da última vela e expectativa para a próxima",
-                "risco": "Baixo" | "Médio" | "Alto"
+                "confianca": numero de 0 a 100,
+                "motivo": "string curta explicando a técnica",
+                "detalhes": ["array de 3 pontos técnicos observados"]
             }
-            Atenção: Seja extremamente criterioso. Se não houver confluência clara, recomende AGUARDAR.`;
+            Importante: Responda APENAS o JSON, sem markdown ou explicações extras.`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-3-pro-preview', // UPGRADE PARA MODELO PRO
+                model: 'gemini-3-flash-preview',
                 contents: {
                     parts: [
                         { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
@@ -100,159 +91,109 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             setResult(JSON.parse(cleanJson));
         } catch (err) {
             console.error(err);
-            setError("Erro técnico na análise. Certifique-se de que a imagem mostra claramente as velas e indicadores.");
+            setError("Falha ao analisar a imagem. Verifique se o gráfico está legível.");
         } finally {
             setAnalyzing(false);
         }
     };
 
     return (
-        <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
+            <div className="flex justify-between items-center">
                 <div>
-                    <h2 className={`text-3xl font-black ${theme.text} flex items-center gap-2`}>
-                        <CpuChipIcon className="w-8 h-8 text-green-500" />
-                        Analista IA Pro
-                    </h2>
-                    <p className={theme.textMuted}>Algoritmo de confluência baseado em Price Action e Estrutura (M1).</p>
-                </div>
-                <div className="bg-slate-900/50 border border-slate-800 px-4 py-2 rounded-2xl flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gemini 3 Pro Ativo</span>
+                    <h2 className={`text-2xl font-black ${theme.text}`}>Analista IA <span className="text-xs bg-green-500 text-black px-2 py-0.5 rounded-full ml-2">BETA</span></h2>
+                    <p className={theme.textMuted}>Suba um print do gráfico (M1) para análise técnica imediata.</p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-                <div className="xl:col-span-7 space-y-6">
-                    <div className={`p-4 rounded-[2.5rem] border-2 border-dashed ${image ? 'border-green-500/50' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center min-h-[450px] transition-all relative group overflow-hidden`}>
-                        {image ? (
-                            <div className="relative w-full h-full flex items-center justify-center">
-                                <img src={image} alt="Chart" className="max-h-[420px] w-full object-contain rounded-3xl" />
-                                <button onClick={() => setImage(null)} className="absolute top-4 right-4 p-3 bg-red-600/90 text-white rounded-2xl hover:scale-110 transition-all shadow-2xl backdrop-blur-md"><TrashIcon className="w-5 h-5" /></button>
-                                <div className="absolute inset-0 pointer-events-none border-[12px] border-slate-950/20 rounded-[2.2rem]"></div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col items-center justify-center min-h-[400px] border-dashed border-2 relative overflow-hidden group`}>
+                    {image ? (
+                        <div className="relative w-full h-full">
+                            <img src={image} alt="Chart" className="w-full h-full object-contain rounded-xl" />
+                            <button onClick={() => setImage(null)} className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-xl"><TrashIcon className="w-5 h-5" /></button>
+                        </div>
+                    ) : (
+                        <label className="cursor-pointer flex flex-col items-center gap-4 text-center group">
+                            <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-all border border-green-500/20">
+                                <PlusIcon className="w-10 h-10 text-green-500" />
                             </div>
-                        ) : (
-                            <label className="cursor-pointer flex flex-col items-center gap-6 text-center group py-20 w-full">
-                                <div className="w-24 h-24 bg-green-500/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-all border border-green-500/20 shadow-inner">
-                                    <PlusIcon className="w-10 h-10 text-green-500" />
-                                </div>
-                                <div className="space-y-2">
-                                    <p className="font-black text-lg uppercase tracking-[0.3em] text-white">Upload do Gráfico</p>
-                                    <p className="text-xs opacity-40 font-bold max-w-xs mx-auto">Arraste seu print do TradingView ou corretora (M1 preferencialmente).</p>
-                                </div>
-                                <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
-                            </label>
-                        )}
-                    </div>
+                            <div>
+                                <p className="font-black text-sm uppercase tracking-widest">Clique para subir o print</p>
+                                <p className="text-[10px] opacity-40 font-bold mt-1">PNG ou JPG (Recomendado M1)</p>
+                            </div>
+                            <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                        </label>
+                    )}
+                </div>
 
+                <div className="space-y-6">
                     <button 
                         onClick={analyzeChart} 
                         disabled={!image || analyzing}
-                        className={`w-full h-20 rounded-3xl font-black uppercase tracking-[0.4em] transition-all flex items-center justify-center gap-4 text-lg
-                        ${!image || analyzing ? 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-800' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-2xl shadow-green-500/30 active:scale-95'}`}
+                        className={`w-full h-16 rounded-2xl font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3
+                        ${!image || analyzing ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-lg shadow-green-500/20 active:scale-95'}`}
                     >
                         {analyzing ? (
                             <>
-                                <ArrowPathIcon className="w-7 h-7 animate-spin" />
-                                Escaneando Estrutura...
+                                <ArrowPathIcon className="w-6 h-6 animate-spin" />
+                                Processando Gráfico...
                             </>
                         ) : (
                             <>
-                                <CpuChipIcon className="w-7 h-7" />
-                                Processar Análise Pro
+                                <CpuChipIcon className="w-6 h-6" />
+                                Analisar Próxima Vela
                             </>
                         )}
                     </button>
-                </div>
 
-                <div className="xl:col-span-5 space-y-6">
-                    {result ? (
-                        <div className={`p-8 rounded-[2.5rem] border ${theme.card} space-y-8 animate-in fade-in slide-in-from-right-8 duration-700 shadow-2xl relative overflow-hidden`}>
-                            {/* Decorative background glow based on result */}
-                            <div className={`absolute -top-20 -right-20 w-40 h-40 blur-[100px] rounded-full opacity-20 ${result.operacao === 'CALL' ? 'bg-green-500' : result.operacao === 'PUT' ? 'text-red-500' : 'bg-blue-500'}`} />
-                            
-                            <div className="flex justify-between items-start relative">
+                    {error && (
+                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-500">
+                            <InformationCircleIcon className="w-6 h-6" />
+                            <p className="text-xs font-bold uppercase">{error}</p>
+                        </div>
+                    )}
+
+                    {result && (
+                        <div className={`p-8 rounded-3xl border ${theme.card} space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 shadow-2xl`}>
+                            <div className="flex justify-between items-center">
                                 <div>
-                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Sinal de Entrada</p>
-                                    <h3 className={`text-6xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-green-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
+                                    <p className="text-[10px] font-black uppercase opacity-40">Recomendação IA</p>
+                                    <h3 className={`text-4xl font-black tracking-tighter ${result.operacao === 'CALL' ? 'text-green-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-500'}`}>
                                         {result.operacao}
                                     </h3>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Precisão Estimada</p>
-                                    <p className={`text-4xl font-black ${result.confianca > 75 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
-                                    <div className="h-1.5 w-full bg-slate-800 rounded-full mt-2 overflow-hidden">
-                                        <div className={`h-full transition-all duration-1000 ${result.confianca > 75 ? 'bg-blue-400' : 'bg-yellow-500'}`} style={{ width: `${result.confianca}%` }} />
-                                    </div>
+                                    <p className="text-[10px] font-black uppercase opacity-40">Confiança</p>
+                                    <p className="text-2xl font-black text-blue-400">{result.confianca}%</p>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-4 bg-slate-950/40 rounded-2xl border border-slate-800/50">
-                                    <p className="text-[9px] font-black uppercase opacity-40 mb-1">Nível de Risco</p>
-                                    <p className={`text-sm font-black ${result.risco === 'Baixo' ? 'text-green-500' : result.risco === 'Médio' ? 'text-yellow-500' : 'text-red-500'}`}>{result.risco}</p>
-                                </div>
-                                <div className="p-4 bg-slate-950/40 rounded-2xl border border-slate-800/50">
-                                    <p className="text-[9px] font-black uppercase opacity-40 mb-1">Timeframe</p>
-                                    <p className="text-sm font-black text-white">M1 (Next Candle)</p>
-                                </div>
+                            <div className="p-4 bg-slate-950/30 rounded-2xl border border-slate-800/50">
+                                <p className="text-sm font-bold leading-relaxed">{result.motivo}</p>
                             </div>
 
-                            <div className="space-y-4">
-                                <p className="text-[10px] font-black uppercase text-green-500 tracking-[0.2em] border-b border-green-500/20 pb-2">Confluências Detectadas</p>
-                                <div className="space-y-3">
-                                    {result.confluencias?.map((item: string, i: number) => (
-                                        <div key={i} className="flex items-start gap-3">
-                                            <div className="mt-1.5 w-2 h-2 rounded-full bg-green-500 shrink-0 shadow-[0_0_10px_#22c55e]" />
-                                            <p className="text-xs font-bold leading-relaxed opacity-90">{item}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="pt-4">
-                                <p className="text-[10px] font-black uppercase opacity-40 mb-2">Racional da IA</p>
-                                <p className="text-xs font-medium text-slate-300 italic bg-slate-800/20 p-4 rounded-2xl border border-slate-800/30 leading-relaxed">
-                                    "{result.analise_vela}"
-                                </p>
-                            </div>
-                        </div>
-                    ) : analyzing ? (
-                        <div className="h-full flex flex-col items-center justify-center p-12 text-center space-y-6">
-                            <div className="relative">
-                                <div className="w-24 h-24 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin" />
-                                <CpuChipIcon className="w-10 h-10 text-green-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                            </div>
                             <div className="space-y-2">
-                                <p className="text-lg font-black uppercase tracking-widest animate-pulse">Cruzando Dados...</p>
-                                <p className="text-xs text-slate-500 font-bold">Avaliando Price Action, Médias e Suportes.</p>
+                                <p className="text-[9px] font-black uppercase opacity-40 tracking-widest">Fatores Técnicos</p>
+                                {result.detalhes?.map((detail: string, i: number) => (
+                                    <div key={i} className="flex items-center gap-3 text-xs font-bold opacity-80">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-sm shadow-green-500/50" />
+                                        {detail}
+                                    </div>
+                                ))}
                             </div>
-                        </div>
-                    ) : (
-                        <div className={`p-12 rounded-[2.5rem] border border-slate-800/30 bg-slate-900/10 flex flex-col items-center justify-center text-center space-y-6 min-h-[500px]`}>
-                            <div className="w-20 h-20 bg-slate-800/50 rounded-3xl flex items-center justify-center rotate-12">
-                                <LayoutGridIcon className="w-10 h-10 text-slate-700" />
-                            </div>
-                            <div className="space-y-3">
-                                <h4 className="text-xl font-black opacity-30 uppercase tracking-widest">Painel de Resultados</h4>
-                                <p className="text-xs text-slate-600 font-bold max-w-[250px]">O relatório de confluência técnica aparecerá aqui após o processamento.</p>
-                            </div>
+                            
+                            <p className="text-[8px] text-center uppercase font-black text-slate-600 mt-4 italic">Esta análise é baseada em visão computacional e não garante lucro.</p>
                         </div>
                     )}
                     
-                    {error && (
-                        <div className="p-5 bg-red-600/10 border border-red-500/20 rounded-3xl flex items-center gap-4 text-red-500 shadow-xl">
-                            <InformationCircleIcon className="w-8 h-8" />
-                            <p className="text-xs font-black uppercase tracking-tight leading-tight">{error}</p>
+                    {!result && !analyzing && !error && (
+                        <div className="p-10 border border-slate-800/20 rounded-3xl flex flex-col items-center justify-center opacity-20 text-center space-y-4">
+                            <CpuChipIcon className="w-16 h-16" />
+                            <p className="text-xs font-black uppercase tracking-widest">Aguardando Gráfico para Processamento</p>
                         </div>
                     )}
                 </div>
-            </div>
-            
-            <div className="pt-8 grid grid-cols-1 md:grid-cols-3 gap-6 opacity-40">
-                <div className="flex items-center gap-3"><div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center"><CheckIcon className="w-5 h-5" /></div><p className="text-[9px] font-black uppercase">Filtro de Ruído M1</p></div>
-                <div className="flex items-center gap-3"><div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center"><CheckIcon className="w-5 h-5" /></div><p className="text-[9px] font-black uppercase">Analise de Retração</p></div>
-                <div className="flex items-center gap-3"><div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center"><CheckIcon className="w-5 h-5" /></div><p className="text-[9px] font-black uppercase">Volume Relativo Pro</p></div>
             </div>
         </div>
     );
@@ -914,7 +855,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
                     <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Planilha Juros</button>
                     <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Relatório</button>
-                    <button onClick={() => {setActiveTab('ai'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Analista IA Pro</button>
+                    <button onClick={() => {setActiveTab('ai'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Analista IA</button>
                     <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
                     <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
                     <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Configurações</button>
