@@ -80,21 +80,22 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const base64Data = image.split(',')[1];
             const mimeType = image.split(';')[0].split(':')[1];
             
-            const prompt = `Aja como um analista master de Opções Binárias M1. 
-            OBJETIVO: Identificar a probabilidade da próxima vela baseado em Price Action e indicadores visuais.
-            
-            LEITURA TÉCNICA:
-            1. Verifique se há setas de indicadores (triângulos verdes/vermelhos).
-            2. Analise a cor e tamanho das últimas 2 velas e seus pavios (rejeição).
-            3. Verifique se o preço está em tendência ou lateralizado.
-            
-            RESPOSTA (JSON APENAS):
-            - "operacao": CALL, PUT ou AGUARDAR.
-            - "confianca": 0 a 100.
-            - "gatilho": Uma frase técnica matadora (ex: "Seta de sinal + Rejeição em suporte M1").`;
+            const prompt = `Analise este gráfico de Opções Binárias M1 com rigor matemático e visual.
+            Sua missão é dar um sinal de ALTA ASSERTIVIDADE. Se o sinal for duvidoso, responda "AGUARDAR".
+
+            CRITÉRIOS DE FILTRO (SÓ RECOMENDE SE):
+            1. Identificar setas/triângulos de indicadores claros.
+            2. Houver rejeição de pavio em zonas de extremidade (Suporte/Resistência).
+            3. A vela atual confirmar a força do movimento anterior.
+            4. O RSI ou estocástico visual (se presente) indicar exaustão.
+
+            RETORNE EM JSON:
+            - "operacao": "CALL", "PUT" ou "AGUARDAR".
+            - "confianca": (Número de 0 a 100 baseado na clareza dos filtros acima).
+            - "confluencia": (Apenas o motivo principal e direto do sinal).`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-3-flash-preview',
                 contents: {
                     parts: [
                         { inlineData: { data: base64Data, mimeType: mimeType } },
@@ -108,9 +109,9 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         properties: {
                             operacao: { type: Type.STRING },
                             confianca: { type: Type.NUMBER },
-                            gatilho: { type: Type.STRING }
+                            confluencia: { type: Type.STRING }
                         },
-                        required: ["operacao", "confianca", "gatilho"]
+                        required: ["operacao", "confianca", "confluencia"]
                     }
                 }
             });
@@ -120,49 +121,42 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
                 setResult(JSON.parse(cleanJson));
             } else {
-                throw new Error("Erro na IA.");
+                throw new Error("Falha na geração.");
             }
         } catch (err: any) {
             console.error(err);
-            setError("Erro ao ler o gráfico. Certifique-se de capturar as últimas velas e indicadores.");
+            setError("Erro ao processar imagem. Tente capturar apenas a área do gráfico.");
         } finally {
             setAnalyzing(false);
         }
     };
 
     return (
-        <div className="p-4 md:p-6 max-w-6xl mx-auto h-full flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center mb-4">
-                <div>
-                    <h2 className={`text-2xl font-black ${theme.text} flex items-center gap-2`}>
-                        <CpuChipIcon className="w-6 h-6 text-green-500" />
-                        Analista IA
-                    </h2>
-                    <p className="text-[10px] uppercase font-bold opacity-40">Análise técnica instantânea M1</p>
+        <div className="p-4 md:p-5 max-w-5xl mx-auto h-[calc(100vh-100px)] flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-2">
+                    <CpuChipIcon className="w-5 h-5 text-green-500" />
+                    <h2 className={`text-xl font-black ${theme.text}`}>Analista Sniper IA</h2>
+                    <span className="text-[8px] bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">Assertividade Máxima</span>
                 </div>
-                <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1 rounded-full">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[9px] font-black uppercase text-slate-400">Vision 2.5 Active</span>
-                </div>
+                <div className="text-[9px] font-bold opacity-30 uppercase tracking-tighter">Gemini 3 Flash Vision</div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 overflow-hidden min-h-0">
-                {/* Upload Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 overflow-hidden">
+                {/* Lado Esquerdo: Imagem */}
                 <div className="lg:col-span-7 flex flex-col gap-3 h-full overflow-hidden">
-                    <div className={`flex-1 rounded-[2rem] border-2 border-dashed ${image ? 'border-green-500/20' : 'border-slate-800'} ${theme.card} flex items-center justify-center relative overflow-hidden bg-slate-950/40`}>
+                    <div className={`flex-1 rounded-3xl border-2 border-dashed ${image ? 'border-green-500/20' : 'border-slate-800'} ${theme.card} flex items-center justify-center relative overflow-hidden bg-slate-950/20`}>
                         {image ? (
-                            <div className="w-full h-full p-2 flex items-center justify-center relative">
-                                <img src={image} alt="Chart" className="max-h-full w-full object-contain rounded-2xl" />
-                                <button onClick={() => setImage(null)} className="absolute top-3 right-3 p-2 bg-red-600 text-white rounded-xl shadow-lg z-20 hover:scale-105 transition-all"><TrashIcon className="w-4 h-4" /></button>
+                            <div className="w-full h-full p-1 flex items-center justify-center relative">
+                                <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-2xl" />
+                                <button onClick={() => setImage(null)} className="absolute top-2 right-2 p-1.5 bg-red-600/80 text-white rounded-lg hover:scale-105 transition-all"><TrashIcon className="w-3.5 h-3.5" /></button>
                             </div>
                         ) : (
-                            <label className="cursor-pointer flex flex-col items-center gap-4 text-center group py-10 w-full h-full justify-center">
-                                <div className="w-16 h-16 bg-green-500/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-all border border-green-500/10">
-                                    <PlusIcon className="w-8 h-8 text-green-500" />
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="font-black text-sm uppercase tracking-widest text-white">COLAR (CTRL+V)</p>
-                                    <p className="text-[9px] opacity-30 font-bold uppercase tracking-tight">Print do gráfico de M1</p>
+                            <label className="cursor-pointer flex flex-col items-center gap-3 text-center w-full h-full justify-center hover:bg-slate-900/20 transition-all">
+                                <PlusIcon className="w-10 h-10 text-slate-800" />
+                                <div className="space-y-0.5">
+                                    <p className="font-black text-[10px] uppercase tracking-widest text-slate-600">Cole o Print (CTRL+V)</p>
+                                    <p className="text-[8px] opacity-30 font-bold uppercase">Aguardando gráfico M1</p>
                                 </div>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                             </label>
@@ -171,55 +165,63 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     <button 
                         onClick={analyzeChart} 
                         disabled={!image || analyzing}
-                        className={`h-14 rounded-2xl font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3 text-sm
-                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border border-slate-800' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-xl shadow-green-500/20 active:scale-95'}`}
+                        className={`h-12 rounded-2xl font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 text-xs
+                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-lg shadow-green-500/10 active:scale-95'}`}
                     >
-                        {analyzing ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CpuChipIcon className="w-5 h-5" />}
-                        {analyzing ? 'Analisando...' : 'Analisar Vela'}
+                        {analyzing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CpuChipIcon className="w-4 h-4" />}
+                        {analyzing ? 'Analisando...' : 'Obter Sinal'}
                     </button>
                 </div>
 
-                {/* Result Section */}
-                <div className="lg:col-span-5 h-full overflow-hidden">
+                {/* Lado Direito: Resultado Compacto */}
+                <div className="lg:col-span-5 h-full">
                     {result ? (
-                        <div className={`p-6 rounded-[2rem] border ${theme.card} h-full flex flex-col justify-between animate-in fade-in slide-in-from-right-4 duration-500 shadow-2xl relative overflow-hidden bg-slate-900/60`}>
-                            <div className={`absolute -top-10 -right-10 w-32 h-32 blur-[80px] rounded-full opacity-20 ${result.operacao === 'CALL' ? 'bg-green-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
+                        <div className={`p-5 rounded-3xl border ${theme.card} h-full flex flex-col justify-between shadow-2xl relative overflow-hidden bg-slate-900/40 backdrop-blur-md`}>
+                            <div className={`absolute -top-10 -right-10 w-24 h-24 blur-[60px] rounded-full opacity-20 ${result.operacao === 'CALL' ? 'bg-green-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
                             
-                            <div className="space-y-6 relative z-10">
+                            <div className="space-y-5 relative z-10">
                                 <div>
-                                    <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">Decisão Sugerida</p>
-                                    <h3 className={`text-6xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-green-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
+                                    <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest mb-0.5">Operação Recomendada</p>
+                                    <h3 className={`text-5xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-green-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
                                         {result.operacao}
                                     </h3>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-end">
-                                        <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Confiança do Sinal</p>
-                                        <p className={`text-2xl font-black ${result.confianca > 75 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
+                                <div className="space-y-1.5">
+                                    <div className="flex justify-between items-center">
+                                        <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest">Confiança</p>
+                                        <p className={`text-xl font-black ${result.confianca > 75 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
                                     </div>
-                                    <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                                    <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
                                         <div className={`h-full transition-all duration-1000 ${result.confianca > 75 ? 'bg-blue-400' : 'bg-yellow-500'}`} style={{ width: `${result.confianca}%` }} />
                                     </div>
                                 </div>
 
-                                <div className="p-4 bg-slate-950/60 rounded-2xl border border-slate-800/50">
-                                    <p className="text-[9px] font-black uppercase opacity-40 mb-1">Gatilho Detectado</p>
-                                    <p className="text-xs font-bold text-white italic leading-relaxed">"{result.gatilho}"</p>
+                                <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-800/50">
+                                    <p className="text-[8px] font-black uppercase opacity-40 mb-0.5">Padrão Detectado</p>
+                                    <p className="text-[11px] font-bold text-white italic leading-tight">"{result.confluencia}"</p>
                                 </div>
                             </div>
 
-                            <div className="pt-4 flex items-center gap-2 opacity-20 relative z-10 border-t border-slate-800/50">
-                                <InformationCircleIcon className="w-3 h-3" />
-                                <p className="text-[7px] uppercase font-black tracking-widest leading-none">Válido apenas para a próxima vela de M1.</p>
+                            <div className="pt-3 border-t border-slate-800/50 flex items-center justify-between">
+                                <div className="flex items-center gap-1 opacity-20">
+                                    <InformationCircleIcon className="w-3 h-3" />
+                                    <p className="text-[7px] uppercase font-black tracking-widest leading-none">Válido para M1</p>
+                                </div>
+                                <div className="text-[7px] font-black text-green-500 animate-pulse">PRÓXIMA VELA</div>
                             </div>
                         </div>
+                    ) : analyzing ? (
+                        <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-4 opacity-50">
+                             <ArrowPathIcon className="w-8 h-8 animate-spin text-green-500" />
+                             <p className="text-[10px] font-black uppercase tracking-widest">Escaneando Velas...</p>
+                        </div>
                     ) : (
-                        <div className={`p-10 rounded-[2rem] border border-slate-800/30 bg-slate-900/10 h-full flex flex-col items-center justify-center text-center space-y-4 opacity-40 grayscale`}>
-                            <PieChartIcon className="w-12 h-12 text-slate-700" />
-                            <div className="space-y-1">
-                                <h4 className="text-sm font-black uppercase tracking-widest">Aguardando Print</h4>
-                                <p className="text-[9px] font-bold max-w-[180px] uppercase">A leitura técnica de confluência aparecerá aqui.</p>
+                        <div className={`p-8 rounded-3xl border border-slate-800/30 bg-slate-900/10 h-full flex flex-col items-center justify-center text-center space-y-3 opacity-30 grayscale`}>
+                            <LayoutGridIcon className="w-8 h-8 text-slate-700" />
+                            <div className="space-y-0.5">
+                                <h4 className="text-[10px] font-black uppercase tracking-widest">Fila de Sinais</h4>
+                                <p className="text-[8px] font-bold max-w-[150px] uppercase">O sinal de entrada aparecerá aqui após o envio.</p>
                             </div>
                         </div>
                     )}
@@ -227,9 +229,9 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             </div>
 
             {error && (
-                <div className="mt-4 p-3 bg-red-600/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-500 animate-in zoom-in duration-300">
-                    <InformationCircleIcon className="w-5 h-5 shrink-0" />
-                    <p className="text-[10px] font-black uppercase tracking-tight">{error}</p>
+                <div className="mt-3 p-2 bg-red-600/10 border border-red-500/20 rounded-xl flex items-center gap-2 text-red-500 animate-in zoom-in duration-300">
+                    <InformationCircleIcon className="w-4 h-4 shrink-0" />
+                    <p className="text-[9px] font-black uppercase tracking-tight leading-none">{error}</p>
                 </div>
             )}
         </div>
