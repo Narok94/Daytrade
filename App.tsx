@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { 
     SettingsIcon, 
     LogoutIcon, LayoutGridIcon, PieChartIcon, 
@@ -37,9 +38,8 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
     const [result, setResult] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
+    const processFile = (file: File) => {
+        if (file && file.type.startsWith('image/')) {
             const reader = new FileReader();
             reader.onloadend = () => {
                 setImage(reader.result as string);
@@ -49,6 +49,29 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             reader.readAsDataURL(file);
         }
     };
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) processFile(file);
+    };
+
+    // Suporte para Ctrl + V (Colar Imagem)
+    useEffect(() => {
+        const handlePaste = (e: ClipboardEvent) => {
+            const items = e.clipboardData?.items;
+            if (items) {
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf("image") !== -1) {
+                        const blob = items[i].getAsFile();
+                        if (blob) processFile(blob);
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('paste', handlePaste);
+        return () => window.removeEventListener('paste', handlePaste);
+    }, []);
 
     const analyzeChart = async () => {
         if (!image) return;
@@ -65,16 +88,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             1. Price Action: Padrões de velas (engolfo, martelo, doji, estrelas).
             2. Estrutura: Suporte, Resistência, LTA e LTB.
             3. Dinâmica: Pullbacks, Rompimentos e Reversões.
-            4. Indicadores visuais: Médias Móveis e Estocástico (se visíveis).
-            
-            Retorne um JSON com:
-            {
-                "operacao": "CALL" | "PUT" | "AGUARDAR",
-                "confianca": numero de 0 a 100,
-                "motivo": "string curta explicando a técnica",
-                "detalhes": ["array de 3 pontos técnicos observados"]
-            }
-            Importante: Responda APENAS o JSON, sem markdown ou explicações extras.`;
+            4. Indicadores visuais: Médias Móveis e Estocástico (se visíveis).`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
@@ -83,15 +97,31 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
                         { text: prompt }
                     ]
+                },
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            operacao: { type: Type.STRING, description: "CALL, PUT ou AGUARDAR" },
+                            confianca: { type: Type.NUMBER, description: "Número de 0 a 100" },
+                            motivo: { type: Type.STRING, description: "Explicação técnica curta" },
+                            detalhes: { type: Type.ARRAY, items: { type: Type.STRING }, description: "3 pontos técnicos observados" }
+                        },
+                        required: ["operacao", "confianca", "motivo", "detalhes"]
+                    }
                 }
             });
 
-            const text = response.text || '';
-            const cleanJson = text.replace(/```json|```/g, '').trim();
-            setResult(JSON.parse(cleanJson));
+            const text = response.text;
+            if (text) {
+                setResult(JSON.parse(text));
+            } else {
+                throw new Error("Resposta vazia da IA");
+            }
         } catch (err) {
             console.error(err);
-            setError("Falha ao analisar a imagem. Verifique se o gráfico está legível.");
+            setError("Falha ao analisar a imagem. Verifique se o gráfico está legível ou tente um print mais aproximado.");
         } finally {
             setAnalyzing(false);
         }
@@ -101,8 +131,8 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className={`text-2xl font-black ${theme.text}`}>Analista IA <span className="text-xs bg-green-500 text-black px-2 py-0.5 rounded-full ml-2">BETA</span></h2>
-                    <p className={theme.textMuted}>Suba um print do gráfico (M1) para análise técnica imediata.</p>
+                    <h2 className={`text-2xl font-black ${theme.text}`}>Analista IA <span className="text-xs bg-green-500 text-black px-2 py-0.5 rounded-full ml-2">PRO</span></h2>
+                    <p className={theme.textMuted}>Suba um print ou pressione CTRL+V para análise técnica imediata.</p>
                 </div>
             </div>
 
@@ -119,7 +149,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 <PlusIcon className="w-10 h-10 text-green-500" />
                             </div>
                             <div>
-                                <p className="font-black text-sm uppercase tracking-widest">Clique para subir o print</p>
+                                <p className="font-black text-sm uppercase tracking-widest">Clique para subir ou use CTRL+V</p>
                                 <p className="text-[10px] opacity-40 font-bold mt-1">PNG ou JPG (Recomendado M1)</p>
                             </div>
                             <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
@@ -183,7 +213,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 ))}
                             </div>
                             
-                            <p className="text-[8px] text-center uppercase font-black text-slate-600 mt-4 italic">Esta análise é baseada em visão computacional e não garante lucro.</p>
+                            <p className="text-[8px] text-center uppercase font-black text-slate-600 mt-4 italic">Análise baseada em padrões gráficos. Gerencie seu risco.</p>
                         </div>
                     )}
                     
@@ -203,7 +233,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
 const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, startBalanceForSelectedDay, isDarkMode, dailyGoalTarget }) => {
     const theme = useThemeClasses(isDarkMode);
     const [quantity, setQuantity] = useState('1');
-    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
     
     const handleQuickAdd = (type: 'win' | 'loss') => {
          const entryValue = parseFloat(customEntryValue) || 0;
@@ -221,8 +251,8 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     
     const dailyGoalPercent = dailyGoalTarget > 0 ? (currentProfit / dailyGoalTarget) * 100 : 0;
 
-    const stopWinTrades = activeBrokerage.stopGainTrades || 0;
-    const stopLossTrades = activeBrokerage.stopLossTrades || 0;
+    const stopWinTrades = activeBrokerage?.stopGainTrades || 0;
+    const stopLossTrades = activeBrokerage?.stopLossTrades || 0;
     const stopWinReached = stopWinTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.winCount >= stopWinTrades;
     const stopLossReached = stopLossTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.lossCount >= stopLossTrades;
 
@@ -265,7 +295,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                     <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-green-500" /> Nova Ordem</h3>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor (10% Banca)</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} placeholder="1.00" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} placeholder="1.00" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                             <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout %</label><input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} placeholder="80" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                             <div className="space-y-1 col-span-2 md:col-span-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                         </div>
@@ -321,7 +351,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
 // --- Compound Interest Panel ---
 const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
     const theme = useThemeClasses(isDarkMode);
-    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
 
     const tableData = useMemo(() => {
         const rows = [];
@@ -337,7 +367,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             startDate.setHours(12,0,0,0);
         }
 
-        let runningBalance = activeBrokerage.initialBalance;
+        let runningBalance = activeBrokerage?.initialBalance || 0;
 
         for (let i = 0; i < 30; i++) {
             const currentDate = new Date(startDate);
@@ -361,7 +391,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                 operationValue = initial * 0.10;
                 win = 3;
                 loss = 0;
-                profit = (operationValue * (activeBrokerage.payoutPercentage / 100)) * 3;
+                profit = (operationValue * ((activeBrokerage?.payoutPercentage || 80) / 100)) * 3;
                 final = initial + profit;
             }
 
@@ -380,7 +410,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             runningBalance = final;
         }
         return rows;
-    }, [records, activeBrokerage.initialBalance, activeBrokerage.payoutPercentage]);
+    }, [records, activeBrokerage]);
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
@@ -427,18 +457,18 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 // --- Report Panel ---
 const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, deleteTrade }) => {
     const theme = useThemeClasses(isDarkMode);
-    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
     const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
     const reportData = useMemo(() => {
         const filteredDays = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.id.startsWith(selectedMonth));
         const allTrades = filteredDays.flatMap(day => day.trades.map(t => ({ ...t, date: day.date, dayId: day.id }))).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         const dayRecordsBefore = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.id < `${selectedMonth}-01`).sort((a, b) => b.id.localeCompare(a.id));
-        const initialMonthBalance = dayRecordsBefore.length > 0 ? dayRecordsBefore[0].endBalanceUSD : activeBrokerage.initialBalance;
+        const initialMonthBalance = dayRecordsBefore.length > 0 ? dayRecordsBefore[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
         const finalMonthBalance = filteredDays.length > 0 ? filteredDays[filteredDays.length - 1].endBalanceUSD : initialMonthBalance;
         const totalProfit = filteredDays.reduce((acc, r) => acc + r.netProfitUSD, 0);
         return { totalProfit, finalMonthBalance, allTrades };
-    }, [records, selectedMonth, activeBrokerage.initialBalance]);
+    }, [records, selectedMonth, activeBrokerage]);
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
@@ -486,7 +516,7 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
 // --- Soros Calculator Panel ---
 const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
     const [initialEntry, setInitialEntry] = useState('10');
-    const [payout, setPayout] = useState(activeBrokerage?.payoutPercentage || '80');
+    const [payout, setPayout] = useState(String(activeBrokerage?.payoutPercentage || '80'));
     const [levels, setLevels] = useState('4');
 
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
@@ -793,12 +823,12 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             const dailyRecordForSelectedDay = prev.find((r): r is DailyRecord => r.id === dateKey && r.recordType === 'day');
             const currentBalance = dailyRecordForSelectedDay?.endBalanceUSD ?? startBal;
 
-            const suggestedEntryValue = brokerages[0].entryMode === 'fixed' 
-                ? brokerages[0].entryValue 
-                : currentBalance * (brokerages[0].entryValue / 100);
+            const suggestedEntryValue = brokerages[0]?.entryMode === 'fixed' 
+                ? (brokerages[0]?.entryValue || 1) 
+                : currentBalance * ((brokerages[0]?.entryValue || 10) / 100);
 
             const entryValue = (customEntry && customEntry > 0) ? customEntry : suggestedEntryValue;
-            const payout = (customPayout && customPayout > 0) ? customPayout : brokerages[0].payoutPercentage;
+            const payout = (customPayout && customPayout > 0) ? customPayout : (brokerages[0]?.payoutPercentage || 80);
             
             const newTrades: Trade[] = [];
             for(let i=0; i<win; i++) newTrades.push({ id: crypto.randomUUID(), result: 'win', entryValue, payoutPercentage: payout, timestamp: Date.now() });
@@ -810,9 +840,9 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 const rec = updatedRecords[existingIdx] as DailyRecord;
                 updatedRecords[existingIdx] = { ...rec, trades: [...rec.trades, ...newTrades] };
             } else {
-                updatedRecords.push({ recordType: 'day', brokerageId: brokerages[0].id, id: dateKey, date: dateKey, trades: newTrades, startBalanceUSD: 0, winCount: 0, lossCount: 0, netProfitUSD: 0, endBalanceUSD: 0 });
+                updatedRecords.push({ recordType: 'day', brokerageId: brokerages[0]?.id || crypto.randomUUID(), id: dateKey, date: dateKey, trades: newTrades, startBalanceUSD: 0, winCount: 0, lossCount: 0, netProfitUSD: 0, endBalanceUSD: 0 });
             }
-            const recalibrated = recalibrateHistory(updatedRecords, brokerages[0].initialBalance);
+            const recalibrated = recalibrateHistory(updatedRecords, brokerages[0]?.initialBalance || 0);
             debouncedSave();
             return recalibrated;
         });
@@ -821,7 +851,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const deleteTrade = (id: string, dateId: string) => {
         setRecords(prev => {
             const updated = prev.map(r => (r.id === dateId && r.recordType === 'day') ? { ...r, trades: r.trades.filter(t => t.id !== id) } : r);
-            const recalibrated = recalibrateHistory(updated, brokerages[0].initialBalance);
+            const recalibrated = recalibrateHistory(updated, brokerages[0]?.initialBalance || 0);
             debouncedSave();
             return recalibrated;
         });
