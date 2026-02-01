@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
@@ -81,20 +80,18 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const base64Data = image.split(',')[1];
             const mimeType = image.split(';')[0].split(':')[1];
             
-            // Prompt educativo e técnico para evitar filtros de "conselho financeiro"
-            const prompt = `Analise tecnicamente esta representação gráfica de ativos (M1) para fins estritamente educacionais de reconhecimento de padrões visuais.
+            const prompt = `Aja como um analista master de Opções Binárias M1. 
+            OBJETIVO: Identificar a probabilidade da próxima vela baseado em Price Action e indicadores visuais.
             
-            GRÁFICO: Procure por velas (candlesticks), pavios e indicadores auxiliares.
-            SINAIS ESPECÍFICOS: 
-            - Identifique se há pequenos triângulos ou setas vermelhas/verdes acima ou abaixo das velas (sinais de reversão/continuidade).
-            - Observe a cor da última vela fechada.
-            - Verifique se a última vela está tocando ou próxima de uma zona onde o preço reverteu anteriormente.
-
-            INSTRUÇÕES DE RESPOSTA (JSON APENAS):
-            1. 'operacao': Analise a probabilidade visual. Retorne "CALL" se houver seta verde/padrão de alta, "PUT" se houver seta vermelha/padrão de baixa, ou "AGUARDAR" se estiver indeciso.
-            2. 'confianca': Grau de clareza visual dos sinais encontrados (0-100).
-            3. 'motivo': Descrição técnica breve do que foi visto (Ex: "Seta de venda detectada após vela de exaustão").
-            4. 'detalhes': 3 pontos técnicos observados (Ex: "Tendência de baixa predominante", "Retração forte no pavio superior", "Sinal visual de triângulo presente").`;
+            LEITURA TÉCNICA:
+            1. Verifique se há setas de indicadores (triângulos verdes/vermelhos).
+            2. Analise a cor e tamanho das últimas 2 velas e seus pavios (rejeição).
+            3. Verifique se o preço está em tendência ou lateralizado.
+            
+            RESPOSTA (JSON APENAS):
+            - "operacao": CALL, PUT ou AGUARDAR.
+            - "confianca": 0 a 100.
+            - "gatilho": Uma frase técnica matadora (ex: "Seta de sinal + Rejeição em suporte M1").`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -111,171 +108,130 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         properties: {
                             operacao: { type: Type.STRING },
                             confianca: { type: Type.NUMBER },
-                            motivo: { type: Type.STRING },
-                            detalhes: { type: Type.ARRAY, items: { type: Type.STRING } }
+                            gatilho: { type: Type.STRING }
                         },
-                        required: ["operacao", "confianca", "motivo", "detalhes"]
+                        required: ["operacao", "confianca", "gatilho"]
                     }
                 }
             });
 
             const text = response.text;
             if (text) {
-                // Remove qualquer resquício de markdown se a IA ignorar o mimeType
                 const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
                 setResult(JSON.parse(cleanJson));
             } else {
-                throw new Error("A IA não gerou uma análise válida.");
+                throw new Error("Erro na IA.");
             }
         } catch (err: any) {
-            console.error("Erro na análise da IA:", err);
-            // Mensagem mais amigável dependendo do erro
-            if (err.message?.includes("blocked") || err.message?.includes("safety")) {
-                setError("A IA detectou o gráfico como conteúdo sensível. Tente aproximar mais o zoom nas velas e esconder logos de corretoras se possível.");
-            } else {
-                setError("Não foi possível decodificar os sinais deste print. Certifique-se de que o gráfico está nítido e tente novamente.");
-            }
+            console.error(err);
+            setError("Erro ao ler o gráfico. Certifique-se de capturar as últimas velas e indicadores.");
         } finally {
             setAnalyzing(false);
         }
     };
 
     return (
-        <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="p-4 md:p-6 max-w-6xl mx-auto h-full flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center mb-4">
                 <div>
-                    <h2 className={`text-3xl font-black ${theme.text} flex items-center gap-3`}>
-                        <CpuChipIcon className="w-8 h-8 text-green-500" />
-                        Analista Visual IA
+                    <h2 className={`text-2xl font-black ${theme.text} flex items-center gap-2`}>
+                        <CpuChipIcon className="w-6 h-6 text-green-500" />
+                        Analista IA
                     </h2>
-                    <p className={theme.textMuted}>Utilize <b>CTRL + V</b> para analisar um print do seu gráfico agora.</p>
+                    <p className="text-[10px] uppercase font-bold opacity-40">Análise técnica instantânea M1</p>
                 </div>
-                <div className="bg-slate-900/50 border border-slate-800 px-4 py-2 rounded-2xl flex items-center gap-3 backdrop-blur-sm">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gemini 2.5 Flash Vision</span>
+                <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1 rounded-full">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-[9px] font-black uppercase text-slate-400">Vision 2.5 Active</span>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-                <div className="xl:col-span-7 space-y-6">
-                    <div className={`p-4 rounded-[2.5rem] border-2 border-dashed ${image ? 'border-green-500/30' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center min-h-[500px] transition-all relative overflow-hidden group`}>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 overflow-hidden min-h-0">
+                {/* Upload Section */}
+                <div className="lg:col-span-7 flex flex-col gap-3 h-full overflow-hidden">
+                    <div className={`flex-1 rounded-[2rem] border-2 border-dashed ${image ? 'border-green-500/20' : 'border-slate-800'} ${theme.card} flex items-center justify-center relative overflow-hidden bg-slate-950/40`}>
                         {image ? (
-                            <div className="relative w-full h-full flex items-center justify-center p-2">
-                                <img src={image} alt="Gráfico Colado" className="max-h-[460px] w-full object-contain rounded-3xl" />
-                                <button onClick={() => setImage(null)} className="absolute top-4 right-4 p-3 bg-red-600/90 text-white rounded-2xl hover:scale-110 transition-all shadow-2xl backdrop-blur-md z-30"><TrashIcon className="w-5 h-5" /></button>
-                                <div className="absolute inset-0 pointer-events-none border-[1px] border-white/5 rounded-[2.2rem]"></div>
+                            <div className="w-full h-full p-2 flex items-center justify-center relative">
+                                <img src={image} alt="Chart" className="max-h-full w-full object-contain rounded-2xl" />
+                                <button onClick={() => setImage(null)} className="absolute top-3 right-3 p-2 bg-red-600 text-white rounded-xl shadow-lg z-20 hover:scale-105 transition-all"><TrashIcon className="w-4 h-4" /></button>
                             </div>
                         ) : (
-                            <label className="cursor-pointer flex flex-col items-center gap-6 text-center group py-20 w-full hover:bg-slate-900/10 transition-colors">
-                                <div className="w-24 h-24 bg-green-500/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-all border border-green-500/20 shadow-inner">
-                                    <PlusIcon className="w-10 h-10 text-green-500" />
+                            <label className="cursor-pointer flex flex-col items-center gap-4 text-center group py-10 w-full h-full justify-center">
+                                <div className="w-16 h-16 bg-green-500/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-all border border-green-500/10">
+                                    <PlusIcon className="w-8 h-8 text-green-500" />
                                 </div>
-                                <div className="space-y-2">
-                                    <p className="font-black text-xl uppercase tracking-[0.3em] text-white">COLAR PRINT</p>
-                                    <p className="text-[10px] opacity-40 font-bold max-w-xs mx-auto uppercase">Use Win+Shift+S no gráfico e CTRL+V aqui</p>
+                                <div className="space-y-1">
+                                    <p className="font-black text-sm uppercase tracking-widest text-white">COLAR (CTRL+V)</p>
+                                    <p className="text-[9px] opacity-30 font-bold uppercase tracking-tight">Print do gráfico de M1</p>
                                 </div>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                             </label>
                         )}
                     </div>
-
                     <button 
                         onClick={analyzeChart} 
                         disabled={!image || analyzing}
-                        className={`w-full h-20 rounded-3xl font-black uppercase tracking-[0.4em] transition-all flex items-center justify-center gap-4 text-lg
-                        ${!image || analyzing ? 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-800' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-2xl shadow-green-500/30 active:scale-95'}`}
+                        className={`h-14 rounded-2xl font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3 text-sm
+                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border border-slate-800' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-xl shadow-green-500/20 active:scale-95'}`}
                     >
-                        {analyzing ? (
-                            <>
-                                <ArrowPathIcon className="w-7 h-7 animate-spin" />
-                                Processando Imagem...
-                            </>
-                        ) : (
-                            <>
-                                <CpuChipIcon className="w-7 h-7" />
-                                Analisar Gráfico
-                            </>
-                        )}
+                        {analyzing ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CpuChipIcon className="w-5 h-5" />}
+                        {analyzing ? 'Analisando...' : 'Analisar Vela'}
                     </button>
                 </div>
 
-                <div className="xl:col-span-5 space-y-6">
+                {/* Result Section */}
+                <div className="lg:col-span-5 h-full overflow-hidden">
                     {result ? (
-                        <div className={`p-8 rounded-[2.5rem] border ${theme.card} space-y-8 animate-in fade-in slide-in-from-right-8 duration-700 shadow-2xl relative overflow-hidden`}>
-                            <div className={`absolute -top-20 -right-20 w-40 h-40 blur-[100px] rounded-full opacity-10 ${result.operacao.includes('CALL') ? 'bg-green-500' : result.operacao.includes('PUT') ? 'bg-red-500' : 'bg-blue-500'}`} />
+                        <div className={`p-6 rounded-[2rem] border ${theme.card} h-full flex flex-col justify-between animate-in fade-in slide-in-from-right-4 duration-500 shadow-2xl relative overflow-hidden bg-slate-900/60`}>
+                            <div className={`absolute -top-10 -right-10 w-32 h-32 blur-[80px] rounded-full opacity-20 ${result.operacao === 'CALL' ? 'bg-green-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
                             
-                            <div className="flex justify-between items-start relative z-10">
+                            <div className="space-y-6 relative z-10">
                                 <div>
-                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Recomendação Visual</p>
-                                    <h3 className={`text-6xl font-black tracking-tighter italic ${result.operacao.includes('CALL') ? 'text-green-500' : result.operacao.includes('PUT') ? 'text-red-500' : 'text-slate-400'}`}>
+                                    <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">Decisão Sugerida</p>
+                                    <h3 className={`text-6xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-green-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
                                         {result.operacao}
                                     </h3>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Confiança</p>
-                                    <p className={`text-4xl font-black ${result.confianca > 75 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
-                                    <div className="h-1.5 w-full bg-slate-800 rounded-full mt-2 overflow-hidden">
+
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-end">
+                                        <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Confiança do Sinal</p>
+                                        <p className={`text-2xl font-black ${result.confianca > 75 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
+                                    </div>
+                                    <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
                                         <div className={`h-full transition-all duration-1000 ${result.confianca > 75 ? 'bg-blue-400' : 'bg-yellow-500'}`} style={{ width: `${result.confianca}%` }} />
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800/50 relative z-10">
-                                <p className="text-[9px] font-black uppercase opacity-40 mb-2">Conclusão Técnica</p>
-                                <p className="text-sm font-black text-white italic leading-relaxed">"{result.motivo}"</p>
-                            </div>
-
-                            <div className="space-y-4 relative z-10">
-                                <p className="text-[10px] font-black uppercase text-green-500 tracking-[0.2em] border-b border-green-500/20 pb-2">Gatilhos Observados</p>
-                                <div className="space-y-3">
-                                    {result.detalhes?.map((item: string, i: number) => (
-                                        <div key={i} className="flex items-start gap-3">
-                                            <div className="mt-1.5 w-2 h-2 rounded-full bg-green-500 shrink-0 shadow-[0_0_10px_#22c55e]" />
-                                            <p className="text-xs font-bold leading-relaxed opacity-90">{item}</p>
-                                        </div>
-                                    ))}
+                                <div className="p-4 bg-slate-950/60 rounded-2xl border border-slate-800/50">
+                                    <p className="text-[9px] font-black uppercase opacity-40 mb-1">Gatilho Detectado</p>
+                                    <p className="text-xs font-bold text-white italic leading-relaxed">"{result.gatilho}"</p>
                                 </div>
                             </div>
 
-                            <div className="pt-4 flex items-center gap-2 opacity-20 relative z-10">
-                                <InformationCircleIcon className="w-4 h-4" />
-                                <p className="text-[7px] uppercase font-black tracking-widest leading-none">Uso educacional. O mercado apresenta riscos.</p>
-                            </div>
-                        </div>
-                    ) : analyzing ? (
-                        <div className="h-full flex flex-col items-center justify-center p-12 text-center space-y-6">
-                            <div className="relative">
-                                <div className="w-28 h-28 border-4 border-green-500/10 border-t-green-500 rounded-full animate-spin" />
-                                <CpuChipIcon className="w-10 h-10 text-green-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                            </div>
-                            <div className="space-y-2">
-                                <p className="text-lg font-black uppercase tracking-widest animate-pulse">Lendo Padrões...</p>
-                                <p className="text-[10px] text-slate-500 font-bold max-w-[200px] mx-auto uppercase">A IA está mapeando velas e indicadores visuais.</p>
+                            <div className="pt-4 flex items-center gap-2 opacity-20 relative z-10 border-t border-slate-800/50">
+                                <InformationCircleIcon className="w-3 h-3" />
+                                <p className="text-[7px] uppercase font-black tracking-widest leading-none">Válido apenas para a próxima vela de M1.</p>
                             </div>
                         </div>
                     ) : (
-                        <div className={`p-12 rounded-[2.5rem] border border-slate-800/30 bg-slate-900/10 flex flex-col items-center justify-center text-center space-y-6 min-h-[500px]`}>
-                            <div className="w-20 h-20 bg-slate-800/50 rounded-3xl flex items-center justify-center -rotate-6">
-                                <PieChartIcon className="w-10 h-10 text-slate-700" />
+                        <div className={`p-10 rounded-[2rem] border border-slate-800/30 bg-slate-900/10 h-full flex flex-col items-center justify-center text-center space-y-4 opacity-40 grayscale`}>
+                            <PieChartIcon className="w-12 h-12 text-slate-700" />
+                            <div className="space-y-1">
+                                <h4 className="text-sm font-black uppercase tracking-widest">Aguardando Print</h4>
+                                <p className="text-[9px] font-bold max-w-[180px] uppercase">A leitura técnica de confluência aparecerá aqui.</p>
                             </div>
-                            <div className="space-y-3">
-                                <h4 className="text-xl font-black opacity-20 uppercase tracking-widest">Aguardando Gráfico</h4>
-                                <p className="text-[10px] text-slate-600 font-bold max-w-[250px] uppercase">A análise de confluência técnica aparecerá aqui.</p>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {error && (
-                        <div className="p-6 bg-red-600/10 border border-red-500/20 rounded-3xl flex flex-col gap-3 text-red-500 shadow-xl animate-in fade-in zoom-in duration-300">
-                            <div className="flex items-center gap-3">
-                                <InformationCircleIcon className="w-8 h-8 shrink-0" />
-                                <p className="text-xs font-black uppercase tracking-tight leading-tight">Falha de Processamento</p>
-                            </div>
-                            <p className="text-[10px] font-bold opacity-80 leading-relaxed">{error}</p>
                         </div>
                     )}
                 </div>
             </div>
+
+            {error && (
+                <div className="mt-4 p-3 bg-red-600/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-500 animate-in zoom-in duration-300">
+                    <InformationCircleIcon className="w-5 h-5 shrink-0" />
+                    <p className="text-[10px] font-black uppercase tracking-tight">{error}</p>
+                </div>
+            )}
         </div>
     );
 };
@@ -943,14 +899,14 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     <div className="flex items-center gap-4"><button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-6 h-6" /></button><SavingStatusIndicator status={savingStatus} /></div>
                     <div className="flex items-center gap-3"><button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button><div className="w-10 h-10 rounded-2xl bg-green-500 flex items-center justify-center text-slate-950 font-black text-xs">{user.username.slice(0, 2).toUpperCase()}</div></div>
                 </header>
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                    {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeDailyGoal} />}
-                    {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
-                    {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
+                <div className="flex-1 overflow-hidden">
+                    {activeTab === 'dashboard' && <div className="h-full overflow-y-auto custom-scrollbar"><DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeDailyGoal} /></div>}
+                    {activeTab === 'compound' && <div className="h-full overflow-y-auto custom-scrollbar"><CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} /></div>}
+                    {activeTab === 'report' && <div className="h-full overflow-y-auto custom-scrollbar"><ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} /></div>}
                     {activeTab === 'ai' && <AIAnalyzerPanel theme={theme} isDarkMode={isDarkMode} />}
-                    {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
-                    {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
-                    {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} />}
+                    {activeTab === 'soros' && <div className="h-full overflow-y-auto custom-scrollbar"><SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} /></div>}
+                    {activeTab === 'goals' && <div className="h-full overflow-y-auto custom-scrollbar"><GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} /></div>}
+                    {activeTab === 'settings' && <div className="h-full overflow-y-auto custom-scrollbar"><SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} /></div>}
                 </div>
             </main>
         </div>
