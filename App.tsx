@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
@@ -54,7 +55,6 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         if (file) processFile(file);
     };
 
-    // Suporte global para Ctrl + V no painel da IA
     useEffect(() => {
         const handlePaste = (e: ClipboardEvent) => {
             const items = e.clipboardData?.items;
@@ -79,28 +79,28 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const base64Data = image.split(',')[1];
+            const mimeType = image.split(';')[0].split(':')[1];
             
-            // Prompt focado em M1 e detecção de sinais de indicadores visuais
-            const prompt = `Analise este gráfico de Opções Binárias M1. 
-            Ignore a marca d'água de fundo (ex: Axiun). 
-            FOCO: 
-            1. Verifique se há setas de indicadores (triângulos vermelhos/verdes).
-            2. Analise a tendência (Alta, Baixa ou Lateral).
-            3. Verifique retração de pavios nas últimas 3 velas.
-            4. Identifique padrões de Price Action: Engolfo, Martelo ou Doji.
+            // Prompt educativo e técnico para evitar filtros de "conselho financeiro"
+            const prompt = `Analise tecnicamente esta representação gráfica de ativos (M1) para fins estritamente educacionais de reconhecimento de padrões visuais.
+            
+            GRÁFICO: Procure por velas (candlesticks), pavios e indicadores auxiliares.
+            SINAIS ESPECÍFICOS: 
+            - Identifique se há pequenos triângulos ou setas vermelhas/verdes acima ou abaixo das velas (sinais de reversão/continuidade).
+            - Observe a cor da última vela fechada.
+            - Verifique se a última vela está tocando ou próxima de uma zona onde o preço reverteu anteriormente.
 
-            REGRAS TÉCNICAS:
-            - Responda apenas em JSON.
-            - "operacao": Escolha CALL, PUT ou AGUARDAR.
-            - "confianca": Valor de 0 a 100 baseado na força do sinal.
-            - "motivo": Explicação técnica resumida (ex: "Martelo em zona de suporte com seta de compra").
-            - "detalhes": Liste 3 observações técnicas pontuais.`;
+            INSTRUÇÕES DE RESPOSTA (JSON APENAS):
+            1. 'operacao': Analise a probabilidade visual. Retorne "CALL" se houver seta verde/padrão de alta, "PUT" se houver seta vermelha/padrão de baixa, ou "AGUARDAR" se estiver indeciso.
+            2. 'confianca': Grau de clareza visual dos sinais encontrados (0-100).
+            3. 'motivo': Descrição técnica breve do que foi visto (Ex: "Seta de venda detectada após vela de exaustão").
+            4. 'detalhes': 3 pontos técnicos observados (Ex: "Tendência de baixa predominante", "Retração forte no pavio superior", "Sinal visual de triângulo presente").`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
+                model: 'gemini-2.5-flash',
                 contents: {
                     parts: [
-                        { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
+                        { inlineData: { data: base64Data, mimeType: mimeType } },
                         { text: prompt }
                     ]
                 },
@@ -121,14 +121,20 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
 
             const text = response.text;
             if (text) {
+                // Remove qualquer resquício de markdown se a IA ignorar o mimeType
                 const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
                 setResult(JSON.parse(cleanJson));
             } else {
-                throw new Error("Resposta vazia.");
+                throw new Error("A IA não gerou uma análise válida.");
             }
-        } catch (err) {
-            console.error("Erro na análise:", err);
-            setError("Falha técnica ao ler padrões. Tente dar um zoom maior nas últimas velas do gráfico e cole novamente.");
+        } catch (err: any) {
+            console.error("Erro na análise da IA:", err);
+            // Mensagem mais amigável dependendo do erro
+            if (err.message?.includes("blocked") || err.message?.includes("safety")) {
+                setError("A IA detectou o gráfico como conteúdo sensível. Tente aproximar mais o zoom nas velas e esconder logos de corretoras se possível.");
+            } else {
+                setError("Não foi possível decodificar os sinais deste print. Certifique-se de que o gráfico está nítido e tente novamente.");
+            }
         } finally {
             setAnalyzing(false);
         }
@@ -140,33 +146,33 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 <div>
                     <h2 className={`text-3xl font-black ${theme.text} flex items-center gap-3`}>
                         <CpuChipIcon className="w-8 h-8 text-green-500" />
-                        Analista IA Pro
+                        Analista Visual IA
                     </h2>
-                    <p className={theme.textMuted}>Copie o print do seu gráfico e dê <b>CTRL + V</b> em qualquer lugar desta tela.</p>
+                    <p className={theme.textMuted}>Utilize <b>CTRL + V</b> para analisar um print do seu gráfico agora.</p>
                 </div>
-                <div className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-2xl flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Algoritmo M1 Ativo</span>
+                <div className="bg-slate-900/50 border border-slate-800 px-4 py-2 rounded-2xl flex items-center gap-3 backdrop-blur-sm">
+                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gemini 2.5 Flash Vision</span>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
                 <div className="xl:col-span-7 space-y-6">
-                    <div className={`p-4 rounded-[2.5rem] border-2 border-dashed ${image ? 'border-green-500/50' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center min-h-[480px] transition-all relative overflow-hidden group`}>
+                    <div className={`p-4 rounded-[2.5rem] border-2 border-dashed ${image ? 'border-green-500/30' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center min-h-[500px] transition-all relative overflow-hidden group`}>
                         {image ? (
-                            <div className="relative w-full h-full flex items-center justify-center">
-                                <img src={image} alt="Gráfico" className="max-h-[440px] w-full object-contain rounded-3xl" />
-                                <button onClick={() => setImage(null)} className="absolute top-4 right-4 p-3 bg-red-600/90 text-white rounded-2xl hover:scale-110 transition-all shadow-2xl backdrop-blur-md z-20"><TrashIcon className="w-5 h-5" /></button>
-                                <div className="absolute inset-0 pointer-events-none border-[12px] border-slate-950/20 rounded-[2.2rem]"></div>
+                            <div className="relative w-full h-full flex items-center justify-center p-2">
+                                <img src={image} alt="Gráfico Colado" className="max-h-[460px] w-full object-contain rounded-3xl" />
+                                <button onClick={() => setImage(null)} className="absolute top-4 right-4 p-3 bg-red-600/90 text-white rounded-2xl hover:scale-110 transition-all shadow-2xl backdrop-blur-md z-30"><TrashIcon className="w-5 h-5" /></button>
+                                <div className="absolute inset-0 pointer-events-none border-[1px] border-white/5 rounded-[2.2rem]"></div>
                             </div>
                         ) : (
-                            <label className="cursor-pointer flex flex-col items-center gap-6 text-center group py-20 w-full">
+                            <label className="cursor-pointer flex flex-col items-center gap-6 text-center group py-20 w-full hover:bg-slate-900/10 transition-colors">
                                 <div className="w-24 h-24 bg-green-500/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-all border border-green-500/20 shadow-inner">
                                     <PlusIcon className="w-10 h-10 text-green-500" />
                                 </div>
                                 <div className="space-y-2">
-                                    <p className="font-black text-lg uppercase tracking-[0.3em] text-white">Upload ou Ctrl+V</p>
-                                    <p className="text-xs opacity-40 font-bold max-w-xs mx-auto">Tire um print (Win+Shift+S) e cole aqui para análise.</p>
+                                    <p className="font-black text-xl uppercase tracking-[0.3em] text-white">COLAR PRINT</p>
+                                    <p className="text-[10px] opacity-40 font-bold max-w-xs mx-auto uppercase">Use Win+Shift+S no gráfico e CTRL+V aqui</p>
                                 </div>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                             </label>
@@ -182,12 +188,12 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         {analyzing ? (
                             <>
                                 <ArrowPathIcon className="w-7 h-7 animate-spin" />
-                                Processando Sinais...
+                                Processando Imagem...
                             </>
                         ) : (
                             <>
                                 <CpuChipIcon className="w-7 h-7" />
-                                Analisar Próxima Vela
+                                Analisar Gráfico
                             </>
                         )}
                     </button>
@@ -196,11 +202,11 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 <div className="xl:col-span-5 space-y-6">
                     {result ? (
                         <div className={`p-8 rounded-[2.5rem] border ${theme.card} space-y-8 animate-in fade-in slide-in-from-right-8 duration-700 shadow-2xl relative overflow-hidden`}>
-                            <div className={`absolute -top-20 -right-20 w-40 h-40 blur-[100px] rounded-full opacity-20 ${result.operacao.includes('CALL') ? 'bg-green-500' : result.operacao.includes('PUT') ? 'bg-red-500' : 'bg-blue-500'}`} />
+                            <div className={`absolute -top-20 -right-20 w-40 h-40 blur-[100px] rounded-full opacity-10 ${result.operacao.includes('CALL') ? 'bg-green-500' : result.operacao.includes('PUT') ? 'bg-red-500' : 'bg-blue-500'}`} />
                             
                             <div className="flex justify-between items-start relative z-10">
                                 <div>
-                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Recomendação</p>
+                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Recomendação Visual</p>
                                     <h3 className={`text-6xl font-black tracking-tighter italic ${result.operacao.includes('CALL') ? 'text-green-500' : result.operacao.includes('PUT') ? 'text-red-500' : 'text-slate-400'}`}>
                                         {result.operacao}
                                     </h3>
@@ -215,12 +221,12 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             </div>
 
                             <div className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800/50 relative z-10">
-                                <p className="text-[9px] font-black uppercase opacity-40 mb-2">Resumo Técnico</p>
+                                <p className="text-[9px] font-black uppercase opacity-40 mb-2">Conclusão Técnica</p>
                                 <p className="text-sm font-black text-white italic leading-relaxed">"{result.motivo}"</p>
                             </div>
 
                             <div className="space-y-4 relative z-10">
-                                <p className="text-[10px] font-black uppercase text-green-500 tracking-[0.2em] border-b border-green-500/20 pb-2">Confluências Detectadas</p>
+                                <p className="text-[10px] font-black uppercase text-green-500 tracking-[0.2em] border-b border-green-500/20 pb-2">Gatilhos Observados</p>
                                 <div className="space-y-3">
                                     {result.detalhes?.map((item: string, i: number) => (
                                         <div key={i} className="flex items-start gap-3">
@@ -231,38 +237,41 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 </div>
                             </div>
 
-                            <div className="pt-4 flex items-center gap-2 opacity-30 relative z-10">
+                            <div className="pt-4 flex items-center gap-2 opacity-20 relative z-10">
                                 <InformationCircleIcon className="w-4 h-4" />
-                                <p className="text-[8px] uppercase font-black tracking-widest leading-none">Análise probabilística. Gerencie seu stop.</p>
+                                <p className="text-[7px] uppercase font-black tracking-widest leading-none">Uso educacional. O mercado apresenta riscos.</p>
                             </div>
                         </div>
                     ) : analyzing ? (
                         <div className="h-full flex flex-col items-center justify-center p-12 text-center space-y-6">
                             <div className="relative">
-                                <div className="w-28 h-28 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin" />
+                                <div className="w-28 h-28 border-4 border-green-500/10 border-t-green-500 rounded-full animate-spin" />
                                 <CpuChipIcon className="w-10 h-10 text-green-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                             </div>
                             <div className="space-y-2">
-                                <p className="text-lg font-black uppercase tracking-widest animate-pulse">Lendo Gráfico...</p>
-                                <p className="text-xs text-slate-500 font-bold max-w-[200px] mx-auto">Identificando força de tendência e padrões de retração.</p>
+                                <p className="text-lg font-black uppercase tracking-widest animate-pulse">Lendo Padrões...</p>
+                                <p className="text-[10px] text-slate-500 font-bold max-w-[200px] mx-auto uppercase">A IA está mapeando velas e indicadores visuais.</p>
                             </div>
                         </div>
                     ) : (
                         <div className={`p-12 rounded-[2.5rem] border border-slate-800/30 bg-slate-900/10 flex flex-col items-center justify-center text-center space-y-6 min-h-[500px]`}>
-                            <div className="w-20 h-20 bg-slate-800/50 rounded-3xl flex items-center justify-center rotate-12">
-                                <LayoutGridIcon className="w-10 h-10 text-slate-700" />
+                            <div className="w-20 h-20 bg-slate-800/50 rounded-3xl flex items-center justify-center -rotate-6">
+                                <PieChartIcon className="w-10 h-10 text-slate-700" />
                             </div>
                             <div className="space-y-3">
-                                <h4 className="text-xl font-black opacity-30 uppercase tracking-widest">Aguardando Print</h4>
-                                <p className="text-xs text-slate-600 font-bold max-w-[250px]">O relatório de confluência técnica aparecerá aqui após o processamento.</p>
+                                <h4 className="text-xl font-black opacity-20 uppercase tracking-widest">Aguardando Gráfico</h4>
+                                <p className="text-[10px] text-slate-600 font-bold max-w-[250px] uppercase">A análise de confluência técnica aparecerá aqui.</p>
                             </div>
                         </div>
                     )}
                     
                     {error && (
-                        <div className="p-5 bg-red-600/10 border border-red-500/20 rounded-3xl flex items-center gap-4 text-red-500 shadow-xl animate-in fade-in zoom-in duration-300">
-                            <InformationCircleIcon className="w-8 h-8 shrink-0" />
-                            <p className="text-xs font-black uppercase tracking-tight leading-tight">{error}</p>
+                        <div className="p-6 bg-red-600/10 border border-red-500/20 rounded-3xl flex flex-col gap-3 text-red-500 shadow-xl animate-in fade-in zoom-in duration-300">
+                            <div className="flex items-center gap-3">
+                                <InformationCircleIcon className="w-8 h-8 shrink-0" />
+                                <p className="text-xs font-black uppercase tracking-tight leading-tight">Falha de Processamento</p>
+                            </div>
+                            <p className="text-[10px] font-bold opacity-80 leading-relaxed">{error}</p>
                         </div>
                     )}
                 </div>
@@ -390,7 +399,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     );
 };
 
-// --- Outros Paineis (Inalterados conforme pedido) ---
+// --- Outros Paineis ---
 const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
@@ -907,7 +916,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.id.localeCompare(a.id));
     const startBalDashboard = sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
 
-    // Dynamic Daily Goal derived from Monthly Goal
     const monthlyGoal = goals.find(g => g.type === 'monthly');
     const activeDailyGoal = monthlyGoal ? (monthlyGoal.targetAmount / 22) : (activeBrokerage?.initialBalance * 0.03 || 1);
 
