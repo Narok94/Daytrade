@@ -80,22 +80,24 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const base64Data = image.split(',')[1];
             const mimeType = image.split(';')[0].split(':')[1];
             
-            const prompt = `Analise este gráfico de Opções Binárias M1 com rigor matemático e visual.
-            Sua missão é dar um sinal de ALTA ASSERTIVIDADE. Se o sinal for duvidoso, responda "AGUARDAR".
+            // PROMPT SNIPER PROFISSIONAL M1
+            const prompt = `Analise este gráfico de Opções Binárias M1 com precisão absoluta.
+            Sua tarefa é identificar confluências técnicas de alta probabilidade.
+            
+            REGRAS DE ANÁLISE:
+            1. Verifique se há setas de indicadores (verde/vermelho).
+            2. Analise a ação do preço (Price Action) das últimas 5 velas.
+            3. Procure por pavios de rejeição em zonas de Suporte/Resistência.
+            4. Se houver divergência entre indicadores e velas, responda "AGUARDAR".
+            5. O sinal deve ser apenas para a PRÓXIMA VELA (M1).
 
-            CRITÉRIOS DE FILTRO (SÓ RECOMENDE SE):
-            1. Identificar setas/triângulos de indicadores claros.
-            2. Houver rejeição de pavio em zonas de extremidade (Suporte/Resistência).
-            3. A vela atual confirmar a força do movimento anterior.
-            4. O RSI ou estocástico visual (se presente) indicar exaustão.
-
-            RETORNE EM JSON:
+            SÓ RESPONDA EM JSON:
             - "operacao": "CALL", "PUT" ou "AGUARDAR".
-            - "confianca": (Número de 0 a 100 baseado na clareza dos filtros acima).
-            - "confluencia": (Apenas o motivo principal e direto do sinal).`;
+            - "confianca": (Número 0-100).
+            - "confluencia": (Ex: "Rompimento de suporte + Seta de sinal").`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
+                model: 'gemini-3-pro-preview',
                 contents: {
                     parts: [
                         { inlineData: { data: base64Data, mimeType: mimeType } },
@@ -103,6 +105,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     ]
                 },
                 config: {
+                    thinkingConfig: { thinkingBudget: 4096 },
                     responseMimeType: "application/json",
                     responseSchema: {
                         type: Type.OBJECT,
@@ -118,45 +121,46 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
 
             const text = response.text;
             if (text) {
-                const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-                setResult(JSON.parse(cleanJson));
+                setResult(JSON.parse(text));
             } else {
-                throw new Error("Falha na geração.");
+                throw new Error("Resposta vazia da IA.");
             }
         } catch (err: any) {
-            console.error(err);
-            setError("Erro ao processar imagem. Tente capturar apenas a área do gráfico.");
+            console.error("Erro AI:", err);
+            setError("Erro na leitura. Tente tirar um print mais limpo do gráfico M1.");
         } finally {
             setAnalyzing(false);
         }
     };
 
     return (
-        <div className="p-4 md:p-5 max-w-5xl mx-auto h-[calc(100vh-100px)] flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center mb-3">
+        <div className="px-4 py-2 md:px-5 max-w-5xl mx-auto h-[calc(100vh-85px)] flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-2">
                     <CpuChipIcon className="w-5 h-5 text-green-500" />
-                    <h2 className={`text-xl font-black ${theme.text}`}>Analista Sniper IA</h2>
-                    <span className="text-[8px] bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">Assertividade Máxima</span>
+                    <h2 className={`text-lg font-black ${theme.text} uppercase tracking-tight`}>Sniper IA <span className="text-green-500">M1</span></h2>
                 </div>
-                <div className="text-[9px] font-bold opacity-30 uppercase tracking-tighter">Gemini 3 Flash Vision</div>
+                <div className="bg-slate-900/50 border border-slate-800 px-2 py-0.5 rounded-full flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-[7px] font-black uppercase text-slate-400">Gemini 3 Pro Active</span>
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 overflow-hidden">
-                {/* Lado Esquerdo: Imagem */}
-                <div className="lg:col-span-7 flex flex-col gap-3 h-full overflow-hidden">
-                    <div className={`flex-1 rounded-3xl border-2 border-dashed ${image ? 'border-green-500/20' : 'border-slate-800'} ${theme.card} flex items-center justify-center relative overflow-hidden bg-slate-950/20`}>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 overflow-hidden min-h-0">
+                {/* Lado Esquerdo: Print do Gráfico */}
+                <div className="lg:col-span-7 flex flex-col gap-2 h-full overflow-hidden">
+                    <div className={`flex-1 rounded-2xl border-2 border-dashed ${image ? 'border-green-500/20' : 'border-slate-800/50'} ${theme.card} flex items-center justify-center relative overflow-hidden bg-slate-950/20 transition-all`}>
                         {image ? (
-                            <div className="w-full h-full p-1 flex items-center justify-center relative">
-                                <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-2xl" />
-                                <button onClick={() => setImage(null)} className="absolute top-2 right-2 p-1.5 bg-red-600/80 text-white rounded-lg hover:scale-105 transition-all"><TrashIcon className="w-3.5 h-3.5" /></button>
+                            <div className="w-full h-full p-1 flex items-center justify-center relative group">
+                                <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-xl" />
+                                <button onClick={() => setImage(null)} className="absolute top-2 right-2 p-1.5 bg-red-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg"><TrashIcon className="w-4 h-4" /></button>
                             </div>
                         ) : (
-                            <label className="cursor-pointer flex flex-col items-center gap-3 text-center w-full h-full justify-center hover:bg-slate-900/20 transition-all">
-                                <PlusIcon className="w-10 h-10 text-slate-800" />
+                            <label className="cursor-pointer flex flex-col items-center gap-2 text-center w-full h-full justify-center hover:bg-slate-900/20 transition-all">
+                                <PlusIcon className="w-8 h-8 text-slate-800" />
                                 <div className="space-y-0.5">
-                                    <p className="font-black text-[10px] uppercase tracking-widest text-slate-600">Cole o Print (CTRL+V)</p>
-                                    <p className="text-[8px] opacity-30 font-bold uppercase">Aguardando gráfico M1</p>
+                                    <p className="font-black text-[9px] uppercase tracking-[0.2em] text-slate-600">Cole o Print</p>
+                                    <p className="text-[7px] opacity-30 font-bold uppercase">CTRL + V</p>
                                 </div>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                             </label>
@@ -165,63 +169,66 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     <button 
                         onClick={analyzeChart} 
                         disabled={!image || analyzing}
-                        className={`h-12 rounded-2xl font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 text-xs
-                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-lg shadow-green-500/10 active:scale-95'}`}
+                        className={`h-11 rounded-xl font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 text-[10px]
+                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-lg active:scale-[0.98]'}`}
                     >
                         {analyzing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CpuChipIcon className="w-4 h-4" />}
-                        {analyzing ? 'Analisando...' : 'Obter Sinal'}
+                        {analyzing ? 'Analisando...' : 'Obter Sinal Sniper'}
                     </button>
                 </div>
 
-                {/* Lado Direito: Resultado Compacto */}
+                {/* Lado Direito: Decisão da IA */}
                 <div className="lg:col-span-5 h-full">
                     {result ? (
-                        <div className={`p-5 rounded-3xl border ${theme.card} h-full flex flex-col justify-between shadow-2xl relative overflow-hidden bg-slate-900/40 backdrop-blur-md`}>
-                            <div className={`absolute -top-10 -right-10 w-24 h-24 blur-[60px] rounded-full opacity-20 ${result.operacao === 'CALL' ? 'bg-green-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
+                        <div className={`p-4 rounded-2xl border ${theme.card} h-full flex flex-col justify-between shadow-2xl relative overflow-hidden bg-slate-900/30 backdrop-blur-xl animate-in fade-in zoom-in duration-300`}>
+                            <div className={`absolute -top-12 -right-12 w-32 h-32 blur-[60px] rounded-full opacity-30 ${result.operacao === 'CALL' ? 'bg-green-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
                             
-                            <div className="space-y-5 relative z-10">
+                            <div className="space-y-4 relative z-10">
                                 <div>
-                                    <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest mb-0.5">Operação Recomendada</p>
-                                    <h3 className={`text-5xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-green-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
+                                    <p className="text-[7px] font-black uppercase text-slate-500 tracking-[0.2em] mb-0.5">Recomendação Profissional</p>
+                                    <h3 className={`text-6xl font-black tracking-tighter italic leading-none ${result.operacao === 'CALL' ? 'text-green-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
                                         {result.operacao}
                                     </h3>
                                 </div>
 
-                                <div className="space-y-1.5">
+                                <div className="space-y-1">
                                     <div className="flex justify-between items-center">
-                                        <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest">Confiança</p>
-                                        <p className={`text-xl font-black ${result.confianca > 75 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
+                                        <p className="text-[8px] font-black uppercase text-slate-500">Confiança do Sinal</p>
+                                        <p className={`text-lg font-black ${result.confianca > 80 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
                                     </div>
                                     <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                                        <div className={`h-full transition-all duration-1000 ${result.confianca > 75 ? 'bg-blue-400' : 'bg-yellow-500'}`} style={{ width: `${result.confianca}%` }} />
+                                        <div className={`h-full transition-all duration-[2000ms] ${result.confianca > 80 ? 'bg-blue-400' : 'bg-yellow-500'}`} style={{ width: `${result.confianca}%` }} />
                                     </div>
                                 </div>
 
-                                <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-800/50">
-                                    <p className="text-[8px] font-black uppercase opacity-40 mb-0.5">Padrão Detectado</p>
-                                    <p className="text-[11px] font-bold text-white italic leading-tight">"{result.confluencia}"</p>
+                                <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-800/40">
+                                    <p className="text-[7px] font-black uppercase opacity-40 mb-1">Padrão Técnico Identificado</p>
+                                    <p className="text-[10px] font-bold text-white italic leading-tight">"{result.confluencia}"</p>
                                 </div>
                             </div>
 
-                            <div className="pt-3 border-t border-slate-800/50 flex items-center justify-between">
-                                <div className="flex items-center gap-1 opacity-20">
+                            <div className="pt-3 border-t border-slate-800/30 flex items-center justify-between mt-4">
+                                <div className="flex items-center gap-1 opacity-30">
                                     <InformationCircleIcon className="w-3 h-3" />
-                                    <p className="text-[7px] uppercase font-black tracking-widest leading-none">Válido para M1</p>
+                                    <p className="text-[6px] uppercase font-black tracking-widest">Timeframe M1</p>
                                 </div>
-                                <div className="text-[7px] font-black text-green-500 animate-pulse">PRÓXIMA VELA</div>
+                                <div className="text-[7px] font-black text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full animate-pulse">EXPIRAÇÃO 1 MIN</div>
                             </div>
                         </div>
                     ) : analyzing ? (
-                        <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-4 opacity-50">
-                             <ArrowPathIcon className="w-8 h-8 animate-spin text-green-500" />
-                             <p className="text-[10px] font-black uppercase tracking-widest">Escaneando Velas...</p>
+                        <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-4 opacity-50 bg-slate-950/20 rounded-2xl border border-slate-800/30">
+                             <div className="relative">
+                                <ArrowPathIcon className="w-10 h-10 animate-spin text-green-500" />
+                                <CpuChipIcon className="w-4 h-4 text-green-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                             </div>
+                             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-green-500">Processando Candlesticks...</p>
                         </div>
                     ) : (
-                        <div className={`p-8 rounded-3xl border border-slate-800/30 bg-slate-900/10 h-full flex flex-col items-center justify-center text-center space-y-3 opacity-30 grayscale`}>
-                            <LayoutGridIcon className="w-8 h-8 text-slate-700" />
+                        <div className={`p-6 rounded-2xl border border-slate-800/20 bg-slate-950/10 h-full flex flex-col items-center justify-center text-center space-y-3 opacity-20 grayscale transition-all`}>
+                            <PieChartIcon className="w-8 h-8 text-slate-600" />
                             <div className="space-y-0.5">
-                                <h4 className="text-[10px] font-black uppercase tracking-widest">Fila de Sinais</h4>
-                                <p className="text-[8px] font-bold max-w-[150px] uppercase">O sinal de entrada aparecerá aqui após o envio.</p>
+                                <h4 className="text-[9px] font-black uppercase tracking-widest">Aguardando Print</h4>
+                                <p className="text-[7px] font-bold max-w-[140px] uppercase">O sinal de entrada Sniper aparecerá aqui após o processamento.</p>
                             </div>
                         </div>
                     )}
@@ -229,9 +236,9 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             </div>
 
             {error && (
-                <div className="mt-3 p-2 bg-red-600/10 border border-red-500/20 rounded-xl flex items-center gap-2 text-red-500 animate-in zoom-in duration-300">
+                <div className="mt-2 p-2 bg-red-600/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-500 animate-in slide-in-from-bottom-2">
                     <InformationCircleIcon className="w-4 h-4 shrink-0" />
-                    <p className="text-[9px] font-black uppercase tracking-tight leading-none">{error}</p>
+                    <p className="text-[8px] font-black uppercase tracking-tight">{error}</p>
                 </div>
             )}
         </div>
@@ -280,7 +287,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     ];
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto h-full overflow-y-auto custom-scrollbar">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div><h2 className={`text-2xl font-black ${theme.text}`}>Dashboard</h2><p className={theme.textMuted}>Gestão ativa de operações</p></div>
                 <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
@@ -422,7 +429,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
     }, [records, activeBrokerage]);
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto h-full overflow-y-auto custom-scrollbar">
             <div>
                 <h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros (30 Dias)</h2>
                 <p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Dias em baixa opacidade são projeções automáticas de 3x0.</p>
@@ -479,7 +486,7 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
     }, [records, selectedMonth, activeBrokerage]);
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto h-full overflow-y-auto custom-scrollbar">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div><h2 className={`text-2xl font-black ${theme.text}`}>Relatório</h2><p className={theme.textMuted}>Histórico detalhado por mês.</p></div>
                 <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className={`border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
@@ -545,7 +552,7 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
     }, [initialEntry, payout, levels]);
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto h-full overflow-y-auto custom-scrollbar">
             <div>
                 <h2 className="text-2xl font-black">Calculadora de Soros</h2>
                 <p className={theme.textMuted}>Planeje seus ciclos de reinvestimento.</p>
@@ -607,7 +614,7 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
     };
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto h-full overflow-y-auto custom-scrollbar">
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className="text-2xl font-black">Metas Financeiras</h2>
@@ -662,7 +669,7 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
     };
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
+        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto h-full overflow-y-auto custom-scrollbar">
             <div>
                 <h2 className="text-2xl font-black">Configurações</h2>
                 <p className={theme.textMuted}>Ajuste os parâmetros da sua gestão.</p>
@@ -902,13 +909,13 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     <div className="flex items-center gap-3"><button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button><div className="w-10 h-10 rounded-2xl bg-green-500 flex items-center justify-center text-slate-950 font-black text-xs">{user.username.slice(0, 2).toUpperCase()}</div></div>
                 </header>
                 <div className="flex-1 overflow-hidden">
-                    {activeTab === 'dashboard' && <div className="h-full overflow-y-auto custom-scrollbar"><DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeDailyGoal} /></div>}
-                    {activeTab === 'compound' && <div className="h-full overflow-y-auto custom-scrollbar"><CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} /></div>}
-                    {activeTab === 'report' && <div className="h-full overflow-y-auto custom-scrollbar"><ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} /></div>}
+                    {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeDailyGoal} />}
+                    {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
+                    {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
                     {activeTab === 'ai' && <AIAnalyzerPanel theme={theme} isDarkMode={isDarkMode} />}
-                    {activeTab === 'soros' && <div className="h-full overflow-y-auto custom-scrollbar"><SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} /></div>}
-                    {activeTab === 'goals' && <div className="h-full overflow-y-auto custom-scrollbar"><GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} /></div>}
-                    {activeTab === 'settings' && <div className="h-full overflow-y-auto custom-scrollbar"><SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} /></div>}
+                    {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
+                    {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
+                    {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} />}
                 </div>
             </main>
         </div>
