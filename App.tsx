@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
@@ -55,21 +54,19 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         if (file) processFile(file);
     };
 
-    // Melhoria no suporte a Ctrl+V
+    // Suporte global para Ctrl + V no painel da IA
     useEffect(() => {
         const handlePaste = (e: ClipboardEvent) => {
             const items = e.clipboardData?.items;
-            if (items) {
-                for (let i = 0; i < items.length; i++) {
-                    if (items[i].type.indexOf("image") !== -1) {
-                        const blob = items[i].getAsFile();
-                        if (blob) processFile(blob);
-                        break;
-                    }
+            if (!items) return;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf("image") !== -1) {
+                    const blob = items[i].getAsFile();
+                    if (blob) processFile(blob);
+                    break;
                 }
             }
         };
-
         window.addEventListener('paste', handlePaste);
         return () => window.removeEventListener('paste', handlePaste);
     }, []);
@@ -83,23 +80,24 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const base64Data = image.split(',')[1];
             
-            const prompt = `Você é um Analista de Alta Performance em Day Trade especializado em Opções Binárias M1.
-            ESTRATÉGIA: Price Action Puro, Suporte/Resistência, Pullback, Retração de M1 e Médias Móveis.
-            
-            Analise rigorosamente a imagem do gráfico:
-            1. Verifique a tendência imediata e microtendência.
-            2. Identifique níveis de suporte/resistência rompidos ou prestes a serem testados.
-            3. Analise o volume e força das últimas 3 velas.
-            4. Procure por gatilhos: Martelo em suporte, Engolfo em topo, Estrela da manhã/noite.
-            
-            REGRAS PARA RESULTADO:
-            - operacao: Deve ser CALL (Compra), PUT (Venda) ou AGUARDAR (Sem sinal claro).
-            - confianca: Percentual (0-100) baseado no número de confluências (mínimo 3 confluências para > 80%).
-            - motivo: Frase técnica curta explicando o gatilho principal.
-            - detalhes: 3 frases detalhando o que foi observado (ex: "Vela 01 com pavio de retração longo", "Média móvel cruzando para baixo").`;
+            // Prompt focado em M1 e detecção de sinais de indicadores visuais
+            const prompt = `Analise este gráfico de Opções Binárias M1. 
+            Ignore a marca d'água de fundo (ex: Axiun). 
+            FOCO: 
+            1. Verifique se há setas de indicadores (triângulos vermelhos/verdes).
+            2. Analise a tendência (Alta, Baixa ou Lateral).
+            3. Verifique retração de pavios nas últimas 3 velas.
+            4. Identifique padrões de Price Action: Engolfo, Martelo ou Doji.
+
+            REGRAS TÉCNICAS:
+            - Responda apenas em JSON.
+            - "operacao": Escolha CALL, PUT ou AGUARDAR.
+            - "confianca": Valor de 0 a 100 baseado na força do sinal.
+            - "motivo": Explicação técnica resumida (ex: "Martelo em zona de suporte com seta de compra").
+            - "detalhes": Liste 3 observações técnicas pontuais.`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-3-pro-preview',
+                model: 'gemini-3-flash-preview',
                 contents: {
                     parts: [
                         { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
@@ -123,15 +121,14 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
 
             const text = response.text;
             if (text) {
-                // Limpeza extra para evitar qualquer erro de parse caso o modelo ainda envie tags
                 const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
                 setResult(JSON.parse(cleanJson));
             } else {
-                throw new Error("Modelo não retornou conteúdo.");
+                throw new Error("Resposta vazia.");
             }
         } catch (err) {
-            console.error("Erro na IA:", err);
-            setError("Falha técnica ao decodificar padrões. Garanta que o gráfico ocupa boa parte da imagem e tente novamente.");
+            console.error("Erro na análise:", err);
+            setError("Falha técnica ao ler padrões. Tente dar um zoom maior nas últimas velas do gráfico e cole novamente.");
         } finally {
             setAnalyzing(false);
         }
@@ -145,31 +142,31 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         <CpuChipIcon className="w-8 h-8 text-green-500" />
                         Analista IA Pro
                     </h2>
-                    <p className={theme.textMuted}>Utilize Ctrl+V para colar o gráfico e obter análise instantânea em M1.</p>
+                    <p className={theme.textMuted}>Copie o print do seu gráfico e dê <b>CTRL + V</b> em qualquer lugar desta tela.</p>
                 </div>
-                <div className="flex items-center gap-2 bg-slate-900/80 border border-slate-800 px-4 py-2 rounded-2xl">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_#22c55e]" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Motor Gemini 3 Pro</span>
+                <div className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-2xl flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Algoritmo M1 Ativo</span>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
                 <div className="xl:col-span-7 space-y-6">
-                    <div className={`p-4 rounded-[2.5rem] border-2 border-dashed ${image ? 'border-green-500/50' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center min-h-[500px] transition-all relative overflow-hidden`}>
+                    <div className={`p-4 rounded-[2.5rem] border-2 border-dashed ${image ? 'border-green-500/50' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center min-h-[480px] transition-all relative overflow-hidden group`}>
                         {image ? (
                             <div className="relative w-full h-full flex items-center justify-center">
-                                <img src={image} alt="Gráfico" className="max-h-[460px] w-full object-contain rounded-3xl" />
-                                <button onClick={() => setImage(null)} className="absolute top-4 right-4 p-3 bg-red-600/90 text-white rounded-2xl hover:scale-110 transition-all shadow-2xl backdrop-blur-md z-10"><TrashIcon className="w-5 h-5" /></button>
+                                <img src={image} alt="Gráfico" className="max-h-[440px] w-full object-contain rounded-3xl" />
+                                <button onClick={() => setImage(null)} className="absolute top-4 right-4 p-3 bg-red-600/90 text-white rounded-2xl hover:scale-110 transition-all shadow-2xl backdrop-blur-md z-20"><TrashIcon className="w-5 h-5" /></button>
                                 <div className="absolute inset-0 pointer-events-none border-[12px] border-slate-950/20 rounded-[2.2rem]"></div>
                             </div>
                         ) : (
                             <label className="cursor-pointer flex flex-col items-center gap-6 text-center group py-20 w-full">
-                                <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-all border border-green-500/20 shadow-inner">
+                                <div className="w-24 h-24 bg-green-500/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-all border border-green-500/20 shadow-inner">
                                     <PlusIcon className="w-10 h-10 text-green-500" />
                                 </div>
                                 <div className="space-y-2">
-                                    <p className="font-black text-xl uppercase tracking-[0.3em] text-white">COLAR OU SUBIR</p>
-                                    <p className="text-xs opacity-40 font-bold max-w-xs mx-auto">Tire um print da IQ Option, Quotex ou TradingView e cole (Ctrl+V) aqui.</p>
+                                    <p className="font-black text-lg uppercase tracking-[0.3em] text-white">Upload ou Ctrl+V</p>
+                                    <p className="text-xs opacity-40 font-bold max-w-xs mx-auto">Tire um print (Win+Shift+S) e cole aqui para análise.</p>
                                 </div>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                             </label>
@@ -180,17 +177,17 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         onClick={analyzeChart} 
                         disabled={!image || analyzing}
                         className={`w-full h-20 rounded-3xl font-black uppercase tracking-[0.4em] transition-all flex items-center justify-center gap-4 text-lg
-                        ${!image || analyzing ? 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-800' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-2xl shadow-green-500/40 active:scale-95'}`}
+                        ${!image || analyzing ? 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-800' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-2xl shadow-green-500/30 active:scale-95'}`}
                     >
                         {analyzing ? (
                             <>
                                 <ArrowPathIcon className="w-7 h-7 animate-spin" />
-                                Mapeando Confluências...
+                                Processando Sinais...
                             </>
                         ) : (
                             <>
                                 <CpuChipIcon className="w-7 h-7" />
-                                Processar Análise Pro
+                                Analisar Próxima Vela
                             </>
                         )}
                     </button>
@@ -201,9 +198,9 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         <div className={`p-8 rounded-[2.5rem] border ${theme.card} space-y-8 animate-in fade-in slide-in-from-right-8 duration-700 shadow-2xl relative overflow-hidden`}>
                             <div className={`absolute -top-20 -right-20 w-40 h-40 blur-[100px] rounded-full opacity-20 ${result.operacao.includes('CALL') ? 'bg-green-500' : result.operacao.includes('PUT') ? 'bg-red-500' : 'bg-blue-500'}`} />
                             
-                            <div className="flex justify-between items-start relative">
+                            <div className="flex justify-between items-start relative z-10">
                                 <div>
-                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Direção Sugerida</p>
+                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Recomendação</p>
                                     <h3 className={`text-6xl font-black tracking-tighter italic ${result.operacao.includes('CALL') ? 'text-green-500' : result.operacao.includes('PUT') ? 'text-red-500' : 'text-slate-400'}`}>
                                         {result.operacao}
                                     </h3>
@@ -211,22 +208,22 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 <div className="text-right">
                                     <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Confiança</p>
                                     <p className={`text-4xl font-black ${result.confianca > 75 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
-                                    <div className="h-2 w-full bg-slate-800 rounded-full mt-2 overflow-hidden">
+                                    <div className="h-1.5 w-full bg-slate-800 rounded-full mt-2 overflow-hidden">
                                         <div className={`h-full transition-all duration-1000 ${result.confianca > 75 ? 'bg-blue-400' : 'bg-yellow-500'}`} style={{ width: `${result.confianca}%` }} />
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800/50">
-                                <p className="text-[9px] font-black uppercase opacity-40 mb-2">Gatilho de Entrada</p>
-                                <p className="text-sm font-black text-white leading-relaxed italic">"{result.motivo}"</p>
+                            <div className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800/50 relative z-10">
+                                <p className="text-[9px] font-black uppercase opacity-40 mb-2">Resumo Técnico</p>
+                                <p className="text-sm font-black text-white italic leading-relaxed">"{result.motivo}"</p>
                             </div>
 
-                            <div className="space-y-4">
-                                <p className="text-[10px] font-black uppercase text-green-500 tracking-[0.2em] border-b border-green-500/20 pb-2">Checklist Técnico</p>
-                                <div className="space-y-4">
+                            <div className="space-y-4 relative z-10">
+                                <p className="text-[10px] font-black uppercase text-green-500 tracking-[0.2em] border-b border-green-500/20 pb-2">Confluências Detectadas</p>
+                                <div className="space-y-3">
                                     {result.detalhes?.map((item: string, i: number) => (
-                                        <div key={i} className="flex items-start gap-4">
+                                        <div key={i} className="flex items-start gap-3">
                                             <div className="mt-1.5 w-2 h-2 rounded-full bg-green-500 shrink-0 shadow-[0_0_10px_#22c55e]" />
                                             <p className="text-xs font-bold leading-relaxed opacity-90">{item}</p>
                                         </div>
@@ -234,39 +231,37 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 </div>
                             </div>
 
-                            <div className="pt-4 flex items-center gap-3 text-slate-500">
-                                <InformationCircleIcon className="w-5 h-5 shrink-0" />
-                                <p className="text-[8px] uppercase font-black tracking-tighter leading-tight italic">
-                                    Esta análise utiliza inteligência visual avançada. Sempre valide com seu gerenciamento de risco pessoal.
-                                </p>
+                            <div className="pt-4 flex items-center gap-2 opacity-30 relative z-10">
+                                <InformationCircleIcon className="w-4 h-4" />
+                                <p className="text-[8px] uppercase font-black tracking-widest leading-none">Análise probabilística. Gerencie seu stop.</p>
                             </div>
                         </div>
                     ) : analyzing ? (
-                        <div className="h-full flex flex-col items-center justify-center p-12 text-center space-y-8 animate-pulse">
-                             <div className="relative">
-                                <div className="w-32 h-32 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin" />
-                                <CpuChipIcon className="w-12 h-12 text-green-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-[0_0_20px_#22c55e]" />
+                        <div className="h-full flex flex-col items-center justify-center p-12 text-center space-y-6">
+                            <div className="relative">
+                                <div className="w-28 h-28 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin" />
+                                <CpuChipIcon className="w-10 h-10 text-green-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                             </div>
-                            <div className="space-y-3">
-                                <p className="text-xl font-black uppercase tracking-[0.3em]">IA em Campo...</p>
-                                <p className="text-xs text-slate-600 font-bold max-w-xs mx-auto">Escaneando volume de velas e zonas de interesse M1.</p>
+                            <div className="space-y-2">
+                                <p className="text-lg font-black uppercase tracking-widest animate-pulse">Lendo Gráfico...</p>
+                                <p className="text-xs text-slate-500 font-bold max-w-[200px] mx-auto">Identificando força de tendência e padrões de retração.</p>
                             </div>
                         </div>
                     ) : (
                         <div className={`p-12 rounded-[2.5rem] border border-slate-800/30 bg-slate-900/10 flex flex-col items-center justify-center text-center space-y-6 min-h-[500px]`}>
-                            <div className="w-24 h-24 bg-slate-800/30 rounded-3xl flex items-center justify-center rotate-6 border border-slate-800">
-                                <PieChartIcon className="w-12 h-12 text-slate-700" />
+                            <div className="w-20 h-20 bg-slate-800/50 rounded-3xl flex items-center justify-center rotate-12">
+                                <LayoutGridIcon className="w-10 h-10 text-slate-700" />
                             </div>
                             <div className="space-y-3">
-                                <h4 className="text-2xl font-black opacity-30 uppercase tracking-widest">Aguardando Gráfico</h4>
-                                <p className="text-xs text-slate-600 font-bold max-w-[280px]">O relatório de leitura técnica Gemini Pro aparecerá aqui após o processamento.</p>
+                                <h4 className="text-xl font-black opacity-30 uppercase tracking-widest">Aguardando Print</h4>
+                                <p className="text-xs text-slate-600 font-bold max-w-[250px]">O relatório de confluência técnica aparecerá aqui após o processamento.</p>
                             </div>
                         </div>
                     )}
                     
                     {error && (
-                        <div className="p-6 bg-red-600/10 border border-red-500/30 rounded-3xl flex items-center gap-5 text-red-500 shadow-2xl animate-bounce">
-                            <InformationCircleIcon className="w-10 h-10 shrink-0" />
+                        <div className="p-5 bg-red-600/10 border border-red-500/20 rounded-3xl flex items-center gap-4 text-red-500 shadow-xl animate-in fade-in zoom-in duration-300">
+                            <InformationCircleIcon className="w-8 h-8 shrink-0" />
                             <p className="text-xs font-black uppercase tracking-tight leading-tight">{error}</p>
                         </div>
                     )}
