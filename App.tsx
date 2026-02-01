@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
+import { GoogleGenAI } from "@google/genai";
 import { 
     SettingsIcon, 
     LogoutIcon, LayoutGridIcon, PieChartIcon, 
@@ -9,7 +9,7 @@ import {
     CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ArrowPathIcon, 
     InformationCircleIcon, TrophyIcon, 
     ChartBarIcon, CheckIcon, DocumentTextIcon,
-    PlusIcon, TrashIcon
+    PlusIcon, TrashIcon, CpuChipIcon
 } from './components/icons';
 
 // --- Helper Functions ---
@@ -28,6 +28,175 @@ const useThemeClasses = (isDarkMode: boolean) => {
         navActive: isDarkMode ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-600',
         navInactive: isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100',
     }), [isDarkMode]);
+};
+
+// --- AI Analyzer Panel ---
+const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
+    const [image, setImage] = useState<string | null>(null);
+    const [analyzing, setAnalyzing] = useState(false);
+    const [result, setResult] = useState<any>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImage(reader.result as string);
+                setResult(null);
+                setError(null);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const analyzeChart = async () => {
+        if (!image) return;
+        setAnalyzing(true);
+        setError(null);
+
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const base64Data = image.split(',')[1];
+            
+            const prompt = `Aja como um trader profissional de Opções Binárias com 10 anos de experiência em M1.
+            Analise esta imagem do gráfico de velas (Timeframe de 1 minuto).
+            Procure por:
+            1. Price Action: Padrões de velas (engolfo, martelo, doji, estrelas).
+            2. Estrutura: Suporte, Resistência, LTA e LTB.
+            3. Dinâmica: Pullbacks, Rompimentos e Reversões.
+            4. Indicadores visuais: Médias Móveis e Estocástico (se visíveis).
+            
+            Retorne um JSON com:
+            {
+                "operacao": "CALL" | "PUT" | "AGUARDAR",
+                "confianca": numero de 0 a 100,
+                "motivo": "string curta explicando a técnica",
+                "detalhes": ["array de 3 pontos técnicos observados"]
+            }
+            Importante: Responda APENAS o JSON, sem markdown ou explicações extras.`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: {
+                    parts: [
+                        { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
+                        { text: prompt }
+                    ]
+                }
+            });
+
+            const text = response.text || '';
+            const cleanJson = text.replace(/```json|```/g, '').trim();
+            setResult(JSON.parse(cleanJson));
+        } catch (err) {
+            console.error(err);
+            setError("Falha ao analisar a imagem. Verifique se o gráfico está legível.");
+        } finally {
+            setAnalyzing(false);
+        }
+    };
+
+    return (
+        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className={`text-2xl font-black ${theme.text}`}>Analista IA <span className="text-xs bg-green-500 text-black px-2 py-0.5 rounded-full ml-2">BETA</span></h2>
+                    <p className={theme.textMuted}>Suba um print do gráfico (M1) para análise técnica imediata.</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col items-center justify-center min-h-[400px] border-dashed border-2 relative overflow-hidden group`}>
+                    {image ? (
+                        <div className="relative w-full h-full">
+                            <img src={image} alt="Chart" className="w-full h-full object-contain rounded-xl" />
+                            <button onClick={() => setImage(null)} className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-xl"><TrashIcon className="w-5 h-5" /></button>
+                        </div>
+                    ) : (
+                        <label className="cursor-pointer flex flex-col items-center gap-4 text-center group">
+                            <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-all border border-green-500/20">
+                                <PlusIcon className="w-10 h-10 text-green-500" />
+                            </div>
+                            <div>
+                                <p className="font-black text-sm uppercase tracking-widest">Clique para subir o print</p>
+                                <p className="text-[10px] opacity-40 font-bold mt-1">PNG ou JPG (Recomendado M1)</p>
+                            </div>
+                            <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                        </label>
+                    )}
+                </div>
+
+                <div className="space-y-6">
+                    <button 
+                        onClick={analyzeChart} 
+                        disabled={!image || analyzing}
+                        className={`w-full h-16 rounded-2xl font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3
+                        ${!image || analyzing ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-lg shadow-green-500/20 active:scale-95'}`}
+                    >
+                        {analyzing ? (
+                            <>
+                                <ArrowPathIcon className="w-6 h-6 animate-spin" />
+                                Processando Gráfico...
+                            </>
+                        ) : (
+                            <>
+                                <CpuChipIcon className="w-6 h-6" />
+                                Analisar Próxima Vela
+                            </>
+                        )}
+                    </button>
+
+                    {error && (
+                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-500">
+                            <InformationCircleIcon className="w-6 h-6" />
+                            <p className="text-xs font-bold uppercase">{error}</p>
+                        </div>
+                    )}
+
+                    {result && (
+                        <div className={`p-8 rounded-3xl border ${theme.card} space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 shadow-2xl`}>
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase opacity-40">Recomendação IA</p>
+                                    <h3 className={`text-4xl font-black tracking-tighter ${result.operacao === 'CALL' ? 'text-green-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-500'}`}>
+                                        {result.operacao}
+                                    </h3>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] font-black uppercase opacity-40">Confiança</p>
+                                    <p className="text-2xl font-black text-blue-400">{result.confianca}%</p>
+                                </div>
+                            </div>
+
+                            <div className="p-4 bg-slate-950/30 rounded-2xl border border-slate-800/50">
+                                <p className="text-sm font-bold leading-relaxed">{result.motivo}</p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <p className="text-[9px] font-black uppercase opacity-40 tracking-widest">Fatores Técnicos</p>
+                                {result.detalhes?.map((detail: string, i: number) => (
+                                    <div key={i} className="flex items-center gap-3 text-xs font-bold opacity-80">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-sm shadow-green-500/50" />
+                                        {detail}
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <p className="text-[8px] text-center uppercase font-black text-slate-600 mt-4 italic">Esta análise é baseada em visão computacional e não garante lucro.</p>
+                        </div>
+                    )}
+                    
+                    {!result && !analyzing && !error && (
+                        <div className="p-10 border border-slate-800/20 rounded-3xl flex flex-col items-center justify-center opacity-20 text-center space-y-4">
+                            <CpuChipIcon className="w-16 h-16" />
+                            <p className="text-xs font-black uppercase tracking-widest">Aguardando Gráfico para Processamento</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
 };
 
 // --- Dashboard Panel ---
@@ -156,12 +325,10 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 
     const tableData = useMemo(() => {
         const rows = [];
-        // Ordenar registros reais por data
         const sortedRealRecords = records
             .filter((r: any): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0)
             .sort((a, b) => a.id.localeCompare(b.id));
         
-        // Data de início da simulação: Ou o primeiro dia operado, ou "Hoje"
         let startDate: Date;
         if (sortedRealRecords.length > 0) {
             startDate = new Date(sortedRealRecords[0].id + 'T12:00:00');
@@ -177,14 +344,12 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             currentDate.setDate(startDate.getDate() + i);
             const dateId = currentDate.toISOString().split('T')[0];
             
-            // Tentar achar registro real para este dia
             const realRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateId && r.trades.length > 0);
             
             let initial = runningBalance;
             let win, loss, profit, final, isProjection, operationValue;
 
             if (realRecord) {
-                // Registro Real
                 win = realRecord.winCount;
                 loss = realRecord.lossCount;
                 profit = realRecord.netProfitUSD;
@@ -192,7 +357,6 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                 operationValue = (realRecord.trades.length > 0) ? realRecord.trades[0].entryValue : (initial * 0.10);
                 isProjection = false;
             } else {
-                // Projeção 3x0
                 isProjection = true;
                 operationValue = initial * 0.10;
                 win = 3;
@@ -691,6 +855,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
                     <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Planilha Juros</button>
                     <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Relatório</button>
+                    <button onClick={() => {setActiveTab('ai'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Analista IA</button>
                     <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
                     <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
                     <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Configurações</button>
@@ -706,6 +871,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeDailyGoal} />}
                     {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
                     {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
+                    {activeTab === 'ai' && <AIAnalyzerPanel theme={theme} isDarkMode={isDarkMode} />}
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} />}
