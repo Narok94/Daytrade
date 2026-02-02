@@ -80,21 +80,23 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const base64Data = image.split(',')[1];
             const mimeType = image.split(';')[0].split(':')[1];
             
-            // PROMPT SNIPER PROFISSIONAL M1
-            const prompt = `Analise este gráfico de Opções Binárias M1 com precisão absoluta.
-            Sua tarefa é identificar confluências técnicas de alta probabilidade.
+            // PROMPT OTIMIZADO PARA IGNORAR MARCAS D'ÁGUA
+            const prompt = `Aja como um analista master de Opções Binárias especialista em M1. 
             
-            REGRAS DE ANÁLISE:
-            1. Verifique se há setas de indicadores (verde/vermelho).
-            2. Analise a ação do preço (Price Action) das últimas 5 velas.
-            3. Procure por pavios de rejeição em zonas de Suporte/Resistência.
-            4. Se houver divergência entre indicadores e velas, responda "AGUARDAR".
-            5. O sinal deve ser apenas para a PRÓXIMA VELA (M1).
-
+            OBJETIVO PRINCIPAL: Identificar a direção da próxima vela.
+            
+            REGRAS DE FILTRAGEM VISUAL:
+            1. FILTRO DE RUÍDO: Ignore COMPLETAMENTE marcas d'água no fundo (como o logo da corretora), IDs de usuário, textos sobrepostos ou sombras que não pertençam às velas.
+            2. FOCO TOTAL: Concentre sua análise exclusivamente nos Candlesticks (corpo e pavio) e nas setas de sinalização (indicadores).
+            3. CRITÉRIO DE ENTRADA: 
+               - CALL: Seta verde + vela de força compradora ou rejeição de fundo.
+               - PUT: Seta vermelha + vela de força vendedora ou rejeição de topo.
+               - AGUARDAR: Se o gráfico estiver lateral, velas muito pequenas ou sinais conflitantes.
+            
             SÓ RESPONDA EM JSON:
             - "operacao": "CALL", "PUT" ou "AGUARDAR".
-            - "confianca": (Número 0-100).
-            - "confluencia": (Ex: "Rompimento de suporte + Seta de sinal").`;
+            - "confianca": (Número 0-100 refletindo a clareza do sinal após filtrar o fundo).
+            - "confluencia": (Breve descrição do gatilho técnico, ex: "Engolfo de alta após seta").`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-3-pro-preview',
@@ -105,7 +107,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     ]
                 },
                 config: {
-                    thinkingConfig: { thinkingBudget: 4096 },
+                    thinkingConfig: { thinkingBudget: 4096 }, // Permite raciocínio profundo para separar ruído de sinal
                     responseMimeType: "application/json",
                     responseSchema: {
                         type: Type.OBJECT,
@@ -121,13 +123,14 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
 
             const text = response.text;
             if (text) {
-                setResult(JSON.parse(text));
+                const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                setResult(JSON.parse(cleanJson));
             } else {
                 throw new Error("Resposta vazia da IA.");
             }
         } catch (err: any) {
-            console.error("Erro AI:", err);
-            setError("Erro na leitura. Tente tirar um print mais limpo do gráfico M1.");
+            console.error("Erro Sniper IA:", err);
+            setError("Erro ao processar gráfico. Certifique-se de que o print está nítido.");
         } finally {
             setAnalyzing(false);
         }
@@ -142,7 +145,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 </div>
                 <div className="bg-slate-900/50 border border-slate-800 px-2 py-0.5 rounded-full flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[7px] font-black uppercase text-slate-400">Gemini 3 Pro Active</span>
+                    <span className="text-[7px] font-black uppercase text-slate-400">Visão Inteligente Ativa</span>
                 </div>
             </div>
 
@@ -154,13 +157,16 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             <div className="w-full h-full p-1 flex items-center justify-center relative group">
                                 <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-xl" />
                                 <button onClick={() => setImage(null)} className="absolute top-2 right-2 p-1.5 bg-red-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg"><TrashIcon className="w-4 h-4" /></button>
+                                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 opacity-0 group-hover:opacity-100 transition-all">
+                                    <p className="text-[7px] font-black text-white/80 uppercase tracking-widest whitespace-nowrap">Filtro de Ruído Ativo</p>
+                                </div>
                             </div>
                         ) : (
                             <label className="cursor-pointer flex flex-col items-center gap-2 text-center w-full h-full justify-center hover:bg-slate-900/20 transition-all">
                                 <PlusIcon className="w-8 h-8 text-slate-800" />
                                 <div className="space-y-0.5">
                                     <p className="font-black text-[9px] uppercase tracking-[0.2em] text-slate-600">Cole o Print</p>
-                                    <p className="text-[7px] opacity-30 font-bold uppercase">CTRL + V</p>
+                                    <p className="text-[7px] opacity-30 font-bold uppercase">A IA focará nas velas</p>
                                 </div>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                             </label>
@@ -173,7 +179,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-lg active:scale-[0.98]'}`}
                     >
                         {analyzing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CpuChipIcon className="w-4 h-4" />}
-                        {analyzing ? 'Analisando...' : 'Obter Sinal Sniper'}
+                        {analyzing ? 'Escaneando Gráfico...' : 'Filtrar e Analisar'}
                     </button>
                 </div>
 
@@ -185,7 +191,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             
                             <div className="space-y-4 relative z-10">
                                 <div>
-                                    <p className="text-[7px] font-black uppercase text-slate-500 tracking-[0.2em] mb-0.5">Recomendação Profissional</p>
+                                    <p className="text-[7px] font-black uppercase text-slate-500 tracking-[0.2em] mb-0.5">Recomendação Sniper</p>
                                     <h3 className={`text-6xl font-black tracking-tighter italic leading-none ${result.operacao === 'CALL' ? 'text-green-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
                                         {result.operacao}
                                     </h3>
@@ -193,7 +199,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
 
                                 <div className="space-y-1">
                                     <div className="flex justify-between items-center">
-                                        <p className="text-[8px] font-black uppercase text-slate-500">Confiança do Sinal</p>
+                                        <p className="text-[8px] font-black uppercase text-slate-500">Assertividade Estimada</p>
                                         <p className={`text-lg font-black ${result.confianca > 80 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
                                     </div>
                                     <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
@@ -202,7 +208,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 </div>
 
                                 <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-800/40">
-                                    <p className="text-[7px] font-black uppercase opacity-40 mb-1">Padrão Técnico Identificado</p>
+                                    <p className="text-[7px] font-black uppercase opacity-40 mb-1">Confluência Técnica</p>
                                     <p className="text-[10px] font-bold text-white italic leading-tight">"{result.confluencia}"</p>
                                 </div>
                             </div>
@@ -210,9 +216,9 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             <div className="pt-3 border-t border-slate-800/30 flex items-center justify-between mt-4">
                                 <div className="flex items-center gap-1 opacity-30">
                                     <InformationCircleIcon className="w-3 h-3" />
-                                    <p className="text-[6px] uppercase font-black tracking-widest">Timeframe M1</p>
+                                    <p className="text-[6px] uppercase font-black tracking-widest leading-none">Válido para a próxima vela</p>
                                 </div>
-                                <div className="text-[7px] font-black text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full animate-pulse">EXPIRAÇÃO 1 MIN</div>
+                                <div className="text-[7px] font-black text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full animate-pulse">ALVO M1</div>
                             </div>
                         </div>
                     ) : analyzing ? (
@@ -221,14 +227,14 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 <ArrowPathIcon className="w-10 h-10 animate-spin text-green-500" />
                                 <CpuChipIcon className="w-4 h-4 text-green-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                              </div>
-                             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-green-500">Processando Candlesticks...</p>
+                             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-green-500">Filtrando marcas d'água...</p>
                         </div>
                     ) : (
                         <div className={`p-6 rounded-2xl border border-slate-800/20 bg-slate-950/10 h-full flex flex-col items-center justify-center text-center space-y-3 opacity-20 grayscale transition-all`}>
                             <PieChartIcon className="w-8 h-8 text-slate-600" />
                             <div className="space-y-0.5">
-                                <h4 className="text-[9px] font-black uppercase tracking-widest">Aguardando Print</h4>
-                                <p className="text-[7px] font-bold max-w-[140px] uppercase">O sinal de entrada Sniper aparecerá aqui após o processamento.</p>
+                                <h4 className="text-[9px] font-black uppercase tracking-widest">Aguardando Gráfico</h4>
+                                <p className="text-[7px] font-bold max-w-[140px] uppercase leading-tight">Envie o gráfico para que a IA processe a ação do preço e ignore o fundo.</p>
                             </div>
                         </div>
                     )}
