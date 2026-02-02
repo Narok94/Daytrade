@@ -32,7 +32,7 @@ const useThemeClasses = (isDarkMode: boolean) => {
     }), [isDarkMode]);
 };
 
-// --- Radar Sniper Panel ---
+// --- Radar Sniper Panel (CORREÇÃO DA IA) ---
 const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
     const [image, setImage] = useState<string | null>(null);
     const [analyzing, setAnalyzing] = useState(false);
@@ -45,24 +45,29 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
         setError(null);
 
         try {
-            // Inicialização robusta da IA conforme diretrizes
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             
-            // Extração limpa do Base64
-            const mimeTypeMatch = image.match(/data:([^;]+);base64,(.*)/);
-            if (!mimeTypeMatch) throw new Error("Formato de imagem inválido");
-            const mimeType = mimeTypeMatch[1];
-            const base64Data = mimeTypeMatch[2];
+            // Extração robusta de dados base64
+            const base64Data = image.split(',')[1];
+            const mimeType = image.split(',')[0].split(':')[1].split(';')[0];
             
-            const prompt = `ANALISE TÉCNICA SNIPER:
-            Identifique as velas (candlesticks) no gráfico.
-            Determine se a última operação resultou em WIN (vela verde/lucro) ou LOSS (vela vermelha/prejuízo).
-            Ignore menus laterais, botões de interface e propaganda.
-            Extraia obrigatoriamente em formato JSON:
-            - resultado: "WIN" ou "LOSS"
-            - valor: Valor da entrada detectado (número)
-            - payout: Porcentagem de lucro detectada (número)
-            - ativo: Par de moedas (ex: EUR/USD)`;
+            const prompt = `ANALISTA DE OCR TRADING - MISSÃO CRÍTICA:
+            Identifique o resultado da última operação no gráfico ou painel lateral.
+            CRITÉRIOS DE VITÓRIA (WIN):
+            - Velas verdes, textos "Lucro", "Profit", ou valores positivos em verde.
+            - Pop-ups de sucesso ou histórico com indicador verde.
+            CRITÉRIOS DE DERROTA (LOSS):
+            - Velas vermelhas, textos "Prejuízo", "Loss", ou valores em vermelho.
+            - Histórico com indicador vermelho.
+            
+            EXTRAIA APENAS JSON:
+            {
+              "resultado": "WIN" ou "LOSS",
+              "valor": número da entrada,
+              "payout": número do payout (ex: 80),
+              "ativo": "nome do par de moedas"
+            }
+            Seja resiliente a marcas d'água e interfaces de corretoras (como Axion/IQ/Quotex).`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
@@ -73,9 +78,8 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                     ]
                 },
                 config: {
-                    systemInstruction: "Você é um especialista em OCR para trading. Sua única tarefa é identificar o resultado de uma operação em um gráfico de candlesticks.",
+                    systemInstruction: "Você é um Radar de Sniper. Sua função é converter imagens de trading em dados JSON puros. Ignore menus e foque no resultado financeiro.",
                     responseMimeType: "application/json",
-                    thinkingConfig: { thinkingBudget: 0 },
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
@@ -89,12 +93,14 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                 }
             });
 
-            if (!response.text) throw new Error("Resposta da IA vazia");
-            const data = JSON.parse(response.text.trim());
+            const responseText = response.text;
+            if (!responseText) throw new Error("Vazio");
+            
+            const data = JSON.parse(responseText.trim());
             setResult(data);
         } catch (err: any) {
             console.error("AI Analysis Error:", err);
-            setError("ERRO TÉCNICO NO RADAR. VERIFIQUE A NITIDEZ DO PRINT OU A CONEXÃO COM O SERVIDOR.");
+            setError("FALHA DE COMUNICAÇÃO RADAR. GARANTA QUE O RESULTADO (WIN/LOSS) ESTEJA VISÍVEL NA IMAGEM E TENTE NOVAMENTE.");
         } finally {
             setAnalyzing(false);
         }
@@ -106,7 +112,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                 <h2 className={`text-lg font-black tracking-tight ${theme.text}`}>Radar <span className="text-emerald-400 italic">Sniper</span></h2>
                 <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${analyzing ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500/60 uppercase">Escaner Ativo</span>
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500/60">Operacional</span>
                 </div>
             </div>
 
@@ -118,19 +124,14 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                             <div className="grid grid-cols-2 gap-3">
                                 <button onClick={() => {setImage(null); setResult(null);}} className="py-2.5 text-[9px] font-black uppercase bg-rose-500/10 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all">Descartar</button>
                                 <button onClick={analyzeChart} disabled={analyzing} className="py-2.5 text-[9px] font-black uppercase bg-emerald-500 text-slate-950 rounded-lg disabled:opacity-50 hover:bg-emerald-400 transition-all">
-                                    {analyzing ? 'Analisando...' : 'Iniciar Scan'}
+                                    {analyzing ? 'Escaneando...' : 'Iniciar Scan'}
                                 </button>
                             </div>
                         </div>
                     ) : (
                         <label className="cursor-pointer flex flex-col items-center gap-4 py-12 w-full group">
-                            <div className="w-16 h-16 rounded-full bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <PlusIcon className="w-8 h-8 text-emerald-500/40" />
-                            </div>
-                            <div className="text-center">
-                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Carregar Captura de Tela</p>
-                                <p className="text-[8px] font-bold text-slate-600 mt-1">Formatos: JPG, PNG</p>
-                            </div>
+                            <PlusIcon className="w-10 h-10 text-emerald-500/20 group-hover:text-emerald-500/40 transition-all" />
+                            <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em]">Subir Print do Gráfico</p>
                             <input type="file" className="hidden" accept="image/*" onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (file) {
@@ -145,7 +146,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
 
                 <div className="space-y-4">
                     {error && (
-                        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-500 text-[10px] font-black uppercase leading-tight tracking-widest animate-in shake">
+                        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-500 text-[10px] font-black uppercase tracking-widest animate-in shake">
                             {error}
                         </div>
                     )}
@@ -155,7 +156,6 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                                 <span className={`text-2xl font-black italic tracking-tighter ${result.resultado === 'WIN' ? 'text-emerald-400' : 'text-rose-500'}`}>
                                     {result.resultado === 'WIN' ? 'ALVO ATINGIDO' : 'MISSÃO FALHA'}
                                 </span>
-                                <span className="text-[10px] font-black text-blue-400 px-3 py-1 bg-blue-500/10 rounded-full border border-blue-500/20">{result.ativo || 'ATIVO'}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="p-4 bg-black/40 rounded-xl border border-white/5">
@@ -170,14 +170,21 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                             <button onClick={() => {
                                 addRecord(result.resultado === 'WIN' ? 1 : 0, result.resultado === 'LOSS' ? 1 : 0, result.valor, result.payout || 80);
                                 setResult(null); setImage(null);
-                            }} className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-[11px] uppercase tracking-widest transition-all shadow-lg active:scale-95">Sincronizar Arsenal</button>
+                            }} className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-[11px] uppercase tracking-widest shadow-lg transition-all active:scale-95">Confirmar e Sincronizar</button>
                         </div>
-                    ) : !analyzing && <div className="p-12 border border-slate-800/20 rounded-2xl bg-slate-900/5 text-center opacity-30 flex flex-col items-center justify-center min-h-[200px]"><CpuChipIcon className="w-10 h-10 mb-3" /><p className="text-[10px] font-black uppercase tracking-[0.3em]">Aguardando Captura</p></div>}
-                    {analyzing && <div className="h-56 w-full bg-slate-900/40 rounded-2xl border border-emerald-500/10 flex flex-col items-center justify-center overflow-hidden relative">
-                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/10 to-transparent animate-pulse" />
-                        <ArrowPathIcon className="w-10 h-10 text-emerald-500/40 animate-spin mb-4" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.6em] text-emerald-500/60">Análise de Velas em Curso</p>
-                    </div>}
+                    ) : !analyzing && (
+                        <div className="p-12 border border-slate-800/20 rounded-2xl bg-slate-900/5 text-center opacity-30 flex flex-col items-center justify-center min-h-[220px]">
+                            <CpuChipIcon className="w-10 h-10 mb-3" />
+                            <p className="text-[10px] font-black uppercase tracking-[0.3em]">Aguardando Captura</p>
+                        </div>
+                    )}
+                    {analyzing && (
+                        <div className="h-56 w-full bg-slate-900/40 rounded-2xl border border-emerald-500/10 flex flex-col items-center justify-center relative overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/5 to-transparent animate-pulse" />
+                            <ArrowPathIcon className="w-10 h-10 text-emerald-500/40 animate-spin mb-4" />
+                            <p className="text-[10px] font-black uppercase tracking-[0.5em] text-emerald-500/60">Análise de Dados em Curso</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -503,7 +510,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     };
 
     const deleteTrade = (id: string, dateId: string) => {
-        if(!confirm("Deletar disparo?")) return;
+        if(!confirm("Deseja deletar este registro tático?")) return;
         setRecords(prev => {
             const updated = prev.map(r => (r.id === dateId && r.recordType === 'day') ? { ...r, trades: r.trades.filter(t => t.id !== id) } : r);
             const recalibrated = recalibrateHistory(updated, brokerages[0].initialBalance);
@@ -524,7 +531,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/95 md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
             
             <aside className={`fixed inset-y-0 left-0 z-50 w-48 flex flex-col border-r transition-all duration-300 ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
-                <div className="h-16 flex items-center px-8 border-b border-slate-800/40 font-black italic text-emerald-400 text-sm tracking-tighter">HRK SNIPER</div>
+                <div className="h-16 flex items-center px-8 border-b border-slate-800/40 font-black italic text-emerald-400 text-sm tracking-tighter uppercase">HRK Sniper</div>
                 <nav className="flex-1 p-3 space-y-1">
                     {[
                         { id: 'dashboard', label: 'Painel', icon: LayoutGridIcon },
