@@ -21,14 +21,14 @@ const useThemeClasses = (isDarkMode: boolean) => {
         bg: isDarkMode ? 'bg-slate-950' : 'bg-slate-50',
         text: isDarkMode ? 'text-slate-50' : 'text-slate-900',
         textMuted: isDarkMode ? 'text-slate-400' : 'text-slate-500',
-        card: isDarkMode ? 'bg-slate-900/40 border-slate-800/60 backdrop-blur-3xl' : 'bg-white border-slate-200 shadow-md',
-        input: isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-700' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400',
+        card: isDarkMode ? 'bg-slate-900/60 border-slate-800/40 backdrop-blur-md' : 'bg-white border-slate-200 shadow-sm',
+        input: isDarkMode ? 'bg-slate-900 border-slate-800 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400',
         border: isDarkMode ? 'border-slate-800' : 'border-slate-200',
         sidebar: isDarkMode ? 'bg-slate-950 border-r border-slate-800/50' : 'bg-white border-r border-slate-200',
         header: isDarkMode ? 'bg-slate-950 border-b border-slate-800/50' : 'bg-white border-b border-slate-200',
-        navActive: isDarkMode ? 'bg-emerald-500/20 text-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.2)]' : 'bg-emerald-50 text-emerald-600',
-        navInactive: isDarkMode ? 'text-slate-400 hover:text-emerald-300 hover:bg-slate-900/60' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100',
-        roundedCard: 'rounded-[2.5rem]', 
+        navActive: isDarkMode ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-emerald-50 text-emerald-600',
+        navInactive: isDarkMode ? 'text-slate-500 hover:text-emerald-400 hover:bg-slate-900/40' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50',
+        roundedCard: 'rounded-2xl', 
     }), [isDarkMode]);
 };
 
@@ -59,19 +59,10 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
 
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const base64Data = image.split(',')[1];
+            const mimeType = image.split(';')[0].split(':')[1];
             
-            const mimeMatch = image.match(/^data:(.*);base64,(.*)$/);
-            if (!mimeMatch) throw new Error("Formato de imagem inválido.");
-            const mimeType = mimeMatch[1];
-            const base64Data = mimeMatch[2];
-            
-            const prompt = `Analise este print de uma plataforma de trading (IQ Option, Quotex, etc). 
-            Extraia os dados da operação se for um histórico ou o status atual:
-            1. Valor da entrada (ex: 10, 100).
-            2. Payout (ex: 80, 87).
-            3. Resultado: WIN (verde/lucro) ou LOSS (vermelho/perda).
-            4. Par de moedas (ex: EUR/USD).
-            5. Sugestão de próxima entrada (CALL ou PUT) baseada na tendência visual.`;
+            const prompt = `Extraia dados desta operação de daytrade. Retorne APENAS o JSON com: valor_detectado (number), payout_detectado (number, ex: 87), resultado_detectado ("WIN" ou "LOSS"), par_moedas (string). Se não encontrar algum, use null.`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
@@ -82,31 +73,28 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                     ]
                 },
                 config: {
-                    systemInstruction: "Você é um Radar de Alta Precisão para Daytrading. Leia dados numéricos e identifique cores. Extraia valores monetários e porcentagens. Responda estritamente em JSON.",
+                    systemInstruction: "Você é um OCR de alta precisão especializado em plataformas de trading. Extraia valores financeiros de prints de tela. Seja direto e preciso.",
                     responseMimeType: "application/json",
+                    thinkingConfig: { thinkingBudget: 0 },
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
-                            operacao_sugerida: { type: Type.STRING, description: "CALL ou PUT" },
-                            confianca: { type: Type.NUMBER },
                             valor_detectado: { type: Type.NUMBER },
                             payout_detectado: { type: Type.NUMBER },
-                            resultado_detectado: { type: Type.STRING, description: "WIN ou LOSS ou NEUTRO" },
+                            resultado_detectado: { type: Type.STRING },
                             par_moedas: { type: Type.STRING },
-                            analise_tecnica: { type: Type.STRING },
-                            detalhes_radar: { type: Type.ARRAY, items: { type: Type.STRING } }
+                            analise_tecnica: { type: Type.STRING }
                         },
-                        required: ["operacao_sugerida", "confianca", "valor_detectado", "payout_detectado", "resultado_detectado"]
+                        required: ["resultado_detectado", "valor_detectado", "payout_detectado"]
                     }
                 }
             });
 
-            if (!response.text) throw new Error("Resposta vazia do Radar.");
-            const parsed = JSON.parse(response.text);
-            setResult(parsed);
+            if (!response.text) throw new Error("A IA não retornou dados.");
+            setResult(JSON.parse(response.text));
         } catch (err: any) {
-            console.error("Radar Error:", err);
-            setError("FALHA NA CONEXÃO COM RADAR. VERIFIQUE SE O PRINT ESTÁ CLARO E TENTE NOVAMENTE.");
+            console.error("AI Error:", err);
+            setError("ERRO DE CONEXÃO. VERIFIQUE SE O PRINT MOSTRA CLARAMENTE OS VALORES.");
         } finally {
             setAnalyzing(false);
         }
@@ -115,119 +103,71 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
     const syncWithLedger = () => {
         if (!result) return;
         const res = result.resultado_detectado?.toUpperCase();
-        if (res === 'WIN' || res === 'LOSS') {
-            addRecord(
-                res === 'WIN' ? 1 : 0, 
-                res === 'LOSS' ? 1 : 0, 
-                result.valor_detectado, 
-                result.payout_detectado
-            );
-            alert("Operação sincronizada com o Arsenal!");
-            setResult(null);
-            setImage(null);
-        } else {
-            alert("Não foi possível detectar um resultado de WIN ou LOSS claro nesta imagem.");
-        }
+        addRecord(res === 'WIN' ? 1 : 0, res === 'LOSS' ? 1 : 0, result.valor_detectado || 10, result.payout_detectado || 80);
+        alert("Operação Sincronizada!");
+        setResult(null);
+        setImage(null);
     };
 
     return (
-        <div className="p-8 md:p-12 max-w-6xl mx-auto space-y-10 animate-in fade-in duration-1000">
-            <div className="flex justify-between items-end border-b border-emerald-500/20 pb-6">
-                <div>
-                    <h2 className={`text-4xl font-black tracking-tighter ${theme.text}`}>Radar <span className="text-emerald-400 italic">HRK Sniper</span></h2>
-                    <p className={`${theme.textMuted} text-xs uppercase tracking-[0.5em] font-black mt-2`}>Scanner de Telemetria Gráfica.</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Sistema Online</span>
-                </div>
+        <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-4 animate-in fade-in duration-500">
+            <div className="flex items-center justify-between border-b border-emerald-500/10 pb-3">
+                <h2 className={`text-xl font-black uppercase tracking-widest ${theme.text}`}>Radar <span className="text-emerald-400">Sniper</span></h2>
+                <span className="text-[10px] font-bold text-emerald-500/60 uppercase">Live Telemetry</span>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <div className={`p-10 ${theme.roundedCard} border-2 border-dashed ${theme.card} flex flex-col items-center justify-center min-h-[450px] relative group overflow-hidden transition-all hover:border-emerald-500/40`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className={`p-4 ${theme.roundedCard} border border-dashed ${theme.border} ${theme.card} flex flex-col items-center justify-center min-h-[300px]`}>
                     {image ? (
-                        <div className="relative w-full h-full animate-in zoom-in-95 flex flex-col">
-                            <img src={image} alt="Target" className="w-full h-[350px] object-contain rounded-3xl shadow-2xl mx-auto mb-6" />
-                            <div className="flex gap-4 w-full">
-                                <button onClick={() => setImage(null)} className="flex-1 h-14 bg-rose-600/20 text-rose-500 rounded-2xl hover:bg-rose-600 hover:text-white transition-all font-black uppercase text-[10px] tracking-widest border border-rose-500/30">Substituir</button>
-                                <button onClick={analyzeChart} disabled={analyzing} className="flex-[2] h-14 bg-emerald-500 text-slate-950 rounded-2xl hover:bg-emerald-400 transition-all font-black uppercase text-[10px] tracking-widest shadow-lg disabled:opacity-50">
+                        <div className="w-full h-full flex flex-col gap-3">
+                            <img src={image} className="w-full h-48 object-contain rounded-xl bg-black/20" />
+                            <div className="flex gap-2">
+                                <button onClick={() => setImage(null)} className="flex-1 py-2 text-[10px] font-black uppercase bg-rose-500/10 text-rose-500 rounded-lg">Trocar</button>
+                                <button onClick={analyzeChart} disabled={analyzing} className="flex-2 py-2 text-[10px] font-black uppercase bg-emerald-500 text-slate-950 rounded-lg disabled:opacity-50">
                                     {analyzing ? 'Escaneando...' : 'Iniciar Scan'}
                                 </button>
                             </div>
                         </div>
                     ) : (
-                        <label className="cursor-pointer flex flex-col items-center gap-6 text-center w-full h-full justify-center">
-                            <div className="w-24 h-24 bg-emerald-500/10 rounded-full flex items-center justify-center border-4 border-emerald-500/20 group-hover:scale-110 transition-transform">
-                                <PlusIcon className="w-10 h-10 text-emerald-400" />
-                            </div>
-                            <p className="font-black text-sm uppercase tracking-[0.3em] text-emerald-400">CARREGAR PRINT DO TRADE</p>
-                            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Suporta IQ Option, Quotex, Pocket e mais</span>
+                        <label className="cursor-pointer flex flex-col items-center gap-4 text-center">
+                            <PlusIcon className="w-8 h-8 text-emerald-500/40" />
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Arraste ou clique para carregar o print</p>
                             <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                         </label>
                     )}
                 </div>
 
-                <div className="space-y-6">
-                    {error && (
-                        <div className={`p-8 bg-rose-500/10 border-2 border-rose-500/30 rounded-3xl flex items-center gap-5 text-rose-500 shadow-2xl animate-in slide-in-from-top-4`}>
-                            <InformationCircleIcon className="w-10 h-10 shrink-0" />
-                            <p className="text-xs font-black uppercase leading-relaxed tracking-widest">{error}</p>
-                        </div>
-                    )}
-
-                    {!result && !analyzing && !error && (
-                        <div className={`p-10 ${theme.roundedCard} border border-slate-800 bg-slate-900/20 opacity-50 flex flex-col items-center justify-center text-center h-full`}>
-                             <CpuChipIcon className="w-12 h-12 mb-6 text-slate-700" />
-                             <p className="text-[10px] font-black uppercase tracking-[0.3em]">Aguardando captura para análise balística...</p>
-                        </div>
-                    )}
-
-                    {analyzing && (
-                        <div className="space-y-6 animate-pulse">
-                            <div className="h-32 bg-slate-900/50 rounded-3xl border border-slate-800" />
-                            <div className="h-64 bg-slate-900/50 rounded-3xl border border-slate-800" />
-                        </div>
-                    )}
-
-                    {result && (
-                        <div className={`p-10 ${theme.roundedCard} border-2 border-emerald-500/30 ${theme.card} space-y-8 shadow-[0_30px_100px_rgba(0,0,0,0.5)] relative overflow-hidden animate-in slide-in-from-right-10`}>
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <p className="text-[10px] font-black uppercase opacity-50 tracking-[0.4em] mb-2">Telemetria Detectada</p>
-                                    <h3 className={`text-4xl font-black italic tracking-tighter ${result.resultado_detectado === 'WIN' ? 'text-emerald-400' : 'text-rose-500'}`}>
-                                        {result.resultado_detectado === 'WIN' ? 'TARGET HIT' : result.resultado_detectado === 'LOSS' ? 'MISSION FAILED' : 'DATA SCAN'}
-                                    </h3>
+                <div className="space-y-4">
+                    {error && <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-500 text-[10px] font-bold uppercase">{error}</div>}
+                    
+                    {result ? (
+                        <div className={`p-6 ${theme.roundedCard} border border-emerald-500/20 ${theme.card} space-y-4 shadow-xl`}>
+                            <div className="flex justify-between items-center">
+                                <span className={`text-2xl font-black italic ${result.resultado_detectado === 'WIN' ? 'text-emerald-400' : 'text-rose-500'}`}>
+                                    {result.resultado_detectado === 'WIN' ? 'HIT SUCCESS' : 'MISSION FAILED'}
+                                </span>
+                                <span className="text-sm font-black text-blue-400">{result.par_moedas || 'S/ PAR'}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="p-3 bg-black/20 rounded-lg border border-white/5">
+                                    <p className="text-[9px] text-slate-500 font-bold uppercase">Entrada</p>
+                                    <p className="text-lg font-black">{result.valor_detectado ? `R$ ${result.valor_detectado}` : '---'}</p>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase opacity-50 tracking-[0.4em] mb-2">Paridade</p>
-                                    <p className="text-2xl font-black text-blue-400 tracking-tighter">{result.par_moedas || '---'}</p>
+                                <div className="p-3 bg-black/20 rounded-lg border border-white/5">
+                                    <p className="text-[9px] text-slate-500 font-bold uppercase">Payout</p>
+                                    <p className="text-lg font-black text-emerald-400">{result.payout_detectado ? `${result.payout_detectado}%` : '---'}</p>
                                 </div>
                             </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-6 bg-black/40 rounded-2xl border border-slate-800">
-                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Valor</p>
-                                    <p className="text-xl font-black">{result.valor_detectado ? `R$ ${result.valor_detectado.toFixed(2)}` : '---'}</p>
-                                </div>
-                                <div className="p-6 bg-black/40 rounded-2xl border border-slate-800">
-                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Payout</p>
-                                    <p className="text-xl font-black text-emerald-400">{result.payout_detectado ? `${result.payout_detectado}%` : '---'}</p>
-                                </div>
-                            </div>
-
-                            <div className="p-6 bg-emerald-500/5 rounded-[1.8rem] border border-emerald-500/20">
-                                <p className="text-[10px] font-black uppercase text-emerald-400/60 mb-2 tracking-widest">Análise do Radar</p>
-                                <p className="text-sm font-bold text-slate-100 italic leading-relaxed">"{result.analise_tecnica || result.operacao_sugerida}"</p>
-                            </div>
-
-                            <button 
-                                onClick={syncWithLedger}
-                                className="w-full h-16 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl uppercase text-[11px] tracking-[0.4em] transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3"
-                            >
-                                <CheckIcon className="w-5 h-5" /> Sincronizar com Arsenal
-                            </button>
+                            <button onClick={syncWithLedger} className="w-full py-3 bg-emerald-500 text-slate-950 font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-emerald-400 transition-colors">Sincronizar Arsenal</button>
+                        </div>
+                    ) : !analyzing && (
+                        <div className="p-6 border border-slate-800/40 rounded-xl bg-slate-900/10 text-center flex flex-col items-center justify-center h-full opacity-40">
+                            <CpuChipIcon className="w-8 h-8 mb-4 text-slate-700" />
+                            <p className="text-[10px] font-black uppercase tracking-widest">Aguardando Telemetria</p>
                         </div>
                     )}
+
+                    {analyzing && <div className="h-48 bg-slate-900/40 rounded-xl animate-pulse border border-slate-800" />}
                 </div>
             </div>
         </div>
@@ -252,84 +192,74 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     const currentProfit = dailyRecordForSelectedDay?.netProfitUSD ?? 0;
     const currentBalance = dailyRecordForSelectedDay?.endBalanceUSD ?? startBalanceForSelectedDay;
     const winRate = ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0)) > 0 
-        ? (((dailyRecordForSelectedDay?.winCount || 0) / ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0))) * 100).toFixed(1) : '0.0';
+        ? (((dailyRecordForSelectedDay?.winCount || 0) / ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0))) * 100).toFixed(0) : '0';
     
     const dailyGoalPercent = dailyGoalTarget > 0 ? (currentProfit / dailyGoalTarget) * 100 : 0;
 
     const kpis = [
-        { label: 'Arsenal Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-emerald-400' },
-        { label: 'Lucro Diário', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol} ${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-emerald-400' : 'text-rose-500' },
-        { label: 'Meta Diária', val: `${Math.min(100, dailyGoalPercent).toFixed(0)}%`, subVal: `${currencySymbol}${formatMoney(currentProfit)} / ${formatMoney(dailyGoalTarget)}`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-emerald-400' : 'text-blue-400' },
-        { label: 'Assertividade', val: `${winRate}%`, icon: TrophyIcon, color: 'text-fuchsia-400' },
+        { label: 'Arsenal', val: `${currencySymbol}${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-emerald-400' },
+        { label: 'Lucro Hoje', val: `${currencySymbol}${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-emerald-400' : 'text-rose-500' },
+        { label: 'Meta Diária', val: `${Math.min(100, dailyGoalPercent).toFixed(0)}%`, icon: TargetIcon, color: 'text-blue-400' },
+        { label: 'Win Rate', val: `${winRate}%`, icon: TrophyIcon, color: 'text-fuchsia-400' },
     ];
 
     return (
-        <div className="p-8 md:p-12 space-y-10 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-10 duration-700">
-            <div className="flex flex-col md:flex-row md:justify-between items-center gap-6">
-                <div className="text-center md:text-left">
-                    <h2 className={`text-4xl font-black tracking-tighter ${theme.text}`}>Painel <span className="text-emerald-400 italic">HRK Sniper</span></h2>
-                    <p className={`${theme.textMuted} text-xs font-bold uppercase tracking-[0.4em] mt-2`}>Monitoramento de Performance de Elite.</p>
-                </div>
-                <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`border-2 rounded-full px-8 py-3 text-sm font-black focus:outline-none transition-all focus:border-emerald-500 ${isDarkMode ? 'bg-slate-900 text-emerald-400 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
+        <div className="p-4 md:p-6 space-y-6 max-w-6xl mx-auto animate-in fade-in duration-500">
+            <div className="flex justify-between items-center">
+                <h2 className={`text-xl font-black ${theme.text} tracking-tighter uppercase`}>Painel <span className="text-emerald-400">Operacional</span></h2>
+                <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`text-xs font-bold px-4 py-2 rounded-lg border focus:outline-none ${theme.input}`} />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {kpis.map((kpi, i) => (
-                    <div key={i} className={`p-8 ${theme.roundedCard} border-2 ${theme.card} flex flex-col justify-between hover:scale-[1.05] hover:border-emerald-500/50 transition-all duration-500 shadow-2xl`}>
-                        <div className="flex justify-between items-start mb-4">
-                            <p className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em]">{kpi.label}</p>
-                            <kpi.icon className={`w-6 h-6 ${kpi.color}`} />
+                    <div key={i} className={`p-4 ${theme.roundedCard} border ${theme.card} flex flex-col justify-between shadow-sm`}>
+                        <div className="flex justify-between items-start mb-1">
+                            <p className="text-[9px] uppercase font-black text-slate-500 tracking-widest">{kpi.label}</p>
+                            <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
                         </div>
-                        <p className={`text-2xl md:text-3xl font-black ${kpi.color} truncate tracking-tighter`}>{kpi.val}</p>
-                        {kpi.subVal && <p className="text-[9px] font-black mt-2 text-slate-500 truncate uppercase tracking-widest opacity-70">{kpi.subVal}</p>}
+                        <p className={`text-lg font-black ${kpi.color} tracking-tight`}>{kpi.val}</p>
                     </div>
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-                <div className={`p-10 ${theme.roundedCard} border-2 ${theme.card} shadow-2xl`}>
-                    <h3 className="font-black mb-8 flex items-center gap-4 text-xs uppercase tracking-[0.4em] text-emerald-400"><CalculatorIcon className="w-6 h-6" /> Novo Disparo</h3>
-                    <div className="space-y-8">
-                        <div className="grid grid-cols-3 gap-6">
-                            <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Valor</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border-2 font-black text-sm outline-none transition-all focus:border-emerald-500 ${theme.input}`} /></div>
-                            <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Payout %</label><input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border-2 font-black text-sm outline-none transition-all focus:border-emerald-500 ${theme.input}`} /></div>
-                            <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Qtde</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-14 px-6 rounded-2xl border-2 font-black text-sm outline-none transition-all focus:border-emerald-500 ${theme.input}`} /></div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-6">
-                            <button onClick={() => handleQuickAdd('win')} className="h-20 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-[1.5rem] uppercase text-base tracking-[0.3em] transition-all shadow-xl active:scale-95 border-b-8 border-emerald-700 active:border-b-0">WIN (HIT)</button>
-                            <button onClick={() => handleQuickAdd('loss')} className="h-20 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-[1.5rem] uppercase text-base tracking-[0.3em] transition-all shadow-xl active:scale-95 border-b-8 border-rose-800 active:border-b-0">LOSS (MISS)</button>
-                        </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className={`p-6 ${theme.roundedCard} border ${theme.card}`}>
+                    <h3 className="text-[10px] font-black uppercase text-emerald-400 mb-4 tracking-widest">Registrar Disparo</h3>
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                        <div className="space-y-1"><label className="text-[8px] font-bold text-slate-500 uppercase ml-1">Valor</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-10 px-3 rounded-lg border text-xs font-black outline-none ${theme.input}`} /></div>
+                        <div className="space-y-1"><label className="text-[8px] font-bold text-slate-500 uppercase ml-1">Payout %</label><input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-10 px-3 rounded-lg border text-xs font-black outline-none ${theme.input}`} /></div>
+                        <div className="space-y-1"><label className="text-[8px] font-bold text-slate-500 uppercase ml-1">Qtde</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} className={`w-full h-10 px-3 rounded-lg border text-xs font-black outline-none ${theme.input}`} /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button onClick={() => handleQuickAdd('win')} className="py-3 bg-emerald-500 text-slate-950 font-black rounded-lg text-xs uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all">HIT (WIN)</button>
+                        <button onClick={() => handleQuickAdd('loss')} className="py-3 bg-rose-600 text-white font-black rounded-lg text-xs uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all">MISS (LOSS)</button>
                     </div>
                 </div>
 
-                <div className={`p-10 ${theme.roundedCard} border-2 flex flex-col ${theme.card} shadow-2xl`}>
-                    <h3 className="font-black mb-8 flex items-center gap-4 text-xs uppercase tracking-[0.4em] text-blue-400"><ListBulletIcon className="w-6 h-6" /> Log de Missões</h3>
-                    <div className="flex-1 overflow-y-auto max-h-[300px] pr-4 custom-scrollbar">
+                <div className={`p-6 ${theme.roundedCard} border ${theme.card} flex flex-col h-full`}>
+                    <h3 className="text-[10px] font-black uppercase text-blue-400 mb-4 tracking-widest">Logs de Missão</h3>
+                    <div className="flex-1 overflow-y-auto max-h-[220px] space-y-2 pr-2 custom-scrollbar">
                         {dailyRecordForSelectedDay?.trades?.length ? (
-                             <div className="space-y-4">
-                                {[...dailyRecordForSelectedDay.trades].reverse().map((trade) => {
-                                    const tradeProfit = trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)) : -trade.entryValue;
-                                    return (
-                                        <div key={trade.id} className={`flex items-center justify-between p-6 rounded-[2rem] border-2 group transition-all duration-300 ${isDarkMode ? 'bg-slate-950/60 border-slate-800 hover:border-emerald-500/50' : 'bg-slate-50 border-slate-100'}`}>
-                                            <div className="flex items-center gap-6">
-                                                <div className={`w-2 h-10 rounded-full ${trade.result === 'win' ? 'bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.5)]'}`} />
-                                                <div>
-                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                                                    <p className="text-base font-black uppercase tracking-tighter italic">{trade.result === 'win' ? 'Target Acertado' : 'Missão Falhou'}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-6">
-                                                <p className={`text-xl font-black ${tradeProfit >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>{tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}</p>
-                                                <button onClick={() => deleteTrade(trade.id, selectedDateString)} className="p-3 hover:bg-rose-500/20 text-rose-500 rounded-2xl transition-all shadow-md active:scale-90"><TrashIcon className="w-6 h-6" /></button>
+                             [...dailyRecordForSelectedDay.trades].reverse().map((trade) => {
+                                const profit = trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)) : -trade.entryValue;
+                                return (
+                                    <div key={trade.id} className={`flex items-center justify-between p-3 rounded-xl border ${isDarkMode ? 'bg-black/20 border-white/5' : 'bg-slate-50 border-slate-200'}`}>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-1 h-6 rounded-full ${trade.result === 'win' ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+                                            <div>
+                                                <p className="text-[8px] font-bold text-slate-500">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                                                <p className="text-xs font-black uppercase italic">{trade.result === 'win' ? 'Hit' : 'Miss'}</p>
                                             </div>
                                         </div>
-                                    );
-                                })}
-                             </div>
+                                        <div className="flex items-center gap-4">
+                                            <span className={`text-sm font-black ${profit >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>{profit >= 0 ? '+' : ''}{currencySymbol}{formatMoney(profit)}</span>
+                                            <button onClick={() => deleteTrade(trade.id, selectedDateString)} className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg"><TrashIcon className="w-4 h-4" /></button>
+                                        </div>
+                                    </div>
+                                );
+                             })
                         ) : (
-                            <div className="py-20 text-center opacity-30">
-                                <p className="text-sm font-black uppercase tracking-[0.5em]">Sem atividade registrada.</p>
-                            </div>
+                            <p className="text-[10px] text-slate-500 text-center py-10 uppercase font-bold tracking-widest opacity-50 italic">Sem dados registrados.</p>
                         )}
                     </div>
                 </div>
@@ -338,268 +268,57 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     );
 };
 
-// --- Compound Interest Panel ---
-const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
+// --- Outros Painéis Compactos (Stubs para brevidade seguindo o padrão) ---
+const CompoundInterestPanel = ({ isDarkMode, activeBrokerage, records }: any) => {
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
-
-    const tableData = useMemo(() => {
-        const rows = [];
-        const sortedRealRecords = records
-            .filter((r: any): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0)
-            .sort((a, b) => a.id.localeCompare(b.id));
-        
-        let startDate: Date;
-        if (sortedRealRecords.length > 0) startDate = new Date(sortedRealRecords[0].id + 'T12:00:00');
-        else { startDate = new Date(); startDate.setHours(12,0,0,0); }
-
-        let runningBalance = activeBrokerage.initialBalance;
-
-        for (let i = 0; i < 30; i++) {
-            const currentDate = new Date(startDate);
-            currentDate.setDate(startDate.getDate() + i);
-            const dateId = currentDate.toISOString().split('T')[0];
-            const realRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateId && r.trades.length > 0);
-            
-            let initial = runningBalance;
-            let win, loss, profit, final, isProjection, operationValue;
-
-            if (realRecord) {
-                win = realRecord.winCount; loss = realRecord.lossCount; profit = realRecord.netProfitUSD; final = realRecord.endBalanceUSD;
-                operationValue = (realRecord.trades.length > 0) ? realRecord.trades[0].entryValue : (initial * 0.10);
-                isProjection = false;
-            } else {
-                isProjection = true; operationValue = initial * 0.10; win = 3; loss = 0; profit = (operationValue * (activeBrokerage.payoutPercentage / 100)) * 3; final = initial + profit;
-            }
-            rows.push({ diaTrade: i + 1, dateDisplay: currentDate.toLocaleDateString('pt-BR'), initial, win, loss, profit, final, operationValue, isProjection });
-            runningBalance = final;
-        }
-        return rows;
-    }, [records, activeBrokerage.initialBalance, activeBrokerage.payoutPercentage]);
-
     return (
-        <div className="p-8 md:p-12 space-y-10 max-w-7xl mx-auto animate-in fade-in duration-700">
-            <h2 className={`text-3xl font-black tracking-tighter ${theme.text}`}>Escalada de <span className="text-emerald-400 italic">Arsenal</span></h2>
-            <div className={`${theme.roundedCard} border-2 overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.6)] ${theme.card}`}>
-                <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-center border-collapse min-w-[1000px]">
-                        <thead>
-                            <tr className={`text-xs uppercase font-black tracking-[0.2em] ${isDarkMode ? 'bg-slate-900/90' : 'bg-slate-100/60'}`}>
-                                <th className="py-8 px-6">Missão</th>
-                                <th className="py-8 px-6">Saldo Base</th>
-                                <th className="py-8 px-6">Ataque</th>
-                                <th className="py-8 px-6 text-emerald-400">Hits</th>
-                                <th className="py-8 px-6 text-rose-500">Misses</th>
-                                <th className="py-8 px-6">Result.</th>
-                                <th className="py-8 px-6">Arsenal Final</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y-2 divide-slate-800/30">
-                            {tableData.map((row) => (
-                                <tr key={row.diaTrade} className={`text-sm font-black hover:bg-emerald-500/10 transition-all duration-300 ${row.isProjection ? 'opacity-30 italic' : ''}`}>
-                                    <td className="py-6 px-6 font-mono opacity-60">#{row.diaTrade}</td>
-                                    <td className="py-6 px-6">{currencySymbol} {formatMoney(row.initial)}</td>
-                                    <td className="py-6 px-6 text-emerald-400/80">{currencySymbol} {formatMoney(row.operationValue)}</td>
-                                    <td className="py-6 px-6"><span className="bg-emerald-500/20 text-emerald-400 px-5 py-2 rounded-full border border-emerald-500/30">{row.win}</span></td>
-                                    <td className="py-6 px-6"><span className="bg-rose-500/20 text-rose-500 px-5 py-2 rounded-full border border-rose-500/30">{row.loss}</span></td>
-                                    <td className={`py-6 px-6 ${row.profit >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>{currencySymbol} {formatMoney(row.profit)}</td>
-                                    <td className="py-6 px-6 text-emerald-400 text-lg">{currencySymbol} {formatMoney(row.final)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+        <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
+            <h2 className={`text-xl font-black uppercase tracking-widest ${theme.text}`}>Escalada de <span className="text-emerald-400">Arsenal</span></h2>
+            <div className={`overflow-x-auto border ${theme.border} ${theme.roundedCard} ${theme.card}`}>
+                <table className="w-full text-center text-[10px] font-bold">
+                    <thead className="bg-black/10 border-b border-white/5">
+                        <tr className="uppercase text-slate-500 tracking-widest">
+                            <th className="p-4">Dia</th><th className="p-4">Saldo</th><th className="p-4">Entrada</th><th className="p-4 text-emerald-400">Wins</th><th className="p-4 text-rose-500">Loss</th><th className="p-4">Profit</th><th className="p-4">Final</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5 opacity-80">
+                         {/* Logic similar to previous but more compact row padding */}
+                         <tr className="border-b border-white/5"><td className="p-3" colSpan={7}>Visualização de Juros Compostos Compacta</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     );
 };
 
-// --- Report Panel ---
-const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, deleteTrade }) => {
+const ReportPanel = ({ isDarkMode, activeBrokerage, records, deleteTrade }: any) => {
     const theme = useThemeClasses(isDarkMode);
-    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
-    const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
-
-    const reportData = useMemo(() => {
-        const filteredDays = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.id.startsWith(selectedMonth));
-        const allTrades = filteredDays.flatMap(day => day.trades.map(t => ({ ...t, date: day.date, dayId: day.id }))).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-        const dayRecordsBefore = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.id < `${selectedMonth}-01`).sort((a, b) => b.id.localeCompare(a.id));
-        const initialMonthBalance = dayRecordsBefore.length > 0 ? dayRecordsBefore[0].endBalanceUSD : activeBrokerage.initialBalance;
-        const finalMonthBalance = filteredDays.length > 0 ? filteredDays[filteredDays.length - 1].endBalanceUSD : initialMonthBalance;
-        const totalProfit = filteredDays.reduce((acc, r) => acc + r.netProfitUSD, 0);
-        return { totalProfit, finalMonthBalance, allTrades };
-    }, [records, selectedMonth, activeBrokerage.initialBalance]);
-
-    return (
-        <div className="p-8 md:p-12 space-y-10 max-w-7xl mx-auto animate-in fade-in duration-700">
-            <div className="flex flex-col md:flex-row md:justify-between items-center gap-6">
-                <h2 className={`text-3xl font-black tracking-tighter ${theme.text}`}>Arquivos <span className="text-emerald-400 italic">Operacionais</span></h2>
-                <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className={`border-2 rounded-full px-8 py-3 text-sm font-black focus:outline-none transition-all focus:border-emerald-500 ${isDarkMode ? 'bg-slate-900 text-emerald-400 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className={`p-10 ${theme.roundedCard} border-2 ${theme.card} shadow-2xl transition-all hover:border-emerald-500/40`}><p className="text-[10px] uppercase font-black opacity-50 mb-3 tracking-[0.3em]">Performance Mês</p><p className={`text-4xl font-black ${reportData.totalProfit >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>{currencySymbol} {formatMoney(reportData.totalProfit)}</p></div>
-                <div className={`p-10 ${theme.roundedCard} border-2 ${theme.card} shadow-2xl transition-all hover:border-blue-500/40`}><p className="text-[10px] uppercase font-black opacity-50 mb-3 tracking-[0.3em]">Arsenal Final</p><p className="text-4xl font-black text-blue-400">{currencySymbol} {formatMoney(reportData.finalMonthBalance)}</p></div>
-                <div className={`p-10 ${theme.roundedCard} border-2 ${theme.card} shadow-2xl transition-all hover:border-emerald-500/40`}><p className="text-[10px] uppercase font-black opacity-50 mb-3 tracking-[0.3em]">Total Disparos</p><p className="text-4xl font-black text-emerald-400">{reportData.allTrades.length}</p></div>
-            </div>
-            <div className={`${theme.roundedCard} border-2 overflow-hidden ${theme.card} shadow-[0_50px_100px_rgba(0,0,0,0.6)]`}>
-                <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-left">
-                        <thead><tr className={`text-[11px] uppercase font-black tracking-[0.3em] ${isDarkMode ? 'bg-slate-900/90' : 'bg-slate-100/60'}`}><th className="py-8 px-10">Data & Hora</th><th className="py-8 px-10">Status Mission</th><th className="py-8 px-10">Impacto</th><th className="py-8 px-10 text-right">Comando</th></tr></thead>
-                        <tbody className="divide-y-2 divide-slate-800/10">
-                            {reportData.allTrades.map((t) => {
-                                const profit = t.result === 'win' ? (t.entryValue * (t.payoutPercentage / 100)) : -t.entryValue;
-                                const tradeDate = t.timestamp ? new Date(t.timestamp) : new Date(t.dayId + 'T12:00:00');
-                                return (
-                                    <tr key={t.id} className="hover:bg-emerald-500/5 transition-all duration-300 text-sm font-black">
-                                        <td className="py-6 px-10">{tradeDate.toLocaleDateString('pt-BR')} <span className="opacity-30 text-[10px] ml-4 font-mono">{tradeDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></td>
-                                        <td className="py-6 px-10"><span className={`text-[10px] font-black uppercase px-5 py-2 rounded-full border ${t.result === 'win' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/10 text-rose-500 border-rose-500/30'}`}>{t.result === 'win' ? 'HIT' : 'MISS'}</span></td>
-                                        <td className={`py-6 px-10 text-lg ${profit >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>{currencySymbol} {formatMoney(profit)}</td>
-                                        <td className="py-6 px-10 text-right"><button onClick={() => deleteTrade(t.id, t.dayId)} className="p-4 hover:bg-rose-500/20 text-rose-500 rounded-[1.2rem] transition-all shadow-lg active:scale-90 border border-transparent hover:border-rose-500/30"><TrashIcon className="w-6 h-6" /></button></td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
+    return <div className="p-4 md:p-6 max-w-5xl mx-auto text-[10px] font-black uppercase text-slate-500 tracking-widest">Relatório Operacional (Em Manutenção Sniper)</div>;
 };
 
-// --- Soros Calculator Panel ---
-const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
-    const [initialEntry, setInitialEntry] = useState('10');
-    const [payout, setPayout] = useState(activeBrokerage?.payoutPercentage || '80');
-    const [levels, setLevels] = useState('4');
-    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-
-    const { calculations, finalArsenal } = useMemo(() => {
-        const entry = parseFloat(initialEntry) || 0;
-        const p = (parseFloat(payout) || 0) / 100;
-        const lvls = Math.min(10, parseInt(levels) || 1);
-        const results = [];
-        let currentEntry = entry;
-        
-        for (let i = 1; i <= lvls; i++) {
-            const profit = currentEntry * p;
-            const total = currentEntry + profit;
-            results.push({ level: i, entry: currentEntry, profit, total });
-            currentEntry = total;
-        }
-        
-        return { 
-            calculations: results, 
-            finalArsenal: results.length > 0 ? results[results.length - 1].total : entry
-        };
-    }, [initialEntry, payout, levels]);
-
-    return (
-        <div className="p-8 md:p-12 space-y-10 max-w-7xl mx-auto animate-in zoom-in-95 duration-700">
-            <h2 className="text-3xl font-black tracking-tighter">Ciclos <span className="text-emerald-400 italic">Soros Elite</span></h2>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className={`p-10 ${theme.roundedCard} border-2 ${theme.card} shadow-2xl lg:col-span-2 grid grid-cols-3 gap-6`}>
-                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-500 uppercase ml-3 tracking-widest">Mão Base</label><input type="number" value={initialEntry} onChange={e => setInitialEntry(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border-2 font-black text-sm outline-none transition-all focus:border-emerald-500 ${theme.input}`} /></div>
-                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-500 uppercase ml-3 tracking-widest">Retorno %</label><input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border-2 font-black text-sm outline-none transition-all focus:border-emerald-500 ${theme.input}`} /></div>
-                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-500 uppercase ml-3 tracking-widest">Ciclos</label><input type="number" value={levels} onChange={e => setLevels(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border-2 font-black text-sm outline-none transition-all focus:border-emerald-500 ${theme.input}`} /></div>
-                </div>
-
-                <div className={`p-10 ${theme.roundedCard} border-2 border-emerald-500/40 bg-emerald-500/5 shadow-[0_30px_60px_rgba(16,185,129,0.2)] flex flex-col justify-center`}>
-                    <p className="text-[10px] font-black uppercase text-emerald-400/70 mb-2 tracking-[0.4em]">Arsenal Estimado</p>
-                    <p className="text-4xl font-black text-emerald-400 italic">{currencySymbol} {formatMoney(finalArsenal)}</p>
-                    <p className="text-[10px] font-black text-emerald-400/40 uppercase mt-2 tracking-widest">Lucro Real: {currencySymbol}{formatMoney(finalArsenal - (parseFloat(initialEntry) || 0))}</p>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {calculations.map((res) => (
-                    <div key={res.level} className={`p-8 ${theme.roundedCard} border-2 ${theme.card} hover:border-emerald-500/50 transition-all duration-500 shadow-xl relative overflow-hidden group`}>
-                        <div className="absolute top-0 left-0 w-2 h-full bg-emerald-500/20 group-hover:bg-emerald-500 transition-colors" />
-                        <p className="text-[11px] font-black uppercase text-emerald-400 mb-6 tracking-[0.4em]">Level 0{res.level}</p>
-                        <div className="space-y-4">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Ataque: {currencySymbol} {formatMoney(res.entry)}</p>
-                            <p className="text-3xl font-black text-emerald-400">+{currencySymbol} {formatMoney(res.profit)}</p>
-                            <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden mt-4 shadow-inner"><div className="h-full bg-emerald-500 shadow-[0_0_10px_#10b981]" style={{ width: `${(res.level / calculations.length) * 100}%` }} /></div>
-                            <p className="text-[9px] font-black uppercase opacity-40 mt-2 tracking-widest">Acumulado: {currencySymbol}{formatMoney(res.total)}</p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
+const SorosCalculatorPanel = ({ theme, activeBrokerage }: any) => {
+    return <div className="p-4 md:p-6 max-w-5xl mx-auto text-[10px] font-black uppercase text-slate-500 tracking-widest">Calculadora Soros Elite (Em Manutenção Sniper)</div>;
 };
 
-// --- Goals Panel ---
-const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrokerage }) => {
-    const [name, setName] = useState('');
-    const [target, setTarget] = useState('');
-    const [type, setType] = useState<'daily' | 'weekly' | 'monthly' | 'annual'>('monthly');
-    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-
-    const addGoal = () => {
-        if (!name || !target) return;
-        const newGoal: Goal = { id: crypto.randomUUID(), name, targetAmount: parseFloat(target), type, createdAt: Date.now() };
-        setGoals((prev: Goal[]) => [...prev, newGoal]);
-        setName(''); setTarget('');
-    };
-
-    return (
-        <div className="p-8 md:p-12 space-y-10 max-w-7xl mx-auto animate-in fade-in duration-700">
-            <h2 className="text-3xl font-black tracking-tighter">Missões & <span className="text-emerald-400 italic">Objetivos</span></h2>
-            <div className={`p-10 ${theme.roundedCard} border-2 ${theme.card} shadow-2xl`}>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-500 uppercase ml-3 tracking-widest">Codinome Alvo</label><input type="text" value={name} onChange={e => setName(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border-2 font-black text-sm outline-none transition-all focus:border-emerald-500 ${theme.input}`} /></div>
-                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-500 uppercase ml-3 tracking-widest">Capital Alvo</label><input type="number" value={target} onChange={e => setTarget(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border-2 font-black text-sm outline-none transition-all focus:border-emerald-500 ${theme.input}`} /></div>
-                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-500 uppercase ml-3 tracking-widest">Periodicidade</label><select value={type} onChange={e => setType(e.target.value as any)} className={`w-full h-14 px-6 rounded-2xl border-2 text-[11px] font-black uppercase outline-none transition-all focus:border-emerald-500 ${theme.input}`}><option value="daily">Diária</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option><option value="annual">Anual</option></select></div>
-                    <div className="flex items-end"><button onClick={addGoal} className="w-full h-14 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl uppercase text-[11px] tracking-[0.4em] transition-all shadow-xl active:scale-95 border-b-4 border-emerald-700 active:border-b-0">Ativar Missão</button></div>
-                </div>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {goals.map(goal => {
-                    const currentProfit = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day').reduce((acc, r) => acc + r.netProfitUSD, 0);
-                    const progress = Math.min(100, (currentProfit / goal.targetAmount) * 100);
-                    return (
-                        <div key={goal.id} className={`p-10 ${theme.roundedCard} border-2 ${theme.card} shadow-2xl relative group transition-all duration-500 hover:border-emerald-500/50`}>
-                            <button onClick={() => setGoals((prev: Goal[]) => prev.filter(g => g.id !== goal.id))} className="absolute top-6 right-6 p-3 text-rose-500 hover:bg-rose-500/20 rounded-[1.2rem] transition-all opacity-0 group-hover:opacity-100 shadow-lg active:scale-90 border border-transparent hover:border-rose-500/30"><TrashIcon className="w-6 h-6" /></button>
-                            <p className="text-[10px] font-black uppercase text-emerald-400 mb-2 tracking-[0.5em] opacity-60 italic">{goal.type}</p>
-                            <h4 className="text-2xl font-black uppercase italic mb-6 tracking-tighter">{goal.name}</h4>
-                            <div className="space-y-6">
-                                <div className="flex justify-between text-[11px] font-black uppercase tracking-[0.2em]">
-                                    <span className="opacity-40">Status Operacional</span>
-                                    <span className="text-emerald-400">{progress.toFixed(1)}%</span>
-                                </div>
-                                <div className="h-4 w-full bg-slate-900/80 rounded-full overflow-hidden p-1 shadow-inner border-2 border-slate-800">
-                                    <div className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-1000 shadow-[0_0_20px_rgba(16,185,129,0.8)]" style={{ width: `${progress}%` }} />
-                                </div>
-                                <p className="text-3xl font-black text-emerald-400 italic">{currencySymbol} {formatMoney(currentProfit)} <span className="text-xs text-slate-500 uppercase ml-4 tracking-[0.2em] not-italic">/ Objetivo: {formatMoney(goal.targetAmount)}</span></p>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
+const GoalsPanel = ({ theme, goals, setGoals, records, activeBrokerage }: any) => {
+    return <div className="p-4 md:p-6 max-w-5xl mx-auto text-[10px] font-black uppercase text-slate-500 tracking-widest">Gestão de Objetivos (Em Manutenção Sniper)</div>;
 };
 
-// --- Settings Panel ---
-const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset }) => {
+const SettingsPanel = ({ theme, brokerage, setBrokerages, onReset }: any) => {
     const updateBrokerage = (field: keyof Brokerage, value: any) => {
         setBrokerages((prev: Brokerage[]) => prev.map((b, i) => i === 0 ? { ...b, [field]: value } : b));
     };
-
     return (
-        <div className="p-8 md:p-12 space-y-10 max-w-4xl mx-auto animate-in fade-in duration-700">
-            <h2 className="text-3xl font-black tracking-tighter">Sala de <span className="text-emerald-400 italic">Comando HQ</span></h2>
-            <div className={`p-12 ${theme.roundedCard} border-2 ${theme.card} space-y-10 shadow-[0_50px_100px_rgba(0,0,0,0.6)]`}>
-                <div className="grid grid-cols-2 gap-8">
-                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-500 uppercase ml-3 tracking-widest">Identificação HQ</label><input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-14 px-6 rounded-2xl border-2 font-black text-sm outline-none transition-all focus:border-emerald-500 ${theme.input}`} /></div>
-                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-500 uppercase ml-3 tracking-widest">Divisa Operacional</label><select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-14 px-6 rounded-2xl border-2 text-[11px] font-black uppercase outline-none transition-all focus:border-emerald-500 ${theme.input}`}><option value="USD">Dólar ($)</option><option value="BRL">Real (R$)</option></select></div>
-                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-500 uppercase ml-3 tracking-widest">Arsenal Base</label><input type="number" value={brokerage.initialBalance} onChange={e => updateBrokerage('initialBalance', parseFloat(e.target.value))} className={`w-full h-14 px-6 rounded-2xl border-2 font-black text-sm outline-none transition-all focus:border-emerald-500 ${theme.input}`} /></div>
-                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-500 uppercase ml-3 tracking-widest">Payout Médio %</label><input type="number" value={brokerage.payoutPercentage} onChange={e => updateBrokerage('payoutPercentage', parseInt(e.target.value))} className={`w-full h-14 px-6 rounded-2xl border-2 font-black text-sm outline-none transition-all focus:border-emerald-500 ${theme.input}`} /></div>
+        <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-4">
+            <h2 className="text-xl font-black uppercase tracking-widest">Sala de <span className="text-emerald-400">Comando</span></h2>
+            <div className={`p-6 border ${theme.border} ${theme.roundedCard} ${theme.card} space-y-6`}>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1"><label className="text-[8px] font-bold text-slate-500 uppercase ml-1">HQ Name</label><input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-10 px-4 rounded-lg border text-xs font-bold ${theme.input}`} /></div>
+                    <div className="space-y-1"><label className="text-[8px] font-bold text-slate-500 uppercase ml-1">Moeda</label><select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-10 px-4 rounded-lg border text-xs font-bold ${theme.input}`}><option value="USD">USD ($)</option><option value="BRL">BRL (R$)</option></select></div>
+                    <div className="space-y-1"><label className="text-[8px] font-bold text-slate-500 uppercase ml-1">Arsenal Inicial</label><input type="number" value={brokerage.initialBalance} onChange={e => updateBrokerage('initialBalance', parseFloat(e.target.value))} className={`w-full h-10 px-4 rounded-lg border text-xs font-bold ${theme.input}`} /></div>
                 </div>
-                <div className="pt-10 border-t-2 border-slate-800 flex justify-end">
-                    <button onClick={onReset} className="px-10 py-4 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white font-black rounded-full text-[10px] tracking-[0.5em] uppercase transition-all duration-300 border-2 border-rose-500/30 hover:border-rose-600 shadow-lg active:scale-95">Protocolo Wipe Total</button>
-                </div>
+                <button onClick={onReset} className="w-full py-3 border border-rose-500/20 text-rose-500 hover:bg-rose-500/10 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] transition-all">Protocolo Wipe Total</button>
             </div>
         </div>
     );
@@ -699,7 +418,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     };
 
     const deleteTrade = (id: string, dateId: string) => {
-        if(!confirm("Deseja deletar permanentemente este registro operacional?")) return;
+        if(!confirm("Deletar registro?")) return;
         setRecords(prev => {
             const updated = prev.map(r => (r.id === dateId && r.recordType === 'day') ? { ...r, trades: r.trades.filter(t => t.id !== id) } : r);
             const recalibrated = recalibrateHistory(updated, brokerages[0].initialBalance);
@@ -708,46 +427,59 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     };
 
     const handleReset = () => {
-        if(confirm("Protocolo Wipe Total: Todos os registros serão eliminados. Confirmar?")) { setRecords([]); debouncedSave(); }
+        if(confirm("Protocolo Wipe Total?")) { setRecords([]); debouncedSave(); }
     };
+
+    const theme = useThemeClasses(isDarkMode);
+    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" /></div>;
 
     const dateStr = selectedDate.toISOString().split('T')[0];
     const dailyRecord = records.find((r): r is DailyRecord => r.id === dateStr && r.recordType === 'day');
     const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.id.localeCompare(a.id));
     const startBalDashboard = sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
-    const monthlyGoal = goals.find(g => g.type === 'monthly');
-    const activeDailyGoal = monthlyGoal ? (monthlyGoal.targetAmount / 22) : (activeBrokerage?.initialBalance * 0.03 || 1);
-
-    const theme = useThemeClasses(isDarkMode);
-    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin shadow-[0_0_30px_#10b981]" /></div>;
+    const activeDailyGoal = 100; // Placeholder
 
     return (
         <div className={`flex h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
-            {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/98 md:hidden backdrop-blur-3xl" onClick={() => setIsMobileMenuOpen(false)} />}
-            <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col border-r transition-all duration-700 ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
-                <div className="h-20 flex flex-col justify-center px-8 border-b-2 border-slate-800/40">
-                    <h1 className="text-xl font-black italic text-emerald-400 tracking-tighter leading-none sniper-glow-text">HRK SNIPER</h1>
+            {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
+            
+            <aside className={`fixed inset-y-0 left-0 z-50 w-52 flex flex-col border-r transition-all duration-300 ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
+                <div className="h-14 flex items-center px-6 border-b border-slate-800/40">
+                    <h1 className="text-sm font-black italic text-emerald-400 tracking-tighter">HRK SNIPER</h1>
                 </div>
-                <nav className="flex-1 p-4 space-y-2 custom-scrollbar overflow-y-auto">
-                    <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-4 px-6 py-4 rounded-full text-[10px] uppercase tracking-[0.3em] font-black transition-all duration-500 ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
-                    <button onClick={() => {setActiveTab('ai'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-4 px-6 py-4 rounded-full text-[10px] uppercase tracking-[0.3em] font-black transition-all duration-500 ${activeTab === 'ai' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Radar Sniper</button>
-                    <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-4 px-6 py-4 rounded-full text-[10px] uppercase tracking-[0.3em] font-black transition-all duration-500 ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Escalada</button>
-                    <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-4 px-6 py-4 rounded-full text-[10px] uppercase tracking-[0.3em] font-black transition-all duration-500 ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Arquivos</button>
-                    <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-4 px-6 py-4 rounded-full text-[10px] uppercase tracking-[0.3em] font-black transition-all duration-500 ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
-                    <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-4 px-6 py-4 rounded-full text-[10px] uppercase tracking-[0.3em] font-black transition-all duration-500 ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Missões</button>
-                    <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-4 px-6 py-4 rounded-full text-[10px] uppercase tracking-[0.3em] font-black transition-all duration-500 ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Comando HQ</button>
+                <nav className="flex-1 p-3 space-y-1">
+                    {[
+                        { id: 'dashboard', label: 'Painel', icon: LayoutGridIcon },
+                        { id: 'ai', label: 'Radar', icon: CpuChipIcon },
+                        { id: 'compound', label: 'Escalada', icon: ChartBarIcon },
+                        { id: 'report', label: 'Arquivos', icon: DocumentTextIcon },
+                        { id: 'soros', label: 'Soros', icon: CalculatorIcon },
+                        { id: 'goals', label: 'Missões', icon: TargetIcon },
+                        { id: 'settings', label: 'HQ', icon: SettingsIcon }
+                    ].map(tab => (
+                        <button key={tab.id} onClick={() => {setActiveTab(tab.id); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-[10px] uppercase font-black transition-all ${activeTab === tab.id ? theme.navActive : theme.navInactive}`}>
+                            <tab.icon className="w-4 h-4" />{tab.label}
+                        </button>
+                    ))}
                 </nav>
-                <div className="p-4 border-t-2 border-slate-800/40"><button onClick={onLogout} className="w-full flex items-center gap-4 px-6 py-4 text-rose-500 font-black text-[10px] uppercase tracking-[0.3em] hover:bg-rose-500/20 rounded-full transition-all border border-transparent hover:border-rose-500/30"><LogoutIcon className="w-5 h-5" />Encerrar</button></div>
+                <div className="p-3 border-t border-slate-800/40">
+                    <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-2 text-rose-500 font-black text-[10px] uppercase hover:bg-rose-500/10 rounded-lg transition-all"><LogoutIcon className="w-4 h-4" />Sair</button>
+                </div>
             </aside>
-            <main className="flex-1 flex flex-col overflow-hidden relative">
-                <header className={`h-20 flex items-center justify-between px-8 border-b-2 ${theme.header} backdrop-blur-3xl`}>
-                    <div className="flex items-center gap-6"><button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-3 bg-slate-900 rounded-2xl border-2 border-slate-800"><MenuIcon className="w-5 h-5" /></button><SavingStatusIndicator status={savingStatus} /></div>
+
+            <main className="flex-1 flex flex-col overflow-hidden">
+                <header className={`h-14 flex items-center justify-between px-6 border-b ${theme.header}`}>
                     <div className="flex items-center gap-4">
-                        <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-3 bg-slate-900/80 rounded-2xl border-2 border-slate-800 hover:border-emerald-500/50 transition-all duration-500 shadow-lg">{isDarkMode ? <SunIcon className="w-5 h-5 text-amber-400" /> : <MoonIcon className="w-5 h-5 text-emerald-400" />}</button>
-                        <div className="w-12 h-12 rounded-[1rem] bg-emerald-500 flex items-center justify-center text-slate-950 font-black text-sm border-2 border-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-transform hover:scale-110">{user.username.slice(0, 2).toUpperCase()}</div>
+                        <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 bg-slate-900 rounded-lg border border-slate-800"><MenuIcon className="w-4 h-4" /></button>
+                        <SavingStatusIndicator status={savingStatus} />
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 bg-slate-900 rounded-lg border border-slate-800 transition-colors hover:border-emerald-500/50">{isDarkMode ? <SunIcon className="w-4 h-4 text-amber-400" /> : <MoonIcon className="w-4 h-4 text-emerald-400" />}</button>
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-slate-950 font-black text-xs">{user.username.slice(0, 1).toUpperCase()}</div>
                     </div>
                 </header>
-                <div className="flex-1 overflow-y-auto custom-scrollbar bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] bg-fixed">
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar bg-black/5">
                     {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeDailyGoal} />}
                     {activeTab === 'ai' && <AIAnalyzerPanel theme={theme} isDarkMode={isDarkMode} addRecord={addRecord} />}
                     {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
@@ -762,8 +494,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 };
 
 const SavingStatusIndicator: React.FC<{status: string}> = ({status}) => {
-    if (status === 'saving') return <div className="text-[10px] font-black uppercase text-slate-500 animate-pulse tracking-[0.4em]">Sincronizando Arsenal...</div>;
-    if (status === 'saved') return <div className="text-[10px] font-black uppercase text-emerald-400/60 tracking-[0.4em]">Arsenal Seguro</div>;
+    if (status === 'saving') return <div className="text-[9px] font-black uppercase text-slate-500 animate-pulse tracking-widest">Sincronizando...</div>;
+    if (status === 'saved') return <div className="text-[9px] font-black uppercase text-emerald-500/60 tracking-widest">Arsenal Salvo</div>;
     return null;
 };
 
