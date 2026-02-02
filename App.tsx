@@ -88,20 +88,20 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const mimeType = image.split(';')[0].split(':')[1];
             const base64Data = image.split(',')[1];
             
-            const prompt = `VOCÊ É O MOTOR DE VISÃO SNIPER v7.0.
+            // Sniper Vision v8.0 - ULTRA CONTRAST PROMPT
+            const prompt = `VOCÊ É O ANALISTA SNIPER VISION v8.0 - ESPECIALISTA EM SEGMENTAÇÃO DE IMAGEM.
             
-            TAREFA CRÍTICA DE FILTRAGEM:
-            - O gráfico possui uma marca d'água de fundo (TEXTO "AXIUN" OU LOGO "A"). 
-            - VOCÊ DEVE IGNORAR TOTALMENTE ESSA CAMADA DE FUNDO.
-            - FOQUE APENAS NOS OBJETOS DE PRIMEIRO PLANO: Candlesticks (Velas) e Linhas de Indicadores.
-            - CANDLESTICKS: Verdes (Alta), Vermelhos (Baixa). Identifique o corpo e os pavios.
+            SUA MISSÃO PRIORITÁRIA:
+            1. DETECÇÃO DE CAMADAS: O gráfico possui uma marca d'água "AXIUN" ou logotipos cinzas ao fundo. VOCÊ DEVE DELETAR MENTALMENTE ESSA CAMADA.
+            2. FOCO NO SINAL: Identifique apenas as VELAS (corpos retangulares verdes e vermelhos) e seus PAVIOS (linhas finas acima/abaixo).
+            3. FILTRO DE RUÍDO: Ignore grades, textos de fundo e logos da corretora. Concentre-se apenas no MOVIMENTO DO PREÇO (Price Action).
             
-            ANÁLISE TÉCNICA (OPÇÕES BINÁRIAS M1):
-            1. Identifique a tendência imediata (últimas 10 velas).
-            2. Procure por Padrões de Reversão: Martelo em suporte, Estrela cadente em resistência, Engolfos.
-            3. Verifique exaustão em Bandas de Bollinger e RSI.
+            ANÁLISE TÉCNICA (M1):
+            - Verifique se a última vela é de força ou exaustão.
+            - Localize zonas de suporte/resistência onde o preço "bateu e voltou".
+            - Analise se o RSI/Indicadores (se visíveis) confirmam o movimento.
             
-            SÓ EMITA CALL OU PUT SE A CONFIANÇA FOR ACIMA DE 80%. CASO CONTRÁRIO, "AGUARDAR".`;
+            OUTPUT: Você deve fornecer uma recomendação clara de CALL, PUT ou AGUARDAR baseada na CONFLUÊNCIA de pelo menos 3 fatores.`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-3-pro-preview',
@@ -117,13 +117,13 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         type: Type.OBJECT,
                         properties: {
                             operacao: { type: Type.STRING, description: "CALL, PUT ou AGUARDAR" },
-                            confianca: { type: Type.NUMBER },
-                            analise_visual: { type: Type.STRING, description: "O que você viu ignorando o fundo" },
-                            padrao_detectado: { type: Type.STRING },
-                            confluencias: { type: Type.ARRAY, items: { type: Type.STRING } },
-                            risco: { type: Type.STRING }
+                            confianca: { type: Type.NUMBER, description: "Probabilidade de acerto 0-100" },
+                            leitura_velas: { type: Type.STRING, description: "O que você identificou nas últimas velas (ignorando o fundo)" },
+                            setup: { type: Type.STRING, description: "Nome da estratégia identificada (ex: Engolfo, Pullback)" },
+                            confluencias: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Lista de motivos para a entrada" },
+                            zona_alvo: { type: Type.STRING, description: "Onde o preço deve chegar" }
                         },
-                        required: ["operacao", "confianca", "analise_visual", "padrao_detectado", "confluencias", "risco"]
+                        required: ["operacao", "confianca", "leitura_velas", "setup", "confluencias", "zona_alvo"]
                     },
                     temperature: 0.1,
                 }
@@ -133,11 +133,11 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             if (text) {
                 setResult(JSON.parse(text));
             } else {
-                throw new Error("Falha na interpretação visual");
+                throw new Error("Resposta de visão inválida");
             }
         } catch (err: any) {
-            console.error("Sniper System v7.0 Error:", err);
-            setError("ERRO DE SEGMENTAÇÃO: O sistema não conseguiu isolar as velas do ruído de fundo. Sugestão: Aumente o brilho do gráfico ou use o modo Escuro (Dark Mode) na corretora para melhor contraste.");
+            console.error("Sniper v8.0 Engine Error:", err);
+            setError("ALERTA DE CONTRASTE: O Motor v8.0 detectou poluição visual excessiva. A marca d'água está muito forte ou as velas estão muito pequenas. DICA: Dê zoom nas últimas 10-15 velas para análise Sniper.");
         } finally {
             setAnalyzing(false);
         }
@@ -148,44 +148,48 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             <div className="flex justify-between items-center shrink-0">
                 <div>
                     <h2 className={`text-4xl font-black ${theme.text} tracking-tighter uppercase italic flex items-center gap-3`}>
-                        <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-[0_0_20px_#10b98144]">
-                             <CpuChipIcon className="w-6 h-6 text-slate-950" />
+                        <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-[0_0_30px_#10b98166]">
+                             <CpuChipIcon className="w-7 h-7 text-slate-950" />
                         </div>
-                        Sniper <span className="text-emerald-500">Vision v7.0</span>
+                        Sniper <span className="text-emerald-500">Vision v8.0</span>
                     </h2>
-                    <p className={`${theme.textMuted} mt-1 font-bold text-xs uppercase tracking-[0.2em]`}>Motor de Segmentação Profissional - Filtro Anti-Ruído Ativo</p>
+                    <p className={`${theme.textMuted} mt-1 font-bold text-[10px] uppercase tracking-[0.3em]`}>Motor Ultra Contrast - Inteligência de Segmentação Ativa</p>
+                </div>
+                <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]" />
+                    <p className="text-[10px] font-black uppercase text-slate-400">Status: Sincronizado</p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 overflow-hidden min-h-0">
-                <div className="lg:col-span-7 flex flex-col gap-4 overflow-hidden">
-                    <div className={`relative flex-1 rounded-[3rem] border-2 border-dashed ${image ? 'border-emerald-500/40' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center overflow-hidden bg-slate-950 transition-all group shadow-2xl shadow-emerald-500/5`}>
+                <div className="lg:col-span-7 flex flex-col gap-5 overflow-hidden">
+                    <div className={`relative flex-1 rounded-[3.5rem] border-2 border-dashed ${image ? 'border-emerald-500/40' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center overflow-hidden bg-slate-950 transition-all group shadow-inner`}>
                         {image ? (
                             <div className="relative w-full h-full p-4 flex items-center justify-center">
-                                <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)]" />
+                                <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-3xl shadow-[0_0_80px_rgba(0,0,0,0.8)]" />
                                 
                                 {analyzing && (
                                     <div className="absolute inset-0 z-20 pointer-events-none overflow-hidden">
-                                        <div className="absolute top-0 left-0 w-full h-1 bg-emerald-400 shadow-[0_0_25px_#4ade80] animate-[scan_2.5s_ease-in-out_infinite]" />
-                                        <div className="absolute inset-0 bg-emerald-500/[0.03] backdrop-blur-[1px]" />
-                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                                            <div className="w-32 h-32 border-2 border-emerald-500/20 rounded-full animate-ping" />
+                                        <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-400 shadow-[0_0_30px_#4ade80] animate-[scan_2s_ease-in-out_infinite]" />
+                                        <div className="absolute inset-0 bg-emerald-500/[0.05] backdrop-blur-[2px]" />
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="w-48 h-48 border-4 border-emerald-500/10 rounded-full animate-ping" />
                                         </div>
                                     </div>
                                 )}
 
-                                <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-md">
-                                    <button onClick={() => setImage(null)} className="p-5 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-2xl active:scale-95"><TrashIcon className="w-8 h-8" /></button>
+                                <div className="absolute inset-0 bg-black/75 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-xl">
+                                    <button onClick={() => setImage(null)} className="p-6 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-2xl active:scale-95 border-4 border-white/10"><TrashIcon className="w-10 h-10" /></button>
                                 </div>
                             </div>
                         ) : (
-                            <label className="cursor-pointer flex flex-col items-center gap-8 text-center p-12 w-full h-full justify-center">
-                                <div className="w-24 h-24 bg-emerald-500/10 rounded-[2rem] flex items-center justify-center border border-emerald-500/20 group-hover:rotate-6 transition-all duration-500">
-                                    <PlusIcon className="w-12 h-12 text-emerald-500" />
+                            <label className="cursor-pointer flex flex-col items-center gap-10 text-center p-16 w-full h-full justify-center hover:bg-emerald-500/[0.02] transition-colors">
+                                <div className="w-28 h-28 bg-emerald-500/10 rounded-[2.5rem] flex items-center justify-center border-2 border-emerald-500/20 group-hover:rotate-12 transition-all duration-700 shadow-xl">
+                                    <PlusIcon className="w-14 h-14 text-emerald-500" />
                                 </div>
-                                <div className="max-w-xs space-y-3">
-                                    <p className="font-black text-lg uppercase tracking-[0.2em] text-white">Importar Gráfico</p>
-                                    <p className="text-[11px] opacity-40 font-bold text-slate-400 uppercase tracking-widest leading-relaxed">Pressione Ctrl+V para colar.<br/>O Motor v7.0 isola o price action ignorando a marca d'água da Axiun.</p>
+                                <div className="max-w-xs space-y-4">
+                                    <p className="font-black text-xl uppercase tracking-[0.25em] text-white">Upload Sniper</p>
+                                    <p className="text-[11px] opacity-50 font-bold text-slate-400 uppercase tracking-widest leading-relaxed">Arraste, cole (Ctrl+V) ou clique.<br/>O Motor v8.0 processa em HDR para ignorar fundos de corretoras.</p>
                                 </div>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                             </label>
@@ -195,18 +199,18 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     <button 
                         onClick={analyzeChart} 
                         disabled={!image || analyzing}
-                        className={`h-24 shrink-0 rounded-[2.5rem] font-black uppercase tracking-[0.5em] transition-all flex items-center justify-center gap-4 text-sm shadow-2xl
-                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border border-slate-800' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 active:scale-95'}`}
+                        className={`h-24 shrink-0 rounded-[3rem] font-black uppercase tracking-[0.6em] transition-all flex items-center justify-center gap-5 text-sm shadow-2xl
+                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border border-slate-800' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/30 active:scale-95 active:rotate-1'}`}
                     >
                         {analyzing ? (
                             <>
-                                <ArrowPathIcon className="w-7 h-7 animate-spin" />
-                                <span className="animate-pulse italic">Escaneando Camadas de Preço...</span>
+                                <ArrowPathIcon className="w-8 h-8 animate-spin" />
+                                <span className="animate-pulse italic">Analisando Camadas HDR...</span>
                             </>
                         ) : (
                             <>
-                                <CpuChipIcon className="w-8 h-8" />
-                                Iniciar Varredura Sniper
+                                <CpuChipIcon className="w-9 h-9" />
+                                Executar Leitura Sniper
                             </>
                         )}
                     </button>
@@ -214,54 +218,58 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
 
                 <div className="lg:col-span-5 overflow-y-auto custom-scrollbar pr-2 space-y-6">
                     {error && (
-                        <div className="p-8 bg-red-500/10 border border-red-500/20 rounded-[2.5rem] flex items-start gap-5 text-red-500 animate-in zoom-in duration-500 shadow-xl">
-                            <InformationCircleIcon className="w-10 h-10 shrink-0" />
-                            <div className="space-y-2">
-                                <p className="text-sm font-black uppercase tracking-widest">Alerta do Motor v7.0</p>
-                                <p className="text-[11px] font-bold opacity-80 leading-relaxed uppercase">{error}</p>
+                        <div className="p-8 bg-red-500/10 border-2 border-red-500/20 rounded-[3rem] flex items-start gap-6 text-red-500 animate-in zoom-in duration-500 shadow-2xl">
+                            <InformationCircleIcon className="w-12 h-12 shrink-0" />
+                            <div className="space-y-3">
+                                <p className="text-base font-black uppercase tracking-widest">Erro no Motor v8.0</p>
+                                <p className="text-xs font-bold opacity-80 leading-relaxed uppercase">{error}</p>
+                                <div className="pt-2">
+                                    <button onClick={() => setImage(null)} className="text-[10px] font-black uppercase underline hover:text-white transition-colors">Tentar nova captura</button>
+                                </div>
                             </div>
                         </div>
                     )}
 
                     {result ? (
-                        <div className={`p-10 rounded-[3.5rem] border ${theme.card} space-y-10 animate-in fade-in slide-in-from-right-12 duration-1000 shadow-[0_0_100px_rgba(16,185,129,0.05)] relative overflow-hidden bg-slate-900/60`}>
-                            <div className={`absolute -top-20 -right-20 w-64 h-64 blur-[100px] opacity-20 rounded-full ${result.operacao === 'CALL' ? 'bg-emerald-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
+                        <div className={`p-10 rounded-[4rem] border-2 ${theme.card} space-y-12 animate-in fade-in slide-in-from-right-16 duration-1000 shadow-[0_0_120px_rgba(16,185,129,0.08)] relative overflow-hidden bg-slate-900/70 backdrop-blur-2xl`}>
+                            <div className={`absolute -top-24 -right-24 w-80 h-80 blur-[120px] opacity-30 rounded-full ${result.operacao === 'CALL' ? 'bg-emerald-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
                             
-                            <div className="flex justify-between items-end relative z-10 border-b border-white/5 pb-8">
-                                <div className="space-y-1">
-                                    <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest">Sinal Processado</p>
-                                    <h3 className={`text-8xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-emerald-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
+                            <div className="flex justify-between items-end relative z-10 border-b border-white/10 pb-10">
+                                <div className="space-y-2">
+                                    <p className="text-[12px] font-black uppercase text-slate-500 tracking-[0.4em]">Decisão Final</p>
+                                    <h3 className={`text-9xl font-black tracking-tighter italic leading-none ${result.operacao === 'CALL' ? 'text-emerald-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-300'}`}>
                                         {result.operacao}
                                     </h3>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest">Confiança IA</p>
-                                    <p className={`text-5xl font-black ${result.confianca > 85 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
+                                    <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest">Assertividade</p>
+                                    <p className={`text-6xl font-black leading-none ${result.confianca > 85 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
                                 </div>
                             </div>
 
-                            <div className="space-y-6 relative z-10">
-                                <div className="p-6 bg-slate-950/80 rounded-[2rem] border border-white/5 backdrop-blur-2xl space-y-3">
-                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500/60 flex items-center gap-2">
-                                        <TrendingUpIcon className="w-4 h-4" /> Relatório Visual (Filtro v7.0)
+                            <div className="space-y-8 relative z-10">
+                                <div className="p-8 bg-slate-950/90 rounded-[2.5rem] border border-white/10 space-y-4 shadow-2xl">
+                                    <p className="text-[11px] font-black uppercase tracking-[0.3em] text-emerald-500/70 flex items-center gap-3">
+                                        <TrendingUpIcon className="w-5 h-5" /> Leitura Técnica HDR
                                     </p>
-                                    <p className="text-sm font-bold leading-relaxed italic text-white/90">"{result.analise_visual}"</p>
+                                    <p className="text-base font-bold leading-relaxed italic text-white/95">"{result.leitura_velas}"</p>
                                 </div>
 
-                                <div className="grid grid-cols-1 gap-4">
-                                    <div className="p-5 bg-white/5 rounded-2xl border border-white/5 flex justify-between items-center">
+                                <div className="grid grid-cols-1 gap-5">
+                                    <div className="p-6 bg-white/5 rounded-3xl border border-white/10 flex justify-between items-center group hover:bg-white/[0.08] transition-all">
                                          <div>
-                                            <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Setup Primário</p>
-                                            <p className="text-xs font-black text-white mt-1 uppercase italic">{result.padrao_detectado}</p>
+                                            <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest">Setup Ativo</p>
+                                            <p className="text-sm font-black text-white mt-1 uppercase italic">{result.setup}</p>
                                          </div>
-                                         <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[9px] font-black text-emerald-500 uppercase tracking-widest">Detectado</div>
+                                         <div className="px-5 py-2 bg-emerald-500 text-slate-950 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20">Check</div>
                                     </div>
                                     
-                                    <div className="p-5 bg-white/5 rounded-2xl border border-white/5">
-                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3">Confluências Sniper</p>
-                                        <div className="flex flex-wrap gap-2">
+                                    <div className="p-6 bg-white/5 rounded-3xl border border-white/10">
+                                        <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest mb-4">Gatilhos de Confluência</p>
+                                        <div className="flex flex-wrap gap-3">
                                             {result.confluencias?.map((item: string, i: number) => (
-                                                <span key={i} className="px-4 py-2 bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase rounded-xl border border-emerald-500/20 shadow-[0_0_10px_#10b98122]">
+                                                <span key={i} className="px-5 py-3 bg-emerald-500/10 text-emerald-400 text-[11px] font-black uppercase rounded-2xl border border-emerald-500/20 shadow-[0_0_15px_#10b98122] flex items-center gap-2">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                                     {item}
                                                 </span>
                                             ))}
@@ -269,23 +277,31 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                     </div>
                                 </div>
 
-                                <div className="p-5 bg-red-500/5 rounded-2xl border border-red-500/10 flex items-center gap-4">
-                                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                    <p className="text-[10px] font-black uppercase text-red-500/80 tracking-widest">Zona de Risco: {result.risco}</p>
+                                <div className="p-6 bg-blue-500/5 rounded-3xl border-2 border-blue-500/20 flex items-center justify-between">
+                                    <div className="flex items-center gap-5">
+                                        <TargetIcon className="w-7 h-7 text-blue-400" />
+                                        <div>
+                                            <p className="text-[10px] font-black uppercase text-blue-400/60 tracking-[0.2em]">Objetivo do Preço</p>
+                                            <p className="text-sm font-black text-blue-400 uppercase">{result.zona_alvo}</p>
+                                        </div>
+                                    </div>
+                                    <div className="w-12 h-1 bg-blue-400/20 rounded-full overflow-hidden">
+                                        <div className="h-full bg-blue-400 w-2/3 animate-pulse" />
+                                    </div>
                                 </div>
                             </div>
                             
-                            <p className="text-[9px] text-center uppercase font-black text-slate-600 mt-6 italic opacity-50 tracking-[0.3em]">Sniper v7.0 - Zero Distraction Vision Module</p>
+                            <p className="text-[10px] text-center uppercase font-black text-slate-600 mt-8 italic opacity-60 tracking-[0.4em]">Sniper v8.0 Engine - High Definition Layer Analysis</p>
                         </div>
                     ) : !analyzing && !error && (
-                        <div className="h-full rounded-[3rem] border border-slate-800/10 flex flex-col items-center justify-center opacity-30 text-center space-y-8 py-20 bg-slate-900/10">
+                        <div className="h-full rounded-[4rem] border border-slate-800/15 flex flex-col items-center justify-center opacity-30 text-center space-y-10 py-24 bg-slate-900/15">
                             <div className="relative">
-                                <CpuChipIcon className="w-24 h-24 text-slate-700" />
-                                <div className="absolute inset-0 border-2 border-slate-700 rounded-full animate-ping opacity-20" />
+                                <CpuChipIcon className="w-28 h-28 text-slate-700" />
+                                <div className="absolute inset-0 border-4 border-slate-700/20 rounded-full animate-ping" />
                             </div>
-                            <div className="max-w-[280px] space-y-3">
-                                <p className="text-sm font-black uppercase tracking-[0.4em] text-white">Pronto para Varredura</p>
-                                <p className="text-[11px] font-bold opacity-60 uppercase leading-relaxed text-center">Cole o print da Axiun. O Motor v7.0 isolará as velas automaticamente para você.</p>
+                            <div className="max-w-[300px] space-y-4">
+                                <p className="text-base font-black uppercase tracking-[0.5em] text-white">Pronto para HDR</p>
+                                <p className="text-[12px] font-bold opacity-60 uppercase leading-relaxed text-center px-4">Cole o print da Axiun. O Motor v8.0 foi treinado para "ver através" da marca d'água.</p>
                             </div>
                         </div>
                     )}
