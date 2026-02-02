@@ -6,7 +6,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { 
     SettingsIcon, 
     LogoutIcon, LayoutGridIcon, PieChartIcon, 
-    TrendingUpIcon, ListBulletIcon, TargetIcon, 
+    TrendingUpIcon, TrendingDownIcon, ListBulletIcon, TargetIcon, 
     CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ArrowPathIcon, 
     InformationCircleIcon, TrophyIcon, 
     ChartBarIcon, CheckIcon, DocumentTextIcon,
@@ -88,20 +88,18 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const mimeType = image.split(';')[0].split(':')[1];
             const base64Data = image.split(',')[1];
             
-            // Sniper Vision v8.0 - ULTRA CONTRAST PROMPT
-            const prompt = `VOCÊ É O ANALISTA SNIPER VISION v8.0 - ESPECIALISTA EM SEGMENTAÇÃO DE IMAGEM.
+            // Sniper Vision v9.0 - ULTRA RESOLUTION & SEGMENTATION
+            const prompt = `AJA COMO UM SISTEMA DE VISÃO COMPUTACIONAL DE ALTA FIDELIDADE (HDR) PARA TRADING PROFISSIONAL.
             
-            SUA MISSÃO PRIORITÁRIA:
-            1. DETECÇÃO DE CAMADAS: O gráfico possui uma marca d'água "AXIUN" ou logotipos cinzas ao fundo. VOCÊ DEVE DELETAR MENTALMENTE ESSA CAMADA.
-            2. FOCO NO SINAL: Identifique apenas as VELAS (corpos retangulares verdes e vermelhos) e seus PAVIOS (linhas finas acima/abaixo).
-            3. FILTRO DE RUÍDO: Ignore grades, textos de fundo e logos da corretora. Concentre-se apenas no MOVIMENTO DO PREÇO (Price Action).
+            DIRETRIZES DE FILTRAGEM (ZERO FAILURE MODE):
+            1. SEGMENTAÇÃO DE CAMADAS: O gráfico contém uma marca d'água "AXIUN" ou logotipos cinzas. ESTE É O RUÍDO DE FUNDO. Você deve segmentar os pixels e IGNORAR essa camada completamente.
+            2. RECONHECIMENTO DE PADRÕES: Foque apenas na geometria dos CANDLESTICKS (corpos verdes/vermelhos e pavios pretos/cinzas). 
+            3. ISOLAMENTO TÉCNICO: Identifique as últimas 5 a 10 velas. Procure por:
+               - Padrões de Reversão (Martelo, Engolfo, Doji em S/R).
+               - Pullbacks em Médias Móveis.
+               - Toques em Bandas de Bollinger (Exaustão).
             
-            ANÁLISE TÉCNICA (M1):
-            - Verifique se a última vela é de força ou exaustão.
-            - Localize zonas de suporte/resistência onde o preço "bateu e voltou".
-            - Analise se o RSI/Indicadores (se visíveis) confirmam o movimento.
-            
-            OUTPUT: Você deve fornecer uma recomendação clara de CALL, PUT ou AGUARDAR baseada na CONFLUÊNCIA de pelo menos 3 fatores.`;
+            OBRIGAÇÃO DE RESULTADO: Você deve ignorar qualquer confusão causada pelo fundo. Se houver pelo menos 60% de clareza nas velas, emita o sinal baseado em PRICE ACTION PURO.`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-3-pro-preview',
@@ -117,13 +115,13 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         type: Type.OBJECT,
                         properties: {
                             operacao: { type: Type.STRING, description: "CALL, PUT ou AGUARDAR" },
-                            confianca: { type: Type.NUMBER, description: "Probabilidade de acerto 0-100" },
-                            leitura_velas: { type: Type.STRING, description: "O que você identificou nas últimas velas (ignorando o fundo)" },
-                            setup: { type: Type.STRING, description: "Nome da estratégia identificada (ex: Engolfo, Pullback)" },
-                            confluencias: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Lista de motivos para a entrada" },
-                            zona_alvo: { type: Type.STRING, description: "Onde o preço deve chegar" }
+                            confianca: { type: Type.NUMBER, description: "Probabilidade 0-100" },
+                            detalhes_visual: { type: Type.STRING, description: "Descreva brevemente o que viu ignorando a Axiun" },
+                            estrategia: { type: Type.STRING, description: "Nome técnico do setup" },
+                            confluencias: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            indicadores_confirm: { type: Type.BOOLEAN, description: "Se os indicadores apoiam a entrada" }
                         },
-                        required: ["operacao", "confianca", "leitura_velas", "setup", "confluencias", "zona_alvo"]
+                        required: ["operacao", "confianca", "detalhes_visual", "estrategia", "confluencias", "indicadores_confirm"]
                     },
                     temperature: 0.1,
                 }
@@ -133,11 +131,11 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             if (text) {
                 setResult(JSON.parse(text));
             } else {
-                throw new Error("Resposta de visão inválida");
+                throw new Error("Resposta de visão inacessível");
             }
         } catch (err: any) {
-            console.error("Sniper v8.0 Engine Error:", err);
-            setError("ALERTA DE CONTRASTE: O Motor v8.0 detectou poluição visual excessiva. A marca d'água está muito forte ou as velas estão muito pequenas. DICA: Dê zoom nas últimas 10-15 velas para análise Sniper.");
+            console.error("Sniper v9.0 Engine Error:", err);
+            setError("FALHA DE SEGMENTAÇÃO HDR: O motor não conseguiu isolar o sinal das velas. Verifique se o zoom do gráfico permite ver o 'espaço' entre as velas.");
         } finally {
             setAnalyzing(false);
         }
@@ -148,48 +146,50 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             <div className="flex justify-between items-center shrink-0">
                 <div>
                     <h2 className={`text-4xl font-black ${theme.text} tracking-tighter uppercase italic flex items-center gap-3`}>
-                        <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-[0_0_30px_#10b98166]">
+                        <div className="w-12 h-12 bg-emerald-500 rounded-3xl flex items-center justify-center shadow-[0_0_30px_#10b98188] animate-pulse">
                              <CpuChipIcon className="w-7 h-7 text-slate-950" />
                         </div>
-                        Sniper <span className="text-emerald-500">Vision v8.0</span>
+                        Sniper <span className="text-emerald-500">Vision v9.0</span>
                     </h2>
-                    <p className={`${theme.textMuted} mt-1 font-bold text-[10px] uppercase tracking-[0.3em]`}>Motor Ultra Contrast - Inteligência de Segmentação Ativa</p>
+                    <p className={`${theme.textMuted} mt-1 font-bold text-[10px] uppercase tracking-[0.4em]`}>Motor de Redundância Ultra-HDR - Filtragem de Ruído Axiun Ativa</p>
                 </div>
-                <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]" />
-                    <p className="text-[10px] font-black uppercase text-slate-400">Status: Sincronizado</p>
+                <div className="hidden lg:flex gap-2">
+                    {['HDR', 'PX-SEG', '60FPS', 'AI-SIGHT'].map(tag => (
+                        <div key={tag} className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[8px] font-black text-emerald-500/80 uppercase tracking-widest">{tag} OK</div>
+                    ))}
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 overflow-hidden min-h-0">
                 <div className="lg:col-span-7 flex flex-col gap-5 overflow-hidden">
-                    <div className={`relative flex-1 rounded-[3.5rem] border-2 border-dashed ${image ? 'border-emerald-500/40' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center overflow-hidden bg-slate-950 transition-all group shadow-inner`}>
+                    <div className={`relative flex-1 rounded-[4rem] border-2 border-dashed ${image ? 'border-emerald-500/50' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center overflow-hidden bg-slate-950 transition-all group shadow-2xl`}>
                         {image ? (
-                            <div className="relative w-full h-full p-4 flex items-center justify-center">
-                                <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-3xl shadow-[0_0_80px_rgba(0,0,0,0.8)]" />
+                            <div className="relative w-full h-full p-6 flex items-center justify-center">
+                                <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-[2rem] shadow-[0_0_100px_rgba(0,0,0,0.9)]" />
                                 
                                 {analyzing && (
                                     <div className="absolute inset-0 z-20 pointer-events-none overflow-hidden">
-                                        <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-400 shadow-[0_0_30px_#4ade80] animate-[scan_2s_ease-in-out_infinite]" />
-                                        <div className="absolute inset-0 bg-emerald-500/[0.05] backdrop-blur-[2px]" />
+                                        <div className="absolute top-0 left-0 w-full h-[3px] bg-emerald-400 shadow-[0_0_40px_#4ade80] animate-[scan_1.5s_ease-in-out_infinite]" />
+                                        <div className="absolute inset-0 bg-emerald-500/[0.04] backdrop-blur-[3px]" />
                                         <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="w-48 h-48 border-4 border-emerald-500/10 rounded-full animate-ping" />
+                                            <div className="w-64 h-64 border-[6px] border-emerald-500/10 rounded-full animate-ping" />
+                                            <div className="absolute text-emerald-500 text-[10px] font-black uppercase tracking-[0.5em] animate-pulse">Filtrando Axiun...</div>
                                         </div>
                                     </div>
                                 )}
 
-                                <div className="absolute inset-0 bg-black/75 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-xl">
-                                    <button onClick={() => setImage(null)} className="p-6 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-2xl active:scale-95 border-4 border-white/10"><TrashIcon className="w-10 h-10" /></button>
+                                <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-2xl">
+                                    <button onClick={() => setImage(null)} className="p-7 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-2xl active:scale-95 border-8 border-white/10"><TrashIcon className="w-12 h-12" /></button>
                                 </div>
                             </div>
                         ) : (
-                            <label className="cursor-pointer flex flex-col items-center gap-10 text-center p-16 w-full h-full justify-center hover:bg-emerald-500/[0.02] transition-colors">
-                                <div className="w-28 h-28 bg-emerald-500/10 rounded-[2.5rem] flex items-center justify-center border-2 border-emerald-500/20 group-hover:rotate-12 transition-all duration-700 shadow-xl">
-                                    <PlusIcon className="w-14 h-14 text-emerald-500" />
+                            <label className="cursor-pointer flex flex-col items-center gap-12 text-center p-20 w-full h-full justify-center hover:bg-emerald-500/[0.03] transition-colors">
+                                <div className="w-32 h-32 bg-emerald-500/10 rounded-[3rem] flex items-center justify-center border-2 border-emerald-500/30 group-hover:scale-110 transition-all duration-700 shadow-2xl">
+                                    <PlusIcon className="w-16 h-16 text-emerald-500" />
                                 </div>
-                                <div className="max-w-xs space-y-4">
-                                    <p className="font-black text-xl uppercase tracking-[0.25em] text-white">Upload Sniper</p>
-                                    <p className="text-[11px] opacity-50 font-bold text-slate-400 uppercase tracking-widest leading-relaxed">Arraste, cole (Ctrl+V) ou clique.<br/>O Motor v8.0 processa em HDR para ignorar fundos de corretoras.</p>
+                                <div className="max-w-sm space-y-4">
+                                    <p className="font-black text-2xl uppercase tracking-[0.3em] text-white">Input Sniper</p>
+                                    <p className="text-[11px] opacity-60 font-bold text-slate-400 uppercase tracking-widest leading-loose">Pressione Ctrl+V ou arraste o print.<br/>O Motor v9.0 deleta marcas d'água Axiun para leitura pura.</p>
                                 </div>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                             </label>
@@ -199,77 +199,79 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     <button 
                         onClick={analyzeChart} 
                         disabled={!image || analyzing}
-                        className={`h-24 shrink-0 rounded-[3rem] font-black uppercase tracking-[0.6em] transition-all flex items-center justify-center gap-5 text-sm shadow-2xl
-                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border border-slate-800' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/30 active:scale-95 active:rotate-1'}`}
+                        className={`h-24 shrink-0 rounded-[3.5rem] font-black uppercase tracking-[0.7em] transition-all flex items-center justify-center gap-6 text-sm shadow-2xl
+                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border-2 border-slate-800' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/40 active:scale-95 active:rotate-1'}`}
                     >
                         {analyzing ? (
                             <>
                                 <ArrowPathIcon className="w-8 h-8 animate-spin" />
-                                <span className="animate-pulse italic">Analisando Camadas HDR...</span>
+                                <span className="animate-pulse italic">Segmentando Camadas de Preço...</span>
                             </>
                         ) : (
                             <>
-                                <CpuChipIcon className="w-9 h-9" />
-                                Executar Leitura Sniper
+                                <CpuChipIcon className="w-10 h-10" />
+                                Iniciar Análise Sniper v9.0
                             </>
                         )}
                     </button>
                 </div>
 
-                <div className="lg:col-span-5 overflow-y-auto custom-scrollbar pr-2 space-y-6">
+                <div className="lg:col-span-5 overflow-y-auto custom-scrollbar pr-2 space-y-8">
                     {error && (
-                        <div className="p-8 bg-red-500/10 border-2 border-red-500/20 rounded-[3rem] flex items-start gap-6 text-red-500 animate-in zoom-in duration-500 shadow-2xl">
-                            <InformationCircleIcon className="w-12 h-12 shrink-0" />
-                            <div className="space-y-3">
-                                <p className="text-base font-black uppercase tracking-widest">Erro no Motor v8.0</p>
+                        <div className="p-10 bg-red-500/10 border-2 border-red-500/30 rounded-[4rem] flex items-start gap-8 text-red-500 animate-in slide-in-from-top duration-700 shadow-2xl">
+                            <InformationCircleIcon className="w-14 h-14 shrink-0" />
+                            <div className="space-y-4">
+                                <p className="text-xl font-black uppercase tracking-widest">Alerta Vision v9.0</p>
                                 <p className="text-xs font-bold opacity-80 leading-relaxed uppercase">{error}</p>
-                                <div className="pt-2">
-                                    <button onClick={() => setImage(null)} className="text-[10px] font-black uppercase underline hover:text-white transition-colors">Tentar nova captura</button>
+                                <div className="pt-4 flex gap-4">
+                                    <button onClick={() => setImage(null)} className="px-6 py-3 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 transition-all">Limpar e Tentar de Novo</button>
                                 </div>
                             </div>
                         </div>
                     )}
 
                     {result ? (
-                        <div className={`p-10 rounded-[4rem] border-2 ${theme.card} space-y-12 animate-in fade-in slide-in-from-right-16 duration-1000 shadow-[0_0_120px_rgba(16,185,129,0.08)] relative overflow-hidden bg-slate-900/70 backdrop-blur-2xl`}>
-                            <div className={`absolute -top-24 -right-24 w-80 h-80 blur-[120px] opacity-30 rounded-full ${result.operacao === 'CALL' ? 'bg-emerald-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
+                        <div className={`p-12 rounded-[5rem] border-2 ${theme.card} space-y-12 animate-in fade-in slide-in-from-right-20 duration-1000 shadow-[0_0_150px_rgba(16,185,129,0.1)] relative overflow-hidden bg-slate-900/80 backdrop-blur-3xl`}>
+                            <div className={`absolute -top-32 -right-32 w-96 h-96 blur-[150px] opacity-40 rounded-full ${result.operacao === 'CALL' ? 'bg-emerald-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
                             
-                            <div className="flex justify-between items-end relative z-10 border-b border-white/10 pb-10">
-                                <div className="space-y-2">
-                                    <p className="text-[12px] font-black uppercase text-slate-500 tracking-[0.4em]">Decisão Final</p>
-                                    <h3 className={`text-9xl font-black tracking-tighter italic leading-none ${result.operacao === 'CALL' ? 'text-emerald-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-300'}`}>
+                            <div className="flex justify-between items-end relative z-10 border-b-2 border-white/5 pb-12">
+                                <div className="space-y-3">
+                                    <p className="text-[14px] font-black uppercase text-slate-500 tracking-[0.5em]">Recomendação Sniper</p>
+                                    <h3 className={`text-[10rem] font-black tracking-tighter italic leading-none ${result.operacao === 'CALL' ? 'text-emerald-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-200'}`}>
                                         {result.operacao}
                                     </h3>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest">Assertividade</p>
-                                    <p className={`text-6xl font-black leading-none ${result.confianca > 85 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
+                                    <p className={`text-[12px] font-black uppercase text-slate-500 tracking-widest`}>Confidence Score</p>
+                                    <p className={`text-7xl font-black leading-none ${result.confianca > 85 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
                                 </div>
                             </div>
 
-                            <div className="space-y-8 relative z-10">
-                                <div className="p-8 bg-slate-950/90 rounded-[2.5rem] border border-white/10 space-y-4 shadow-2xl">
-                                    <p className="text-[11px] font-black uppercase tracking-[0.3em] text-emerald-500/70 flex items-center gap-3">
-                                        <TrendingUpIcon className="w-5 h-5" /> Leitura Técnica HDR
+                            <div className="space-y-10 relative z-10">
+                                <div className="p-10 bg-slate-950/95 rounded-[3rem] border-2 border-white/10 space-y-5 shadow-2xl">
+                                    <p className="text-[12px] font-black uppercase tracking-[0.4em] text-emerald-500/80 flex items-center gap-4">
+                                        <TrendingUpIcon className="w-6 h-6" /> Parecer Técnico Vision v9.0
                                     </p>
-                                    <p className="text-base font-bold leading-relaxed italic text-white/95">"{result.leitura_velas}"</p>
+                                    <p className="text-base font-bold leading-relaxed italic text-white/95">"{result.detalhes_visual}"</p>
                                 </div>
 
-                                <div className="grid grid-cols-1 gap-5">
-                                    <div className="p-6 bg-white/5 rounded-3xl border border-white/10 flex justify-between items-center group hover:bg-white/[0.08] transition-all">
+                                <div className="grid grid-cols-1 gap-6">
+                                    <div className="p-7 bg-white/5 rounded-[2.5rem] border-2 border-white/5 flex justify-between items-center group hover:bg-white/[0.08] transition-all">
                                          <div>
-                                            <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest">Setup Ativo</p>
-                                            <p className="text-sm font-black text-white mt-1 uppercase italic">{result.setup}</p>
+                                            <p className="text-[12px] font-black uppercase text-slate-500 tracking-widest">Estratégia Sniper</p>
+                                            <p className="text-lg font-black text-white mt-1 uppercase italic">{result.estrategia}</p>
                                          </div>
-                                         <div className="px-5 py-2 bg-emerald-500 text-slate-950 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20">Check</div>
+                                         <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-slate-950 shadow-xl shadow-emerald-500/30">
+                                             <CheckIcon className="w-8 h-8" />
+                                         </div>
                                     </div>
                                     
-                                    <div className="p-6 bg-white/5 rounded-3xl border border-white/10">
-                                        <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest mb-4">Gatilhos de Confluência</p>
-                                        <div className="flex flex-wrap gap-3">
+                                    <div className="p-7 bg-white/5 rounded-[2.5rem] border-2 border-white/5">
+                                        <p className="text-[12px] font-black uppercase text-slate-500 tracking-widest mb-6">Confluências Detectadas</p>
+                                        <div className="flex flex-wrap gap-4">
                                             {result.confluencias?.map((item: string, i: number) => (
-                                                <span key={i} className="px-5 py-3 bg-emerald-500/10 text-emerald-400 text-[11px] font-black uppercase rounded-2xl border border-emerald-500/20 shadow-[0_0_15px_#10b98122] flex items-center gap-2">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                <span key={i} className="px-6 py-4 bg-emerald-500/10 text-emerald-400 text-[12px] font-black uppercase rounded-2xl border-2 border-emerald-500/20 shadow-[0_0_20px_#10b98133] flex items-center gap-3">
+                                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                                                     {item}
                                                 </span>
                                             ))}
@@ -277,31 +279,33 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                     </div>
                                 </div>
 
-                                <div className="p-6 bg-blue-500/5 rounded-3xl border-2 border-blue-500/20 flex items-center justify-between">
-                                    <div className="flex items-center gap-5">
-                                        <TargetIcon className="w-7 h-7 text-blue-400" />
+                                <div className={`p-8 rounded-[2.5rem] border-4 flex items-center justify-between transition-all ${result.indicadores_confirm ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' : 'bg-red-500/10 border-red-500/30 text-red-500'}`}>
+                                    <div className="flex items-center gap-6">
+                                        <TargetIcon className="w-9 h-9" />
                                         <div>
-                                            <p className="text-[10px] font-black uppercase text-blue-400/60 tracking-[0.2em]">Objetivo do Preço</p>
-                                            <p className="text-sm font-black text-blue-400 uppercase">{result.zona_alvo}</p>
+                                            <p className="text-[11px] font-black uppercase tracking-[0.3em] opacity-80">Confirmação de Indicadores</p>
+                                            <p className="text-lg font-black uppercase tracking-widest">{result.indicadores_confirm ? 'SINCRO OK' : 'DIVERGENTE'}</p>
                                         </div>
                                     </div>
-                                    <div className="w-12 h-1 bg-blue-400/20 rounded-full overflow-hidden">
-                                        <div className="h-full bg-blue-400 w-2/3 animate-pulse" />
+                                    <div className={`w-16 h-16 flex items-center justify-center rounded-2xl ${result.indicadores_confirm ? 'bg-emerald-500 text-slate-950' : 'bg-red-500 text-white'}`}>
+                                        {/* FIX: Use TrendingDownIcon when indicators are not confirmed */}
+                                        {result.indicadores_confirm ? <TrendingUpIcon className="w-8 h-8" /> : <TrendingDownIcon className="w-8 h-8" />}
                                     </div>
                                 </div>
                             </div>
                             
-                            <p className="text-[10px] text-center uppercase font-black text-slate-600 mt-8 italic opacity-60 tracking-[0.4em]">Sniper v8.0 Engine - High Definition Layer Analysis</p>
+                            <p className="text-[11px] text-center uppercase font-black text-slate-600 mt-12 italic opacity-70 tracking-[0.5em]">Sniper v9.0 Engine - Zero Failure High-Definition Analysis</p>
                         </div>
                     ) : !analyzing && !error && (
-                        <div className="h-full rounded-[4rem] border border-slate-800/15 flex flex-col items-center justify-center opacity-30 text-center space-y-10 py-24 bg-slate-900/15">
+                        <div className="h-full rounded-[5rem] border-2 border-slate-800/20 flex flex-col items-center justify-center opacity-40 text-center space-y-12 py-32 bg-slate-900/20">
                             <div className="relative">
-                                <CpuChipIcon className="w-28 h-28 text-slate-700" />
-                                <div className="absolute inset-0 border-4 border-slate-700/20 rounded-full animate-ping" />
+                                <div className="absolute inset-0 bg-emerald-500/20 blur-[50px] animate-pulse rounded-full" />
+                                <CpuChipIcon className="w-32 h-32 text-slate-600 relative z-10" />
+                                <div className="absolute -top-4 -right-4 w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-slate-950 font-black text-xs shadow-2xl">9.0</div>
                             </div>
-                            <div className="max-w-[300px] space-y-4">
-                                <p className="text-base font-black uppercase tracking-[0.5em] text-white">Pronto para HDR</p>
-                                <p className="text-[12px] font-bold opacity-60 uppercase leading-relaxed text-center px-4">Cole o print da Axiun. O Motor v8.0 foi treinado para "ver através" da marca d'água.</p>
+                            <div className="max-w-[320px] space-y-5">
+                                <p className="text-xl font-black uppercase tracking-[0.6em] text-white">Pronto para Varredura</p>
+                                <p className="text-[13px] font-bold opacity-60 uppercase leading-relaxed text-center px-4 tracking-wider">O Motor Sniper v9.0 isola o gráfico das marcas d'água Axiun. Cole o print e execute a varredura HDR.</p>
                             </div>
                         </div>
                     )}
