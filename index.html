@@ -44,6 +44,7 @@
         width: 100%;
         height: 100%;
         z-index: 1;
+        pointer-events: none; /* Garante que cliques passem através */
       }
 
       .cyber-grid {
@@ -58,6 +59,7 @@
         opacity: 0.5;
         animation: grid-move 25s linear infinite;
         z-index: 2;
+        pointer-events: none; /* Garante que cliques passem através */
       }
 
       @keyframes grid-move {
@@ -128,11 +130,13 @@
       .chart-candle.red { color: #f43f5e; }
 
       .glass-card {
+        position: relative; /* CRÍTICO: Habilita o uso de z-index */
         background: rgba(8, 15, 25, 0.6);
         backdrop-filter: blur(35px) saturate(180%);
         border: 1px solid rgba(16, 185, 129, 0.3);
         box-shadow: 0 20px 80px rgba(0, 0, 0, 0.9);
         border-radius: 3.5rem;
+        z-index: 10; /* Garante que fique acima das animações */
       }
 
       .sniper-glow-text {
@@ -150,6 +154,15 @@
       .custom-scrollbar::-webkit-scrollbar-thumb {
         background: #10b981;
         border-radius: 10px;
+      }
+
+      /* Fix para inputs no Safari e Mobile */
+      input, button, select {
+        pointer-events: auto !important;
+        cursor: pointer;
+      }
+      input[type="text"], input[type="password"] {
+        cursor: text;
       }
     </style>
     <script type="importmap">

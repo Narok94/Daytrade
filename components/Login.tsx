@@ -168,6 +168,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
             } else {
                 await onLogin(username, password);
             }
+        } catch (e: any) {
+             setError('Falha na autenticação técnica.');
         } finally {
             setIsLoading(false);
         }
@@ -182,15 +184,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
     };
 
     return (
-        <div className="login-container min-h-screen w-full flex items-center justify-center p-6 font-sans">
-            <canvas ref={canvasRef} className="particle-canvas"></canvas>
-            <div className="cyber-grid"></div>
+        <div className="login-container min-h-screen w-full flex items-center justify-center p-6 font-sans relative">
+            {/* Background Layers com pointer-events-none garantido via inline para reforçar */}
+            <canvas ref={canvasRef} className="particle-canvas" style={{ pointerEvents: 'none' }}></canvas>
+            <div className="cyber-grid" style={{ pointerEvents: 'none' }}></div>
             
-            <div className="scrolling-chart-container">
+            <div className="scrolling-chart-container" style={{ pointerEvents: 'none' }}>
                 <div ref={chartTrackRef} className="chart-track"></div>
             </div>
 
-            <div className="binary-signals-container">
+            <div className="binary-signals-container" style={{ pointerEvents: 'none' }}>
                 <div className="signal call signal-1">↑ ARSENAL CARREGADO</div>
                 <div className="signal put signal-2">↓ ZONA DE RISCO</div>
                 <div className="signal call signal-3">↑ ALVO LOCALIZADO</div>
@@ -198,18 +201,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                 <div className="signal call signal-5">↑ HRK SNIPER ONLINE</div>
             </div>
 
-            <div className="glass-card w-full max-w-[420px] p-12 md:p-16 relative overflow-hidden transition-all duration-700 hover:shadow-emerald-500/10 hover:border-emerald-500/50">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent" />
-                <div className="text-center mb-14">
+            {/* O Cartão agora tem posição relativa e z-index 10 via index.html */}
+            <div className="glass-card w-full max-w-[420px] p-12 md:p-16 relative overflow-visible transition-all duration-700 hover:shadow-emerald-500/10 hover:border-emerald-500/50">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent rounded-t-full" />
+                
+                <div className="text-center mb-14 pointer-events-none">
                     <h1 className="text-5xl font-black text-white tracking-[0.4em] uppercase sniper-glow-text leading-none italic">HRK</h1>
                     <p className="text-emerald-400 font-black mt-3 text-[12px] tracking-[0.6em] uppercase">SNIPER ELITE</p>
                     <h2 className="text-2xl font-black text-white mt-16 tracking-[0.3em] uppercase opacity-80">{isRegistering ? 'ALISTAMENTO' : 'AUTENTICAÇÃO'}</h2>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+                <form onSubmit={handleSubmit} className="space-y-6 relative z-[20]">
                     <fieldset disabled={isLoading} className="space-y-6">
                         <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+                            <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none z-30">
                                 <UserIcon className="w-6 h-6 text-emerald-400/30 group-focus-within:text-emerald-400 transition-all" />
                             </div>
                             <input
@@ -217,13 +222,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                                 id="username"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                className="quantum-input w-full h-16 pl-16 pr-8 rounded-full text-xs font-black tracking-[0.3em] uppercase placeholder-white/10 focus:outline-none bg-black/40 border-2 border-emerald-500/20"
+                                className="quantum-input w-full h-16 pl-16 pr-8 rounded-full text-xs font-black tracking-[0.3em] uppercase placeholder-white/10 focus:outline-none bg-black/60 border-2 border-emerald-500/20 text-white relative z-20"
                                 placeholder="CODINOME AGENTE"
                                 required
+                                autoComplete="username"
                             />
                         </div>
                         <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+                            <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none z-30">
                                 <LockClosedIcon className="w-6 h-6 text-emerald-400/30 group-focus-within:text-emerald-400 transition-all" />
                             </div>
                             <input
@@ -231,9 +237,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                                 id="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="quantum-input w-full h-16 pl-16 pr-8 rounded-full text-xs font-black tracking-[0.3em] uppercase placeholder-white/10 focus:outline-none bg-black/40 border-2 border-emerald-500/20"
+                                className="quantum-input w-full h-16 pl-16 pr-8 rounded-full text-xs font-black tracking-[0.3em] uppercase placeholder-white/10 focus:outline-none bg-black/60 border-2 border-emerald-500/20 text-white relative z-20"
                                 placeholder="CHAVE DE ACESSO"
                                 required
+                                autoComplete="current-password"
                             />
                         </div>
                         
@@ -244,7 +251,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                                     id="confirmPassword"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="quantum-input w-full h-16 px-10 rounded-full text-xs font-black tracking-[0.3em] uppercase placeholder-white/10 focus:outline-none bg-black/40 border-2 border-emerald-500/20"
+                                    className="quantum-input w-full h-16 px-10 rounded-full text-xs font-black tracking-[0.3em] uppercase placeholder-white/10 focus:outline-none bg-black/60 border-2 border-emerald-500/20 text-white relative z-20"
                                     placeholder="REPETIR CHAVE"
                                     required
                                 />
@@ -258,11 +265,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                         </div>
                     )}
                     
-                    <div className="pt-8 flex justify-center">
+                    <div className="pt-8 flex justify-center relative z-30">
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="enter-button w-full h-20 rounded-full text-sm font-black uppercase tracking-[0.6em] text-slate-950 disabled:opacity-50 active:scale-95 transition-all border-b-8 border-emerald-700 active:border-b-0"
+                            className="enter-button w-full h-20 rounded-full text-sm font-black uppercase tracking-[0.6em] text-slate-950 disabled:opacity-50 active:scale-95 transition-all border-b-8 border-emerald-700 active:border-b-0 cursor-pointer"
                         >
                             {isLoading ? (
                                 <svg className="animate-spin h-8 w-8 text-slate-950 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -276,26 +283,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                     </div>
                 </form>
 
-                <div className="mt-12 flex items-center justify-center">
+                <div className="mt-12 flex items-center justify-center relative z-30">
                     <button
                         type="button"
                         onClick={toggleView}
                         disabled={isLoading}
-                        className="text-[10px] font-black text-emerald-400/40 hover:text-emerald-400 tracking-[0.4em] transition-all uppercase hover:scale-110"
+                        className="text-[10px] font-black text-emerald-400/40 hover:text-emerald-400 tracking-[0.4em] transition-all uppercase hover:scale-110 cursor-pointer"
                     >
                         {isRegistering ? 'VOLTAR PARA LOGIN' : `NOVO ALISTAMENTO`}
                     </button>
                 </div>
             </div>
             
-            <div className="absolute bottom-10 text-center w-full z-10 px-6">
+            <div className="absolute bottom-10 text-center w-full z-10 px-6 pointer-events-none">
                 <p className="text-white/10 text-[11px] font-mono tracking-[0.4em] font-black uppercase">{currentTime}</p>
-            </div>
-            
-            <div className="absolute top-12 right-12 opacity-5 animate-pulse pointer-events-none scale-150">
-                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 0L14.59 9.41L24 12L14.59 14.59L12 24L9.41 14.59L0 12L9.41 9.41L12 0Z" fill="#10b981"/>
-                </svg>
             </div>
         </div>
     );
