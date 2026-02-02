@@ -88,18 +88,20 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const mimeType = image.split(';')[0].split(':')[1];
             const base64Data = image.split(',')[1];
             
-            // Sniper Vision v9.0 - ULTRA RESOLUTION & SEGMENTATION
-            const prompt = `AJA COMO UM SISTEMA DE VISÃO COMPUTACIONAL DE ALTA FIDELIDADE (HDR) PARA TRADING PROFISSIONAL.
+            // Sniper Vision v10.0 - ULTIMATE QUANTUM SEGMENTATION
+            const prompt = `VOCÊ É O SISTEMA SNIPER VISION v10.0 - MOTOR DE VISÃO CIBERNÉTICO DE ALTA PERFORMANCE.
+
+            ALGORITMO DE FILTRAGEM (MODO X-RAY):
+            1. ISOLAMENTO TÁTICO: A imagem contém marcas d'água "AXIUN" ou padrões de fundo repetitivos. VOCÊ DEVE FILTRAR E IGNORAR COMPLETAMENTE ESSES PIXELS. Eles são ruído estático.
+            2. FOCO GEOMÉTRICO: Extraia apenas a geometria dos CANDLESTICKS (Velas). Identifique Corpos (Verde/Vermelho) e Pavios (Sombras).
+            3. ANÁLISE DE FLUXO: Identifique a micro-tendência atual (Price Action) ignorando qualquer obstrução visual do fundo.
             
-            DIRETRIZES DE FILTRAGEM (ZERO FAILURE MODE):
-            1. SEGMENTAÇÃO DE CAMADAS: O gráfico contém uma marca d'água "AXIUN" ou logotipos cinzas. ESTE É O RUÍDO DE FUNDO. Você deve segmentar os pixels e IGNORAR essa camada completamente.
-            2. RECONHECIMENTO DE PADRÕES: Foque apenas na geometria dos CANDLESTICKS (corpos verdes/vermelhos e pavios pretos/cinzas). 
-            3. ISOLAMENTO TÉCNICO: Identifique as últimas 5 a 10 velas. Procure por:
-               - Padrões de Reversão (Martelo, Engolfo, Doji em S/R).
-               - Pullbacks em Médias Móveis.
-               - Toques em Bandas de Bollinger (Exaustão).
-            
-            OBRIGAÇÃO DE RESULTADO: Você deve ignorar qualquer confusão causada pelo fundo. Se houver pelo menos 60% de clareza nas velas, emita o sinal baseado em PRICE ACTION PURO.`;
+            MISSÃO: Fornecer um sinal de alta probabilidade (M1) para Opções Binárias baseado em:
+            - Confluência de Rejeição de Pavio.
+            - Padrões de Continuidade ou Reversão.
+            - Zonas de Exaustão.
+
+            REQUISITO DE RESPOSTA: Se houver qualquer vela visível, você DEVE fornecer a análise. Ignore o ruído da Axiun como se fosse transparente.`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-3-pro-preview',
@@ -116,26 +118,28 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         properties: {
                             operacao: { type: Type.STRING, description: "CALL, PUT ou AGUARDAR" },
                             confianca: { type: Type.NUMBER, description: "Probabilidade 0-100" },
-                            detalhes_visual: { type: Type.STRING, description: "Descreva brevemente o que viu ignorando a Axiun" },
-                            estrategia: { type: Type.STRING, description: "Nome técnico do setup" },
-                            confluencias: { type: Type.ARRAY, items: { type: Type.STRING } },
-                            indicadores_confirm: { type: Type.BOOLEAN, description: "Se os indicadores apoiam a entrada" }
+                            leitura_tecnica: { type: Type.STRING, description: "Explicação técnica ignorando o ruído de fundo" },
+                            setup_detectado: { type: Type.STRING, description: "Nome do padrão gráfico" },
+                            gatilhos: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            tendencia: { type: Type.STRING, description: "ALTA, BAIXA ou LATERAL" }
                         },
-                        required: ["operacao", "confianca", "detalhes_visual", "estrategia", "confluencias", "indicadores_confirm"]
+                        required: ["operacao", "confianca", "leitura_tecnica", "setup_detectado", "gatilhos", "tendencia"]
                     },
-                    temperature: 0.1,
+                    temperature: 0, // Zero para máxima precisão e consistência
                 }
             });
 
             const text = response.text;
             if (text) {
-                setResult(JSON.parse(text));
+                // Limpeza agressiva para garantir JSON puro
+                const cleanedJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                setResult(JSON.parse(cleanedJson));
             } else {
-                throw new Error("Resposta de visão inacessível");
+                throw new Error("Empty Response");
             }
         } catch (err: any) {
-            console.error("Sniper v9.0 Engine Error:", err);
-            setError("FALHA DE SEGMENTAÇÃO HDR: O motor não conseguiu isolar o sinal das velas. Verifique se o zoom do gráfico permite ver o 'espaço' entre as velas.");
+            console.error("Sniper v10.0 Critical Error:", err);
+            setError("FALHA CRÍTICA DE VISÃO: O motor não conseguiu separar o sinal do ruído Axiun. DICA: Tente uma captura com menos zoom ou mude o tema da corretora para 'Escuro' total.");
         } finally {
             setAnalyzing(false);
         }
@@ -145,51 +149,59 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6 flex flex-col h-full overflow-hidden">
             <div className="flex justify-between items-center shrink-0">
                 <div>
-                    <h2 className={`text-4xl font-black ${theme.text} tracking-tighter uppercase italic flex items-center gap-3`}>
-                        <div className="w-12 h-12 bg-emerald-500 rounded-3xl flex items-center justify-center shadow-[0_0_30px_#10b98188] animate-pulse">
-                             <CpuChipIcon className="w-7 h-7 text-slate-950" />
+                    <h2 className={`text-4xl font-black ${theme.text} tracking-tighter uppercase italic flex items-center gap-4`}>
+                        <div className="relative">
+                            <div className="absolute inset-0 bg-emerald-500 blur-xl opacity-30 animate-pulse" />
+                            <div className="w-14 h-14 bg-slate-900 border-2 border-emerald-500/50 rounded-2xl flex items-center justify-center relative z-10">
+                                 <CpuChipIcon className="w-8 h-8 text-emerald-500" />
+                            </div>
                         </div>
-                        Sniper <span className="text-emerald-500">Vision v9.0</span>
+                        Sniper <span className="text-emerald-500">Vision v10.0</span>
                     </h2>
-                    <p className={`${theme.textMuted} mt-1 font-bold text-[10px] uppercase tracking-[0.4em]`}>Motor de Redundância Ultra-HDR - Filtragem de Ruído Axiun Ativa</p>
+                    <p className={`${theme.textMuted} mt-1 font-black text-[9px] uppercase tracking-[0.5em] flex items-center gap-2`}>
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                        Motor de Isolamento Quântico Ativo
+                    </p>
                 </div>
-                <div className="hidden lg:flex gap-2">
-                    {['HDR', 'PX-SEG', '60FPS', 'AI-SIGHT'].map(tag => (
-                        <div key={tag} className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[8px] font-black text-emerald-500/80 uppercase tracking-widest">{tag} OK</div>
-                    ))}
+                <div className="hidden md:flex flex-col items-end">
+                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Protocolo de Redundância</p>
+                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">PX-ISOLATION: ENABLED</p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 overflow-hidden min-h-0">
-                <div className="lg:col-span-7 flex flex-col gap-5 overflow-hidden">
-                    <div className={`relative flex-1 rounded-[4rem] border-2 border-dashed ${image ? 'border-emerald-500/50' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center overflow-hidden bg-slate-950 transition-all group shadow-2xl`}>
+                <div className="lg:col-span-7 flex flex-col gap-6 overflow-hidden">
+                    <div className={`relative flex-1 rounded-[4.5rem] border-2 border-dashed ${image ? 'border-emerald-500/60' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center overflow-hidden bg-slate-950 transition-all group shadow-[inset_0_0_100px_rgba(0,0,0,0.8)]`}>
                         {image ? (
-                            <div className="relative w-full h-full p-6 flex items-center justify-center">
-                                <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-[2rem] shadow-[0_0_100px_rgba(0,0,0,0.9)]" />
+                            <div className="relative w-full h-full p-8 flex items-center justify-center">
+                                <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-3xl shadow-[0_0_150px_rgba(0,0,0,1)] ring-1 ring-white/5" />
                                 
                                 {analyzing && (
                                     <div className="absolute inset-0 z-20 pointer-events-none overflow-hidden">
-                                        <div className="absolute top-0 left-0 w-full h-[3px] bg-emerald-400 shadow-[0_0_40px_#4ade80] animate-[scan_1.5s_ease-in-out_infinite]" />
-                                        <div className="absolute inset-0 bg-emerald-500/[0.04] backdrop-blur-[3px]" />
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="w-64 h-64 border-[6px] border-emerald-500/10 rounded-full animate-ping" />
-                                            <div className="absolute text-emerald-500 text-[10px] font-black uppercase tracking-[0.5em] animate-pulse">Filtrando Axiun...</div>
+                                        <div className="absolute top-0 left-0 w-full h-[4px] bg-emerald-400 shadow-[0_0_50px_#4ade80] animate-[scan_1.2s_ease-in-out_infinite]" />
+                                        <div className="absolute inset-0 bg-emerald-500/[0.06] backdrop-blur-[4px]" />
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                            <div className="w-80 h-80 border-[8px] border-emerald-500/10 rounded-full animate-ping" />
+                                            <p className="mt-8 text-emerald-400 text-xs font-black uppercase tracking-[1em] animate-pulse">Scanning Layers...</p>
                                         </div>
                                     </div>
                                 )}
 
-                                <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-2xl">
-                                    <button onClick={() => setImage(null)} className="p-7 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-2xl active:scale-95 border-8 border-white/10"><TrashIcon className="w-12 h-12" /></button>
+                                <div className="absolute inset-0 bg-black/85 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-3xl">
+                                    <button onClick={() => setImage(null)} className="p-8 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-2xl active:scale-90 border-[10px] border-white/5"><TrashIcon className="w-14 h-14" /></button>
                                 </div>
                             </div>
                         ) : (
-                            <label className="cursor-pointer flex flex-col items-center gap-12 text-center p-20 w-full h-full justify-center hover:bg-emerald-500/[0.03] transition-colors">
-                                <div className="w-32 h-32 bg-emerald-500/10 rounded-[3rem] flex items-center justify-center border-2 border-emerald-500/30 group-hover:scale-110 transition-all duration-700 shadow-2xl">
-                                    <PlusIcon className="w-16 h-16 text-emerald-500" />
+                            <label className="cursor-pointer flex flex-col items-center gap-14 text-center p-24 w-full h-full justify-center hover:bg-emerald-500/[0.04] transition-all duration-700">
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-emerald-500/20 blur-2xl rounded-full animate-pulse" />
+                                    <div className="w-36 h-36 bg-emerald-500/10 rounded-[3.5rem] flex items-center justify-center border-2 border-emerald-500/40 relative z-10 group-hover:rotate-12 transition-all duration-1000">
+                                        <PlusIcon className="w-20 h-20 text-emerald-500" />
+                                    </div>
                                 </div>
-                                <div className="max-w-sm space-y-4">
-                                    <p className="font-black text-2xl uppercase tracking-[0.3em] text-white">Input Sniper</p>
-                                    <p className="text-[11px] opacity-60 font-bold text-slate-400 uppercase tracking-widest leading-loose">Pressione Ctrl+V ou arraste o print.<br/>O Motor v9.0 deleta marcas d'água Axiun para leitura pura.</p>
+                                <div className="max-w-md space-y-5">
+                                    <p className="font-black text-3xl uppercase tracking-[0.4em] text-white">Quantum Input</p>
+                                    <p className="text-[12px] opacity-70 font-bold text-slate-400 uppercase tracking-[0.3em] leading-loose px-8">Capture o gráfico (Ctrl+V).<br/>O Motor v10 atravessa qualquer marca d'água Axiun para identificar o sinal.</p>
                                 </div>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                             </label>
@@ -199,79 +211,80 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     <button 
                         onClick={analyzeChart} 
                         disabled={!image || analyzing}
-                        className={`h-24 shrink-0 rounded-[3.5rem] font-black uppercase tracking-[0.7em] transition-all flex items-center justify-center gap-6 text-sm shadow-2xl
-                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border-2 border-slate-800' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/40 active:scale-95 active:rotate-1'}`}
+                        className={`h-28 shrink-0 rounded-[4rem] font-black uppercase tracking-[1em] transition-all flex items-center justify-center gap-8 text-base shadow-2xl
+                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border-2 border-slate-800' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/50 active:scale-95'}`}
                     >
                         {analyzing ? (
                             <>
-                                <ArrowPathIcon className="w-8 h-8 animate-spin" />
-                                <span className="animate-pulse italic">Segmentando Camadas de Preço...</span>
+                                <ArrowPathIcon className="w-10 h-10 animate-spin" />
+                                <span className="animate-pulse italic">Processando Visão v10...</span>
                             </>
                         ) : (
                             <>
-                                <CpuChipIcon className="w-10 h-10" />
-                                Iniciar Análise Sniper v9.0
+                                <CpuChipIcon className="w-12 h-12" />
+                                Executar Varredura Quântica
                             </>
                         )}
                     </button>
                 </div>
 
-                <div className="lg:col-span-5 overflow-y-auto custom-scrollbar pr-2 space-y-8">
+                <div className="lg:col-span-5 overflow-y-auto custom-scrollbar pr-3 space-y-10">
                     {error && (
-                        <div className="p-10 bg-red-500/10 border-2 border-red-500/30 rounded-[4rem] flex items-start gap-8 text-red-500 animate-in slide-in-from-top duration-700 shadow-2xl">
-                            <InformationCircleIcon className="w-14 h-14 shrink-0" />
-                            <div className="space-y-4">
-                                <p className="text-xl font-black uppercase tracking-widest">Alerta Vision v9.0</p>
-                                <p className="text-xs font-bold opacity-80 leading-relaxed uppercase">{error}</p>
-                                <div className="pt-4 flex gap-4">
-                                    <button onClick={() => setImage(null)} className="px-6 py-3 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 transition-all">Limpar e Tentar de Novo</button>
+                        <div className="p-12 bg-red-500/10 border-2 border-red-500/40 rounded-[5rem] flex items-start gap-10 text-red-500 animate-in slide-in-from-right duration-700 shadow-[0_0_50px_rgba(239,68,68,0.1)]">
+                            <InformationCircleIcon className="w-16 h-16 shrink-0" />
+                            <div className="space-y-5">
+                                <p className="text-2xl font-black uppercase tracking-widest">Alerta v10.0</p>
+                                <p className="text-sm font-bold opacity-90 leading-relaxed uppercase">{error}</p>
+                                <div className="pt-6">
+                                    <button onClick={() => setImage(null)} className="px-10 py-5 bg-red-600 text-white rounded-3xl text-[11px] font-black uppercase tracking-widest hover:bg-red-500 transition-all shadow-xl active:scale-95">Resetar Filtros</button>
                                 </div>
                             </div>
                         </div>
                     )}
 
                     {result ? (
-                        <div className={`p-12 rounded-[5rem] border-2 ${theme.card} space-y-12 animate-in fade-in slide-in-from-right-20 duration-1000 shadow-[0_0_150px_rgba(16,185,129,0.1)] relative overflow-hidden bg-slate-900/80 backdrop-blur-3xl`}>
-                            <div className={`absolute -top-32 -right-32 w-96 h-96 blur-[150px] opacity-40 rounded-full ${result.operacao === 'CALL' ? 'bg-emerald-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
+                        <div className={`p-14 rounded-[6rem] border-2 ${theme.card} space-y-14 animate-in fade-in slide-in-from-bottom-20 duration-1000 shadow-[0_0_200px_rgba(16,185,129,0.15)] relative overflow-hidden bg-slate-900/90 backdrop-blur-3xl`}>
+                            <div className={`absolute -top-40 -right-40 w-[30rem] h-[30rem] blur-[180px] opacity-40 rounded-full ${result.operacao === 'CALL' ? 'bg-emerald-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
                             
-                            <div className="flex justify-between items-end relative z-10 border-b-2 border-white/5 pb-12">
-                                <div className="space-y-3">
-                                    <p className="text-[14px] font-black uppercase text-slate-500 tracking-[0.5em]">Recomendação Sniper</p>
-                                    <h3 className={`text-[10rem] font-black tracking-tighter italic leading-none ${result.operacao === 'CALL' ? 'text-emerald-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-200'}`}>
+                            <div className="flex justify-between items-end relative z-10 border-b-2 border-white/5 pb-14">
+                                <div className="space-y-4">
+                                    <p className="text-[16px] font-black uppercase text-slate-500 tracking-[0.6em]">Sinal Sniper</p>
+                                    <h3 className={`text-[12rem] font-black tracking-tighter italic leading-none ${result.operacao === 'CALL' ? 'text-emerald-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-200'}`}>
                                         {result.operacao}
                                     </h3>
                                 </div>
                                 <div className="text-right">
-                                    <p className={`text-[12px] font-black uppercase text-slate-500 tracking-widest`}>Confidence Score</p>
-                                    <p className={`text-7xl font-black leading-none ${result.confianca > 85 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
+                                    <p className="text-[14px] font-black uppercase text-slate-500 tracking-widest">Precision</p>
+                                    <p className={`text-8xl font-black leading-none ${result.confianca > 85 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
                                 </div>
                             </div>
 
-                            <div className="space-y-10 relative z-10">
-                                <div className="p-10 bg-slate-950/95 rounded-[3rem] border-2 border-white/10 space-y-5 shadow-2xl">
-                                    <p className="text-[12px] font-black uppercase tracking-[0.4em] text-emerald-500/80 flex items-center gap-4">
-                                        <TrendingUpIcon className="w-6 h-6" /> Parecer Técnico Vision v9.0
+                            <div className="space-y-12 relative z-10">
+                                <div className="p-12 bg-slate-950/95 rounded-[4rem] border-2 border-white/10 space-y-6 shadow-2xl relative group overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500/50 group-hover:bg-emerald-400 transition-colors" />
+                                    <p className="text-[14px] font-black uppercase tracking-[0.5em] text-emerald-500/80 flex items-center gap-5">
+                                        <TrendingUpIcon className="w-7 h-7" /> Quantum Feedback
                                     </p>
-                                    <p className="text-base font-bold leading-relaxed italic text-white/95">"{result.detalhes_visual}"</p>
+                                    <p className="text-lg font-bold leading-relaxed italic text-white/95">"{result.leitura_tecnica}"</p>
                                 </div>
 
-                                <div className="grid grid-cols-1 gap-6">
-                                    <div className="p-7 bg-white/5 rounded-[2.5rem] border-2 border-white/5 flex justify-between items-center group hover:bg-white/[0.08] transition-all">
+                                <div className="grid grid-cols-1 gap-8">
+                                    <div className="p-9 bg-white/5 rounded-[3rem] border-2 border-white/5 flex justify-between items-center group hover:bg-white/[0.08] transition-all">
                                          <div>
-                                            <p className="text-[12px] font-black uppercase text-slate-500 tracking-widest">Estratégia Sniper</p>
-                                            <p className="text-lg font-black text-white mt-1 uppercase italic">{result.estrategia}</p>
+                                            <p className="text-[14px] font-black uppercase text-slate-500 tracking-widest">Padrão Tático</p>
+                                            <p className="text-2xl font-black text-white mt-2 uppercase italic">{result.setup_detectado}</p>
                                          </div>
-                                         <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-slate-950 shadow-xl shadow-emerald-500/30">
-                                             <CheckIcon className="w-8 h-8" />
+                                         <div className="w-20 h-20 bg-emerald-500 rounded-3xl flex items-center justify-center text-slate-950 shadow-[0_0_40px_#10b98166] transform -rotate-3">
+                                             <CheckIcon className="w-10 h-10" />
                                          </div>
                                     </div>
                                     
-                                    <div className="p-7 bg-white/5 rounded-[2.5rem] border-2 border-white/5">
-                                        <p className="text-[12px] font-black uppercase text-slate-500 tracking-widest mb-6">Confluências Detectadas</p>
-                                        <div className="flex flex-wrap gap-4">
-                                            {result.confluencias?.map((item: string, i: number) => (
-                                                <span key={i} className="px-6 py-4 bg-emerald-500/10 text-emerald-400 text-[12px] font-black uppercase rounded-2xl border-2 border-emerald-500/20 shadow-[0_0_20px_#10b98133] flex items-center gap-3">
-                                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                    <div className="p-9 bg-white/5 rounded-[3rem] border-2 border-white/5">
+                                        <p className="text-[14px] font-black uppercase text-slate-500 tracking-widest mb-8">Confluências Sniper</p>
+                                        <div className="flex flex-wrap gap-5">
+                                            {result.gatilhos?.map((item: string, i: number) => (
+                                                <span key={i} className="px-8 py-5 bg-emerald-500/10 text-emerald-400 text-[14px] font-black uppercase rounded-3xl border-2 border-emerald-500/20 shadow-[0_0_30px_#10b98144] flex items-center gap-4">
+                                                    <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
                                                     {item}
                                                 </span>
                                             ))}
@@ -279,33 +292,32 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                     </div>
                                 </div>
 
-                                <div className={`p-8 rounded-[2.5rem] border-4 flex items-center justify-between transition-all ${result.indicadores_confirm ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' : 'bg-red-500/10 border-red-500/30 text-red-500'}`}>
-                                    <div className="flex items-center gap-6">
-                                        <TargetIcon className="w-9 h-9" />
+                                <div className={`p-10 rounded-[3.5rem] border-4 flex items-center justify-between transition-all ${result.tendencia === 'ALTA' ? 'bg-emerald-500/10 border-emerald-500/30' : result.tendencia === 'BAIXA' ? 'bg-red-500/10 border-red-500/30' : 'bg-blue-500/10 border-blue-500/30'}`}>
+                                    <div className="flex items-center gap-8">
+                                        <TargetIcon className={`w-12 h-12 ${result.tendencia === 'ALTA' ? 'text-emerald-500' : result.tendencia === 'BAIXA' ? 'text-red-500' : 'text-blue-400'}`} />
                                         <div>
-                                            <p className="text-[11px] font-black uppercase tracking-[0.3em] opacity-80">Confirmação de Indicadores</p>
-                                            <p className="text-lg font-black uppercase tracking-widest">{result.indicadores_confirm ? 'SINCRO OK' : 'DIVERGENTE'}</p>
+                                            <p className="text-[12px] font-black uppercase tracking-[0.4em] opacity-80 text-white/50">Fluxo Dominante</p>
+                                            <p className={`text-2xl font-black uppercase tracking-widest ${result.tendencia === 'ALTA' ? 'text-emerald-500' : result.tendencia === 'BAIXA' ? 'text-red-500' : 'text-blue-400'}`}>{result.tendencia}</p>
                                         </div>
                                     </div>
-                                    <div className={`w-16 h-16 flex items-center justify-center rounded-2xl ${result.indicadores_confirm ? 'bg-emerald-500 text-slate-950' : 'bg-red-500 text-white'}`}>
-                                        {/* FIX: Use TrendingDownIcon when indicators are not confirmed */}
-                                        {result.indicadores_confirm ? <TrendingUpIcon className="w-8 h-8" /> : <TrendingDownIcon className="w-8 h-8" />}
+                                    <div className={`w-20 h-20 flex items-center justify-center rounded-3xl ${result.tendencia === 'ALTA' ? 'bg-emerald-500 text-slate-950' : result.tendencia === 'BAIXA' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'}`}>
+                                        {result.tendencia === 'ALTA' ? <TrendingUpIcon className="w-10 h-10" /> : result.tendencia === 'BAIXA' ? <TrendingDownIcon className="w-10 h-10" /> : <ArrowPathIcon className="w-10 h-10" />}
                                     </div>
                                 </div>
                             </div>
                             
-                            <p className="text-[11px] text-center uppercase font-black text-slate-600 mt-12 italic opacity-70 tracking-[0.5em]">Sniper v9.0 Engine - Zero Failure High-Definition Analysis</p>
+                            <p className="text-[12px] text-center uppercase font-black text-slate-600 mt-16 italic opacity-80 tracking-[0.6em]">Sniper v10.0 Engine - Quantum Layer Analysis Protocol</p>
                         </div>
                     ) : !analyzing && !error && (
-                        <div className="h-full rounded-[5rem] border-2 border-slate-800/20 flex flex-col items-center justify-center opacity-40 text-center space-y-12 py-32 bg-slate-900/20">
+                        <div className="h-full rounded-[6rem] border-2 border-slate-800/30 flex flex-col items-center justify-center opacity-40 text-center space-y-16 py-40 bg-slate-900/30 backdrop-blur-sm">
                             <div className="relative">
-                                <div className="absolute inset-0 bg-emerald-500/20 blur-[50px] animate-pulse rounded-full" />
-                                <CpuChipIcon className="w-32 h-32 text-slate-600 relative z-10" />
-                                <div className="absolute -top-4 -right-4 w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-slate-950 font-black text-xs shadow-2xl">9.0</div>
+                                <div className="absolute inset-0 bg-emerald-500/10 blur-[80px] animate-pulse rounded-full" />
+                                <CpuChipIcon className="w-40 h-40 text-slate-600 relative z-10 transition-all hover:scale-110 duration-1000" />
+                                <div className="absolute -top-6 -right-6 w-16 h-16 bg-emerald-500 rounded-3xl flex items-center justify-center text-slate-950 font-black text-base shadow-2xl animate-bounce">10</div>
                             </div>
-                            <div className="max-w-[320px] space-y-5">
-                                <p className="text-xl font-black uppercase tracking-[0.6em] text-white">Pronto para Varredura</p>
-                                <p className="text-[13px] font-bold opacity-60 uppercase leading-relaxed text-center px-4 tracking-wider">O Motor Sniper v9.0 isola o gráfico das marcas d'água Axiun. Cole o print e execute a varredura HDR.</p>
+                            <div className="max-w-md space-y-6 px-10">
+                                <p className="text-2xl font-black uppercase tracking-[0.8em] text-white">X-Ray Ready</p>
+                                <p className="text-[14px] font-bold opacity-60 uppercase leading-loose text-center tracking-widest">O Motor v10 atravessa marcas d'água para análise pura. Cole seu print para iniciar o processamento quântico.</p>
                             </div>
                         </div>
                     )}
