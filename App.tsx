@@ -36,6 +36,7 @@ const AIAnalystPanel: React.FC<any> = ({ theme, isDarkMode }) => {
     const [image, setImage] = useState<string | null>(null);
     const [analysis, setAnalysis] = useState<string>('');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [showKeySelector, setShowKeySelector] = useState(false);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -43,8 +44,18 @@ const AIAnalystPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const reader = new FileReader();
             reader.onloadend = () => {
                 setImage(reader.result as string);
+                setAnalysis('');
+                setShowKeySelector(false);
             };
             reader.readAsDataURL(file);
+        }
+    };
+
+    const openKeyDialog = async () => {
+        if (window.aistudio) {
+            await window.aistudio.openSelectKey();
+            setShowKeySelector(false);
+            setAnalysis('Chave configurada. Tente analisar novamente.');
         }
     };
 
@@ -52,44 +63,41 @@ const AIAnalystPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         if (!image) return;
         setIsAnalyzing(true);
         setAnalysis('');
-        try {
-            // Requirement for Gemini 3 models in this environment: Ensure a key is selected
-            if (window.aistudio && !(await window.aistudio.hasSelectedApiKey())) {
-                await window.aistudio.openSelectKey();
-            }
+        setShowKeySelector(false);
 
+        try {
+            // Check if user has a custom key selected in this environment
+            const hasKey = window.aistudio ? await window.aistudio.hasSelectedApiKey() : true;
+            
+            // Create a fresh instance to use the latest key
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             
-            // Extract actual mimeType from data URL
             const mimeType = image.split(';')[0].split(':')[1] || 'image/jpeg';
             const base64Data = image.split(',')[1];
             
-            // Using gemini-3-flash-preview as it's highly reliable for fast multimodal tasks
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview', 
                 contents: {
                     parts: [
                         { inlineData: { data: base64Data, mimeType: mimeType } },
-                        { text: "Analise este gráfico de day trade profissionalmente. Identifique a tendência (alta, baixa ou lateral), principais suportes e resistências. Com base no movimento recente, sugira a próxima operação (CALL, PUT ou AGUARDAR) com uma justificativa técnica curta em português brasileiro." }
+                        { text: "Analise este gráfico de day trade profissionalmente. Identifique a tendência (alta, baixa ou lateral), suportes/resistências e padrões de vela. Sugira a próxima operação (CALL, PUT ou AGUARDAR) com uma justificativa técnica em português brasileiro." }
                     ]
                 }
             });
             
-            setAnalysis(response.text || 'Não foi possível analisar o gráfico.');
+            setAnalysis(response.text || 'Não foi possível obter uma resposta da IA.');
         } catch (error: any) {
             console.error('AI Analysis Error:', error);
-            let errorMsg = 'Erro ao conectar com a IA.';
             
-            if (error?.message?.includes('Requested entity was not found')) {
-                errorMsg = 'Modelo não encontrado. Tentando reconfigurar chave...';
-                if (window.aistudio) await window.aistudio.openSelectKey();
-            } else if (error?.message?.includes('API key')) {
-                errorMsg = 'Problema com a Chave API. Por favor, selecione uma chave válida.';
-            } else if (error?.message) {
-                errorMsg = `Erro: ${error.message}`;
+            if (error?.message?.includes('429') || error?.message?.toLowerCase().includes('quota')) {
+                setAnalysis('Limite de uso atingido (Cota Excedida). Para continuar analisando sem limites, você deve configurar sua própria Chave API do Google.');
+                setShowKeySelector(true);
+            } else if (error?.message?.includes('404') || error?.message?.includes('not found')) {
+                setAnalysis('Erro de configuração do modelo ou chave inválida.');
+                setShowKeySelector(true);
+            } else {
+                setAnalysis(`Erro ao conectar com a IA: ${error.message || 'Tente novamente.'}`);
             }
-            
-            setAnalysis(errorMsg);
         } finally {
             setIsAnalyzing(false);
         }
@@ -97,41 +105,74 @@ const AIAnalystPanel: React.FC<any> = ({ theme, isDarkMode }) => {
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div>
-                <h2 className="text-2xl font-black">Analista IA</h2>
-                <p className={theme.textMuted}>Envie um print do gráfico para análise profissional.</p>
+            <div className="flex justify-between items-start">
+                <div>
+                    <h2 className="text-2xl font-black">Analista IA Professional</h2>
+                    <p className={theme.textMuted}>Análise técnica avançada de candles e padrões.</p>
+                </div>
+                <button 
+                    onClick={openKeyDialog}
+                    className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-slate-800/50 hover:bg-slate-700 transition-colors border border-slate-700"
+                >
+                    Configurar Chave
+                </button>
             </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col items-center justify-center min-h-[400px]`}>
                     {image ? (
                         <div className="w-full relative group">
-                            <img src={image} alt="Chart to analyze" className="w-full rounded-2xl border border-slate-800/50" />
+                            <img src={image} alt="Chart to analyze" className="w-full rounded-2xl border border-slate-800/50 shadow-2xl" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl">
-                                <label className="cursor-pointer bg-white text-black px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest">Trocar Imagem <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} /></label>
+                                <label className="cursor-pointer bg-white text-black px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest">Trocar Print <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} /></label>
                             </div>
                         </div>
                     ) : (
-                        <label className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl cursor-pointer hover:border-green-500/50 transition-colors">
+                        <label className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl cursor-pointer hover:border-green-500/50 transition-colors bg-slate-900/20">
                             <SparklesIcon className="w-12 h-12 text-slate-700 mb-4" />
-                            <p className="text-xs font-black uppercase text-slate-500">Clique para selecionar o print</p>
+                            <p className="text-xs font-black uppercase text-slate-500">Clique para selecionar o print do gráfico</p>
                             <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                         </label>
                     )}
                     <button 
                         disabled={!image || isAnalyzing}
                         onClick={analyzeChart}
-                        className="w-full mt-6 h-14 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg shadow-green-500/20 disabled:bg-slate-800 disabled:text-slate-500"
+                        className="w-full mt-6 h-14 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg shadow-green-500/20 disabled:bg-slate-800 disabled:text-slate-500 active:scale-95"
                     >
-                        {isAnalyzing ? 'Analisando...' : 'Analisar Gráfico'}
+                        {isAnalyzing ? 'Processando Análise...' : 'Analisar Gráfico'}
                     </button>
                 </div>
-                <div className={`p-6 rounded-3xl border ${theme.card} min-h-[400px] flex flex-col`}>
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-6 flex items-center gap-2"><SparklesIcon className="w-4 h-4 text-green-500" /> Resultado da IA</h3>
-                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 whitespace-pre-wrap text-sm leading-relaxed">
-                        {analysis ? analysis : (
-                            <div className="h-full flex flex-col items-center justify-center opacity-30">
-                                <InformationCircleIcon className="w-10 h-10 mb-2" />
-                                <p className="text-xs font-black uppercase">Aguardando imagem...</p>
+
+                <div className={`p-6 rounded-3xl border ${theme.card} min-h-[400px] flex flex-col relative overflow-hidden`}>
+                    <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
+                        <SparklesIcon className="w-32 h-32" />
+                    </div>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-6 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        Parecer Técnico
+                    </h3>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 whitespace-pre-wrap text-sm leading-relaxed font-medium">
+                        {analysis ? (
+                            <div className="space-y-4">
+                                <p>{analysis}</p>
+                                {showKeySelector && (
+                                    <div className="mt-6 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 space-y-4">
+                                        <p className="text-xs font-bold text-blue-400">Como resolver:</p>
+                                        <p className="text-[11px] leading-snug">Você está usando a chave padrão que possui limites estritos. Clique no botão abaixo para usar sua própria chave da Google AI Studio (é gratuito para desenvolvedores).</p>
+                                        <button 
+                                            onClick={openKeyDialog}
+                                            className="w-full py-3 bg-blue-500 hover:bg-blue-400 text-white font-black rounded-xl text-[10px] uppercase tracking-widest transition-all"
+                                        >
+                                            Selecionar Minha Chave API
+                                        </button>
+                                        <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="block text-center text-[9px] underline opacity-50">Ver documentação de faturamento</a>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center opacity-20">
+                                <InformationCircleIcon className="w-12 h-12 mb-3" />
+                                <p className="text-[10px] font-black uppercase tracking-tighter">Aguardando upload de imagem</p>
                             </div>
                         )}
                     </div>
