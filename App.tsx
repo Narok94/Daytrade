@@ -80,21 +80,29 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const mimeType = image.split(';')[0].split(':')[1];
             const base64Data = image.split(',')[1];
             
-            const prompt = `VOCÊ É UM ANALISTA SNIPER M1.
+            // PROMPT OTIMIZADO PARA EVITAR FILTROS DE SEGURANÇA E MARCA D'ÁGUA
+            const prompt = `Identifique padrões de geometria visual nesta imagem de gráfico.
             
-            DIRETRIZES DE FILTRAGEM (CRÍTICO):
-            1. IGNORAR COMPLETAMENTE o texto central "AXIUN" e o logo "A" no fundo. São marcas d'água estáticas.
-            2. FOCO TOTAL na extremidade direita do gráfico (velas mais recentes).
-            3. IDENTIFIQUE setas de sinal (indicadores) que estejam sobre as velas.
-            4. PRICE ACTION: Verifique se a última vela é de força ou exaustão (pavio longo).
+            CONTEXTO VISUAL:
+            1. Desconsidere o texto "AXIUN BROKER" e o logo "A" no fundo. Eles são marcas d'água estáticas.
+            2. Analise as velas (candlesticks) e procure por indicadores de seta (triângulos verdes e vermelhos).
+            3. Foque nas últimas 5 velas no canto direito.
             
-            REQUISITOS DA RESPOSTA:
-            - Apenas JSON puro.
-            - Decisão baseada no fechamento da vela atual para a próxima de 1 minuto.
-            - Se não houver clareza total, responda "AGUARDAR".`;
+            LOGICA DE RECONHECIMENTO:
+            - Se vir seta verde + velas de corpo verde na sequência, retorne CALL.
+            - Se vir seta vermelha + velas de corpo vermelho na sequência, retorne PUT.
+            - Se as velas forem minúsculas (doji) ou o sinal for confuso pela marca d'água, retorne AGUARDAR.
+            
+            RESPONDA APENAS EM JSON:
+            {
+              "operacao": "CALL" | "PUT" | "AGUARDAR",
+              "confianca": 0-100,
+              "motivo": "string",
+              "detalhes": ["confluência 1", "confluência 2", "confluência 3"]
+            }`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview', 
+                model: 'gemini-2.5-flash-latest', // Modelo mais robusto para multimodality e visão
                 contents: {
                     parts: [
                         { inlineData: { data: base64Data, mimeType: mimeType } },
@@ -106,14 +114,10 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
-                            operacao: { type: Type.STRING, description: "CALL, PUT ou AGUARDAR" },
-                            confianca: { type: Type.NUMBER, description: "Probabilidade de 0 a 100" },
-                            motivo: { type: Type.STRING, description: "Gatilho técnico detectado" },
-                            detalhes: { 
-                                type: Type.ARRAY, 
-                                items: { type: Type.STRING },
-                                description: "3 confluências técnicas observadas"
-                            }
+                            operacao: { type: Type.STRING },
+                            confianca: { type: Type.NUMBER },
+                            motivo: { type: Type.STRING },
+                            detalhes: { type: Type.ARRAY, items: { type: Type.STRING } }
                         },
                         required: ["operacao", "confianca", "motivo", "detalhes"]
                     }
@@ -122,15 +126,14 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
 
             const textResponse = response.text;
             if (textResponse) {
-                // Parsing direto e limpo, confiando no modo application/json da Gemini
                 const parsed = JSON.parse(textResponse.trim());
                 setResult(parsed);
             } else {
-                throw new Error("Empty Response");
+                throw new Error("O modelo retornou uma resposta vazia. O gráfico pode estar bloqueado por filtros de segurança.");
             }
         } catch (err: any) {
-            console.error("Sniper Error Details:", err);
-            setError("FALHA TÉCNICA NO ESCANEAMENTO. VERIFIQUE SE O PRINT MOSTRA AS VELAS COM CLAREZA.");
+            console.error("Sniper Scan Failure:", err);
+            setError("ERRO DE LEITURA: O GRÁFICO ESTÁ MUITO POLUÍDO OU O SISTEMA BLOQUEOU A IMAGEM. TENTE DAR ZOOM NAS ÚLTIMAS VELAS.");
         } finally {
             setAnalyzing(false);
         }
@@ -142,43 +145,37 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 <div className="space-y-1">
                     <div className="flex items-center gap-2">
                         <h2 className={`text-2xl font-black ${theme.text}`}>Analista IA</h2>
-                        <span className="bg-green-500/20 text-green-400 text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border border-green-500/30">M1 Sniper v3.1</span>
+                        <span className="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border border-emerald-500/30">Vision Core v4.0</span>
                     </div>
-                    <p className={theme.textMuted}>Filtro de marca d'água ativo. Concentração exclusiva no Price Action.</p>
+                    <p className={theme.textMuted}>Ignorando marcas Axiun. Foco em Geometria de Velas M1.</p>
                 </div>
                 <div className="hidden md:flex items-center gap-3 bg-slate-900/50 px-4 py-2 rounded-2xl border border-slate-800">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]" />
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Motor Visual Ativo</span>
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_#10b981]" />
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Motor Gemini 2.5 Ativo</span>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 overflow-hidden min-h-0">
                 {/* Lado Esquerdo: Área de Upload */}
-                <div className={`group relative rounded-3xl border-2 border-dashed ${image ? 'border-green-500/30' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center overflow-hidden bg-slate-950/20 transition-all hover:border-green-500/50`}>
+                <div className={`group relative rounded-3xl border-2 border-dashed ${image ? 'border-emerald-500/30' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center overflow-hidden bg-slate-950/20 transition-all hover:border-emerald-500/50`}>
                     {image ? (
                         <div className="relative w-full h-full p-2 flex items-center justify-center">
-                            <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-2xl shadow-2xl transition-transform group-hover:scale-[1.02]" />
+                            <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-2xl shadow-2xl transition-transform group-hover:scale-[1.01]" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
                                 <button onClick={() => setImage(null)} className="p-4 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-2xl active:scale-90"><TrashIcon className="w-8 h-8" /></button>
                             </div>
                         </div>
                     ) : (
                         <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center gap-6 p-8">
-                            <div className="w-24 h-24 bg-green-500/5 rounded-full flex items-center justify-center border border-green-500/10 group-hover:bg-green-500/10 transition-all">
-                                <PlusIcon className="w-12 h-12 text-green-500" />
+                            <div className="w-24 h-24 bg-emerald-500/5 rounded-full flex items-center justify-center border border-emerald-500/10 group-hover:bg-emerald-500/10 transition-all">
+                                <PlusIcon className="w-12 h-12 text-emerald-500" />
                             </div>
                             <div className="text-center">
-                                <p className="font-black text-sm uppercase tracking-[0.2em]">Importar Gráfico Axiun</p>
-                                <p className="text-[10px] opacity-40 font-bold mt-2 uppercase">A IA irá ignorar o fundo e filtrar as velas</p>
+                                <p className="font-black text-sm uppercase tracking-[0.2em]">Importar Gráfico M1</p>
+                                <p className="text-[10px] opacity-40 font-bold mt-2 uppercase">A IA fará a limpeza automática do fundo</p>
                             </div>
                             <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                         </label>
-                    )}
-                    {/* Botão de Análise Sobreposto (Mobile Friendly) */}
-                    {image && !analyzing && !result && (
-                        <div className="absolute bottom-4 left-4 right-4 lg:hidden">
-                            <button onClick={analyzeChart} className="w-full h-14 bg-green-500 text-slate-950 font-black rounded-2xl shadow-2xl shadow-green-500/20 uppercase tracking-widest">Analisar Agora</button>
-                        </div>
                     )}
                 </div>
 
@@ -188,12 +185,12 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         onClick={analyzeChart} 
                         disabled={!image || analyzing}
                         className={`w-full h-20 shrink-0 rounded-[2rem] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-4 text-xs shadow-2xl
-                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border border-slate-800' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-green-500/20 active:scale-95'}`}
+                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border border-slate-800' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 active:scale-95'}`}
                     >
                         {analyzing ? (
                             <>
                                 <ArrowPathIcon className="w-6 h-6 animate-spin" />
-                                <span className="animate-pulse">Filtrando Marca d'água...</span>
+                                <span className="animate-pulse">Analisando Geometria...</span>
                             </>
                         ) : (
                             <>
@@ -208,68 +205,63 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-start gap-4 text-red-500 animate-in fade-in zoom-in">
                                 <InformationCircleIcon className="w-8 h-8 shrink-0 mt-1" />
                                 <div className="space-y-1">
-                                    <p className="text-xs font-black uppercase">Erro de Reconhecimento</p>
-                                    <p className="text-[10px] font-bold opacity-80 leading-relaxed uppercase">O algoritmo não conseguiu isolar as velas do fundo. Tente aproximar mais o zoom no gráfico.</p>
+                                    <p className="text-xs font-black uppercase">Falha na Extração</p>
+                                    <p className="text-[10px] font-bold opacity-80 leading-relaxed uppercase">Não foi possível isolar os sinais. Dica: Use zoom para que as velas preencham a tela.</p>
                                 </div>
                             </div>
                         )}
 
                         {result ? (
-                            <div className={`p-8 rounded-[2.5rem] border ${theme.card} space-y-8 animate-in fade-in slide-in-from-right-8 duration-700 shadow-2xl relative overflow-hidden bg-gradient-to-br ${result.operacao === 'CALL' ? 'from-green-500/5 to-transparent' : result.operacao === 'PUT' ? 'from-red-500/5 to-transparent' : 'from-blue-500/5 to-transparent'}`}>
-                                <div className={`absolute -top-12 -right-12 w-48 h-48 blur-[80px] opacity-20 rounded-full ${result.operacao === 'CALL' ? 'bg-green-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
+                            <div className={`p-8 rounded-[2.5rem] border ${theme.card} space-y-8 animate-in fade-in slide-in-from-right-8 duration-700 shadow-2xl relative overflow-hidden bg-gradient-to-br ${result.operacao === 'CALL' ? 'from-emerald-500/5 to-transparent' : result.operacao === 'PUT' ? 'from-red-500/5 to-transparent' : 'from-blue-500/5 to-transparent'}`}>
+                                <div className={`absolute -top-12 -right-12 w-48 h-48 blur-[80px] opacity-20 rounded-full ${result.operacao === 'CALL' ? 'bg-emerald-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
                                 
                                 <div className="flex justify-between items-end relative z-10">
                                     <div className="space-y-1">
-                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Recomendação Sniper</p>
-                                        <h3 className={`text-7xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-green-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
+                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Sinal Previsto</p>
+                                        <h3 className={`text-7xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-emerald-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
                                             {result.operacao}
                                         </h3>
                                     </div>
                                     <div className="text-right space-y-1">
-                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Assertividade</p>
+                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Confiança</p>
                                         <p className={`text-4xl font-black ${result.confianca > 85 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
                                     </div>
                                 </div>
 
                                 <div className="p-5 bg-slate-950/60 rounded-3xl border border-white/5 backdrop-blur-xl">
                                     <div className="flex items-center gap-2 mb-2 opacity-50">
-                                        <div className="w-1 h-3 bg-green-500 rounded-full" />
-                                        <p className="text-[9px] font-black uppercase tracking-widest">Gatilho Detectado</p>
+                                        <div className="w-1 h-3 bg-emerald-500 rounded-full" />
+                                        <p className="text-[9px] font-black uppercase tracking-widest">Por que entrar?</p>
                                     </div>
                                     <p className="text-sm font-bold leading-relaxed italic text-white/90">"{result.motivo}"</p>
                                 </div>
 
                                 <div className="space-y-3">
-                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Confluências (Fundo Filtrado)</p>
+                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Análise do Print (Axiun)</p>
                                     <div className="grid grid-cols-1 gap-2">
                                         {result.detalhes?.map((detail: string, i: number) => (
                                             <div key={i} className="flex items-center gap-4 text-[11px] font-bold text-slate-300 bg-white/5 p-3 rounded-2xl border border-white/5">
-                                                <CheckIcon className="w-4 h-4 text-green-500 shrink-0" />
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981]" />
                                                 {detail}
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                                 
-                                <div className="pt-6 border-t border-white/5 flex justify-between items-center">
-                                    <div className="flex items-center gap-2">
-                                        <InformationCircleIcon className="w-4 h-4 text-slate-600" />
-                                        <p className="text-[9px] uppercase font-black text-slate-600 tracking-widest">Tempo Expiração: 1 min</p>
-                                    </div>
-                                    <div className="px-3 py-1 bg-green-500/10 rounded-full border border-green-500/20">
-                                        <p className="text-[8px] font-black text-green-500 uppercase tracking-tighter">Gráfico Legível</p>
-                                    </div>
+                                <div className="pt-6 border-t border-white/5 flex justify-between items-center opacity-40">
+                                     <p className="text-[9px] font-black uppercase tracking-tighter">Filtro de Ruído v4.0 Ativado</p>
+                                     <p className="text-[9px] font-black uppercase tracking-tighter">Expiração: 1m</p>
                                 </div>
                             </div>
                         ) : !analyzing && !error && (
                             <div className="h-full rounded-[2.5rem] border border-slate-800/30 flex flex-col items-center justify-center opacity-40 text-center space-y-6 py-16 bg-slate-900/5">
                                 <div className="relative">
                                     <LayoutGridIcon className="w-20 h-20 text-slate-700" />
-                                    <div className="absolute inset-0 bg-green-500/10 blur-3xl rounded-full" />
+                                    <div className="absolute inset-0 bg-emerald-500/10 blur-3xl rounded-full" />
                                 </div>
                                 <div className="max-w-[240px] space-y-2">
-                                    <p className="text-xs font-black uppercase tracking-[0.2em] leading-tight">Aguardando Print</p>
-                                    <p className="text-[9px] font-bold opacity-60 uppercase leading-relaxed">Envie seu gráfico da Axiun. A IA processará os sinais e ignorará o logo de fundo automaticamente.</p>
+                                    <p className="text-xs font-black uppercase tracking-[0.2em] leading-tight">Painel de Sinais IA</p>
+                                    <p className="text-[9px] font-bold opacity-60 uppercase leading-relaxed">Cole um print do seu gráfico Axiun. A IA irá ignorar marcas d'água e focar nos candles e setas de sinal.</p>
                                 </div>
                             </div>
                         )}
