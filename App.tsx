@@ -61,7 +61,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                 <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`text-[7px] md:text-[9px] font-black px-1.5 py-0.5 rounded border outline-none ${theme.input}`} />
             </div>
 
-            {/* Grid de KPIs - Reduzido em ~15% (padding p-1.5 md:p-2.5 e fontes menores) */}
+            {/* Grid de KPIs - Mantido com redução de 15% conforme solicitado anteriormente */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 md:gap-2">
                 {kpis.map((kpi, i) => (
                     <div key={i} className={`p-1.5 md:p-2.5 rounded-lg border ${theme.card} flex flex-col justify-between hover:border-emerald-500/30 transition-all group`}>
@@ -77,7 +77,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                 ))}
             </div>
 
-            {/* Protocolo de Disparo - Compactado para economizar vertical */}
+            {/* Protocolo de Disparo */}
             <div className={`p-3 md:p-5 rounded-[1.2rem] md:rounded-[1.8rem] border ${theme.card} shadow-2xl max-w-lg mx-auto w-full relative overflow-hidden flex flex-col justify-center`}>
                 <div className="absolute -top-6 -right-6 p-10 opacity-[0.02] pointer-events-none">
                     <TargetIcon className="w-20 h-20 md:w-32 md:h-32 text-emerald-500" />
@@ -146,18 +146,10 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage }) =
             <h2 className="text-lg font-black uppercase italic">Simulação de Escalada</h2>
             <div className={`p-4 rounded-xl border ${theme.card} grid grid-cols-1 md:grid-cols-2 gap-4 shadow-lg`}>
                  <div className="space-y-3">
-                    <div><label className="text-[8px] font-black text-slate-500 uppercase">Dias</label><input type="number" value={days} onChange={e => setDays(Number(e.target.value))} className={`w-full h-10 px-3 rounded-lg border text-[12px] font-black ${theme.input}`} /></div>
-                    <div><label className="text-[8px] font-black text-slate-500 uppercase">Meta %</label><input type="number" value={dailyRate} onChange={e => setDailyRate(Number(e.target.value))} className={`w-full h-10 px-3 rounded-lg border text-[12px] font-black ${theme.input}`} /></div>
+                    <div><label className="text-[8px] font-black text-slate-500 uppercase">Dias</label><input type="number" value={days} onChange={setDays as any} className={`w-full h-10 px-3 rounded-lg border text-[12px] font-black ${theme.input}`} /></div>
+                    <div><label className="text-[8px] font-black text-slate-500 uppercase">Meta %</label><input type="number" value={dailyRate} onChange={setDailyRate as any} className={`w-full h-10 px-3 rounded-lg border text-[12px] font-black ${theme.input}`} /></div>
                  </div>
                  <div className="flex flex-col justify-center items-center p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/20"><p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Saldo Final</p><p className="text-2xl font-black text-emerald-400 tracking-tighter">{currencySymbol}{formatMoney(results[results.length-1]?.balance || 0)}</p></div>
-            </div>
-            <div className={`overflow-hidden rounded-xl border ${theme.border} ${theme.card} shadow-lg`}>
-                <table className="w-full text-left text-[9px] md:text-[10px]">
-                    <thead className="bg-black/40"><tr><th className="px-4 py-3 font-black uppercase tracking-widest text-slate-400">Dia</th><th className="px-4 py-3 font-black uppercase tracking-widest text-slate-400">Saldo</th></tr></thead>
-                    <tbody className="divide-y divide-white/5">
-                        {results.slice(0, 10).map(r => (<tr key={r.day} className="hover:bg-white/5"><td className="px-4 py-3 font-black opacity-60">Dia {r.day}</td><td className="px-4 py-3 font-black text-emerald-400">{currencySymbol}{formatMoney(r.balance)}</td></tr>))}
-                    </tbody>
-                </table>
             </div>
         </div>
     );
@@ -392,7 +384,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 </div>
             </header>
 
-            {/* Conteúdo Principal - h-full no Dashboard forçado para evitar overflow */}
+            {/* Conteúdo Principal */}
             <main className="flex-grow overflow-hidden relative">
                 <div className={`h-full flex flex-col`}>
                     {activeTab === 'dashboard' ? (
@@ -400,7 +392,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={dailyGoalTarget} />
                         </div>
                     ) : (
-                        <div className="flex-1 overflow-y-auto custom-scrollbar pb-20">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar pb-24">
                             {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} />}
                             {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                             {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} currencySymbol={currencySymbol} debouncedSave={debouncedSave} />}
@@ -411,16 +403,16 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 </div>
             </main>
 
-            {/* Rodapé Compacto h-14 */}
-            <nav className={`flex-shrink-0 h-14 md:h-16 bg-[#010409] border-t border-white/10 flex items-center justify-around px-1 md:px-6 z-50`}>
+            {/* Barra de Navegação - Revertida para tamanho original (h-16/h-20) e Translúcida */}
+            <nav className={`flex-shrink-0 h-16 md:h-20 bg-black/40 backdrop-blur-2xl border-t border-white/10 flex items-center justify-around px-2 md:px-8 z-50`}>
                 {tabs.map(tab => (
                     <button 
                         key={tab.id} 
                         onClick={() => setActiveTab(tab.id)} 
-                        className={`flex flex-col items-center justify-center gap-0.5 px-0.5 py-1 rounded-xl transition-all duration-300 min-w-[38px] ${activeTab === tab.id ? theme.navActive : theme.navInactive}`}
+                        className={`flex flex-col items-center justify-center gap-1 px-1 py-1 rounded-xl transition-all duration-300 min-w-[45px] ${activeTab === tab.id ? theme.navActive : theme.navInactive}`}
                     >
-                        <tab.icon className={`w-3.5 h-3.5 md:w-4 md:h-4 ${activeTab === tab.id ? 'scale-110' : 'scale-95'} transition-transform`} />
-                        <span className="text-[5px] md:text-[7px] font-black uppercase tracking-tight block text-center truncate w-full">{tab.label}</span>
+                        <tab.icon className={`w-4 h-4 md:w-5 md:h-5 ${activeTab === tab.id ? 'scale-110' : 'scale-100'} transition-transform`} />
+                        <span className="text-[6px] md:text-[8px] font-black uppercase tracking-widest block text-center truncate w-full">{tab.label}</span>
                     </button>
                 ))}
             </nav>
