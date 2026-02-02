@@ -88,15 +88,20 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const mimeType = image.split(';')[0].split(':')[1];
             const base64Data = image.split(',')[1];
             
-            const prompt = `AJA COMO UM SISTEMA DE VISÃO COMPUTACIONAL PARA TRADING DE ALTA PRECISÃO.
+            const prompt = `VOCÊ É O MOTOR DE VISÃO SNIPER v7.0.
             
-            INSTRUÇÕES DE FILTRAGEM:
-            1. CAMADA DE RUÍDO: Ignore o texto "AXIUN BROKER" ao fundo. É uma marca d'água estática.
-            2. CAMADA DE SINAL: Foque exclusivamente nos Candlesticks (Verde/Vermelho) e indicadores (linhas coloridas).
-            3. ANÁLISE DE FLUXO: Avalie a sequência das últimas 20 velas para determinar a força da tendência.
-            4. PADRÕES: Identifique Engolfos, Martelos, Rejeição em Pavios e Squeeze de Bandas de Bollinger.
+            TAREFA CRÍTICA DE FILTRAGEM:
+            - O gráfico possui uma marca d'água de fundo (TEXTO "AXIUN" OU LOGO "A"). 
+            - VOCÊ DEVE IGNORAR TOTALMENTE ESSA CAMADA DE FUNDO.
+            - FOQUE APENAS NOS OBJETOS DE PRIMEIRO PLANO: Candlesticks (Velas) e Linhas de Indicadores.
+            - CANDLESTICKS: Verdes (Alta), Vermelhos (Baixa). Identifique o corpo e os pavios.
             
-            MISSÃO: Com base na confluência de Price Action e Indicadores, dê o sinal para a PRÓXIMA VELA de 1 minuto.`;
+            ANÁLISE TÉCNICA (OPÇÕES BINÁRIAS M1):
+            1. Identifique a tendência imediata (últimas 10 velas).
+            2. Procure por Padrões de Reversão: Martelo em suporte, Estrela cadente em resistência, Engolfos.
+            3. Verifique exaustão em Bandas de Bollinger e RSI.
+            
+            SÓ EMITA CALL OU PUT SE A CONFIANÇA FOR ACIMA DE 80%. CASO CONTRÁRIO, "AGUARDAR".`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-3-pro-preview',
@@ -112,16 +117,13 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         type: Type.OBJECT,
                         properties: {
                             operacao: { type: Type.STRING, description: "CALL, PUT ou AGUARDAR" },
-                            confianca: { type: Type.NUMBER, description: "0 a 100" },
-                            estrategia_principal: { type: Type.STRING },
-                            detalhes_tecnicos: { type: Type.STRING },
-                            gatilhos_confirmados: { 
-                                type: Type.ARRAY, 
-                                items: { type: Type.STRING } 
-                            },
-                            score_confluencia: { type: Type.INTEGER }
+                            confianca: { type: Type.NUMBER },
+                            analise_visual: { type: Type.STRING, description: "O que você viu ignorando o fundo" },
+                            padrao_detectado: { type: Type.STRING },
+                            confluencias: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            risco: { type: Type.STRING }
                         },
-                        required: ["operacao", "confianca", "estrategia_principal", "detalhes_tecnicos", "gatilhos_confirmados", "score_confluencia"]
+                        required: ["operacao", "confianca", "analise_visual", "padrao_detectado", "confluencias", "risco"]
                     },
                     temperature: 0.1,
                 }
@@ -131,11 +133,11 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             if (text) {
                 setResult(JSON.parse(text));
             } else {
-                throw new Error("Resposta vazia da IA");
+                throw new Error("Falha na interpretação visual");
             }
         } catch (err: any) {
-            console.error("Sniper Engine Error:", err);
-            setError("FALHA TÉCNICA: O motor de visão não conseguiu isolar as velas. Dica: Certifique-se de que o gráfico está em modo 'Velas' e com zoom suficiente para ver os pavios.");
+            console.error("Sniper System v7.0 Error:", err);
+            setError("ERRO DE SEGMENTAÇÃO: O sistema não conseguiu isolar as velas do ruído de fundo. Sugestão: Aumente o brilho do gráfico ou use o modo Escuro (Dark Mode) na corretora para melhor contraste.");
         } finally {
             setAnalyzing(false);
         }
@@ -145,44 +147,45 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6 flex flex-col h-full overflow-hidden">
             <div className="flex justify-between items-center shrink-0">
                 <div>
-                    <h2 className={`text-3xl font-black ${theme.text} tracking-tighter uppercase italic`}>Sniper <span className="text-emerald-500">System v6.0</span></h2>
-                    <p className={theme.textMuted}>Tecnologia Vision Pro: Ignora marcas d'água e foca no sinal puro.</p>
-                </div>
-                <div className="flex gap-2">
-                    <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Motor Ativo</p>
-                    </div>
+                    <h2 className={`text-4xl font-black ${theme.text} tracking-tighter uppercase italic flex items-center gap-3`}>
+                        <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-[0_0_20px_#10b98144]">
+                             <CpuChipIcon className="w-6 h-6 text-slate-950" />
+                        </div>
+                        Sniper <span className="text-emerald-500">Vision v7.0</span>
+                    </h2>
+                    <p className={`${theme.textMuted} mt-1 font-bold text-xs uppercase tracking-[0.2em]`}>Motor de Segmentação Profissional - Filtro Anti-Ruído Ativo</p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 overflow-hidden min-h-0">
                 <div className="lg:col-span-7 flex flex-col gap-4 overflow-hidden">
-                    <div className={`relative flex-1 rounded-[2.5rem] border-2 border-dashed ${image ? 'border-emerald-500/30' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center overflow-hidden bg-slate-950/20 transition-all group`}>
+                    <div className={`relative flex-1 rounded-[3rem] border-2 border-dashed ${image ? 'border-emerald-500/40' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center overflow-hidden bg-slate-950 transition-all group shadow-2xl shadow-emerald-500/5`}>
                         {image ? (
-                            <div className="relative w-full h-full p-2 flex items-center justify-center">
-                                <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-3xl shadow-2xl" />
+                            <div className="relative w-full h-full p-4 flex items-center justify-center">
+                                <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)]" />
                                 
-                                {/* Scanning Overlay Animation */}
                                 {analyzing && (
-                                    <div className="absolute inset-0 z-20 pointer-events-none">
-                                        <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_15px_#10b981] animate-[scan_2s_linear_infinite]" />
-                                        <div className="absolute inset-0 bg-emerald-500/5 backdrop-blur-[1px]" />
+                                    <div className="absolute inset-0 z-20 pointer-events-none overflow-hidden">
+                                        <div className="absolute top-0 left-0 w-full h-1 bg-emerald-400 shadow-[0_0_25px_#4ade80] animate-[scan_2.5s_ease-in-out_infinite]" />
+                                        <div className="absolute inset-0 bg-emerald-500/[0.03] backdrop-blur-[1px]" />
+                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                                            <div className="w-32 h-32 border-2 border-emerald-500/20 rounded-full animate-ping" />
+                                        </div>
                                     </div>
                                 )}
 
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-md">
-                                    <button onClick={() => setImage(null)} className="p-4 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-xl active:scale-90"><TrashIcon className="w-8 h-8" /></button>
+                                <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-md">
+                                    <button onClick={() => setImage(null)} className="p-5 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-2xl active:scale-95"><TrashIcon className="w-8 h-8" /></button>
                                 </div>
                             </div>
                         ) : (
-                            <label className="cursor-pointer flex flex-col items-center gap-6 text-center p-8 w-full h-full justify-center">
-                                <div className="w-20 h-20 bg-emerald-500/5 rounded-full flex items-center justify-center border border-emerald-500/10 group-hover:scale-110 transition-all">
-                                    <PlusIcon className="w-10 h-10 text-emerald-500" />
+                            <label className="cursor-pointer flex flex-col items-center gap-8 text-center p-12 w-full h-full justify-center">
+                                <div className="w-24 h-24 bg-emerald-500/10 rounded-[2rem] flex items-center justify-center border border-emerald-500/20 group-hover:rotate-6 transition-all duration-500">
+                                    <PlusIcon className="w-12 h-12 text-emerald-500" />
                                 </div>
-                                <div className="max-w-xs">
-                                    <p className="font-black text-sm uppercase tracking-[0.2em] text-white">Carregar Print do Gráfico</p>
-                                    <p className="text-[10px] opacity-40 font-bold mt-2 text-slate-400 uppercase tracking-widest leading-loose">Pressione Ctrl+V ou clique aqui.<br/>A IA filtrará automaticamente o fundo da Axiun.</p>
+                                <div className="max-w-xs space-y-3">
+                                    <p className="font-black text-lg uppercase tracking-[0.2em] text-white">Importar Gráfico</p>
+                                    <p className="text-[11px] opacity-40 font-bold text-slate-400 uppercase tracking-widest leading-relaxed">Pressione Ctrl+V para colar.<br/>O Motor v7.0 isola o price action ignorando a marca d'água da Axiun.</p>
                                 </div>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                             </label>
@@ -192,91 +195,97 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     <button 
                         onClick={analyzeChart} 
                         disabled={!image || analyzing}
-                        className={`h-20 shrink-0 rounded-[2rem] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-4 text-xs shadow-2xl
+                        className={`h-24 shrink-0 rounded-[2.5rem] font-black uppercase tracking-[0.5em] transition-all flex items-center justify-center gap-4 text-sm shadow-2xl
                         ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border border-slate-800' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 active:scale-95'}`}
                     >
                         {analyzing ? (
                             <>
-                                <ArrowPathIcon className="w-6 h-6 animate-spin" />
-                                <span className="animate-pulse italic">Sniper Pro Escaneando...</span>
+                                <ArrowPathIcon className="w-7 h-7 animate-spin" />
+                                <span className="animate-pulse italic">Escaneando Camadas de Preço...</span>
                             </>
                         ) : (
                             <>
-                                <CpuChipIcon className="w-7 h-7" />
-                                Executar Análise Sniper
+                                <CpuChipIcon className="w-8 h-8" />
+                                Iniciar Varredura Sniper
                             </>
                         )}
                     </button>
                 </div>
 
-                <div className="lg:col-span-5 overflow-y-auto custom-scrollbar pr-2 space-y-4">
+                <div className="lg:col-span-5 overflow-y-auto custom-scrollbar pr-2 space-y-6">
                     {error && (
-                        <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-start gap-4 text-red-500 animate-in zoom-in">
-                            <InformationCircleIcon className="w-8 h-8 shrink-0 mt-1" />
-                            <div className="space-y-1">
-                                <p className="text-xs font-black uppercase tracking-widest">Erro de Escaneamento</p>
-                                <p className="text-[10px] font-bold opacity-80 leading-relaxed uppercase">{error}</p>
+                        <div className="p-8 bg-red-500/10 border border-red-500/20 rounded-[2.5rem] flex items-start gap-5 text-red-500 animate-in zoom-in duration-500 shadow-xl">
+                            <InformationCircleIcon className="w-10 h-10 shrink-0" />
+                            <div className="space-y-2">
+                                <p className="text-sm font-black uppercase tracking-widest">Alerta do Motor v7.0</p>
+                                <p className="text-[11px] font-bold opacity-80 leading-relaxed uppercase">{error}</p>
                             </div>
                         </div>
                     )}
 
                     {result ? (
-                        <div className={`p-8 rounded-[2.5rem] border ${theme.card} space-y-8 animate-in fade-in slide-in-from-right-8 duration-700 shadow-2xl relative overflow-hidden bg-slate-900/40`}>
-                            <div className={`absolute -top-12 -right-12 w-48 h-48 blur-[80px] opacity-20 rounded-full ${result.operacao === 'CALL' ? 'bg-emerald-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
+                        <div className={`p-10 rounded-[3.5rem] border ${theme.card} space-y-10 animate-in fade-in slide-in-from-right-12 duration-1000 shadow-[0_0_100px_rgba(16,185,129,0.05)] relative overflow-hidden bg-slate-900/60`}>
+                            <div className={`absolute -top-20 -right-20 w-64 h-64 blur-[100px] opacity-20 rounded-full ${result.operacao === 'CALL' ? 'bg-emerald-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
                             
-                            <div className="flex justify-between items-end relative z-10">
+                            <div className="flex justify-between items-end relative z-10 border-b border-white/5 pb-8">
                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Sinal Verificado</p>
-                                    <h3 className={`text-7xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-emerald-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
+                                    <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest">Sinal Processado</p>
+                                    <h3 className={`text-8xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-emerald-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
                                         {result.operacao}
                                     </h3>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Assertividade</p>
-                                    <p className={`text-4xl font-black ${result.confianca > 85 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
+                                    <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest">Confiança IA</p>
+                                    <p className={`text-5xl font-black ${result.confianca > 85 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 relative z-10">
-                                <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                                    <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">Padrão Detectado</p>
-                                    <p className="text-xs font-black text-emerald-400 uppercase italic">{result.estrategia_principal}</p>
+                            <div className="space-y-6 relative z-10">
+                                <div className="p-6 bg-slate-950/80 rounded-[2rem] border border-white/5 backdrop-blur-2xl space-y-3">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500/60 flex items-center gap-2">
+                                        <TrendingUpIcon className="w-4 h-4" /> Relatório Visual (Filtro v7.0)
+                                    </p>
+                                    <p className="text-sm font-bold leading-relaxed italic text-white/90">"{result.analise_visual}"</p>
                                 </div>
-                                <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                                    <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">Confluências (1-5)</p>
-                                    <div className="flex gap-1 mt-1">
-                                        {[1,2,3,4,5].map(i => (
-                                            <div key={i} className={`h-1.5 flex-1 rounded-full ${i <= result.score_confluencia ? 'bg-emerald-500 shadow-[0_0_5px_#10b981]' : 'bg-slate-800'}`} />
-                                        ))}
+
+                                <div className="grid grid-cols-1 gap-4">
+                                    <div className="p-5 bg-white/5 rounded-2xl border border-white/5 flex justify-between items-center">
+                                         <div>
+                                            <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Setup Primário</p>
+                                            <p className="text-xs font-black text-white mt-1 uppercase italic">{result.padrao_detectado}</p>
+                                         </div>
+                                         <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[9px] font-black text-emerald-500 uppercase tracking-widest">Detectado</div>
+                                    </div>
+                                    
+                                    <div className="p-5 bg-white/5 rounded-2xl border border-white/5">
+                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3">Confluências Sniper</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {result.confluencias?.map((item: string, i: number) => (
+                                                <span key={i} className="px-4 py-2 bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase rounded-xl border border-emerald-500/20 shadow-[0_0_10px_#10b98122]">
+                                                    {item}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="p-5 bg-slate-950/60 rounded-3xl border border-white/5 backdrop-blur-xl space-y-2 relative z-10">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Relatório de Visão</p>
-                                <p className="text-sm font-bold leading-relaxed italic text-white/90">"{result.detalhes_tecnicos}"</p>
-                            </div>
-
-                            <div className="space-y-3 relative z-10">
-                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Checklist de Filtros</p>
-                                <div className="grid grid-cols-1 gap-2">
-                                    {result.gatilhos_confirmados?.map((setup: string, i: number) => (
-                                        <div key={i} className="flex items-center gap-4 text-[11px] font-bold text-slate-300 bg-white/5 p-3 rounded-2xl border border-white/5">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
-                                            {setup}
-                                        </div>
-                                    ))}
+                                <div className="p-5 bg-red-500/5 rounded-2xl border border-red-500/10 flex items-center gap-4">
+                                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                    <p className="text-[10px] font-black uppercase text-red-500/80 tracking-widest">Zona de Risco: {result.risco}</p>
                                 </div>
                             </div>
                             
-                            <p className="text-[8px] text-center uppercase font-black text-slate-600 mt-4 italic opacity-50 tracking-[0.2em]">Sniper Pro Engine v6.0 - Zero Watermark Distraction</p>
+                            <p className="text-[9px] text-center uppercase font-black text-slate-600 mt-6 italic opacity-50 tracking-[0.3em]">Sniper v7.0 - Zero Distraction Vision Module</p>
                         </div>
                     ) : !analyzing && !error && (
-                        <div className="h-full rounded-[2.5rem] border border-slate-800/20 flex flex-col items-center justify-center opacity-30 text-center space-y-6 py-16 bg-slate-900/5">
-                            <CpuChipIcon className="w-16 h-16 text-slate-700" />
-                            <div className="max-w-[280px]">
-                                <p className="text-xs font-black uppercase tracking-[0.3em] text-white mb-2">Aguardando Gráfico</p>
-                                <p className="text-[10px] font-bold opacity-60 uppercase leading-relaxed text-center">Cole um print do gráfico. O motor v6.0 é treinado especificamente para ignorar o fundo da Axiun e focar no price action puro.</p>
+                        <div className="h-full rounded-[3rem] border border-slate-800/10 flex flex-col items-center justify-center opacity-30 text-center space-y-8 py-20 bg-slate-900/10">
+                            <div className="relative">
+                                <CpuChipIcon className="w-24 h-24 text-slate-700" />
+                                <div className="absolute inset-0 border-2 border-slate-700 rounded-full animate-ping opacity-20" />
+                            </div>
+                            <div className="max-w-[280px] space-y-3">
+                                <p className="text-sm font-black uppercase tracking-[0.4em] text-white">Pronto para Varredura</p>
+                                <p className="text-[11px] font-bold opacity-60 uppercase leading-relaxed text-center">Cole o print da Axiun. O Motor v7.0 isolará as velas automaticamente para você.</p>
                             </div>
                         </div>
                     )}
