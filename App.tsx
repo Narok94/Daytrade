@@ -84,32 +84,37 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         setError(null);
 
         try {
-            // Usando Gemini 3 Pro para máxima capacidade de visão e filtragem de ruído
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const mimeType = image.split(';')[0].split(':')[1];
             const base64Data = image.split(',')[1];
             
-            const prompt = `Você é um Analista de Elite em Opções Binárias M1.
-            SUA TAREFA: Analisar este gráfico da corretora Axiun e dar um sinal SNIPER.
+            const prompt = `Você é um Analista Quantitativo de Opções Binárias operando em M1.
+            SUA TAREFA: Analisar este gráfico ignorando as marcas d'água (Axiun) no fundo.
+            
+            ESTRATÉGIAS A AVALIAR (CONFLUÊNCIA SNIPER):
+            1. PRICE ACTION: Procure por Engolfos, Martelos, Estrelas e Rejeições de preço.
+            2. SUPORTE/RESISTÊNCIA: Identifique zonas de teto e chão históricas no print.
+            3. MÉDIAS MÓVEIS: Verifique o alinhamento da tendência e pullbacks.
+            4. BOLLINGER: Veja se o preço tocou ou rompeu as bandas externas (exaustão).
+            5. RSI/ESTOCÁSTICO: Verifique se há sobrecompra ou sobrevenda gritante.
 
-            VISÃO COMPUTACIONAL:
-            1. O fundo possui uma marca d'água (Letra A e texto AXIUN). IGNORE isso completamente.
-            2. Foque nas velas (Candlesticks): Verdes são Altas, Vermelhas são Baixas.
-            3. Identifique o FLUXO HISTÓRICO COMPLETO visível na tela (não apenas o final).
-            4. Procure confluência entre: Médias Móveis, Bandas de Bollinger, RSI, Suporte/Resistência e Padrões de Price Action.
-            5. Determine se o próximo movimento de 1 minuto tem maior probabilidade de CALL ou PUT.
+            REGRAS DE OURO:
+            - Só envie CALL ou PUT se houver pelo menos 3 estratégias em confluência.
+            - Caso contrário, envie AGUARDAR.
+            - Foque na cor das velas (Verde=Alta, Vermelho=Baixa) e ignore ruídos de fundo.
 
-            RESPOSTA OBRIGATÓRIA EM JSON:
+            RETORNE EM JSON RÍGIDO:
             {
               "operacao": "CALL" | "PUT" | "AGUARDAR",
               "confianca": 0-100,
-              "analise_tecnica": "Explicação técnica simplificada",
-              "confluencias": ["lista de gatilhos detectados"],
-              "observacoes": ["detalhes do histórico observado"]
+              "estrategia_principal": "Qual das 5 estratégias acima é a mais forte no momento",
+              "detalhes": "Breve resumo técnico",
+              "gatilhos": ["gatilho 1", "gatilho 2"],
+              "confluencia_score": 1-5
             }`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-3-pro-preview',
+                model: 'gemini-3-pro-preview', // Modelo Pro para máxima precisão de visão
                 contents: {
                     parts: [
                         { inlineData: { data: base64Data, mimeType: mimeType } },
@@ -118,52 +123,48 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 },
                 config: {
                     responseMimeType: "application/json",
-                    temperature: 0.1, // Reduz criatividade para ser mais técnico e preciso
+                    temperature: 0.1,
                 }
             });
 
             const text = response.text;
             if (text) {
-                // Regex de segurança para extrair JSON caso a IA envie texto extra
                 const jsonMatch = text.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     setResult(JSON.parse(jsonMatch[0]));
                 } else {
-                    throw new Error("Formato de resposta inválido");
+                    throw new Error("Formato JSON corrompido");
                 }
-            } else {
-                throw new Error("Resposta da IA vazia");
             }
         } catch (err: any) {
-            console.error("AI Sniper Technical Error:", err);
-            setError("ERRO DE PROCESSAMENTO DEFINITIVO: A IA encontrou ruído excessivo no gráfico. Tente um print mais nítido ou com o gráfico em tela cheia.");
+            console.error("Sniper Pro Error:", err);
+            setError("FALHA CRÍTICA: O motor Pro não conseguiu isolar as velas do fundo. Tente aproximar um pouco mais o zoom do gráfico ou remova indicadores poluentes.");
         } finally {
             setAnalyzing(false);
         }
     };
 
     return (
-        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6 flex flex-col h-full overflow-hidden">
+        <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6 flex flex-col h-full overflow-hidden">
             <div className="flex justify-between items-center shrink-0">
                 <div>
-                    <h2 className={`text-2xl font-black ${theme.text} tracking-tighter uppercase`}>Analista <span className="text-emerald-500">Sniper Pro</span></h2>
-                    <p className={theme.textMuted}>Motor Gemini 3 Pro: Analisando fluxo macro, Bollinger e Price Action.</p>
+                    <h2 className={`text-3xl font-black ${theme.text} tracking-tighter uppercase italic`}>Sniper <span className="text-emerald-500">System Pro</span></h2>
+                    <p className={theme.textMuted}>Analista de Confluência: Price Action, Bollinger, Médias e RSI.</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-full">
-                         <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Motor Pro v5.3</p>
-                    </div>
+                <div className="hidden md:flex gap-2">
+                    {['PA', 'S/R', 'MA', 'BB', 'RSI'].map(s => (
+                        <span key={s} className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[9px] font-black text-emerald-500/60">{s} OK</span>
+                    ))}
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 overflow-hidden min-h-0">
-                {/* Lado Esquerdo: Área de Upload */}
                 <div className="lg:col-span-7 flex flex-col gap-4 overflow-hidden">
                     <div className={`relative flex-1 rounded-[2.5rem] border-2 border-dashed ${image ? 'border-emerald-500/30' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center overflow-hidden bg-slate-950/20 transition-all group`}>
                         {image ? (
                             <div className="relative w-full h-full p-2 flex items-center justify-center">
                                 <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-3xl shadow-2xl" />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-md">
                                     <button onClick={() => setImage(null)} className="p-4 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-xl active:scale-90"><TrashIcon className="w-8 h-8" /></button>
                                 </div>
                             </div>
@@ -173,8 +174,8 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                     <PlusIcon className="w-10 h-10 text-emerald-500" />
                                 </div>
                                 <div className="max-w-xs">
-                                    <p className="font-black text-sm uppercase tracking-[0.2em] text-white">Importar Gráfico M1</p>
-                                    <p className="text-[10px] opacity-40 font-bold mt-2 text-slate-400 uppercase tracking-widest leading-loose">Cole o print (Ctrl+V) ou clique aqui.<br/>O logotipo de fundo será ignorado pela IA Pro.</p>
+                                    <p className="font-black text-sm uppercase tracking-[0.2em] text-white">Carregar Gráfico</p>
+                                    <p className="text-[10px] opacity-40 font-bold mt-2 text-slate-400 uppercase tracking-widest leading-loose">Cole o print (Ctrl+V) ou clique aqui.<br/>Filtro anti-marca d'água ativo.</p>
                                 </div>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                             </label>
@@ -190,24 +191,23 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         {analyzing ? (
                             <>
                                 <ArrowPathIcon className="w-6 h-6 animate-spin" />
-                                <span className="animate-pulse">Calculando Confluências Pro...</span>
+                                <span className="animate-pulse italic">Mapeando Confluências...</span>
                             </>
                         ) : (
                             <>
                                 <CpuChipIcon className="w-7 h-7" />
-                                Executar Leitura Sniper
+                                Executar Filtro Sniper
                             </>
                         )}
                     </button>
                 </div>
 
-                {/* Lado Direito: Resultados */}
                 <div className="lg:col-span-5 overflow-y-auto custom-scrollbar pr-2 space-y-4">
                     {error && (
                         <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-start gap-4 text-red-500 animate-in zoom-in">
                             <InformationCircleIcon className="w-8 h-8 shrink-0 mt-1" />
                             <div className="space-y-1">
-                                <p className="text-xs font-black uppercase">Falha na Leitura</p>
+                                <p className="text-xs font-black uppercase tracking-widest">Atenção Técnica</p>
                                 <p className="text-[10px] font-bold opacity-80 leading-relaxed uppercase">{error}</p>
                             </div>
                         </div>
@@ -219,7 +219,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             
                             <div className="flex justify-between items-end relative z-10">
                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Sinal Emitido</p>
+                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Recomendação Sniper</p>
                                     <h3 className={`text-7xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-emerald-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
                                         {result.operacao}
                                     </h3>
@@ -230,45 +230,46 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 </div>
                             </div>
 
-                            <div className="p-5 bg-slate-950/60 rounded-3xl border border-white/5 backdrop-blur-xl space-y-2 relative z-10">
-                                <div className="flex items-center gap-2 opacity-50">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                    <p className="text-[9px] font-black uppercase tracking-widest">Análise Técnica Pro</p>
+                            <div className="grid grid-cols-2 gap-4 relative z-10">
+                                <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                                    <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">Estratégia Base</p>
+                                    <p className="text-xs font-black text-emerald-400 uppercase italic">{result.estrategia_principal}</p>
                                 </div>
-                                <p className="text-sm font-bold leading-relaxed italic text-white/90">"{result.analise_tecnica}"</p>
+                                <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                                    <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">Score Confluência</p>
+                                    <div className="flex gap-1 mt-1">
+                                        {[1,2,3,4,5].map(i => (
+                                            <div key={i} className={`h-1.5 flex-1 rounded-full ${i <= result.confluencia_score ? 'bg-emerald-500' : 'bg-slate-800'}`} />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-5 bg-slate-950/60 rounded-3xl border border-white/5 backdrop-blur-xl space-y-2 relative z-10">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Parecer Sniper</p>
+                                <p className="text-sm font-bold leading-relaxed italic text-white/90">"{result.detalhes}"</p>
                             </div>
 
                             <div className="space-y-3 relative z-10">
-                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Confluências do Fluxo</p>
+                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Gatilhos Confirmados</p>
                                 <div className="grid grid-cols-1 gap-2">
-                                    {result.confluencias?.map((setup: string, i: number) => (
+                                    {result.gatilhos?.map((setup: string, i: number) => (
                                         <div key={i} className="flex items-center gap-4 text-[11px] font-bold text-slate-300 bg-white/5 p-3 rounded-2xl border border-white/5">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981]" />
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]" />
                                             {setup}
                                         </div>
                                     ))}
                                 </div>
                             </div>
-
-                            <div className="space-y-3 relative z-10 pt-4 border-t border-white/5">
-                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Observações do Fluxo</p>
-                                <ul className="space-y-2">
-                                    {result.observacoes?.map((obs: string, i: number) => (
-                                        <li key={i} className="text-[10px] font-bold text-slate-400 flex items-start gap-2 italic">
-                                            <span className="text-emerald-500">•</span> {obs}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
                             
-                            <p className="text-[8px] text-center uppercase font-black text-slate-600 mt-4 italic opacity-50 tracking-widest">Sniper Pro v5.3 - Filtro Anti-Ruído Axiun Ativo</p>
+                            <p className="text-[8px] text-center uppercase font-black text-slate-600 mt-4 italic opacity-50 tracking-[0.2em]">Engine Sniper v6.0 - High Definition Analysis</p>
                         </div>
                     ) : !analyzing && !error && (
                         <div className="h-full rounded-[2.5rem] border border-slate-800/20 flex flex-col items-center justify-center opacity-30 text-center space-y-6 py-16 bg-slate-900/5">
-                            <CpuChipIcon className="w-20 h-20 text-slate-700" />
+                            <CpuChipIcon className="w-16 h-16 text-slate-700" />
                             <div className="max-w-[280px]">
-                                <p className="text-xs font-black uppercase tracking-[0.3em] text-white mb-2">Aguardando Gráfico</p>
-                                <p className="text-[10px] font-bold opacity-60 uppercase leading-relaxed">Envie a captura de tela. O modelo Pro processará todo o histórico visível ignorando o fundo da corretora.</p>
+                                <p className="text-xs font-black uppercase tracking-[0.3em] text-white mb-2">Aguardando Input</p>
+                                <p className="text-[10px] font-bold opacity-60 uppercase leading-relaxed">A IA irá verificar 5 estratégias em milissegundos. Envie o print agora para obter o sinal com confluência.</p>
                             </div>
                         </div>
                     )}
