@@ -54,66 +54,66 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     ];
 
     return (
-        <div className="flex flex-col h-full max-w-5xl mx-auto p-2 md:p-4 justify-around animate-in fade-in duration-500 overflow-hidden">
+        <div className="flex flex-col h-full max-w-5xl mx-auto p-2 md:p-3 justify-around animate-in fade-in duration-500 overflow-hidden">
             {/* Header Interno - Espaçamento mínimo */}
-            <div className="flex justify-between items-center mb-1">
-                <h2 className="text-sm md:text-lg font-black uppercase tracking-tighter italic leading-none">Painel de <span className="text-emerald-400">Comando</span></h2>
-                <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`text-[7px] md:text-[9px] font-black px-2 py-1 rounded-lg border outline-none ${theme.input}`} />
+            <div className="flex justify-between items-center mb-0.5 md:mb-1">
+                <h2 className="text-xs md:text-lg font-black uppercase tracking-tighter italic leading-none">Painel de <span className="text-emerald-400">Comando</span></h2>
+                <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`text-[7px] md:text-[9px] font-black px-1.5 py-0.5 rounded border outline-none ${theme.input}`} />
             </div>
 
-            {/* Grid de KPIs - Redução de padding e gap */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+            {/* Grid de KPIs - Reduzido em ~15% (padding p-1.5 md:p-2.5 e fontes menores) */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 md:gap-2">
                 {kpis.map((kpi, i) => (
-                    <div key={i} className={`p-2 md:p-3 rounded-xl border ${theme.card} flex flex-col justify-between hover:border-emerald-500/30 transition-all group`}>
+                    <div key={i} className={`p-1.5 md:p-2.5 rounded-lg border ${theme.card} flex flex-col justify-between hover:border-emerald-500/30 transition-all group`}>
                         <div className="flex justify-between items-start mb-0.5">
-                            <p className="text-[6px] md:text-[8px] uppercase font-black text-slate-500 tracking-widest leading-none">{kpi.label}</p>
-                            <kpi.icon className={`w-2.5 h-2.5 md:w-3.5 md:h-3.5 ${kpi.color} opacity-60`} />
+                            <p className="text-[5.5px] md:text-[7.5px] uppercase font-black text-slate-500 tracking-widest leading-none">{kpi.label}</p>
+                            <kpi.icon className={`w-2 h-2 md:w-3 md:h-3 ${kpi.color} opacity-60`} />
                         </div>
                         <div>
-                            <p className={`text-xs md:text-lg font-black ${kpi.color} tracking-tighter truncate leading-none`}>{kpi.val}</p>
-                            {kpi.sub && <p className="text-[5px] md:text-[7px] font-black uppercase text-slate-600 italic opacity-70 truncate">{kpi.sub}</p>}
+                            <p className={`text-[11px] md:text-base font-black ${kpi.color} tracking-tighter truncate leading-none`}>{kpi.val}</p>
+                            {kpi.sub && <p className="text-[4.5px] md:text-[6.5px] font-black uppercase text-slate-600 italic opacity-70 truncate mt-0.5">{kpi.sub}</p>}
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* Protocolo de Disparo - Ajuste de escala e margens para fit vertical */}
-            <div className={`p-3 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border ${theme.card} shadow-2xl max-w-xl mx-auto w-full relative overflow-hidden flex flex-col justify-center`}>
+            {/* Protocolo de Disparo - Compactado para economizar vertical */}
+            <div className={`p-3 md:p-5 rounded-[1.2rem] md:rounded-[1.8rem] border ${theme.card} shadow-2xl max-w-lg mx-auto w-full relative overflow-hidden flex flex-col justify-center`}>
                 <div className="absolute -top-6 -right-6 p-10 opacity-[0.02] pointer-events-none">
-                    <TargetIcon className="w-24 h-24 md:w-40 md:h-40 text-emerald-500" />
+                    <TargetIcon className="w-20 h-20 md:w-32 md:h-32 text-emerald-500" />
                 </div>
                 
                 <div className="relative z-10">
-                    <h3 className="text-[7px] md:text-[10px] font-black uppercase text-emerald-400/80 mb-3 md:mb-6 tracking-[0.4em] italic flex items-center gap-1.5 leading-none">
-                        <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <h3 className="text-[7px] md:text-[9px] font-black uppercase text-emerald-400/80 mb-2 md:mb-5 tracking-[0.4em] italic flex items-center gap-1.5 leading-none">
+                        <div className="w-1 h-1 md:w-1.2 md:h-1.2 rounded-full bg-emerald-500 animate-pulse" />
                         Protocolo de Disparo
                     </h3>
                     
-                    <div className="grid grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-8">
-                        <div className="space-y-0.5 md:space-y-1.5">
-                            <label className="text-[6px] md:text-[9px] font-black text-slate-500 uppercase ml-1 tracking-widest opacity-80 leading-none">Valor</label>
-                            <input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-8 md:h-12 px-2 md:px-4 rounded-lg md:rounded-xl border text-[10px] md:text-[13px] font-black outline-none transition-all ${theme.input}`} />
+                    <div className="grid grid-cols-3 gap-1.5 md:gap-3 mb-3 md:mb-6">
+                        <div className="space-y-0.5 md:space-y-1">
+                            <label className="text-[6px] md:text-[8px] font-black text-slate-500 uppercase ml-1 tracking-widest opacity-80 leading-none">Valor</label>
+                            <input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-7 md:h-11 px-2 md:px-3 rounded-md md:rounded-lg border text-[9px] md:text-[12px] font-black outline-none transition-all ${theme.input}`} />
                         </div>
-                        <div className="space-y-0.5 md:space-y-1.5">
-                            <label className="text-[6px] md:text-[9px] font-black text-slate-500 uppercase ml-1 tracking-widest opacity-80 leading-none">Payout %</label>
-                            <input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-8 md:h-12 px-2 md:px-4 rounded-lg md:rounded-xl border text-[10px] md:text-[13px] font-black outline-none transition-all ${theme.input}`} />
+                        <div className="space-y-0.5 md:space-y-1">
+                            <label className="text-[6px] md:text-[8px] font-black text-slate-500 uppercase ml-1 tracking-widest opacity-80 leading-none">Payout %</label>
+                            <input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-7 md:h-11 px-2 md:px-3 rounded-md md:rounded-lg border text-[9px] md:text-[12px] font-black outline-none transition-all ${theme.input}`} />
                         </div>
-                        <div className="space-y-0.5 md:space-y-1.5">
-                            <label className="text-[6px] md:text-[9px] font-black text-slate-500 uppercase ml-1 tracking-widest opacity-80 leading-none">Qtd</label>
-                            <input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} className={`w-full h-8 md:h-12 px-2 md:px-4 rounded-lg md:rounded-xl border text-[10px] md:text-[13px] font-black outline-none transition-all ${theme.input}`} />
+                        <div className="space-y-0.5 md:space-y-1">
+                            <label className="text-[6px] md:text-[8px] font-black text-slate-500 uppercase ml-1 tracking-widest opacity-80 leading-none">Qtd</label>
+                            <input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} className={`w-full h-7 md:h-11 px-2 md:px-3 rounded-md md:rounded-lg border text-[9px] md:text-[12px] font-black outline-none transition-all ${theme.input}`} />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2 md:gap-3">
                         <button 
                             onClick={() => addRecord(parseInt(quantity), 0, parseFloat(customEntryValue), parseFloat(customPayout))} 
-                            className="py-2.5 md:py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-lg md:rounded-xl text-[8px] md:text-[11px] uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all"
+                            className="py-2 md:py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-md md:rounded-lg text-[7px] md:text-[10px] uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all"
                         >
                             HIT (VITÓRIA)
                         </button>
                         <button 
                             onClick={() => addRecord(0, parseInt(quantity), parseFloat(customEntryValue), parseFloat(customPayout))} 
-                            className="py-2.5 md:py-4 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-lg md:rounded-xl text-[8px] md:text-[11px] uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all"
+                            className="py-2 md:py-3.5 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-md md:rounded-lg text-[7px] md:text-[10px] uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all"
                         >
                             MISS (DERROTA)
                         </button>
