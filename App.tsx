@@ -38,13 +38,19 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     const winRate = ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0)) > 0 
         ? (((dailyRecordForSelectedDay?.winCount || 0) / ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0))) * 100).toFixed(0) : '0';
     
-    // Cálculo da meta: Se o lucro for negativo, a % é 0. Se for positivo, calcula em cima do alvo diário.
+    // Cálculo da meta: Se não houver meta ou o lucro for negativo, a % é 0.
     const goalPercentage = dailyGoalTarget > 0 ? Math.max(0, (currentProfit / dailyGoalTarget) * 100) : 0;
 
     const kpis = [
         { label: 'Arsenal', val: `${currencySymbol}${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-emerald-400' },
         { label: 'Lucro Hoje', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol}${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-emerald-400' : 'text-rose-500' },
-        { label: 'Meta Diária', val: `${goalPercentage.toFixed(0)}%`, icon: TargetIcon, color: 'text-blue-400', sub: `Alvo: ${currencySymbol}${formatMoney(dailyGoalTarget)}` },
+        { 
+            label: 'Meta Diária', 
+            val: dailyGoalTarget > 0 ? `${goalPercentage.toFixed(0)}%` : '--', 
+            icon: TargetIcon, 
+            color: 'text-blue-400', 
+            sub: dailyGoalTarget > 0 ? `Alvo: ${currencySymbol}${formatMoney(dailyGoalTarget)}` : 'Sem alvo tático' 
+        },
         { label: 'Win Rate', val: `${winRate}%`, icon: TrophyIcon, color: 'text-fuchsia-400' },
     ];
 
@@ -485,10 +491,10 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
     
     // LÓGICA DE CÁLCULO DE META:
-    // Prioriza o cálculo mensal dividido por 22 dias úteis.
+    // Se não houver nada configurado, o alvo é 0 para sinalizar "Sem alvo".
     const monthlyGoal = goals.find(g => g.type === 'monthly');
     const directDailyGoal = goals.find(g => g.type === 'daily');
-    const dailyGoalTarget = monthlyGoal ? (monthlyGoal.targetAmount / 22) : (directDailyGoal?.targetAmount || 100);
+    const dailyGoalTarget = monthlyGoal ? (monthlyGoal.targetAmount / 22) : (directDailyGoal?.targetAmount || 0);
 
     return (
         <div className={`flex flex-col h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
