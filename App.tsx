@@ -16,10 +16,6 @@ import {
 // --- Helper Functions ---
 const formatMoney = (val: number) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/**
- * Retorna a data no formato YYYY-MM-DD respeitando o fuso horário LOCAL do dispositivo.
- * Isso resolve o erro de mostrar "um dia a frente" causado pelo .toISOString() (UTC).
- */
 const getLocalISOString = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -92,24 +88,26 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const mimeType = image.split(';')[0].split(':')[1];
             const base64Data = image.split(',')[1];
             
-            // Prompt otimizado para TODA a imagem, sem limites de velas, com estratégias específicas.
-            const prompt = `Aja como um Analista Sênior de Trading Quantitativo. 
-            Sua missão é realizar uma análise SNIPER deste gráfico de velas.
-            
-            ESTRATÉGIAS OBRIGATÓRIAS:
-            1. MÉDIAS MÓVEIS: Identifique a tendência principal e cruzamentos.
-            2. REVERSÕES: Identifique exaustão e topos/fundos.
-            3. PULLBACKS: Identifique oportunidades de entrada em rompimentos confirmados.
-            4. SUPORTE E RESISTÊNCIA: Trace mentalmente as zonas de maior impacto histórico no gráfico.
-            5. PRICE ACTION: Analise padrões de candles individuais (martelos, dojis, engolfos) e flutuação de preço.
-            6. ESTOCÁSTICO/RSI: Verifique zonas de sobrecompra e sobrevenda.
-            
-            INSTRUÇÕES CRÍTICAS:
-            - NÃO limite sua análise apenas às últimas velas. Analise TODO o fluxo histórico visível no print para entender o contexto macro.
-            - IGNORE a marca d'água "AXIUN" no fundo. Foque exclusivamente nos Candlesticks e Indicadores.
-            - Considere a confluência de pelo menos 3 das estratégias acima para dar um veredito.
-            
-            Dê seu veredito em formato JSON rigoroso.`;
+            const prompt = `Aja como um Analista Expert de Opções Binárias e Trading Quantitativo. 
+            OBJETIVO: Realizar uma leitura SNIPER deste gráfico de velas.
+
+            CRÍTICO - LEITURA VISUAL:
+            1. IGNORE COMPLETAMENTE a marca d'água "AXIUN" (a letra 'A' grande no fundo). Trate-a como se não existisse.
+            2. Analise TODO O FLUXO HISTÓRICO visível. Não se limite às últimas velas. Observe a formação de tendência macro.
+            3. Identifique Médias Móveis, Zonas de Suporte/Resistência, Pullbacks e sinais de Reversão.
+            4. Procure por gatilhos de Price Action (Candles de força, martelos, dojis).
+            5. Verifique indicadores técnicos (Estocástico/RSI) se estiverem visíveis.
+
+            Veredito baseado na CONFLUÊNCIA de pelo menos 3 estratégias.
+
+            SÓ RESPONDA EM JSON:
+            {
+              "operacao": "CALL" | "PUT" | "AGUARDAR",
+              "confianca": 0-100,
+              "analise_tecnica": "Explicação técnica curta do fluxo identificado",
+              "confluencias": ["Estratégia 1", "Estratégia 2", "Estratégia 3"],
+              "observacoes": ["detalhe 1", "detalhe 2"]
+            }`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
@@ -124,25 +122,28 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
-                            operacao: { type: Type.STRING, description: "CALL, PUT ou AGUARDAR" },
-                            confianca: { type: Type.NUMBER, description: "Nível de assertividade de 0 a 100" },
-                            analise_tecnica: { type: Type.STRING, description: "Resumo técnico da confluência encontrada" },
-                            estrategias_detectadas: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Lista de estratégias que confirmaram a entrada" },
-                            pontos_de_atencao: { type: Type.ARRAY, items: { type: Type.STRING }, description: "3 detalhes cruciais observados no fluxo histórico" }
+                            operacao: { type: Type.STRING },
+                            confianca: { type: Type.NUMBER },
+                            analise_tecnica: { type: Type.STRING },
+                            confluencias: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            observacoes: { type: Type.ARRAY, items: { type: Type.STRING } }
                         },
-                        required: ["operacao", "confianca", "analise_tecnica", "estrategias_detectadas", "pontos_de_atencao"]
+                        required: ["operacao", "confianca", "analise_tecnica", "confluencias", "observacoes"]
                     }
                 }
             });
 
-            if (response.text) {
-                setResult(JSON.parse(response.text.trim()));
+            const text = response.text;
+            if (text) {
+                // Filtro extra para garantir que o JSON seja limpo caso a IA envie markdown
+                const jsonStr = text.replace(/```json/g, "").replace(/```/g, "").trim();
+                setResult(JSON.parse(jsonStr));
             } else {
                 throw new Error("Resposta da IA vazia");
             }
         } catch (err: any) {
             console.error("AI Sniper Error:", err);
-            setError("FALHA NA LEITURA: O gráfico pode estar muito comprimido ou com baixa resolução. Tente enviar um print que cubra mais tempo de tela (mais histórico).");
+            setError("FALHA NA LEITURA: A IA não conseguiu processar o gráfico. Certifique-se de que a imagem está clara e mostra o fluxo de velas.");
         } finally {
             setAnalyzing(false);
         }
@@ -152,20 +153,22 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6 flex flex-col h-full overflow-hidden">
             <div className="flex justify-between items-center shrink-0">
                 <div>
-                    <h2 className={`text-2xl font-black ${theme.text} tracking-tighter`}>ANALISTA SNIPER <span className="text-xs bg-emerald-500 text-black px-2 py-0.5 rounded-full ml-2">CONFLUÊNCIA</span></h2>
-                    <p className={theme.textMuted}>Análise de fluxo completo: Médias, Price Action, S/R e Estocástico.</p>
+                    <h2 className={`text-2xl font-black ${theme.text} tracking-tighter uppercase`}>Analista <span className="text-emerald-500">Sniper</span></h2>
+                    <p className={theme.textMuted}>Leitura técnica de fluxo macro: Bollinger, Médias, S/R e Price Action.</p>
+                </div>
+                <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                    <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest animate-pulse">Macro Fluxo Ativo</p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 overflow-hidden min-h-0">
-                {/* Lado Esquerdo: Input */}
                 <div className="lg:col-span-7 flex flex-col gap-4 overflow-hidden">
                     <div className={`relative flex-1 rounded-[2.5rem] border-2 border-dashed ${image ? 'border-emerald-500/30' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center overflow-hidden bg-slate-950/20 transition-all group`}>
                         {image ? (
                             <div className="relative w-full h-full p-2 flex items-center justify-center">
                                 <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-3xl shadow-2xl" />
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                                    <button onClick={() => setImage(null)} className="p-4 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-xl"><TrashIcon className="w-8 h-8" /></button>
+                                    <button onClick={() => setImage(null)} className="p-4 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-xl active:scale-90"><TrashIcon className="w-8 h-8" /></button>
                                 </div>
                             </div>
                         ) : (
@@ -174,8 +177,8 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                     <PlusIcon className="w-12 h-12 text-emerald-500" />
                                 </div>
                                 <div>
-                                    <p className="font-black text-sm uppercase tracking-[0.2em] text-white">Importar Fluxo de Velas</p>
-                                    <p className="text-[10px] opacity-40 font-bold mt-2 text-slate-400 uppercase tracking-widest leading-loose">Cole o print (Ctrl+V) ou clique para subir.<br/>Quanto mais histórico visível, maior a assertividade.</p>
+                                    <p className="font-black text-sm uppercase tracking-[0.2em] text-white">Importar Captura M1</p>
+                                    <p className="text-[10px] opacity-40 font-bold mt-2 text-slate-400 uppercase tracking-widest leading-loose">Cole o print (Ctrl+V) ou clique para subir.<br/>O logotipo de fundo será ignorado automaticamente.</p>
                                 </div>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                             </label>
@@ -191,24 +194,23 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         {analyzing ? (
                             <>
                                 <ArrowPathIcon className="w-6 h-6 animate-spin" />
-                                Mapeando Confluências...
+                                <span className="animate-pulse">Calculando Confluências...</span>
                             </>
                         ) : (
                             <>
                                 <CpuChipIcon className="w-7 h-7" />
-                                Executar Análise Sniper
+                                Analisar Gráfico Agora
                             </>
                         )}
                     </button>
                 </div>
 
-                {/* Lado Direito: Resultados */}
                 <div className="lg:col-span-5 overflow-y-auto custom-scrollbar pr-2 space-y-4">
                     {error && (
                         <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-start gap-4 text-red-500 animate-in zoom-in">
                             <InformationCircleIcon className="w-8 h-8 shrink-0 mt-1" />
                             <div className="space-y-1">
-                                <p className="text-xs font-black uppercase">Falha na Leitura</p>
+                                <p className="text-xs font-black uppercase">Atenção</p>
                                 <p className="text-[10px] font-bold opacity-80 leading-relaxed uppercase">{error}</p>
                             </div>
                         </div>
@@ -220,13 +222,13 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             
                             <div className="flex justify-between items-end relative z-10">
                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Gatilho de Entrada</p>
+                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Gatilho M1</p>
                                     <h3 className={`text-7xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-emerald-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
                                         {result.operacao}
                                     </h3>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Confiança</p>
+                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Assertividade</p>
                                     <p className={`text-4xl font-black ${result.confianca > 85 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
                                 </div>
                             </div>
@@ -240,9 +242,9 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             </div>
 
                             <div className="space-y-3 relative z-10">
-                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Estratégias Detectadas</p>
+                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Confluências Detectadas</p>
                                 <div className="grid grid-cols-1 gap-2">
-                                    {result.estrategias_detectadas?.map((setup: string, i: number) => (
+                                    {result.confluencias?.map((setup: string, i: number) => (
                                         <div key={i} className="flex items-center gap-4 text-[11px] font-bold text-slate-300 bg-white/5 p-3 rounded-2xl border border-white/5">
                                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981]" />
                                             {setup}
@@ -252,24 +254,24 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             </div>
 
                             <div className="space-y-3 relative z-10 pt-4 border-t border-white/5">
-                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Observações do Fluxo</p>
+                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Detalhamento Visual</p>
                                 <ul className="space-y-2">
-                                    {result.pontos_de_atencao?.map((ponto: string, i: number) => (
+                                    {result.observacoes?.map((obs: string, i: number) => (
                                         <li key={i} className="text-[10px] font-bold text-slate-400 flex items-start gap-2 italic">
-                                            <span className="text-emerald-500">•</span> {ponto}
+                                            <span className="text-emerald-500">•</span> {obs}
                                         </li>
                                     ))}
                                 </ul>
                             </div>
                             
-                            <p className="text-[8px] text-center uppercase font-black text-slate-600 mt-4 italic opacity-50">Motor Sniper V5.1 - Análise Macro Contextualizada</p>
+                            <p className="text-[8px] text-center uppercase font-black text-slate-600 mt-4 italic opacity-50 tracking-widest">Sistema Sniper v5.2 - Filtro Axiun Ativo</p>
                         </div>
                     ) : !analyzing && !error && (
                         <div className="h-full rounded-[2.5rem] border border-slate-800/20 flex flex-col items-center justify-center opacity-30 text-center space-y-6 py-16 bg-slate-900/5">
                             <CpuChipIcon className="w-20 h-20 text-slate-700" />
                             <div className="max-w-[280px]">
-                                <p className="text-xs font-black uppercase tracking-[0.3em] leading-tight text-white mb-2">Aguardando Fluxo Histórico</p>
-                                <p className="text-[10px] font-bold opacity-60 uppercase leading-relaxed">Suba um print com o máximo de velas possível. A IA analisará todo o contexto para identificar Suporte, Resistência e Reversões com precisão profissional.</p>
+                                <p className="text-xs font-black uppercase tracking-[0.3em] text-white mb-2">Aguardando Fluxo</p>
+                                <p className="text-[10px] font-bold opacity-60 uppercase leading-relaxed">Envie o print do gráfico. O sistema ignorará o logotipo de fundo e focará em suportes, resistências e reversões para gerar o sinal.</p>
                             </div>
                         </div>
                     )}
@@ -308,9 +310,9 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
 
     let stopMessage = '';
     if (stopWinReached) {
-        stopMessage = `Meta de Stop Win (${stopWinTrades} vitórias) atingida.`;
+        stopMessage = `Meta de Stop Win atingida.`;
     } else if (stopLossReached) {
-        stopMessage = `Meta de Stop Loss (${stopLossTrades} derrotas) atingida.`;
+        stopMessage = `Meta de Stop Loss atingida.`;
     }
 
     const kpis = [
@@ -328,7 +330,6 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                     type="date" 
                     value={selectedDateString} 
                     onChange={(e) => {
-                        // Ao selecionar no input date, garantimos que não haja distorção de fuso
                         const [y, m, d] = e.target.value.split('-').map(Number);
                         const newDate = new Date(y, m - 1, d, 12, 0, 0);
                         setSelectedDate(newDate);
