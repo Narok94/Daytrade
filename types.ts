@@ -1,4 +1,3 @@
-
 export interface Brokerage {
   id: string;
   name: string;
@@ -8,13 +7,12 @@ export interface Brokerage {
   payoutPercentage: number;
   stopGainTrades: number;
   stopLossTrades: number;
-  dailyInterestRate?: number; // Porcentagem de projeção diária (ex: 3% para 3 wins)
-  currency: 'BRL' | 'USD';
+  currency: 'BRL' | 'USD'; // New field
 }
 
 export interface Trade {
   id: string;
-  timestamp?: number;
+  timestamp?: number; // Added for specific time tracking
   result: 'win' | 'loss';
   entryValue: number;
   payoutPercentage: number;
@@ -36,12 +34,12 @@ export interface DailyRecord {
 export interface TransactionRecord {
     recordType: 'deposit' | 'withdrawal';
     brokerageId: string;
-    id: string;
-    date: string;
-    displayDate: string;
+    id: string; // Unique ID, e.g., from Date.now()
+    date: string; // YYYY-MM-DD, for sorting
+    displayDate: string; // pt-BR format for display
     amountUSD: number;
     notes: string;
-    timestamp?: number;
+    timestamp?: number; // Added for specific time tracking
 }
 
 export interface Goal {
