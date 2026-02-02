@@ -60,12 +60,22 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             
-            // Parsing robusto da imagem base64
-            const parts = image.split(',');
-            const mimeType = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
-            const base64Data = parts[1];
+            // Extração limpa do Base64 e MIME
+            const base64Parts = image.split(',');
+            if (base64Parts.length !== 2) throw new Error("Formato de imagem inválido.");
+            const mimeType = base64Parts[0].split(':')[1].split(';')[0];
+            const base64Data = base64Parts[1];
             
-            const prompt = "Analise este print de trading. Extraia: 1. Resultado (WIN ou LOSS). 2. Valor da entrada (apenas número). 3. Payout % (apenas número). 4. Par de moedas. Retorne estritamente em JSON.";
+            // Prompt focado 100% nas velas e no resultado visual
+            const prompt = `FOCO EXCLUSIVO: Analise o gráfico de velas (candlesticks). 
+            Identifique a cor da última vela ou o resultado da operação (WIN/LOSS) baseado no gráfico.
+            Ignore textos externos, banners ou botões. 
+            Extraia:
+            1. Resultado: "WIN" (se vela verde ou lucro) ou "LOSS" (se vela vermelha ou prejuízo).
+            2. Valor da entrada (procure por números próximos à operação).
+            3. Payout % (se visível).
+            4. Par de Moedas.
+            Retorne em JSON.`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
@@ -76,28 +86,27 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                     ]
                 },
                 config: {
-                    systemInstruction: "Você é um especialista em OCR financeiro. Identifique valores, cores (verde=WIN, vermelho=LOSS) e textos em prints de corretoras. Retorne apenas JSON válido.",
+                    systemInstruction: "Você é um radar sniper. Sua única missão é ler gráficos de velas. Identifique velas verdes (compra/sucesso) e vermelhas (venda/falha). Ignore qualquer elemento de UI que não seja o gráfico ou valores numéricos de trade.",
                     responseMimeType: "application/json",
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
-                            resultado_detectado: { type: Type.STRING, enum: ["WIN", "LOSS", "NEUTRO"] },
+                            resultado_detectado: { type: Type.STRING, enum: ["WIN", "LOSS"] },
                             valor_detectado: { type: Type.NUMBER },
                             payout_detectado: { type: Type.NUMBER },
-                            par_moedas: { type: Type.STRING },
-                            analise_tecnica: { type: Type.STRING }
+                            par_moedas: { type: Type.STRING }
                         },
                         required: ["resultado_detectado", "valor_detectado", "payout_detectado"]
                     }
                 }
             });
 
-            const textResponse = response.text;
-            if (!textResponse) throw new Error("Vazio");
-            setResult(JSON.parse(textResponse));
+            if (!response.text) throw new Error("Sem resposta do Radar.");
+            const parsedData = JSON.parse(response.text);
+            setResult(parsedData);
         } catch (err: any) {
-            console.error("AI connection error:", err);
-            setError("ERRO DE CONEXÃO RADAR. VERIFIQUE A CLAREZA DO PRINT OU TENTE NOVAMENTE EM ALGUNS SEGUNDOS.");
+            console.error("Critical AI Error:", err);
+            setError("FALHA CRÍTICA DE TELEMETRIA. O RADAR NÃO CONSEGUIU PROCESSAR AS VELAS. TENTE UM PRINT MAIS PRÓXIMO DO GRÁFICO.");
         } finally {
             setAnalyzing(false);
         }
@@ -112,7 +121,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
             result.valor_detectado || 10, 
             result.payout_detectado || 80
         );
-        alert("Sincronizado!");
+        alert("Arsenal Atualizado!");
         setResult(null);
         setImage(null);
     };
@@ -122,8 +131,10 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
             <div className="flex items-center justify-between border-b border-emerald-500/10 pb-2">
                 <h2 className={`text-lg font-black tracking-tight ${theme.text}`}>Radar <span className="text-emerald-400 italic">Sniper</span></h2>
                 <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500/60">Operacional</span>
+                    <div className={`w-2 h-2 rounded-full ${analyzing ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500/60">
+                        {analyzing ? 'Processando Velas...' : 'Sensor Ativo'}
+                    </span>
                 </div>
             </div>
 
@@ -133,16 +144,18 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                         <div className="w-full flex flex-col gap-3">
                             <img src={image} className="w-full h-40 object-contain rounded-lg bg-black/20" />
                             <div className="grid grid-cols-2 gap-2">
-                                <button onClick={() => setImage(null)} className="py-2 text-[9px] font-black uppercase bg-rose-500/10 text-rose-500 rounded-lg">Descartar</button>
-                                <button onClick={analyzeChart} disabled={analyzing} className="py-2 text-[9px] font-black uppercase bg-emerald-500 text-slate-950 rounded-lg disabled:opacity-50">
-                                    {analyzing ? 'Escaneando...' : 'Iniciar Scan'}
+                                <button onClick={() => setImage(null)} className="py-2 text-[9px] font-black uppercase bg-rose-500/10 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all">Descartar</button>
+                                <button onClick={analyzeChart} disabled={analyzing} className="py-2 text-[9px] font-black uppercase bg-emerald-500 text-slate-950 rounded-lg disabled:opacity-50 hover:bg-emerald-400 transition-all">
+                                    {analyzing ? 'Lendo Gráfico...' : 'Iniciar Scan'}
                                 </button>
                             </div>
                         </div>
                     ) : (
                         <label className="cursor-pointer flex flex-col items-center gap-3 py-10 w-full">
-                            <PlusIcon className="w-8 h-8 text-emerald-500/30" />
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Subir Print do Trade</p>
+                            <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center border border-emerald-500/20">
+                                <PlusIcon className="w-6 h-6 text-emerald-500/60" />
+                            </div>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Carregar Print das Velas</p>
                             <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                         </label>
                     )}
@@ -150,38 +163,47 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
 
                 <div className="space-y-3">
                     {error && (
-                        <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-500 text-[9px] font-black uppercase leading-tight tracking-wider">
-                            {error}
+                        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-lg flex gap-3 animate-in shake">
+                            <InformationCircleIcon className="w-5 h-5 text-rose-500 shrink-0" />
+                            <p className="text-[9px] font-black uppercase leading-tight tracking-wider text-rose-500">{error}</p>
                         </div>
                     )}
 
                     {result ? (
-                        <div className={`p-5 ${theme.roundedCard} border border-emerald-500/20 ${theme.card} space-y-4 shadow-xl`}>
-                            <div className="flex justify-between items-center">
+                        <div className={`p-5 ${theme.roundedCard} border border-emerald-500/20 ${theme.card} space-y-4 shadow-xl animate-in zoom-in-95`}>
+                            <div className="flex justify-between items-center border-b border-white/5 pb-3">
                                 <span className={`text-xl font-black italic tracking-tighter ${result.resultado_detectado === 'WIN' ? 'text-emerald-400' : 'text-rose-500'}`}>
                                     {result.resultado_detectado === 'WIN' ? 'TARGET HIT' : 'MISSION FAILED'}
                                 </span>
-                                <span className="text-xs font-black text-blue-400/70">{result.par_moedas || '---'}</span>
+                                <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20">{result.par_moedas || 'S/ PAR'}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="p-3 bg-black/20 rounded-lg">
-                                    <p className="text-[8px] text-slate-500 font-bold uppercase mb-1">Valor</p>
+                                <div className="p-3 bg-black/40 rounded-lg border border-white/5">
+                                    <p className="text-[8px] text-slate-500 font-bold uppercase mb-1">Entrada</p>
                                     <p className="text-base font-black">R$ {result.valor_detectado || '0'}</p>
                                 </div>
-                                <div className="p-3 bg-black/20 rounded-lg">
-                                    <p className="text-[8px] text-slate-500 font-bold uppercase mb-1">Payout</p>
+                                <div className="p-3 bg-black/40 rounded-lg border border-white/5">
+                                    <p className="text-[8px] text-slate-500 font-bold uppercase mb-1">Retorno</p>
                                     <p className="text-base font-black text-emerald-400">{result.payout_detectado || '0'}%</p>
                                 </div>
                             </div>
-                            <button onClick={syncWithLedger} className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-lg text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95">Sincronizar Arsenal</button>
+                            <button onClick={syncWithLedger} className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-lg text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2">
+                                <CheckIcon className="w-4 h-4" /> Confirmar no Arsenal
+                            </button>
                         </div>
                     ) : !analyzing && (
-                        <div className="p-10 border border-slate-800/30 rounded-xl bg-slate-900/10 text-center opacity-30 flex flex-col items-center">
-                            <CpuChipIcon className="w-6 h-6 mb-2" />
-                            <p className="text-[9px] font-black uppercase tracking-[0.2em]">Aguardando Dados</p>
+                        <div className="p-10 border border-slate-800/30 rounded-xl bg-slate-900/10 text-center opacity-40 flex flex-col items-center justify-center min-h-[200px]">
+                            <CpuChipIcon className="w-8 h-8 mb-3 text-slate-600" />
+                            <p className="text-[9px] font-black uppercase tracking-[0.3em]">Aguardando Captura Gráfica</p>
                         </div>
                     )}
-                    {analyzing && <div className="h-40 w-full bg-slate-900/20 rounded-xl animate-pulse border border-slate-800/30" />}
+                    {analyzing && (
+                        <div className="h-44 w-full bg-slate-900/40 rounded-xl flex flex-col items-center justify-center border border-emerald-500/10 overflow-hidden relative">
+                            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/10 to-transparent animate-scan" />
+                            <ArrowPathIcon className="w-8 h-8 text-emerald-500/40 animate-spin mb-3" />
+                            <p className="text-[8px] font-black uppercase tracking-[0.5em] text-emerald-500/60">Analisando Velas...</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -277,42 +299,6 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                         )}
                     </div>
                 </div>
-            </div>
-        </div>
-    );
-};
-
-// --- Painéis Compactos Stubs ---
-const CompoundInterestPanel = ({ isDarkMode, activeBrokerage, records }: any) => {
-    const theme = useThemeClasses(isDarkMode);
-    return <div className="p-6 max-w-5xl mx-auto text-[9px] font-black uppercase text-slate-500 tracking-[0.3em]">Módulo de Escalada em Manutenção Sniper</div>;
-};
-const ReportPanel = ({ isDarkMode, activeBrokerage, records }: any) => {
-    const theme = useThemeClasses(isDarkMode);
-    return <div className="p-6 max-w-5xl mx-auto text-[9px] font-black uppercase text-slate-500 tracking-[0.3em]">Arquivos Operacionais em Manutenção Sniper</div>;
-};
-const SorosCalculatorPanel = ({ theme }: any) => {
-    return <div className="p-6 max-w-5xl mx-auto text-[9px] font-black uppercase text-slate-500 tracking-[0.3em]">Calculadora Soros Elite em Manutenção Sniper</div>;
-};
-const GoalsPanel = ({ theme }: any) => {
-    return <div className="p-6 max-w-5xl mx-auto text-[9px] font-black uppercase text-slate-500 tracking-[0.3em]">Gestão de Missões em Manutenção Sniper</div>;
-};
-
-const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset }) => {
-    const updateBrokerage = (field: keyof Brokerage, value: any) => {
-        setBrokerages((prev: Brokerage[]) => prev.map((b, i) => i === 0 ? { ...b, [field]: value } : b));
-    };
-    return (
-        <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-4">
-            <h2 className="text-lg font-black uppercase tracking-tight">Comando <span className="text-emerald-400">HQ</span></h2>
-            <div className={`p-6 border ${theme.border} ${theme.roundedCard} ${theme.card} space-y-5 shadow-sm`}>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1"><label className="text-[8px] font-bold text-slate-500 uppercase ml-1">Identidade</label><input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-10 px-4 rounded-lg border text-xs font-bold ${theme.input}`} /></div>
-                    <div className="space-y-1"><label className="text-[8px] font-bold text-slate-500 uppercase ml-1">Câmbio</label><select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-10 px-4 rounded-lg border text-xs font-bold ${theme.input}`}><option value="USD">Dólar ($)</option><option value="BRL">Real (R$)</option></select></div>
-                    <div className="space-y-1"><label className="text-[8px] font-bold text-slate-500 uppercase ml-1">Arsenal Base</label><input type="number" value={brokerage.initialBalance} onChange={e => updateBrokerage('initialBalance', parseFloat(e.target.value))} className={`w-full h-10 px-4 rounded-lg border text-xs font-bold ${theme.input}`} /></div>
-                    <div className="space-y-1"><label className="text-[8px] font-bold text-slate-500 uppercase ml-1">Payout Médio</label><input type="number" value={brokerage.payoutPercentage} onChange={e => updateBrokerage('payoutPercentage', parseInt(e.target.value))} className={`w-full h-10 px-4 rounded-lg border text-xs font-bold ${theme.input}`} /></div>
-                </div>
-                <button onClick={onReset} className="w-full py-3 bg-rose-500/5 border border-rose-500/20 text-rose-500 hover:bg-rose-500/10 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] transition-all">Protocolo Wipe Total</button>
             </div>
         </div>
     );
@@ -444,11 +430,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {[
                         { id: 'dashboard', label: 'Painel', icon: LayoutGridIcon },
                         { id: 'ai', label: 'Radar', icon: CpuChipIcon },
-                        { id: 'compound', label: 'Escalada', icon: ChartBarIcon },
-                        { id: 'report', label: 'Arquivos', icon: DocumentTextIcon },
-                        { id: 'soros', label: 'Soros', icon: CalculatorIcon },
-                        { id: 'goals', label: 'Missões', icon: TargetIcon },
-                        { id: 'settings', label: 'HQ', icon: SettingsIcon }
                     ].map(tab => (
                         <button key={tab.id} onClick={() => {setActiveTab(tab.id); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-[9px] uppercase font-black transition-all ${activeTab === tab.id ? theme.navActive : theme.navInactive}`}>
                             <tab.icon className="w-3.5 h-3.5" />{tab.label}
@@ -475,11 +456,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-black/5">
                     {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={100} />}
                     {activeTab === 'ai' && <AIAnalyzerPanel theme={theme} isDarkMode={isDarkMode} addRecord={addRecord} />}
-                    {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
-                    {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
-                    {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} />}
-                    {activeTab === 'goals' && <GoalsPanel theme={theme} />}
-                    {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} />}
                 </div>
             </main>
         </div>
