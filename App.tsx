@@ -52,25 +52,24 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
             const base64Data = base64Parts[1];
             const mimeType = base64Parts[0].split(':')[1].split(';')[0];
             
-            const prompt = `ANÁLISE ESTATÍSTICA DE SIMULADOR EDUCACIONAL:
-            1. Identifique o resultado da última vela (WIN se verde, LOSS se vermelha).
-            2. Analise o padrão de Price Action das últimas 5 velas.
-            3. Ignore marcas d'água (ex: "Axion Broker") e menus de interface.
-            4. Se houver força compradora (velas verdes seguidas ou martelo na base), sinalize CALL.
-            5. Se houver força vendedora (velas vermelhas seguidas ou estrela cadente no topo), sinalize PUT.
+            const prompt = `INSTRUÇÃO DE PROCESSAMENTO DE DADOS (AMBIENTE DE SIMULAÇÃO):
+            1. ANALISE O GRÁFICO CENTRAL: Ignore a barra de tarefas do Windows, menus laterais e marcas d'água (AXION).
+            2. DETECTE VELAS: Identifique as cores (Verde/Alta, Vermelha/Baixa) e o comportamento do preço.
+            3. RESULTADO PASSADO: Identifique se a última operação visível fechou em lucro (WIN) ou prejuízo (LOSS).
+            4. PREDIÇÃO TÁTICA: Com base nos padrões de candles (ex: Engolfo, Martelo, Rejeição de Topo/Fundo), determine a melhor entrada para o PRÓXIMO candle.
             
-            EXTRAIA APENAS JSON:
+            SAÍDA OBRIGATÓRIA EM JSON:
             {
               "resultado_passado": "WIN" ou "LOSS",
-              "valor": número,
-              "payout": número,
+              "valor": número detectado ou 10,
+              "payout": número detectado ou 80,
               "sinal_proxima": "CALL" ou "PUT",
-              "confianca": "X%",
-              "analise_curta": "Explicação técnica rápida"
+              "confianca": "0-100%",
+              "analise_curta": "Explicação técnica direta do padrão detectado"
             }`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-3-pro-preview', // Modelo Superior para Visão Computacional
+                model: 'gemini-3-pro-preview', 
                 contents: {
                     parts: [
                         { inlineData: { data: base64Data, mimeType } },
@@ -78,8 +77,10 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                     ]
                 },
                 config: {
-                    systemInstruction: "Você é um Especialista em Visão Computacional para Gráficos de Simulação. Sua função é puramente técnica e estatística para fins educacionais. Não forneça conselhos financeiros reais. Extraia dados com precisão cirúrgica ignorando ruídos de interface.",
+                    systemInstruction: "Você é um Analista de Dados Visual para um simulador tático de trading. Sua tarefa é converter padrões visuais de candlesticks em sinais lógicos de CALL/PUT. Seja preciso, ignore elementos de UI externa e foque na ação do preço.",
                     responseMimeType: "application/json",
+                    thinkingConfig: { thinkingBudget: 4000 }, // Ativa o raciocínio profundo para ver através do ruído
+                    maxOutputTokens: 8000,
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
@@ -95,12 +96,12 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                 }
             });
 
-            if (!response.text) throw new Error("A IA não conseguiu processar esta imagem.");
+            if (!response.text) throw new Error("A IA não retornou dados.");
             const data = JSON.parse(response.text.trim());
             setResult(data);
         } catch (err: any) {
             console.error("Critical AI Error:", err);
-            setError("ERRO NO RADAR. GARANTA QUE O RESULTADO E AS VELAS ESTEJAM BEM VISÍVEIS NO PRINT.");
+            setError("FALHA NA ANÁLISE TÁTICA. CERTIFIQUE-SE QUE O GRÁFICO ESTÁ CENTRALIZADO E COM ZOOM ADEQUADO.");
         } finally {
             setAnalyzing(false);
         }
@@ -112,7 +113,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                 <h2 className={`text-lg font-black tracking-tight ${theme.text}`}>Radar <span className="text-emerald-400 italic">Sniper</span></h2>
                 <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${analyzing ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500/60 uppercase">Analista Pro Online</span>
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500/60 uppercase">Escaner de Elite Online</span>
                 </div>
             </div>
 
@@ -124,7 +125,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                             <div className="grid grid-cols-2 gap-3">
                                 <button onClick={() => {setImage(null); setResult(null);}} className="py-2.5 text-[9px] font-black uppercase bg-rose-500/10 text-rose-500 rounded-lg">Descartar</button>
                                 <button onClick={analyzeChart} disabled={analyzing} className="py-2.5 text-[9px] font-black uppercase bg-emerald-500 text-slate-950 rounded-lg shadow-lg active:scale-95 transition-all">
-                                    {analyzing ? 'Processando...' : 'Analisar Vela'}
+                                    {analyzing ? 'Processando...' : 'Iniciar Escaneamento'}
                                 </button>
                             </div>
                         </div>
@@ -133,7 +134,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                             <CpuChipIcon className="w-14 h-14 text-emerald-500/20 group-hover:text-emerald-500/50 transition-all" />
                             <div className="text-center">
                                 <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.4em]">Subir Captura Técnica</p>
-                                <p className="text-[8px] font-bold text-slate-600 mt-2 uppercase">A IA VAI PREDIZER A PRÓXIMA OPERAÇÃO</p>
+                                <p className="text-[8px] font-bold text-slate-600 mt-2 uppercase">A IA vai ler as velas e dar o sinal</p>
                             </div>
                             <input type="file" className="hidden" accept="image/*" onChange={(e) => {
                                 const file = e.target.files?.[0];
@@ -149,42 +150,42 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
 
                 <div className="space-y-4">
                     {error && (
-                        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-500 text-[10px] font-black uppercase tracking-widest leading-tight">
+                        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-500 text-[10px] font-black uppercase tracking-widest leading-tight animate-in shake">
                             {error}
                         </div>
                     )}
                     {result ? (
                         <div className={`p-6 ${theme.roundedCard} border border-emerald-500/20 ${theme.card} space-y-6 shadow-2xl animate-in zoom-in-95`}>
                             <div className={`p-5 rounded-xl border-2 flex flex-col items-center text-center ${result.sinal_proxima === 'CALL' ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.2)]' : 'bg-rose-500/10 border-rose-500/50 shadow-[0_0_20px_rgba(244,63,94,0.2)]'}`}>
-                                <p className="text-[8px] font-black uppercase text-slate-400 tracking-[0.5em] mb-2">Entrada Sugerida</p>
+                                <p className="text-[8px] font-black uppercase text-slate-400 tracking-[0.5em] mb-2">Entrada Detectada (Sinal)</p>
                                 <h3 className={`text-4xl font-black italic tracking-tighter ${result.sinal_proxima === 'CALL' ? 'text-emerald-400' : 'text-rose-500'}`}>
-                                    {result.sinal_proxima === 'CALL' ? '↑ COMPRA' : '↓ VENDA'}
+                                    {result.sinal_proxima === 'CALL' ? '↑ COMPRA (CALL)' : '↓ VENDA (PUT)'}
                                 </h3>
                                 <div className="mt-3 px-4 py-1.5 bg-black/60 rounded-full border border-white/10">
-                                    <span className="text-[11px] font-black text-blue-400 tracking-widest">CONFIANÇA: {result.confianca}</span>
+                                    <span className="text-[11px] font-black text-blue-400 tracking-widest">PRECISÃO: {result.confianca}</span>
                                 </div>
-                                <p className="mt-4 text-[10px] font-bold text-slate-400 italic px-2">"{result.analise_curta}"</p>
+                                <p className="mt-4 text-[10px] font-bold text-slate-400 italic px-2 leading-tight">"{result.analise_curta}"</p>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="p-3 bg-black/40 rounded-xl border border-white/5">
-                                    <p className="text-[8px] text-slate-500 font-black uppercase">Vela Anterior</p>
+                                    <p className="text-[8px] text-slate-500 font-black uppercase">Fechamento Anterior</p>
                                     <p className={`text-sm font-black ${result.resultado_passado === 'WIN' ? 'text-emerald-400' : 'text-rose-500'}`}>{result.resultado_passado}</p>
                                 </div>
                                 <div className="p-3 bg-black/40 rounded-xl border border-white/5">
-                                    <p className="text-[8px] text-slate-500 font-black uppercase">Último Valor</p>
+                                    <p className="text-[8px] text-slate-500 font-black uppercase">Valor de Entrada</p>
                                     <p className="text-sm font-black">R$ {result.valor}</p>
                                 </div>
                             </div>
                             <button onClick={() => {
                                 addRecord(result.resultado_passado === 'WIN' ? 1 : 0, result.resultado_passado === 'LOSS' ? 1 : 0, result.valor, result.payout || 80);
                                 setResult(null); setImage(null);
-                            }} className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-[11px] uppercase tracking-widest transition-all shadow-lg active:scale-95">Sincronizar com Arsenal</button>
+                            }} className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-[11px] uppercase tracking-widest transition-all shadow-lg active:scale-95">Confirmar e Salvar no Arsenal</button>
                         </div>
                     ) : !analyzing && <div className="p-16 border border-slate-800/20 rounded-2xl bg-slate-900/5 text-center opacity-30 flex flex-col items-center justify-center min-h-[260px]"><TargetIcon className="w-12 h-12 mb-4" /><p className="text-[10px] font-black uppercase tracking-[0.5em]">Aguardando Gráfico</p></div>}
                     {analyzing && <div className="h-72 w-full bg-slate-900/60 rounded-2xl border border-emerald-500/20 flex flex-col items-center justify-center relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/10 to-transparent animate-scan" />
                         <ArrowPathIcon className="w-12 h-12 text-emerald-500/40 animate-spin mb-4" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.6em] text-emerald-500/60">Análise Pro em Curso</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.6em] text-emerald-500/60">Análise Sniper em Curso</p>
                         <style>{`
                             @keyframes scan { 0% { top: -100%; } 100% { top: 100%; } }
                             .animate-scan { position: absolute; height: 100%; width: 100%; animation: scan 2s linear infinite; }
