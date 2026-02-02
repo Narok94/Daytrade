@@ -80,25 +80,21 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const mimeType = image.split(';')[0].split(':')[1];
             const base64Data = image.split(',')[1];
             
-            // PROMPT OTIMIZADO PARA IGNORAR MARCA D'ÁGUA "AXIUN"
-            const prompt = `Aja como um Expert Sniper em M1.
+            const prompt = `VOCÊ É UM ANALISTA SNIPER M1.
             
-            SUA TAREFA:
-            1. FILTRO: Ignore marcas d'água no fundo (ex: "AXIUN BROKER"), logos ou nomes de moedas.
-            2. FOCO: Concentre-se apenas na geometria dos Candlesticks e nas setas de sinal verde/vermelho.
-            3. ANÁLISE: Se houver seta verde + vela de força (marubozu ou martelo), é CALL. Se houver seta vermelha + vela de baixa, é PUT.
-            4. VOLUME: Se as velas forem muito pequenas (doji), responda AGUARDAR.
+            DIRETRIZES DE FILTRAGEM (CRÍTICO):
+            1. IGNORAR COMPLETAMENTE o texto central "AXIUN" e o logo "A" no fundo. São marcas d'água estáticas.
+            2. FOCO TOTAL na extremidade direita do gráfico (velas mais recentes).
+            3. IDENTIFIQUE setas de sinal (indicadores) que estejam sobre as velas.
+            4. PRICE ACTION: Verifique se a última vela é de força ou exaustão (pavio longo).
             
-            SÓ RESPONDA EM JSON:
-            {
-              "operacao": "CALL" | "PUT" | "AGUARDAR",
-              "confianca": number (0-100),
-              "motivo": "string curta",
-              "detalhes": ["confluência 1", "confluência 2", "confluência 3"]
-            }`;
+            REQUISITOS DA RESPOSTA:
+            - Apenas JSON puro.
+            - Decisão baseada no fechamento da vela atual para a próxima de 1 minuto.
+            - Se não houver clareza total, responda "AGUARDAR".`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview', // Troca para Flash para evitar falhas de leitura por timeout
+                model: 'gemini-3-flash-preview', 
                 contents: {
                     parts: [
                         { inlineData: { data: base64Data, mimeType: mimeType } },
@@ -110,26 +106,31 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
-                            operacao: { type: Type.STRING },
-                            confianca: { type: Type.NUMBER },
-                            motivo: { type: Type.STRING },
-                            detalhes: { type: Type.ARRAY, items: { type: Type.STRING } }
+                            operacao: { type: Type.STRING, description: "CALL, PUT ou AGUARDAR" },
+                            confianca: { type: Type.NUMBER, description: "Probabilidade de 0 a 100" },
+                            motivo: { type: Type.STRING, description: "Gatilho técnico detectado" },
+                            detalhes: { 
+                                type: Type.ARRAY, 
+                                items: { type: Type.STRING },
+                                description: "3 confluências técnicas observadas"
+                            }
                         },
                         required: ["operacao", "confianca", "motivo", "detalhes"]
                     }
                 }
             });
 
-            if (response.text) {
-                // Limpeza agressiva para garantir que o JSON seja lido corretamente
-                const cleanJson = response.text.replace(/^[^{]*|[^}]*$/g, '');
-                setResult(JSON.parse(cleanJson));
+            const textResponse = response.text;
+            if (textResponse) {
+                // Parsing direto e limpo, confiando no modo application/json da Gemini
+                const parsed = JSON.parse(textResponse.trim());
+                setResult(parsed);
             } else {
-                throw new Error("Resposta vazia");
+                throw new Error("Empty Response");
             }
         } catch (err: any) {
-            console.error("Sniper IA Error:", err);
-            setError("ERRO DE PROCESSAMENTO. TENTE RECAPTURAR O PRINT COM MAIS BRILHO OU FOCO NAS VELAS.");
+            console.error("Sniper Error Details:", err);
+            setError("FALHA TÉCNICA NO ESCANEAMENTO. VERIFIQUE SE O PRINT MOSTRA AS VELAS COM CLAREZA.");
         } finally {
             setAnalyzing(false);
         }
@@ -138,112 +139,137 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
     return (
         <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6 h-[calc(100vh-100px)] flex flex-col overflow-hidden">
             <div className="flex justify-between items-center shrink-0">
-                <div>
-                    <h2 className={`text-2xl font-black ${theme.text}`}>Analista IA <span className="text-xs bg-green-500 text-black px-2 py-0.5 rounded-full ml-2">M1 SNIPER</span></h2>
-                    <p className={theme.textMuted}>Filtragem de ruído ativa: focando apenas no price action das velas.</p>
+                <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                        <h2 className={`text-2xl font-black ${theme.text}`}>Analista IA</h2>
+                        <span className="bg-green-500/20 text-green-400 text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border border-green-500/30">M1 Sniper v3.1</span>
+                    </div>
+                    <p className={theme.textMuted}>Filtro de marca d'água ativo. Concentração exclusiva no Price Action.</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="hidden md:flex items-center gap-3 bg-slate-900/50 px-4 py-2 rounded-2xl border border-slate-800">
                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]" />
-                    <span className="text-[10px] font-black uppercase opacity-60">Engine Flash v3</span>
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Motor Visual Ativo</span>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 overflow-hidden min-h-0">
-                {/* Lado Esquerdo: Imagem */}
-                <div className={`p-4 rounded-3xl border ${theme.card} flex flex-col items-center justify-center border-dashed border-2 relative overflow-hidden group bg-slate-950/20`}>
+                {/* Lado Esquerdo: Área de Upload */}
+                <div className={`group relative rounded-3xl border-2 border-dashed ${image ? 'border-green-500/30' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center overflow-hidden bg-slate-950/20 transition-all hover:border-green-500/50`}>
                     {image ? (
-                        <div className="relative w-full h-full flex items-center justify-center">
-                            <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-xl shadow-2xl" />
-                            <button onClick={() => setImage(null)} className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-xl z-20"><TrashIcon className="w-5 h-5" /></button>
+                        <div className="relative w-full h-full p-2 flex items-center justify-center">
+                            <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-2xl shadow-2xl transition-transform group-hover:scale-[1.02]" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                                <button onClick={() => setImage(null)} className="p-4 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-2xl active:scale-90"><TrashIcon className="w-8 h-8" /></button>
+                            </div>
                         </div>
                     ) : (
-                        <label className="cursor-pointer flex flex-col items-center gap-4 text-center group w-full h-full justify-center">
-                            <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-all border border-green-500/20">
-                                <PlusIcon className="w-10 h-10 text-green-500" />
+                        <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center gap-6 p-8">
+                            <div className="w-24 h-24 bg-green-500/5 rounded-full flex items-center justify-center border border-green-500/10 group-hover:bg-green-500/10 transition-all">
+                                <PlusIcon className="w-12 h-12 text-green-500" />
                             </div>
-                            <div>
-                                <p className="font-black text-sm uppercase tracking-widest">Colar Gráfico M1</p>
-                                <p className="text-[10px] opacity-40 font-bold mt-1 uppercase">Clique aqui ou use CTRL+V</p>
+                            <div className="text-center">
+                                <p className="font-black text-sm uppercase tracking-[0.2em]">Importar Gráfico Axiun</p>
+                                <p className="text-[10px] opacity-40 font-bold mt-2 uppercase">A IA irá ignorar o fundo e filtrar as velas</p>
                             </div>
                             <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                         </label>
                     )}
+                    {/* Botão de Análise Sobreposto (Mobile Friendly) */}
+                    {image && !analyzing && !result && (
+                        <div className="absolute bottom-4 left-4 right-4 lg:hidden">
+                            <button onClick={analyzeChart} className="w-full h-14 bg-green-500 text-slate-950 font-black rounded-2xl shadow-2xl shadow-green-500/20 uppercase tracking-widest">Analisar Agora</button>
+                        </div>
+                    )}
                 </div>
 
-                {/* Lado Direito: Resultados */}
-                <div className="space-y-4 flex flex-col min-h-0">
+                {/* Lado Direito: Resultados e Painel de Decisão */}
+                <div className="flex flex-col gap-4 overflow-hidden">
                     <button 
                         onClick={analyzeChart} 
                         disabled={!image || analyzing}
-                        className={`w-full h-16 shrink-0 rounded-2xl font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3
-                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border border-slate-800' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-lg shadow-green-500/20 active:scale-95'}`}
+                        className={`w-full h-20 shrink-0 rounded-[2rem] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-4 text-xs shadow-2xl
+                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border border-slate-800' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-green-500/20 active:scale-95'}`}
                     >
                         {analyzing ? (
                             <>
                                 <ArrowPathIcon className="w-6 h-6 animate-spin" />
-                                <span className="animate-pulse">Escaneando Velas...</span>
+                                <span className="animate-pulse">Filtrando Marca d'água...</span>
                             </>
                         ) : (
                             <>
-                                <CpuChipIcon className="w-6 h-6" />
+                                <CpuChipIcon className="w-7 h-7" />
                                 Analisar Próxima Vela
                             </>
                         )}
                     </button>
 
-                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
                         {error && (
-                            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-500 animate-in fade-in zoom-in duration-300">
-                                <InformationCircleIcon className="w-6 h-6 shrink-0" />
+                            <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-start gap-4 text-red-500 animate-in fade-in zoom-in">
+                                <InformationCircleIcon className="w-8 h-8 shrink-0 mt-1" />
                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-black uppercase leading-tight">Falha na Leitura Técnica</p>
-                                    <p className="text-[9px] font-bold opacity-70 uppercase tracking-tighter">O gráfico pode estar com baixa resolução ou sinais ocultos.</p>
+                                    <p className="text-xs font-black uppercase">Erro de Reconhecimento</p>
+                                    <p className="text-[10px] font-bold opacity-80 leading-relaxed uppercase">O algoritmo não conseguiu isolar as velas do fundo. Tente aproximar mais o zoom no gráfico.</p>
                                 </div>
                             </div>
                         )}
 
                         {result ? (
-                            <div className={`p-6 rounded-3xl border ${theme.card} space-y-6 animate-in fade-in slide-in-from-right-8 duration-500 shadow-2xl relative overflow-hidden`}>
-                                <div className={`absolute top-0 right-0 w-32 h-32 blur-3xl opacity-20 -mr-10 -mt-10 ${result.operacao === 'CALL' ? 'bg-green-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
+                            <div className={`p-8 rounded-[2.5rem] border ${theme.card} space-y-8 animate-in fade-in slide-in-from-right-8 duration-700 shadow-2xl relative overflow-hidden bg-gradient-to-br ${result.operacao === 'CALL' ? 'from-green-500/5 to-transparent' : result.operacao === 'PUT' ? 'from-red-500/5 to-transparent' : 'from-blue-500/5 to-transparent'}`}>
+                                <div className={`absolute -top-12 -right-12 w-48 h-48 blur-[80px] opacity-20 rounded-full ${result.operacao === 'CALL' ? 'bg-green-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
                                 
-                                <div className="flex justify-between items-center relative z-10">
-                                    <div>
-                                        <p className="text-[10px] font-black uppercase opacity-40">Ordem Sugerida</p>
-                                        <h3 className={`text-5xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-green-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-500'}`}>
+                                <div className="flex justify-between items-end relative z-10">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Recomendação Sniper</p>
+                                        <h3 className={`text-7xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-green-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
                                             {result.operacao}
                                         </h3>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-[10px] font-black uppercase opacity-40">Probabilidade</p>
-                                        <p className={`text-3xl font-black ${result.confianca > 80 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
+                                    <div className="text-right space-y-1">
+                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Assertividade</p>
+                                        <p className={`text-4xl font-black ${result.confianca > 85 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
                                     </div>
                                 </div>
 
-                                <div className="p-4 bg-slate-950/40 rounded-2xl border border-slate-800/50 backdrop-blur-sm">
-                                    <p className="text-xs font-black text-slate-500 uppercase mb-1 tracking-widest">Gatilho de Entrada</p>
-                                    <p className="text-sm font-bold leading-relaxed italic">"{result.motivo}"</p>
+                                <div className="p-5 bg-slate-950/60 rounded-3xl border border-white/5 backdrop-blur-xl">
+                                    <div className="flex items-center gap-2 mb-2 opacity-50">
+                                        <div className="w-1 h-3 bg-green-500 rounded-full" />
+                                        <p className="text-[9px] font-black uppercase tracking-widest">Gatilho Detectado</p>
+                                    </div>
+                                    <p className="text-sm font-bold leading-relaxed italic text-white/90">"{result.motivo}"</p>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <p className="text-[9px] font-black uppercase opacity-40 tracking-widest">Análise de Fluxo (M1)</p>
-                                    {result.detalhes?.map((detail: string, i: number) => (
-                                        <div key={i} className="flex items-center gap-3 text-[11px] font-bold opacity-80 bg-slate-950/20 p-2 rounded-xl border border-slate-800/30">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]" />
-                                            {detail}
-                                        </div>
-                                    ))}
+                                <div className="space-y-3">
+                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Confluências (Fundo Filtrado)</p>
+                                    <div className="grid grid-cols-1 gap-2">
+                                        {result.detalhes?.map((detail: string, i: number) => (
+                                            <div key={i} className="flex items-center gap-4 text-[11px] font-bold text-slate-300 bg-white/5 p-3 rounded-2xl border border-white/5">
+                                                <CheckIcon className="w-4 h-4 text-green-500 shrink-0" />
+                                                {detail}
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                                 
-                                <div className="pt-4 border-t border-slate-800/50 flex justify-between items-center opacity-30 grayscale">
-                                     <p className="text-[8px] uppercase font-black">Expiração: 1 Minuto</p>
-                                    <p className="text-[8px] uppercase font-black text-slate-600 tracking-tighter">Filtro de Marca d'água OK</p>
+                                <div className="pt-6 border-t border-white/5 flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <InformationCircleIcon className="w-4 h-4 text-slate-600" />
+                                        <p className="text-[9px] uppercase font-black text-slate-600 tracking-widest">Tempo Expiração: 1 min</p>
+                                    </div>
+                                    <div className="px-3 py-1 bg-green-500/10 rounded-full border border-green-500/20">
+                                        <p className="text-[8px] font-black text-green-500 uppercase tracking-tighter">Gráfico Legível</p>
+                                    </div>
                                 </div>
                             </div>
                         ) : !analyzing && !error && (
-                            <div className="h-full border border-slate-800/20 rounded-3xl flex flex-col items-center justify-center opacity-20 text-center space-y-4 py-12 bg-slate-900/5">
-                                <LayoutGridIcon className="w-16 h-16" />
-                                <div className="max-w-[200px]">
-                                    <p className="text-[10px] font-black uppercase tracking-widest leading-tight">O Sniper IA está aguardando o print para filtrar o ruído e ler o sinal.</p>
+                            <div className="h-full rounded-[2.5rem] border border-slate-800/30 flex flex-col items-center justify-center opacity-40 text-center space-y-6 py-16 bg-slate-900/5">
+                                <div className="relative">
+                                    <LayoutGridIcon className="w-20 h-20 text-slate-700" />
+                                    <div className="absolute inset-0 bg-green-500/10 blur-3xl rounded-full" />
+                                </div>
+                                <div className="max-w-[240px] space-y-2">
+                                    <p className="text-xs font-black uppercase tracking-[0.2em] leading-tight">Aguardando Print</p>
+                                    <p className="text-[9px] font-bold opacity-60 uppercase leading-relaxed">Envie seu gráfico da Axiun. A IA processará os sinais e ignorará o logo de fundo automaticamente.</p>
                                 </div>
                             </div>
                         )}
