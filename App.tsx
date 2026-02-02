@@ -21,7 +21,7 @@ const useThemeClasses = (isDarkMode: boolean) => {
         bg: isDarkMode ? 'bg-slate-950' : 'bg-slate-50',
         text: isDarkMode ? 'text-slate-50' : 'text-slate-900',
         textMuted: isDarkMode ? 'text-slate-400' : 'text-slate-500',
-        card: isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm',
+        card: isDarkMode ? 'bg-slate-950 border-slate-800 shadow-[0_0_20px_rgba(0,0,0,0.5)]' : 'bg-white border-slate-200 shadow-sm',
         input: isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-700' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400',
         border: isDarkMode ? 'border-slate-800' : 'border-slate-200',
         sidebar: isDarkMode ? 'bg-slate-950 border-r border-slate-800' : 'bg-white border-r border-slate-200',
@@ -83,26 +83,26 @@ const AIAnalysisPanel: React.FC<any> = ({ isDarkMode }) => {
                                 }
                             },
                             {
-                                text: `Você é um TRADER SNIPER de elite em Opções Binárias (IQ Option/Quotex).
-                                Analise o gráfico enviado focando em ALTA ASSERTIVIDADE.
+                                text: `Você é um ALGORITMO DE ALTA ASSERTIVIDADE especializado em Opções Binárias (Scalping). 
+                                Sua missão é encontrar o ponto exato de reversão ou continuidade.
                                 
-                                INSTRUÇÕES DE ANÁLISE:
-                                1. Identifique a tendência principal (Topos e Fundos).
-                                2. Localize ZONAS DE EXAUSTÃO ou REJEIÇÃO (pavis longos em taxas).
-                                3. Verifique Padrões de Vela: Engolfo, Martelo em Suporte, Estrela da Manhã/Noite ou Doji em zona de reversão.
-                                4. Filtre ruídos: Se o mercado estiver lateralizado sem tocar extremidades, APENAS aí recomende AGUARDAR. Caso contrário, tome uma posição baseada no fluxo.
-                                5. Foque em PULLBACKS e RETRAÇÃO DE VELA.
-                                
-                                Sua resposta deve ser exclusivamente em JSON:
+                                PROTOCOLO DE ANÁLISE:
+                                1. GATILHO DE ENTRADA: Procure por Rejeição de Preço (pavis longos), Engolfo de Alta/Baixa, Estrela da Manhã ou Harami.
+                                2. ZONAS DE IMPACTO: Verifique se o preço está em Suporte/Resistência forte ou tocando as Bandas de Bollinger.
+                                3. FLUXO DE VELAS: Analise o tamanho das últimas 3 velas. Velas diminuindo indicam exaustão. Velas aumentando indicam rompimento.
+                                4. FILTRO DE DECISÃO: Só use "AGUARDAR" se houver velas de 1 pixel (Dojis repetidos) ou mercado sem volume nenhum. Se houver tendência ou volatilidade, você DEVE tomar uma decisão (COMPRA ou VENDA).
+                                5. ASSERTIVIDADE: Seja direto. Use termos como "Pullback confirmado", "Exaustão detectada" ou "Preenchimento de pavio".
+
+                                Responda em JSON rigoroso:
                                 {
                                   "recommendation": "COMPRA" | "VENDA" | "AGUARDAR",
-                                  "entry_time": "Ex: 00:00 (Próxima Vela) ou Retração",
+                                  "entry_time": "Imediata ou Próxima Vela",
                                   "timeframe": "M1 ou M5",
-                                  "confidence": número de 0 a 100,
-                                  "reasoning": "Explique o gatilho técnico (Ex: Rejeição na EMA20 + Suporte H1)",
-                                  "risks": "Risco de rompimento ou notícia"
+                                  "confidence": número (60-100),
+                                  "reasoning": "Explicação técnica curta e agressiva",
+                                  "risks": "Único ponto de perigo"
                                 }
-                                Linguagem: Português. Seja assertivo, não seja excessivamente cauteloso se houver um padrão claro.`
+                                Linguagem: Português. Não seja cauteloso demais. Encontre a oportunidade.`
                             }
                         ]
                     }
@@ -138,40 +138,42 @@ const AIAnalysisPanel: React.FC<any> = ({ isDarkMode }) => {
         <div className="p-4 md:p-8 space-y-6 max-w-5xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div>
-                    <h2 className={`text-2xl font-black ${theme.text}`}>Análise Técnica IA</h2>
-                    <p className={theme.textMuted}>Análise instantânea baseada em padrões de mercado (OB)</p>
+                    <h2 className={`text-3xl font-black tracking-tighter ${theme.text}`}>ANÁLISE SNIPER IA</h2>
+                    <p className={`${theme.textMuted} font-bold text-xs uppercase tracking-widest`}>Algoritmo de Fluxo e Retração</p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Upload Section */}
-                <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col items-center justify-center min-h-[400px] relative overflow-hidden`}>
+                <div className={`p-4 rounded-[2.5rem] border ${theme.card} flex flex-col items-center justify-center min-h-[450px] relative overflow-hidden`}>
                     {!selectedImage ? (
-                        <label className="flex flex-col items-center justify-center cursor-pointer w-full h-full border-2 border-dashed border-slate-700 rounded-2xl hover:bg-slate-800/20 transition-all">
-                            <PlusIcon className="w-12 h-12 text-slate-500 mb-4" />
-                            <span className="text-sm font-black uppercase text-slate-500 tracking-widest">Carregar Print do Gráfico</span>
+                        <label className="flex flex-col items-center justify-center cursor-pointer w-full h-full border-2 border-dashed border-slate-800 rounded-[2rem] hover:bg-green-500/5 transition-all group">
+                            <PlusIcon className="w-16 h-16 text-slate-700 group-hover:text-green-500 transition-colors mb-4" />
+                            <span className="text-[10px] font-black uppercase text-slate-600 tracking-[0.2em] group-hover:text-green-500">Enviar Print do Gráfico</span>
                             <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                         </label>
                     ) : (
                         <div className="w-full h-full flex flex-col gap-4">
-                            <div className="flex-1 rounded-2xl overflow-hidden border border-slate-800 relative group">
+                            <div className="flex-1 rounded-[1.8rem] overflow-hidden border border-slate-800 relative group">
                                 <img src={selectedImage} alt="Chart" className="w-full h-full object-contain bg-black" />
-                                <button onClick={() => setSelectedImage(null)} className="absolute top-4 right-4 bg-red-500 text-white p-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"><TrashIcon className="w-4 h-4" /></button>
+                                <button onClick={() => setSelectedImage(null)} className="absolute top-4 right-4 bg-red-500/80 hover:bg-red-500 text-white p-3 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-md">
+                                    <TrashIcon className="w-5 h-5" />
+                                </button>
                             </div>
                             <button 
                                 onClick={analyzeChart} 
                                 disabled={isAnalyzing}
-                                className="h-14 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-50"
+                                className="h-16 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-black rounded-[1.5rem] uppercase tracking-[0.2em] flex items-center justify-center gap-4 transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-blue-600/20"
                             >
                                 {isAnalyzing ? (
                                     <>
-                                        <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                                        Processando IA...
+                                        <ArrowPathIcon className="w-6 h-6 animate-spin" />
+                                        ESCANEANDO MERCADO...
                                     </>
                                 ) : (
                                     <>
-                                        <CpuChipIcon className="w-5 h-5" />
-                                        Gerar Sinal de Operação
+                                        <CpuChipIcon className="w-6 h-6" />
+                                        ANALISAR ENTRADA
                                     </>
                                 )}
                             </button>
@@ -180,83 +182,81 @@ const AIAnalysisPanel: React.FC<any> = ({ isDarkMode }) => {
                 </div>
 
                 {/* Results Section */}
-                <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60">
-                        <InformationCircleIcon className="w-5 h-5 text-blue-400" /> Resultado da Análise
+                <div className={`p-8 rounded-[2.5rem] border ${theme.card} flex flex-col relative overflow-hidden`}>
+                    <div className="absolute top-0 right-0 p-8 opacity-5">
+                        <TrendingUpIcon className="w-32 h-32" />
+                    </div>
+                    
+                    <h3 className="font-black mb-8 flex items-center gap-3 text-[10px] uppercase tracking-[0.3em] text-blue-400">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" /> IA ENGINE STATUS
                     </h3>
 
                     {error && (
-                        <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl text-red-500 text-xs font-bold mb-4">
+                        <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl text-red-500 text-xs font-bold mb-6">
                             {error}
                         </div>
                     )}
 
                     {analysisResult ? (
-                        <div className="flex-1 space-y-6">
-                            <div className="flex items-center justify-between">
+                        <div className="flex-1 space-y-8 relative z-10">
+                            <div className="flex items-end justify-between border-b border-slate-800 pb-8">
                                 <div>
-                                    <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Recomendação</p>
-                                    <div className={`text-3xl font-black flex items-center gap-2 ${
+                                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2 tracking-widest">Recomendação</p>
+                                    <div className={`text-5xl font-black flex items-center gap-4 ${
                                         analysisResult.recommendation === 'COMPRA' ? 'text-green-500' : 
                                         analysisResult.recommendation === 'VENDA' ? 'text-red-500' : 'text-yellow-500'
                                     }`}>
-                                        {analysisResult.recommendation === 'COMPRA' ? <TrendingUpIcon className="w-8 h-8" /> : 
-                                         analysisResult.recommendation === 'VENDA' ? <TrendingDownIcon className="w-8 h-8" /> : 
-                                         <InformationCircleIcon className="w-8 h-8" />}
-                                        {analysisResult.recommendation}
+                                        {analysisResult.recommendation === 'COMPRA' ? 'CALL' : 
+                                         analysisResult.recommendation === 'VENDA' ? 'PUT' : 'WAIT'}
+                                        {analysisResult.recommendation === 'COMPRA' && <TrendingUpIcon className="w-10 h-10" />}
+                                        {analysisResult.recommendation === 'VENDA' && <TrendingDownIcon className="w-10 h-10" />}
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Confiabilidade</p>
-                                    <p className="text-3xl font-black text-blue-400">{analysisResult.confidence}%</p>
+                                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2 tracking-widest">Confiança</p>
+                                    <p className="text-4xl font-black text-white">{analysisResult.confidence}%</p>
                                 </div>
-                            </div>
-
-                            <div className="w-full bg-slate-800/30 h-2 rounded-full overflow-hidden">
-                                <div 
-                                    className={`h-full transition-all duration-1000 ${
-                                        analysisResult.confidence > 80 ? 'bg-green-500' : 
-                                        analysisResult.confidence > 60 ? 'bg-yellow-500' : 'bg-red-500'
-                                    }`}
-                                    style={{ width: `${analysisResult.confidence}%` }} 
-                                />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800/50">
-                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Horário de Entrada</p>
-                                    <p className="text-sm font-black text-white">{analysisResult.entry_time}</p>
+                                <div className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800">
+                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-2 tracking-widest">Time de Entrada</p>
+                                    <p className="text-sm font-black text-white uppercase">{analysisResult.entry_time}</p>
                                 </div>
-                                <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800/50">
-                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Expiração</p>
-                                    <p className="text-sm font-black text-white">{analysisResult.timeframe}</p>
+                                <div className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800">
+                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-2 tracking-widest">Expiração</p>
+                                    <p className="text-sm font-black text-white uppercase">{analysisResult.timeframe}</p>
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
-                                <div>
-                                    <p className="text-[9px] font-black uppercase text-blue-400 mb-1">Justificativa Técnica</p>
-                                    <p className="text-xs font-bold leading-relaxed opacity-80">{analysisResult.reasoning}</p>
+                            <div className="space-y-6">
+                                <div className="p-6 rounded-[1.8rem] bg-blue-500/5 border border-blue-500/10">
+                                    <p className="text-[10px] font-black uppercase text-blue-400 mb-3 tracking-widest">Gatilho de Operação</p>
+                                    <p className="text-sm font-bold text-slate-300 leading-relaxed italic">"{analysisResult.reasoning}"</p>
                                 </div>
-                                <div>
-                                    <p className="text-[9px] font-black uppercase text-red-400 mb-1">Pontos de Atenção</p>
-                                    <p className="text-xs font-bold leading-relaxed opacity-80">{analysisResult.risks}</p>
+                                <div className="px-6">
+                                    <p className="text-[10px] font-black uppercase text-red-400 mb-2 tracking-widest">Ponto de Atenção</p>
+                                    <p className="text-xs font-bold text-slate-500">{analysisResult.risks}</p>
                                 </div>
                             </div>
 
                             <div className="pt-4 mt-auto">
-                                <div className="p-4 rounded-2xl bg-yellow-500/5 border border-yellow-500/20 flex gap-3">
-                                    <InformationCircleIcon className="w-5 h-5 text-yellow-500 shrink-0" />
-                                    <p className="text-[10px] font-bold text-yellow-500/80 leading-tight">
-                                        AVISO: Esta análise é gerada por inteligência artificial e não constitui indicação absoluta. O mercado de renda variável possui riscos. Opere com responsabilidade.
+                                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                                        <TrophyIcon className="w-5 h-5 text-green-500" />
+                                    </div>
+                                    <p className="text-[9px] font-bold text-slate-400 leading-tight uppercase tracking-widest">
+                                        Análise Sniper processada com sucesso. Aguarde o ponto exato indicado pela IA.
                                     </p>
                                 </div>
                             </div>
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center opacity-30 py-10 text-center">
-                            <CpuChipIcon className="w-16 h-16 mb-4" />
-                            <p className="text-xs font-black uppercase tracking-widest max-w-[200px]">Aguardando imagem para processar análise técnica</p>
+                        <div className="flex-1 flex flex-col items-center justify-center py-20 text-center space-y-4">
+                            <div className="w-24 h-24 rounded-full border-2 border-slate-800 border-t-blue-500 animate-spin flex items-center justify-center">
+                                <CpuChipIcon className="w-10 h-10 text-slate-800" />
+                            </div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-700 max-w-[250px]">Sistema em Standby: Aguardando imagem do gráfico para análise</p>
                         </div>
                     )}
                 </div>
