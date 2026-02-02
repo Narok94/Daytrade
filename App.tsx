@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
@@ -16,7 +15,7 @@ import {
 // --- Helper Functions ---
 const formatMoney = (val: number) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// Converte um objeto Date para string YYYY-MM-DD respeitando o fuso horário LOCAL
+// Converte um objeto Date para string YYYY-MM-DD respeitando o fuso horário LOCAL do dispositivo
 const getLocalISOString = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -89,23 +88,27 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const mimeType = image.split(';')[0].split(':')[1];
             const base64Data = image.split(',')[1];
             
-            const prompt = `Aja como um Algoritmo de Trading Quantitativo para M1. 
-            IGNORE a marca d'água "AXIUN" no fundo. Foque nos Candlesticks e Indicadores.
-            
-            ESTRATÉGIAS APLICADAS:
-            1. Bandas de Bollinger: Verifique toques nas extremidades.
-            2. RSI/Estocástico: Verifique sobrecompra (>80) ou sobrevenda (<20).
-            3. Médias Móveis: Identifique a tendência e cruzamentos.
-            4. Fractal de Williams: Procure triângulos de sinalização de topo/fundo.
-            5. Price Action: Analise Reversões (Pinbar/Engolfo), Pullbacks e Suporte/Resistência.
+            const prompt = `Aja como um Expert Trader Quantitativo em Opções Binárias. 
+            Analise visualmente este gráfico e identifique padrões baseados nestas 9 estratégias:
+            1. Médias Móveis (Tendência e Cruzamentos)
+            2. Reversões (Exaustão de preço)
+            3. Pullback (Retorno à zona rompida)
+            4. Suporte e Resistência (Zonas de impacto)
+            5. Price Action (Formatos de candles: Martelo, Engolfo, Doji)
+            6. Estocástico (Sobrecompra/Sobrevenda)
+            7. Bandas de Bollinger (Toque nas extremidades)
+            8. Fractal de Williams (Sinais de topo e fundo)
+            9. RSI (Força Relativa)
+
+            IGNORE a marca d'água "AXIUN" no fundo. Foque nos sinais dos indicadores e candles.
             
             SÓ RESPONDA EM JSON:
             {
               "operacao": "CALL" | "PUT" | "AGUARDAR",
               "confianca": 0-100,
-              "analise_tecnica": "Explicação curta mesclando os indicadores",
-              "confluencias": ["lista de 3 setups detectados"],
-              "status_indicadores": { "bollinger": "string", "rsi": "string", "fractal": "string" }
+              "analise_tecnica": "Resumo técnico da decisão",
+              "setups_vistos": ["lista de estratégias confirmadas na imagem"],
+              "detalhes": ["confluência 1", "confluência 2"]
             }`;
 
             const response = await ai.models.generateContent({
@@ -124,17 +127,10 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             operacao: { type: Type.STRING },
                             confianca: { type: Type.NUMBER },
                             analise_tecnica: { type: Type.STRING },
-                            confluencias: { type: Type.ARRAY, items: { type: Type.STRING } },
-                            status_indicadores: { 
-                                type: Type.OBJECT,
-                                properties: {
-                                    bollinger: { type: Type.STRING },
-                                    rsi: { type: Type.STRING },
-                                    fractal: { type: Type.STRING }
-                                }
-                            }
+                            setups_vistos: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            detalhes: { type: Type.ARRAY, items: { type: Type.STRING } }
                         },
-                        required: ["operacao", "confianca", "analise_tecnica", "confluencias"]
+                        required: ["operacao", "confianca", "analise_tecnica", "setups_vistos"]
                     }
                 }
             });
@@ -142,53 +138,48 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             if (response.text) {
                 setResult(JSON.parse(response.text.trim()));
             } else {
-                throw new Error("Erro na IA");
+                throw new Error("Resposta da IA vazia");
             }
         } catch (err: any) {
-            console.error("Sniper Error:", err);
-            setError("ERRO DE CONTEXTO: NÃO FOI POSSÍVEL ISOLAR AS VELAS DO FUNDO. TENTE USAR UM PRINT MAIS NÍTIDO OU COM MAIS ZOOM.");
+            console.error("AI Analysis Error:", err);
+            setError("FALHA DE LEITURA: O gráfico está ilegível ou muito poluído. Tente um print mais focado nas últimas 10 velas.");
         } finally {
             setAnalyzing(false);
         }
     };
 
     return (
-        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6 h-[calc(100vh-100px)] flex flex-col overflow-hidden font-sans">
+        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6 h-[calc(100vh-100px)] flex flex-col overflow-hidden">
             <div className="flex justify-between items-center shrink-0">
                 <div className="space-y-1">
-                    <h2 className={`text-2xl font-black ${theme.text} tracking-tight`}>PRO ANALYST <span className="text-green-500 italic">CONFLUENCE</span></h2>
-                    <div className="flex gap-2">
-                        <span className="bg-slate-900 text-[8px] font-black uppercase text-slate-500 px-2 py-0.5 rounded border border-slate-800">Bollinger</span>
-                        <span className="bg-slate-900 text-[8px] font-black uppercase text-slate-500 px-2 py-0.5 rounded border border-slate-800">Fractal</span>
-                        <span className="bg-slate-900 text-[8px] font-black uppercase text-slate-500 px-2 py-0.5 rounded border border-slate-800">RSI/Stoch</span>
-                        <span className="bg-slate-900 text-[8px] font-black uppercase text-slate-500 px-2 py-0.5 rounded border border-slate-800">Price Action</span>
-                    </div>
+                    <h2 className={`text-2xl font-black ${theme.text} tracking-tighter`}>SNIPER IA <span className="text-emerald-500">CONFLUENCE</span></h2>
+                    <p className={theme.textMuted}>9 Estratégias integradas: Bollinger, RSI, Médias e mais.</p>
                 </div>
-                <div className="flex items-center gap-3 bg-slate-900/80 px-4 py-2 rounded-2xl border border-slate-800">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]" />
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Multi-Strategy V5</span>
+                <div className="flex items-center gap-3 bg-slate-900/50 px-4 py-2 rounded-2xl border border-slate-800">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_#10b981]" />
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Multi-Setup Core v5.0</span>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 overflow-hidden min-h-0">
-                {/* Lado Esquerdo: Área do Gráfico */}
-                <div className="lg:col-span-7 flex flex-col gap-4 overflow-hidden">
-                    <div className={`flex-1 rounded-[2.5rem] border-2 border-dashed ${image ? 'border-green-500/20' : 'border-slate-800'} ${theme.card} relative overflow-hidden bg-slate-950/40 transition-all flex items-center justify-center`}>
+                {/* Lado Esquerdo: Área de Upload */}
+                <div className="lg:col-span-7 flex flex-col gap-4">
+                    <div className={`group relative rounded-[2.5rem] border-2 border-dashed ${image ? 'border-emerald-500/30' : 'border-slate-800'} ${theme.card} flex-1 flex flex-col items-center justify-center overflow-hidden bg-slate-950/20 transition-all hover:border-emerald-500/50`}>
                         {image ? (
-                            <div className="w-full h-full p-2 flex items-center justify-center relative group">
+                            <div className="relative w-full h-full p-2 flex items-center justify-center">
                                 <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-3xl shadow-2xl transition-transform group-hover:scale-[1.01]" />
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                                    <button onClick={() => setImage(null)} className="p-4 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-2xl"><TrashIcon className="w-8 h-8" /></button>
+                                    <button onClick={() => setImage(null)} className="p-4 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-2xl active:scale-90"><TrashIcon className="w-8 h-8" /></button>
                                 </div>
                             </div>
                         ) : (
-                            <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center gap-6 p-8 group">
-                                <div className="w-24 h-24 bg-green-500/5 rounded-full flex items-center justify-center border border-green-500/10 group-hover:bg-green-500/10 transition-all">
-                                    <PlusIcon className="w-12 h-12 text-green-500" />
+                            <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center gap-6 p-8">
+                                <div className="w-24 h-24 bg-emerald-500/5 rounded-full flex items-center justify-center border border-emerald-500/10 group-hover:bg-emerald-500/10 transition-all">
+                                    <PlusIcon className="w-12 h-12 text-emerald-500" />
                                 </div>
-                                <div className="text-center space-y-2">
-                                    <p className="font-black text-sm uppercase tracking-[0.3em] text-white">Importar Captura M1</p>
-                                    <p className="text-[10px] opacity-30 font-bold uppercase tracking-tight">O algoritmo irá ler os sinais e ignorar o fundo</p>
+                                <div className="text-center">
+                                    <p className="font-black text-sm uppercase tracking-[0.2em] text-white">Importar Gráfico M1</p>
+                                    <p className="text-[10px] opacity-40 font-bold mt-2 uppercase text-slate-400">Arraste, cole (Ctrl+V) ou clique para subir</p>
                                 </div>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                             </label>
@@ -197,102 +188,91 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     <button 
                         onClick={analyzeChart} 
                         disabled={!image || analyzing}
-                        className={`h-20 shrink-0 rounded-3xl font-black uppercase tracking-[0.4em] transition-all flex items-center justify-center gap-4 text-xs shadow-2xl
-                        ${!image || analyzing ? 'bg-slate-950 text-slate-700 cursor-not-allowed border border-slate-800' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-green-500/20 active:scale-95'}`}
+                        className={`w-full h-20 shrink-0 rounded-[2rem] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-4 text-xs shadow-2xl
+                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border border-slate-800' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 active:scale-95'}`}
                     >
-                        {analyzing ? <ArrowPathIcon className="w-6 h-6 animate-spin" /> : <CpuChipIcon className="w-6 h-6" />}
-                        {analyzing ? 'Processando Confluências...' : 'Executar Leitura Sniper'}
+                        {analyzing ? (
+                            <>
+                                <ArrowPathIcon className="w-6 h-6 animate-spin" />
+                                <span className="animate-pulse">Calculando Confluência...</span>
+                            </>
+                        ) : (
+                            <>
+                                <CpuChipIcon className="w-7 h-7" />
+                                Analisar Próxima Vela
+                            </>
+                        )}
                     </button>
                 </div>
 
                 {/* Lado Direito: Resultados Detalhados */}
-                <div className="lg:col-span-5 h-full overflow-hidden flex flex-col gap-4">
-                    {error && (
-                        <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-start gap-4 text-red-500 animate-in zoom-in duration-300">
-                            <InformationCircleIcon className="w-8 h-8 shrink-0 mt-1" />
-                            <div className="space-y-1">
-                                <p className="text-xs font-black uppercase">Falha na Decomposição</p>
-                                <p className="text-[10px] font-bold opacity-80 leading-relaxed uppercase">O algoritmo não conseguiu separar as velas do fundo "Axiun". Tente usar o zoom do navegador para aumentar as velas.</p>
+                <div className="lg:col-span-5 flex flex-col gap-4 overflow-hidden">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
+                        {error && (
+                            <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-start gap-4 text-red-500 animate-in fade-in zoom-in">
+                                <InformationCircleIcon className="w-8 h-8 shrink-0 mt-1" />
+                                <div className="space-y-1">
+                                    <p className="text-xs font-black uppercase">Erro de Leitura</p>
+                                    <p className="text-[10px] font-bold opacity-80 leading-relaxed uppercase">{error}</p>
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {result ? (
-                        <div className={`p-8 rounded-[2.5rem] border ${theme.card} flex-1 flex flex-col animate-in slide-in-from-right-8 duration-700 shadow-2xl relative overflow-hidden bg-slate-900/60`}>
-                            <div className={`absolute -top-16 -right-16 w-56 h-56 blur-[100px] rounded-full opacity-30 ${result.operacao === 'CALL' ? 'bg-green-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
-                            
-                            <div className="flex-1 space-y-8 relative z-10 custom-scrollbar overflow-y-auto pr-2">
-                                <div className="flex justify-between items-end">
+                        {result ? (
+                            <div className={`p-8 rounded-[2.5rem] border ${theme.card} space-y-8 animate-in fade-in slide-in-from-right-8 duration-700 shadow-2xl relative overflow-hidden bg-slate-900/40`}>
+                                <div className={`absolute -top-12 -right-12 w-48 h-48 blur-[80px] opacity-20 rounded-full ${result.operacao === 'CALL' ? 'bg-emerald-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
+                                
+                                <div className="flex justify-between items-end relative z-10">
                                     <div className="space-y-1">
-                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em]">Direção Sugerida</p>
-                                        <h3 className={`text-7xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-green-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
+                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Gatilho Detectado</p>
+                                        <h3 className={`text-7xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-emerald-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
                                             {result.operacao}
                                         </h3>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] mb-1">Confiança</p>
+                                    <div className="text-right space-y-1">
+                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Confiança</p>
                                         <p className={`text-4xl font-black ${result.confianca > 85 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
                                     </div>
                                 </div>
 
-                                <div className="p-5 bg-slate-950/80 rounded-3xl border border-white/5 backdrop-blur-xl space-y-2">
-                                    <div className="flex items-center gap-2 opacity-50">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                                        <p className="text-[9px] font-black uppercase tracking-widest">Análise do Algoritmo</p>
+                                <div className="p-5 bg-slate-950/60 rounded-3xl border border-white/5 backdrop-blur-xl">
+                                    <div className="flex items-center gap-2 mb-2 opacity-50">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                        <p className="text-[9px] font-black uppercase tracking-widest">Resumo Estratégico</p>
                                     </div>
                                     <p className="text-sm font-bold leading-relaxed italic text-white/90">"{result.analise_tecnica}"</p>
                                 </div>
 
                                 <div className="space-y-3">
-                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Confluências Detectadas</p>
+                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Checklist de Setups</p>
                                     <div className="grid grid-cols-1 gap-2">
-                                        {result.confluencias?.map((item: string, i: number) => (
+                                        {result.setups_vistos?.map((setup: string, i: number) => (
                                             <div key={i} className="flex items-center gap-4 text-[11px] font-bold text-slate-300 bg-white/5 p-3 rounded-2xl border border-white/5">
-                                                <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#10b981]" />
-                                                {item}
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981]" />
+                                                {setup}
                                             </div>
                                         ))}
                                     </div>
                                 </div>
-
-                                {result.status_indicadores && (
-                                    <div className="grid grid-cols-3 gap-2 pt-4">
-                                        <div className="p-3 bg-white/5 rounded-2xl border border-white/5 text-center">
-                                            <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Bollinger</p>
-                                            <p className="text-[9px] font-bold truncate uppercase">{result.status_indicadores.bollinger}</p>
-                                        </div>
-                                        <div className="p-3 bg-white/5 rounded-2xl border border-white/5 text-center">
-                                            <p className="text-[8px] font-black text-slate-500 uppercase mb-1">RSI</p>
-                                            <p className="text-[9px] font-bold truncate uppercase">{result.status_indicadores.rsi}</p>
-                                        </div>
-                                        <div className="p-3 bg-white/5 rounded-2xl border border-white/5 text-center">
-                                            <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Fractal</p>
-                                            <p className="text-[9px] font-bold truncate uppercase">{result.status_indicadores.fractal}</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="pt-6 mt-4 flex justify-between items-center opacity-30 relative z-10 border-t border-white/5 grayscale">
-                                <div className="flex items-center gap-2">
-                                    <InformationCircleIcon className="w-4 h-4" />
-                                    <p className="text-[9px] uppercase font-black tracking-tighter">Expiração recomendada: 1 minuto</p>
+                                
+                                <div className="pt-6 border-t border-white/5 flex justify-between items-center opacity-40">
+                                     <p className="text-[9px] font-black uppercase tracking-tighter">Filtro Axiun Ativo</p>
+                                     <p className="text-[9px] font-black uppercase tracking-tighter">Exp: 1 min</p>
                                 </div>
-                                <p className="text-[8px] font-black uppercase tracking-tighter">Filtro Axiun Ativado</p>
                             </div>
-                        </div>
-                    ) : !error && (
-                        <div className="h-full rounded-[2.5rem] border border-slate-800/30 flex flex-col items-center justify-center opacity-40 text-center space-y-6 py-16 bg-slate-900/5">
-                            <div className="relative">
-                                <LayoutGridIcon className="w-24 h-24 text-slate-800" />
-                                <div className="absolute inset-0 bg-green-500/5 blur-[50px] rounded-full" />
+                        ) : !analyzing && !error && (
+                            <div className="h-full rounded-[2.5rem] border border-slate-800/30 flex flex-col items-center justify-center opacity-40 text-center space-y-6 py-16 bg-slate-900/5">
+                                <div className="relative">
+                                    <LayoutGridIcon className="w-20 h-20 text-slate-700" />
+                                    <div className="absolute inset-0 bg-emerald-500/10 blur-3xl rounded-full" />
+                                </div>
+                                <div className="max-w-[240px] space-y-2">
+                                    <p className="text-xs font-black uppercase tracking-[0.2em] leading-tight text-white">Motor Sniper V5</p>
+                                    <p className="text-[9px] font-bold opacity-60 uppercase leading-relaxed text-slate-400">Cole um print do gráfico. A IA buscará por confluências entre Bollinger, RSI, Médias e Price Action automaticamente.</p>
+                                </div>
                             </div>
-                            <div className="max-w-[260px] space-y-2">
-                                <p className="text-xs font-black uppercase tracking-[0.3em] leading-tight text-white">Radar Estratégico</p>
-                                <p className="text-[10px] font-bold opacity-60 uppercase leading-relaxed">Suba seu gráfico de M1. A IA irá decompor Médias, RSI, Fractal e Bollinger para gerar a confluência perfeita.</p>
-                            </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
@@ -348,7 +328,6 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                     type="date" 
                     value={selectedDateString} 
                     onChange={(e) => {
-                        // Ao selecionar no input date, garantimos que não haja distorção de fuso
                         const [y, m, d] = e.target.value.split('-').map(Number);
                         const newDate = new Date(y, m - 1, d, 12, 0, 0);
                         setSelectedDate(newDate);
@@ -418,7 +397,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center opacity-30 py-10">
                                 <InformationCircleIcon className="w-10 h-10 mb-2" />
-                                <p className="text-xs font-black uppercase">Sem registros hoje</p>
+                                <p className="text-xs font-black uppercase text-slate-400">Sem registros hoje</p>
                             </div>
                         )}
                     </div>
@@ -441,7 +420,6 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
         
         let startDate: Date;
         if (sortedRealRecords.length > 0) {
-            // Parse da data local para evitar fuso na visualização da tabela
             const [y, m, d] = sortedRealRecords[0].id.split('-').map(Number);
             startDate = new Date(y, m - 1, d, 12, 0, 0);
         } else {
@@ -549,7 +527,7 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
     }, [records]);
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto h-full">
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto h-full overflow-y-auto custom-scrollbar">
             <h2 className={`text-2xl font-black ${theme.text}`}>Relatório de Operações</h2>
             <div className={`rounded-3xl border overflow-hidden ${theme.card}`}>
                 <div className="overflow-x-auto">
@@ -621,7 +599,7 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
     }, [initialEntry, payout, levels]);
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
+        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto h-full overflow-y-auto custom-scrollbar">
             <h2 className={`text-2xl font-black ${theme.text}`}>Calculadora de Soros</h2>
             <div className={`p-6 rounded-3xl border ${theme.card} space-y-4`}>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -695,7 +673,7 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
     const progress = monthlyGoal ? (totalProfit / monthlyGoal.targetAmount) * 100 : 0;
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
+        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto h-full overflow-y-auto custom-scrollbar">
             <h2 className={`text-2xl font-black ${theme.text}`}>Minhas Metas</h2>
             
             <div className={`p-8 rounded-3xl border ${theme.card} space-y-6`}>
@@ -730,14 +708,14 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
                         <button onClick={() => setGoals([])} className="text-red-500 text-[10px] font-black uppercase hover:underline">Remover Meta</button>
                     </div>
                 ) : (
-                    <div className="space-y-4">
-                        <p className="text-sm font-bold opacity-60">Você ainda não definiu uma meta para este mês.</p>
-                        <div className="flex gap-4">
+                    <div className="space-y-4 text-center py-8">
+                        <p className="text-sm font-bold opacity-60">Defina seu objetivo financeiro para o mês.</p>
+                        <div className="flex gap-4 max-w-sm mx-auto">
                             <input 
                                 type="number" 
                                 value={newGoalAmount} 
                                 onChange={e => setNewGoalAmount(e.target.value)} 
-                                placeholder="Valor da meta (ex: 1000)" 
+                                placeholder="Meta mensal (ex: 1000)" 
                                 className={`flex-1 h-12 px-6 rounded-2xl border outline-none font-bold ${theme.input}`}
                             />
                             <button onClick={addMonthlyGoal} className="px-8 bg-green-500 text-slate-950 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-green-400 transition-all">Definir</button>
