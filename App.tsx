@@ -10,7 +10,7 @@ import {
     CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ArrowPathIcon, 
     InformationCircleIcon, TrophyIcon, 
     ChartBarIcon, CheckIcon, DocumentTextIcon,
-    PlusIcon, TrashIcon, CpuChipIcon
+    PlusIcon, TrashIcon, CpuChipIcon, LockClosedIcon
 } from './components/icons';
 
 // --- Helper Functions ---
@@ -32,12 +32,30 @@ const useThemeClasses = (isDarkMode: boolean) => {
     }), [isDarkMode]);
 };
 
-// --- Radar Sniper Panel ---
+// --- Radar Sniper Panel (VISÃO PRO ATIVADA) ---
 const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
     const [image, setImage] = useState<string | null>(null);
     const [analyzing, setAnalyzing] = useState(false);
     const [result, setResult] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
+    const [hasKey, setHasKey] = useState(false);
+
+    useEffect(() => {
+        const checkKey = async () => {
+            if (window.aistudio) {
+                const status = await window.aistudio.hasSelectedApiKey();
+                setHasKey(status);
+            }
+        };
+        checkKey();
+    }, []);
+
+    const handleSelectKey = async () => {
+        if (window.aistudio) {
+            await window.aistudio.openSelectKey();
+            setHasKey(true);
+        }
+    };
 
     const analyzeChart = async () => {
         if (!image) return;
@@ -45,6 +63,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
         setError(null);
 
         try {
+            // Cria instância sempre antes da chamada para pegar a chave atual
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             
             const base64Parts = image.split(',');
@@ -52,24 +71,24 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
             const base64Data = base64Parts[1];
             const mimeType = base64Parts[0].split(':')[1].split(';')[0];
             
-            const prompt = `INSTRUÇÃO DE PROCESSAMENTO DE DADOS (AMBIENTE DE SIMULAÇÃO):
-            1. ANALISE O GRÁFICO CENTRAL: Ignore a barra de tarefas do Windows, menus laterais e marcas d'água (AXION).
-            2. DETECTE VELAS: Identifique as cores (Verde/Alta, Vermelha/Baixa) e o comportamento do preço.
-            3. RESULTADO PASSADO: Identifique se a última operação visível fechou em lucro (WIN) ou prejuízo (LOSS).
-            4. PREDIÇÃO TÁTICA: Com base nos padrões de candles (ex: Engolfo, Martelo, Rejeição de Topo/Fundo), determine a melhor entrada para o PRÓXIMO candle.
+            const prompt = `MISSÃO DE RECONHECIMENTO VISUAL (GAME ENGINE):
+            Você é o processador central do HRK Sniper.
+            1. FOCO NO GRÁFICO: Ignore barra de tarefas, logos e marcas d'água.
+            2. PADRÕES DETECTADOS: Identifique a cor da última vela fechada.
+            3. ANÁLISE PREDITIVA: Com base na ação do preço (Price Action), determine se a próxima vela será CALL (Verde) ou PUT (Vermelha).
             
-            SAÍDA OBRIGATÓRIA EM JSON:
+            SAÍDA JSON PURA:
             {
-              "resultado_passado": "WIN" ou "LOSS",
-              "valor": número detectado ou 10,
-              "payout": número detectado ou 80,
+              "resultado_passado": "WIN" (se última foi verde) ou "LOSS" (se última foi vermelha),
+              "valor": 10,
+              "payout": 80,
               "sinal_proxima": "CALL" ou "PUT",
-              "confianca": "0-100%",
-              "analise_curta": "Explicação técnica direta do padrão detectado"
+              "confianca": "porcentagem de acerto",
+              "analise_curta": "Explicação técnica do padrão de candlestick"
             }`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-3-pro-preview', 
+                model: 'gemini-3-pro-image-preview', // Modelo Pro para Visão
                 contents: {
                     parts: [
                         { inlineData: { data: base64Data, mimeType } },
@@ -77,10 +96,9 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                     ]
                 },
                 config: {
-                    systemInstruction: "Você é um Analista de Dados Visual para um simulador tático de trading. Sua tarefa é converter padrões visuais de candlesticks em sinais lógicos de CALL/PUT. Seja preciso, ignore elementos de UI externa e foque na ação do preço.",
+                    systemInstruction: "Você é um interpretador de dados para um simulador de trading. Sua tarefa é converter padrões visuais de candles em decisões lógicas de CALL/PUT. Foque exclusivamente no gráfico de preços.",
                     responseMimeType: "application/json",
-                    thinkingConfig: { thinkingBudget: 4000 }, // Ativa o raciocínio profundo para ver através do ruído
-                    maxOutputTokens: 8000,
+                    thinkingConfig: { thinkingBudget: 4000 },
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
@@ -91,7 +109,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                             confianca: { type: Type.STRING },
                             analise_curta: { type: Type.STRING }
                         },
-                        required: ["resultado_passado", "valor", "sinal_proxima"]
+                        required: ["resultado_passado", "sinal_proxima"]
                     }
                 }
             });
@@ -101,7 +119,12 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
             setResult(data);
         } catch (err: any) {
             console.error("Critical AI Error:", err);
-            setError("FALHA NA ANÁLISE TÁTICA. CERTIFIQUE-SE QUE O GRÁFICO ESTÁ CENTRALIZADO E COM ZOOM ADEQUADO.");
+            if (err.message?.includes("Requested entity was not found")) {
+                setError("CHAVE API INVÁLIDA OU NÃO ENCONTRADA. POR FAVOR, SELECIONE NOVAMENTE.");
+                setHasKey(false);
+            } else {
+                setError("FALHA NA ANÁLISE TÁTICA. O GRÁFICO PODE ESTAR MUITO POLUÍDO OU O MODELO BLOQUEOU POR SEGURANÇA.");
+            }
         } finally {
             setAnalyzing(false);
         }
@@ -109,32 +132,45 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
 
     return (
         <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-4 animate-in fade-in duration-500">
+            {!hasKey && (
+                <div className="p-6 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-4">
+                    <div className="flex items-center gap-3">
+                        <LockClosedIcon className="w-6 h-6 text-amber-500" />
+                        <div>
+                            <p className="text-[11px] font-black uppercase text-amber-500 tracking-widest">Radar Desativado</p>
+                            <p className="text-[9px] text-slate-500 font-bold uppercase">É necessário selecionar uma chave API de faturamento para usar o motor Pro.</p>
+                        </div>
+                    </div>
+                    <button onClick={handleSelectKey} className="px-6 py-2.5 bg-amber-500 text-slate-950 font-black rounded-full text-[10px] uppercase tracking-widest hover:bg-amber-400 transition-all">Configurar Chave</button>
+                </div>
+            )}
+
             <div className="flex items-center justify-between border-b border-emerald-500/10 pb-2">
-                <h2 className={`text-lg font-black tracking-tight ${theme.text}`}>Radar <span className="text-emerald-400 italic">Sniper</span></h2>
+                <h2 className={`text-lg font-black tracking-tight ${theme.text}`}>Radar <span className="text-emerald-400 italic">Sniper Pro</span></h2>
                 <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${analyzing ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500/60 uppercase">Escaner de Elite Online</span>
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500/60 uppercase">Motor Multimodal Online</span>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className={`p-4 ${theme.roundedCard} border border-dashed ${theme.border} ${theme.card} flex flex-col items-center justify-center min-h-[340px]`}>
+                <div className={`p-4 ${theme.roundedCard} border border-dashed ${theme.border} ${theme.card} flex flex-col items-center justify-center min-h-[360px]`}>
                     {image ? (
                         <div className="w-full space-y-4">
-                            <img src={image} className="w-full h-56 object-contain rounded-lg bg-black/40 border border-white/5 shadow-2xl" />
+                            <img src={image} className="w-full h-60 object-contain rounded-lg bg-black/40 border border-white/5 shadow-2xl" />
                             <div className="grid grid-cols-2 gap-3">
                                 <button onClick={() => {setImage(null); setResult(null);}} className="py-2.5 text-[9px] font-black uppercase bg-rose-500/10 text-rose-500 rounded-lg">Descartar</button>
-                                <button onClick={analyzeChart} disabled={analyzing} className="py-2.5 text-[9px] font-black uppercase bg-emerald-500 text-slate-950 rounded-lg shadow-lg active:scale-95 transition-all">
-                                    {analyzing ? 'Processando...' : 'Iniciar Escaneamento'}
+                                <button onClick={analyzeChart} disabled={analyzing || !hasKey} className="py-2.5 text-[9px] font-black uppercase bg-emerald-500 text-slate-950 rounded-lg shadow-lg active:scale-95 transition-all disabled:opacity-30">
+                                    {analyzing ? 'Processando Visão...' : 'Escanear Gráfico'}
                                 </button>
                             </div>
                         </div>
                     ) : (
-                        <label className="cursor-pointer flex flex-col items-center gap-4 py-20 w-full group">
-                            <CpuChipIcon className="w-14 h-14 text-emerald-500/20 group-hover:text-emerald-500/50 transition-all" />
+                        <label className="cursor-pointer flex flex-col items-center gap-4 py-24 w-full group">
+                            <CpuChipIcon className="w-16 h-16 text-emerald-500/20 group-hover:text-emerald-500/50 transition-all" />
                             <div className="text-center">
-                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.4em]">Subir Captura Técnica</p>
-                                <p className="text-[8px] font-bold text-slate-600 mt-2 uppercase">A IA vai ler as velas e dar o sinal</p>
+                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.4em]">Carregar Print da Corretora</p>
+                                <p className="text-[8px] font-bold text-slate-600 mt-2 uppercase">A IA Pro vai ignorar a interface e ler as velas</p>
                             </div>
                             <input type="file" className="hidden" accept="image/*" onChange={(e) => {
                                 const file = e.target.files?.[0];
@@ -156,36 +192,36 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                     )}
                     {result ? (
                         <div className={`p-6 ${theme.roundedCard} border border-emerald-500/20 ${theme.card} space-y-6 shadow-2xl animate-in zoom-in-95`}>
-                            <div className={`p-5 rounded-xl border-2 flex flex-col items-center text-center ${result.sinal_proxima === 'CALL' ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.2)]' : 'bg-rose-500/10 border-rose-500/50 shadow-[0_0_20px_rgba(244,63,94,0.2)]'}`}>
-                                <p className="text-[8px] font-black uppercase text-slate-400 tracking-[0.5em] mb-2">Entrada Detectada (Sinal)</p>
-                                <h3 className={`text-4xl font-black italic tracking-tighter ${result.sinal_proxima === 'CALL' ? 'text-emerald-400' : 'text-rose-500'}`}>
-                                    {result.sinal_proxima === 'CALL' ? '↑ COMPRA (CALL)' : '↓ VENDA (PUT)'}
+                            <div className={`p-6 rounded-xl border-2 flex flex-col items-center text-center ${result.sinal_proxima === 'CALL' ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_25px_rgba(16,185,129,0.3)]' : 'bg-rose-500/10 border-rose-500/50 shadow-[0_0_25px_rgba(244,63,94,0.3)]'}`}>
+                                <p className="text-[9px] font-black uppercase text-slate-400 tracking-[0.5em] mb-2">Estratégia Recomendada</p>
+                                <h3 className={`text-5xl font-black italic tracking-tighter ${result.sinal_proxima === 'CALL' ? 'text-emerald-400' : 'text-rose-500'}`}>
+                                    {result.sinal_proxima === 'CALL' ? '↑ COMPRA' : '↓ VENDA'}
                                 </h3>
-                                <div className="mt-3 px-4 py-1.5 bg-black/60 rounded-full border border-white/10">
-                                    <span className="text-[11px] font-black text-blue-400 tracking-widest">PRECISÃO: {result.confianca}</span>
+                                <div className="mt-4 px-5 py-2 bg-black/60 rounded-full border border-white/10">
+                                    <span className="text-[12px] font-black text-blue-400 tracking-widest uppercase">Assertividade: {result.confianca}</span>
                                 </div>
-                                <p className="mt-4 text-[10px] font-bold text-slate-400 italic px-2 leading-tight">"{result.analise_curta}"</p>
+                                <p className="mt-5 text-[11px] font-bold text-slate-400 italic px-4 leading-tight">"{result.analise_curta}"</p>
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="p-3 bg-black/40 rounded-xl border border-white/5">
-                                    <p className="text-[8px] text-slate-500 font-black uppercase">Fechamento Anterior</p>
-                                    <p className={`text-sm font-black ${result.resultado_passado === 'WIN' ? 'text-emerald-400' : 'text-rose-500'}`}>{result.resultado_passado}</p>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 bg-black/40 rounded-xl border border-white/5">
+                                    <p className="text-[8px] text-slate-500 font-black uppercase">Último Fechamento</p>
+                                    <p className={`text-sm font-black italic ${result.resultado_passado === 'WIN' ? 'text-emerald-400' : 'text-rose-500'}`}>{result.resultado_passado}</p>
                                 </div>
-                                <div className="p-3 bg-black/40 rounded-xl border border-white/5">
-                                    <p className="text-[8px] text-slate-500 font-black uppercase">Valor de Entrada</p>
+                                <div className="p-4 bg-black/40 rounded-xl border border-white/5">
+                                    <p className="text-[8px] text-slate-500 font-black uppercase">Capital Base</p>
                                     <p className="text-sm font-black">R$ {result.valor}</p>
                                 </div>
                             </div>
                             <button onClick={() => {
                                 addRecord(result.resultado_passado === 'WIN' ? 1 : 0, result.resultado_passado === 'LOSS' ? 1 : 0, result.valor, result.payout || 80);
                                 setResult(null); setImage(null);
-                            }} className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-[11px] uppercase tracking-widest transition-all shadow-lg active:scale-95">Confirmar e Salvar no Arsenal</button>
+                            }} className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-[11px] uppercase tracking-widest transition-all shadow-lg active:scale-95">Sincronizar Dados</button>
                         </div>
-                    ) : !analyzing && <div className="p-16 border border-slate-800/20 rounded-2xl bg-slate-900/5 text-center opacity-30 flex flex-col items-center justify-center min-h-[260px]"><TargetIcon className="w-12 h-12 mb-4" /><p className="text-[10px] font-black uppercase tracking-[0.5em]">Aguardando Gráfico</p></div>}
-                    {analyzing && <div className="h-72 w-full bg-slate-900/60 rounded-2xl border border-emerald-500/20 flex flex-col items-center justify-center relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/10 to-transparent animate-scan" />
-                        <ArrowPathIcon className="w-12 h-12 text-emerald-500/40 animate-spin mb-4" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.6em] text-emerald-500/60">Análise Sniper em Curso</p>
+                    ) : !analyzing && <div className="p-20 border border-slate-800/20 rounded-2xl bg-slate-900/5 text-center opacity-30 flex flex-col items-center justify-center min-h-[280px]"><TargetIcon className="w-14 h-14 mb-4" /><p className="text-[10px] font-black uppercase tracking-[0.5em]">Aguardando Captura</p></div>}
+                    {analyzing && <div className="h-80 w-full bg-slate-900/60 rounded-2xl border border-emerald-500/20 flex flex-col items-center justify-center relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/20 to-transparent animate-scan" />
+                        <ArrowPathIcon className="w-14 h-14 text-emerald-500/40 animate-spin mb-4" />
+                        <p className="text-[10px] font-black uppercase tracking-[0.7em] text-emerald-500/60">Análise Multimodal Pro</p>
                         <style>{`
                             @keyframes scan { 0% { top: -100%; } 100% { top: 100%; } }
                             .animate-scan { position: absolute; height: 100%; width: 100%; animation: scan 2s linear infinite; }
@@ -197,7 +233,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
     );
 };
 
-// --- Dashboard Panel ---
+// --- Dashboard Panel (Mantido com melhorias) ---
 const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, startBalanceForSelectedDay, isDarkMode, dailyGoalTarget }) => {
     const theme = useThemeClasses(isDarkMode);
     const [quantity, setQuantity] = useState('1');
@@ -267,156 +303,6 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                         ) : <div className="text-center py-16 opacity-20 text-[10px] font-black uppercase tracking-[0.4em] italic">Vazio tático</div>}
                     </div>
                 </div>
-            </div>
-        </div>
-    );
-};
-
-// --- Escalada Panel (Compound Interest) ---
-const CompoundInterestPanel = ({ isDarkMode, activeBrokerage }: any) => {
-    const theme = useThemeClasses(isDarkMode);
-    const tableData = useMemo(() => {
-        let running = activeBrokerage.initialBalance;
-        const res = [];
-        for(let i=1; i<=30; i++) {
-            const entry = running * 0.10; // 10% risk
-            const profit = (entry * (activeBrokerage.payoutPercentage/100)); 
-            res.push({ day: i, initial: running, entry, profit, final: running + profit });
-            running += profit;
-        }
-        return res;
-    }, [activeBrokerage]);
-
-    return (
-        <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto animate-in fade-in">
-            <h2 className="text-xl font-black uppercase tracking-tighter">Escalada <span className="text-emerald-400 italic">Exponencial</span></h2>
-            <div className={`p-4 border ${theme.border} ${theme.card} rounded-2xl overflow-hidden shadow-sm`}>
-                <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-center text-[10px] font-black uppercase tracking-tight">
-                        <thead className="bg-black/20 text-slate-500 text-[8px]"><tr className="border-b border-white/5"><th className="p-4">Missão #</th><th>Arsenal</th><th>Disparo</th><th>Lucro (Meta)</th><th>Arsenal Final</th></tr></thead>
-                        <tbody>
-                            {tableData.map(d => (
-                                <tr key={d.day} className="border-b border-white/5 hover:bg-white/5 transition-all">
-                                    <td className="p-3.5 opacity-40">Dia {d.day}</td>
-                                    <td>R$ {formatMoney(d.initial)}</td>
-                                    <td className="text-emerald-500/60 font-medium">R$ {formatMoney(d.entry)}</td>
-                                    <td className="text-emerald-400 font-bold">+R$ {formatMoney(d.profit)}</td>
-                                    <td className="text-emerald-400 font-black">R$ {formatMoney(d.final)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// --- Soros Calculator Panel ---
-const SorosCalculatorPanel = ({ theme, activeBrokerage }: any) => {
-    const [entry, setEntry] = useState(10);
-    const levels = useMemo(() => {
-        let current = entry;
-        const res = [];
-        for(let i=1; i<=6; i++) {
-            const profit = current * (activeBrokerage.payoutPercentage/100);
-            res.push({ lvl: i, entry: current, profit, total: current + profit });
-            current += profit;
-        }
-        return res;
-    }, [entry, activeBrokerage]);
-
-    return (
-        <div className="p-4 md:p-6 space-y-6 max-w-2xl mx-auto animate-in zoom-in-95">
-            <h2 className="text-xl font-black uppercase">Protocolo <span className="text-emerald-400 italic">Soros</span></h2>
-            <div className={`p-8 border ${theme.border} ${theme.card} rounded-3xl space-y-6 shadow-2xl`}>
-                <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Valor Base do Ciclo</label><input type="number" value={entry} onChange={e=>setEntry(Number(e.target.value))} className={`w-full h-14 px-6 rounded-2xl border font-black text-sm outline-none ${theme.input}`} /></div>
-                <div className="space-y-3">
-                    {levels.map(l => (
-                        <div key={l.lvl} className="flex justify-between items-center p-4 bg-black/30 rounded-2xl border border-white/5 hover:border-emerald-500/30 transition-all">
-                            <span className="text-[11px] font-black text-emerald-500 italic tracking-widest">NÍVEL {l.lvl}</span>
-                            <span className="text-[13px] font-bold">R$ {formatMoney(l.entry)} <span className="text-slate-600 mx-2">➔</span> <span className="text-emerald-400 font-black">R$ {formatMoney(l.total)}</span></span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// --- Goals Panel ---
-const GoalsPanel = ({ theme, goals, setGoals }: any) => {
-    const [name, setName] = useState('');
-    const [target, setTarget] = useState('');
-
-    const addGoal = () => {
-        if(!name || !target) return;
-        setGoals((prev:any) => [...prev, { id: crypto.randomUUID(), name, targetAmount: parseFloat(target), createdAt: Date.now() }]);
-        setName(''); setTarget('');
-    };
-
-    return (
-        <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto animate-in fade-in">
-            <h2 className="text-xl font-black uppercase">Gestão de <span className="text-emerald-400 italic">Objetivos</span></h2>
-            <div className={`p-6 ${theme.card} border ${theme.border} rounded-2xl grid grid-cols-1 md:grid-cols-3 gap-4 shadow-sm`}>
-                <input type="text" placeholder="NOME DA META" value={name} onChange={e=>setName(e.target.value)} className={`h-12 px-5 rounded-xl border text-[10px] font-black uppercase ${theme.input}`} />
-                <input type="number" placeholder="VALOR ALVO" value={target} onChange={e=>setTarget(e.target.value)} className={`h-12 px-5 rounded-xl border text-[10px] font-black uppercase ${theme.input}`} />
-                <button onClick={addGoal} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg transition-all">Lançar Missão</button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {goals.length > 0 ? goals.map((g:any) => (
-                    <div key={g.id} className={`p-6 ${theme.card} border ${theme.border} rounded-2xl relative group hover:border-emerald-500/20 transition-all`}>
-                         <button onClick={() => setGoals((prev:any)=>prev.filter((i:any)=>i.id !== g.id))} className="absolute top-4 right-4 text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><TrashIcon className="w-5 h-5" /></button>
-                         <h4 className="text-[11px] font-black uppercase italic text-slate-500 mb-2 tracking-widest">{g.name}</h4>
-                         <p className="text-2xl font-black text-emerald-400">R$ {formatMoney(g.targetAmount)}</p>
-                    </div>
-                )) : <div className="col-span-2 py-20 text-center opacity-20 text-[10px] font-black uppercase tracking-[0.5em]">Nenhuma missão ativa</div>}
-            </div>
-        </div>
-    );
-};
-
-// --- Report Panel ---
-const ReportPanel = ({ isDarkMode, records }: any) => {
-    const theme = useThemeClasses(isDarkMode);
-    const stats = useMemo(() => {
-        const allTrades = records.flatMap((r: any) => r.trades || []);
-        const total = allTrades.length;
-        const wins = allTrades.filter((t: any) => t.result === 'win').length;
-        const losses = total - wins;
-        const profit = records.reduce((acc: number, r: any) => acc + (r.netProfitUSD || 0), 0);
-        return { total, wins, losses, profit, wr: total > 0 ? ((wins / total) * 100).toFixed(1) : '0' };
-    }, [records]);
-
-    return (
-        <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto animate-in fade-in">
-            <h2 className="text-xl font-black uppercase">Arquivo <span className="text-emerald-400 italic">Mestre</span></h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                <div className={`p-6 ${theme.card} border ${theme.border} rounded-2xl text-center`}><p className="text-[9px] font-black text-slate-500 uppercase mb-2">Total Operações</p><p className="text-2xl font-black">{stats.total}</p></div>
-                <div className={`p-6 ${theme.card} border ${theme.border} rounded-2xl text-center`}><p className="text-[9px] font-black text-slate-500 uppercase mb-2">Vitórias</p><p className="text-2xl font-black text-emerald-400">{stats.wins}</p></div>
-                <div className={`p-6 ${theme.card} border ${theme.border} rounded-2xl text-center`}><p className="text-[9px] font-black text-slate-500 uppercase mb-2">Assertividade</p><p className="text-2xl font-black text-blue-400">{stats.wr}%</p></div>
-                <div className={`p-6 ${theme.card} border ${theme.border} rounded-2xl text-center`}><p className="text-[9px] font-black text-slate-500 uppercase mb-2">Lucro Global</p><p className="text-2xl font-black text-emerald-400">R$ {formatMoney(stats.profit)}</p></div>
-            </div>
-        </div>
-    );
-};
-
-// --- Settings Panel ---
-const SettingsPanel = ({ theme, brokerage, setBrokerages, onReset }: any) => {
-    const update = (field: keyof Brokerage, val: any) => {
-        setBrokerages((prev: Brokerage[]) => prev.map((b, i) => i === 0 ? { ...b, [field]: val } : b));
-    };
-    return (
-        <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
-            <h2 className="text-xl font-black uppercase italic tracking-tighter">Central <span className="text-emerald-400">HQ</span></h2>
-            <div className={`p-8 border ${theme.border} ${theme.card} rounded-3xl space-y-6 shadow-xl`}>
-                <div className="grid grid-cols-2 gap-5">
-                    <div className="space-y-1.5"><label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Identidade</label><input type="text" value={brokerage.name} onChange={e => update('name', e.target.value)} className={`w-full h-12 px-4 rounded-xl border font-bold text-xs ${theme.input}`} /></div>
-                    <div className="space-y-1.5"><label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Câmbio</label><select value={brokerage.currency} onChange={e => update('currency', e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border font-bold text-xs ${theme.input}`}><option value="USD">Dólar ($)</option><option value="BRL">Real (R$)</option></select></div>
-                    <div className="space-y-1.5"><label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Arsenal Base</label><input type="number" value={brokerage.initialBalance} onChange={e => update('initialBalance', parseFloat(e.target.value))} className={`w-full h-12 px-4 rounded-xl border font-bold text-xs ${theme.input}`} /></div>
-                    <div className="space-y-1.5"><label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Payout Médio %</label><input type="number" value={brokerage.payoutPercentage} onChange={e => update('payoutPercentage', parseInt(e.target.value))} className={`w-full h-12 px-4 rounded-xl border font-bold text-xs ${theme.input}`} /></div>
-                </div>
-                <button onClick={onReset} className="w-full py-4 mt-4 bg-rose-500/5 border border-rose-500/20 text-rose-500 hover:bg-rose-500/10 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] transition-all">Protocolo Reset Geral</button>
             </div>
         </div>
     );
@@ -542,11 +428,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {[
                         { id: 'dashboard', label: 'Painel', icon: LayoutGridIcon },
                         { id: 'ai', label: 'Radar Sniper', icon: CpuChipIcon },
-                        { id: 'compound', label: 'Escalada', icon: ChartBarIcon },
-                        { id: 'soros', label: 'Ciclo Soros', icon: CalculatorIcon },
-                        { id: 'goals', label: 'Missões', icon: TargetIcon },
-                        { id: 'report', label: 'Arquivo', icon: DocumentTextIcon },
-                        { id: 'settings', label: 'Comando HQ', icon: SettingsIcon }
                     ].map(tab => (
                         <button key={tab.id} onClick={() => {setActiveTab(tab.id); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] uppercase font-black tracking-wide transition-all ${activeTab === tab.id ? theme.navActive : theme.navInactive}`}>
                             <tab.icon className="w-4.5 h-4.5" />{tab.label}
@@ -565,7 +446,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                         <div className="flex items-center gap-2">
                              <div className={`w-1.5 h-1.5 rounded-full ${savingStatus === 'saving' ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
                              <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
-                                {savingStatus === 'saving' ? 'Sincronizando Arsenal' : 'Status: Arsenal Seguro'}
+                                {savingStatus === 'saving' ? 'Sincronizando...' : 'Arsenal Seguro'}
                              </div>
                         </div>
                     </div>
@@ -578,11 +459,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-black/5 pb-10">
                     {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={100} />}
                     {activeTab === 'ai' && <AIAnalyzerPanel theme={theme} isDarkMode={isDarkMode} addRecord={addRecord} />}
-                    {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} />}
-                    {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
-                    {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} />}
-                    {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} records={records} />}
-                    {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={() => { if(confirm("Deseja resetar todos os dados?")) { setRecords([]); debouncedSave(); } }} />}
                 </div>
             </main>
         </div>
