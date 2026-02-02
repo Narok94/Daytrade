@@ -1,7 +1,5 @@
 {
   "name": "Controle de Performance Daytrade",
   "description": "Uma ferramenta profissional para organizar e controlar seus ganhos no day trading. Ela busca automaticamente a cotação do dólar e permite que você registre seus ganhos e perdas diárias para visualizar sua performance ao longo do tempo.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "requestFramePermissions": []
 }

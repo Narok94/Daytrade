@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
@@ -10,7 +9,7 @@ import {
     CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ArrowPathIcon, 
     InformationCircleIcon, TrophyIcon, 
     ChartBarIcon, CheckIcon, DocumentTextIcon,
-    PlusIcon, TrashIcon, SparklesIcon
+    PlusIcon, TrashIcon, CpuChipIcon
 } from './components/icons';
 
 // --- Helper Functions ---
@@ -31,12 +30,12 @@ const useThemeClasses = (isDarkMode: boolean) => {
     }), [isDarkMode]);
 };
 
-// --- AI Analyst Panel ---
-const AIAnalystPanel: React.FC<any> = ({ theme, isDarkMode }) => {
+// --- AI Analyzer Panel ---
+const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
     const [image, setImage] = useState<string | null>(null);
-    const [analysis, setAnalysis] = useState<string>('');
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [showKeySelector, setShowKeySelector] = useState(false);
+    const [analyzing, setAnalyzing] = useState(false);
+    const [result, setResult] = useState<any>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -44,138 +43,156 @@ const AIAnalystPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const reader = new FileReader();
             reader.onloadend = () => {
                 setImage(reader.result as string);
-                setAnalysis('');
-                setShowKeySelector(false);
+                setResult(null);
+                setError(null);
             };
             reader.readAsDataURL(file);
         }
     };
 
-    const openKeyDialog = async () => {
-        if (window.aistudio) {
-            await window.aistudio.openSelectKey();
-            setShowKeySelector(false);
-            setAnalysis('Chave configurada. Tente analisar novamente.');
-        }
-    };
-
     const analyzeChart = async () => {
         if (!image) return;
-        setIsAnalyzing(true);
-        setAnalysis('');
-        setShowKeySelector(false);
+        setAnalyzing(true);
+        setError(null);
 
         try {
-            // Check if user has a custom key selected in this environment
-            const hasKey = window.aistudio ? await window.aistudio.hasSelectedApiKey() : true;
-            
-            // Create a fresh instance to use the latest key
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            
-            const mimeType = image.split(';')[0].split(':')[1] || 'image/jpeg';
             const base64Data = image.split(',')[1];
             
+            const prompt = `Aja como um trader profissional de Opções Binárias com 10 anos de experiência em M1.
+            Analise esta imagem do gráfico de velas (Timeframe de 1 minuto).
+            Procure por:
+            1. Price Action: Padrões de velas (engolfo, martelo, doji, estrelas).
+            2. Estrutura: Suporte, Resistência, LTA e LTB.
+            3. Dinâmica: Pullbacks, Rompimentos e Reversões.
+            4. Indicadores visuais: Médias Móveis e Estocástico (se visíveis).
+            
+            Retorne um JSON com:
+            {
+                "operacao": "CALL" | "PUT" | "AGUARDAR",
+                "confianca": numero de 0 a 100,
+                "motivo": "string curta explicando a técnica",
+                "detalhes": ["array de 3 pontos técnicos observados"]
+            }
+            Importante: Responda APENAS o JSON, sem markdown ou explicações extras.`;
+
             const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview', 
+                model: 'gemini-3-flash-preview',
                 contents: {
                     parts: [
-                        { inlineData: { data: base64Data, mimeType: mimeType } },
-                        { text: "Analise este gráfico de day trade profissionalmente. Identifique a tendência (alta, baixa ou lateral), suportes/resistências e padrões de vela. Sugira a próxima operação (CALL, PUT ou AGUARDAR) com uma justificativa técnica em português brasileiro." }
+                        { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
+                        { text: prompt }
                     ]
                 }
             });
-            
-            setAnalysis(response.text || 'Não foi possível obter uma resposta da IA.');
-        } catch (error: any) {
-            console.error('AI Analysis Error:', error);
-            
-            if (error?.message?.includes('429') || error?.message?.toLowerCase().includes('quota')) {
-                setAnalysis('Limite de uso atingido (Cota Excedida). Para continuar analisando sem limites, você deve configurar sua própria Chave API do Google.');
-                setShowKeySelector(true);
-            } else if (error?.message?.includes('404') || error?.message?.includes('not found')) {
-                setAnalysis('Erro de configuração do modelo ou chave inválida.');
-                setShowKeySelector(true);
-            } else {
-                setAnalysis(`Erro ao conectar com a IA: ${error.message || 'Tente novamente.'}`);
-            }
+
+            const text = response.text || '';
+            const cleanJson = text.replace(/```json|```/g, '').trim();
+            setResult(JSON.parse(cleanJson));
+        } catch (err) {
+            console.error(err);
+            setError("Falha ao analisar a imagem. Verifique se o gráfico está legível.");
         } finally {
-            setIsAnalyzing(false);
+            setAnalyzing(false);
         }
     };
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div className="flex justify-between items-start">
+        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
+            <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-black">Analista IA Professional</h2>
-                    <p className={theme.textMuted}>Análise técnica avançada de candles e padrões.</p>
+                    <h2 className={`text-2xl font-black ${theme.text}`}>Analista IA <span className="text-xs bg-green-500 text-black px-2 py-0.5 rounded-full ml-2">BETA</span></h2>
+                    <p className={theme.textMuted}>Suba um print do gráfico (M1) para análise técnica imediata.</p>
                 </div>
-                <button 
-                    onClick={openKeyDialog}
-                    className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-slate-800/50 hover:bg-slate-700 transition-colors border border-slate-700"
-                >
-                    Configurar Chave
-                </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col items-center justify-center min-h-[400px]`}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col items-center justify-center min-h-[400px] border-dashed border-2 relative overflow-hidden group`}>
                     {image ? (
-                        <div className="w-full relative group">
-                            <img src={image} alt="Chart to analyze" className="w-full rounded-2xl border border-slate-800/50 shadow-2xl" />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl">
-                                <label className="cursor-pointer bg-white text-black px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest">Trocar Print <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} /></label>
-                            </div>
+                        <div className="relative w-full h-full">
+                            <img src={image} alt="Chart" className="w-full h-full object-contain rounded-xl" />
+                            <button onClick={() => setImage(null)} className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-xl"><TrashIcon className="w-5 h-5" /></button>
                         </div>
                     ) : (
-                        <label className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl cursor-pointer hover:border-green-500/50 transition-colors bg-slate-900/20">
-                            <SparklesIcon className="w-12 h-12 text-slate-700 mb-4" />
-                            <p className="text-xs font-black uppercase text-slate-500">Clique para selecionar o print do gráfico</p>
+                        <label className="cursor-pointer flex flex-col items-center gap-4 text-center group">
+                            <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-all border border-green-500/20">
+                                <PlusIcon className="w-10 h-10 text-green-500" />
+                            </div>
+                            <div>
+                                <p className="font-black text-sm uppercase tracking-widest">Clique para subir o print</p>
+                                <p className="text-[10px] opacity-40 font-bold mt-1">PNG ou JPG (Recomendado M1)</p>
+                            </div>
                             <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                         </label>
                     )}
-                    <button 
-                        disabled={!image || isAnalyzing}
-                        onClick={analyzeChart}
-                        className="w-full mt-6 h-14 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg shadow-green-500/20 disabled:bg-slate-800 disabled:text-slate-500 active:scale-95"
-                    >
-                        {isAnalyzing ? 'Processando Análise...' : 'Analisar Gráfico'}
-                    </button>
                 </div>
 
-                <div className={`p-6 rounded-3xl border ${theme.card} min-h-[400px] flex flex-col relative overflow-hidden`}>
-                    <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
-                        <SparklesIcon className="w-32 h-32" />
-                    </div>
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-6 flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                        Parecer Técnico
-                    </h3>
-                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 whitespace-pre-wrap text-sm leading-relaxed font-medium">
-                        {analysis ? (
-                            <div className="space-y-4">
-                                <p>{analysis}</p>
-                                {showKeySelector && (
-                                    <div className="mt-6 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 space-y-4">
-                                        <p className="text-xs font-bold text-blue-400">Como resolver:</p>
-                                        <p className="text-[11px] leading-snug">Você está usando a chave padrão que possui limites estritos. Clique no botão abaixo para usar sua própria chave da Google AI Studio (é gratuito para desenvolvedores).</p>
-                                        <button 
-                                            onClick={openKeyDialog}
-                                            className="w-full py-3 bg-blue-500 hover:bg-blue-400 text-white font-black rounded-xl text-[10px] uppercase tracking-widest transition-all"
-                                        >
-                                            Selecionar Minha Chave API
-                                        </button>
-                                        <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="block text-center text-[9px] underline opacity-50">Ver documentação de faturamento</a>
-                                    </div>
-                                )}
-                            </div>
+                <div className="space-y-6">
+                    <button 
+                        onClick={analyzeChart} 
+                        disabled={!image || analyzing}
+                        className={`w-full h-16 rounded-2xl font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3
+                        ${!image || analyzing ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-lg shadow-green-500/20 active:scale-95'}`}
+                    >
+                        {analyzing ? (
+                            <>
+                                <ArrowPathIcon className="w-6 h-6 animate-spin" />
+                                Processando Gráfico...
+                            </>
                         ) : (
-                            <div className="h-full flex flex-col items-center justify-center opacity-20">
-                                <InformationCircleIcon className="w-12 h-12 mb-3" />
-                                <p className="text-[10px] font-black uppercase tracking-tighter">Aguardando upload de imagem</p>
-                            </div>
+                            <>
+                                <CpuChipIcon className="w-6 h-6" />
+                                Analisar Próxima Vela
+                            </>
                         )}
-                    </div>
+                    </button>
+
+                    {error && (
+                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-500">
+                            <InformationCircleIcon className="w-6 h-6" />
+                            <p className="text-xs font-bold uppercase">{error}</p>
+                        </div>
+                    )}
+
+                    {result && (
+                        <div className={`p-8 rounded-3xl border ${theme.card} space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 shadow-2xl`}>
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase opacity-40">Recomendação IA</p>
+                                    <h3 className={`text-4xl font-black tracking-tighter ${result.operacao === 'CALL' ? 'text-green-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-500'}`}>
+                                        {result.operacao}
+                                    </h3>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] font-black uppercase opacity-40">Confiança</p>
+                                    <p className="text-2xl font-black text-blue-400">{result.confianca}%</p>
+                                </div>
+                            </div>
+
+                            <div className="p-4 bg-slate-950/30 rounded-2xl border border-slate-800/50">
+                                <p className="text-sm font-bold leading-relaxed">{result.motivo}</p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <p className="text-[9px] font-black uppercase opacity-40 tracking-widest">Fatores Técnicos</p>
+                                {result.detalhes?.map((detail: string, i: number) => (
+                                    <div key={i} className="flex items-center gap-3 text-xs font-bold opacity-80">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-sm shadow-green-500/50" />
+                                        {detail}
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <p className="text-[8px] text-center uppercase font-black text-slate-600 mt-4 italic">Esta análise é baseada em visão computacional e não garante lucro.</p>
+                        </div>
+                    )}
+                    
+                    {!result && !analyzing && !error && (
+                        <div className="p-10 border border-slate-800/20 rounded-3xl flex flex-col items-center justify-center opacity-20 text-center space-y-4">
+                            <CpuChipIcon className="w-16 h-16" />
+                            <p className="text-xs font-black uppercase tracking-widest">Aguardando Gráfico para Processamento</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -308,12 +325,10 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 
     const tableData = useMemo(() => {
         const rows = [];
-        // Ordenar registros reais por data
         const sortedRealRecords = records
             .filter((r: any): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0)
             .sort((a, b) => a.id.localeCompare(b.id));
         
-        // Data de início da simulação: Ou o primeiro dia operado, ou "Hoje"
         let startDate: Date;
         if (sortedRealRecords.length > 0) {
             startDate = new Date(sortedRealRecords[0].id + 'T12:00:00');
@@ -329,14 +344,12 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             currentDate.setDate(startDate.getDate() + i);
             const dateId = currentDate.toISOString().split('T')[0];
             
-            // Tentar achar registro real para este dia
             const realRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateId && r.trades.length > 0);
             
             let initial = runningBalance;
             let win, loss, profit, final, isProjection, operationValue;
 
             if (realRecord) {
-                // Registro Real
                 win = realRecord.winCount;
                 loss = realRecord.lossCount;
                 profit = realRecord.netProfitUSD;
@@ -344,7 +357,6 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                 operationValue = (realRecord.trades.length > 0) ? realRecord.trades[0].entryValue : (initial * 0.10);
                 isProjection = false;
             } else {
-                // Projeção 3x0
                 isProjection = true;
                 operationValue = initial * 0.10;
                 win = 3;
@@ -495,10 +507,6 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
         return results;
     }, [initialEntry, payout, levels]);
 
-    const finalTotalValue = calculations[calculations.length - 1]?.total || 0;
-    const finalBankBalance = activeBrokerage.initialBalance - (parseFloat(initialEntry) || 0) + finalTotalValue;
-    const totalCycleProfit = calculations.reduce((acc, curr) => acc + curr.profit, 0);
-
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div>
@@ -532,20 +540,6 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
                         </div>
                     </div>
                 ))}
-            </div>
-
-            <div className={`p-6 md:p-10 rounded-3xl border ${theme.card} bg-green-500/5 border-green-500/20 flex flex-col md:flex-row justify-between items-center gap-6`}>
-                <div className="text-center md:text-left">
-                    <p className="text-[10px] font-black uppercase text-green-500/70 tracking-widest mb-1">Saldo Final da Banca Estimado</p>
-                    <p className="text-4xl font-black text-green-500">{currencySymbol} {formatMoney(finalBankBalance)}</p>
-                    <p className="text-[9px] font-bold text-slate-500 mt-2">Baseado no Saldo Inicial de {currencySymbol} {formatMoney(activeBrokerage.initialBalance)}</p>
-                </div>
-                <div className="w-px h-16 bg-slate-800/20 hidden md:block" />
-                <div className="text-center md:text-right">
-                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Lucro Total Acumulado</p>
-                    <p className="text-3xl font-black">+{currencySymbol} {formatMoney(totalCycleProfit)}</p>
-                    <p className="text-[9px] font-bold text-green-500/50 mt-2 uppercase">ROI de {((totalCycleProfit / (parseFloat(initialEntry) || 1)) * 100).toFixed(0)}% sobre a entrada</p>
-                </div>
             </div>
         </div>
     );
@@ -859,9 +853,9 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 <div className="h-20 flex items-center px-8 border-b border-slate-800/50 font-black italic text-teal-400 text-xl tracking-tighter">HRK</div>
                 <nav className="flex-1 p-4 space-y-1">
                     <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
-                    <button onClick={() => {setActiveTab('ai'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai' ? theme.navActive : theme.navInactive}`}><SparklesIcon className="w-5 h-5" />Analista IA</button>
                     <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Planilha Juros</button>
                     <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Relatório</button>
+                    <button onClick={() => {setActiveTab('ai'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Analista IA</button>
                     <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
                     <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
                     <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Configurações</button>
@@ -875,9 +869,9 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 </header>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeDailyGoal} />}
-                    {activeTab === 'ai' && <AIAnalystPanel theme={theme} isDarkMode={isDarkMode} />}
                     {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
                     {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
+                    {activeTab === 'ai' && <AIAnalyzerPanel theme={theme} isDarkMode={isDarkMode} />}
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} />}
