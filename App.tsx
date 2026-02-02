@@ -36,6 +36,49 @@ const useThemeClasses = (isDarkMode: boolean) => {
     }), [isDarkMode]);
 };
 
+// --- Soros Calculator Component ---
+const SorosCalculator: React.FC<{ balance: number, payout: number, isDarkMode: boolean }> = ({ balance, payout, isDarkMode }) => {
+    const theme = useThemeClasses(isDarkMode);
+    const p = payout / 100;
+    
+    // Nível 1: 10% da banca
+    const entry1 = balance * 0.1;
+    const win1 = entry1 * p;
+    // Nível 2: Entrada 1 + Lucro 1
+    const entry2 = entry1 + win1;
+    const win2 = entry2 * p;
+    // Nível 3: Entrada 2 + Lucro 2
+    const entry3 = entry2 + win2;
+    const win3 = entry3 * p;
+
+    return (
+        <div className={`p-6 rounded-[2.5rem] border ${theme.card} space-y-4 shadow-xl`}>
+            <div className="flex items-center gap-2 mb-2">
+                <CalculatorIcon className="w-5 h-5 text-emerald-500" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Calculadora de Soros</h3>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+                <div className="p-3 bg-slate-900/50 rounded-2xl border border-slate-800">
+                    <p className="text-[8px] font-bold text-slate-500 uppercase">Nível 1</p>
+                    <p className="text-xs font-black text-white">{formatMoney(entry1)}</p>
+                    <p className="text-[9px] text-emerald-500 mt-1">+{formatMoney(win1)}</p>
+                </div>
+                <div className="p-3 bg-slate-900/50 rounded-2xl border border-slate-800">
+                    <p className="text-[8px] font-bold text-slate-500 uppercase">Nível 2</p>
+                    <p className="text-xs font-black text-white">{formatMoney(entry2)}</p>
+                    <p className="text-[9px] text-emerald-500 mt-1">+{formatMoney(win2)}</p>
+                </div>
+                <div className="p-3 bg-slate-900/50 rounded-2xl border border-slate-800">
+                    <p className="text-[8px] font-bold text-slate-500 uppercase">Nível 3</p>
+                    <p className="text-xs font-black text-white">{formatMoney(entry3)}</p>
+                    <p className="text-[9px] text-emerald-500 mt-1">+{formatMoney(win3)}</p>
+                </div>
+            </div>
+            <p className="text-[9px] text-center font-bold text-slate-600 uppercase italic">Acumulado total: {formatMoney(win1 + win2 + win3)}</p>
+        </div>
+    );
+};
+
 // --- Compound Interest Panel ---
 const CompoundInterestPanel: React.FC<{ isDarkMode: boolean, activeBrokerage: Brokerage, records: AppRecord[] }> = ({ isDarkMode, activeBrokerage, records }) => {
     const theme = useThemeClasses(isDarkMode);
@@ -114,6 +157,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     const theme = useThemeClasses(isDarkMode);
     const winCount = dailyRecordForSelectedDay?.winCount || 0;
     const lossCount = dailyRecordForSelectedDay?.lossCount || 0;
+    const currentBalance = dailyRecordForSelectedDay?.endBalanceUSD ?? startBalanceForSelectedDay;
     const stopWin = activeBrokerage.stopGainTrades || 0;
     const stopLoss = activeBrokerage.stopLossTrades || 0;
 
@@ -124,57 +168,61 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h2 className={`text-4xl font-black ${theme.text} tracking-tighter uppercase italic leading-none`}>Sniper Dashboard</h2>
-                    <p className={`${theme.textMuted} font-bold mt-1`}>Controle de Performance</p>
+                    <p className={`${theme.textMuted} font-bold mt-1 uppercase text-[10px] tracking-widest`}>Controle de Performance</p>
                 </div>
-                <input type="date" value={selectedDateString} onChange={e => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`p-4 rounded-2xl border ${theme.input} font-black focus:ring-4 ring-emerald-500/20 outline-none`} />
+                <input type="date" value={selectedDateString} onChange={e => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`p-4 rounded-2xl border ${theme.input} font-black focus:ring-4 ring-emerald-500/20 outline-none transition-all shadow-lg`} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className={`p-8 rounded-[2.5rem] border ${theme.card}`}>
+                <div className={`p-8 rounded-[2.5rem] border ${theme.card} relative overflow-hidden group`}>
                     <p className="text-[10px] uppercase font-black text-slate-500 mb-2 tracking-widest">Banca Atual</p>
-                    <p className="text-3xl font-black text-emerald-500">{formatMoney(dailyRecordForSelectedDay?.endBalanceUSD ?? startBalanceForSelectedDay)}</p>
+                    <p className="text-3xl font-black text-emerald-500 group-hover:scale-110 transition-transform origin-left">{formatMoney(currentBalance)}</p>
+                    <div className="absolute -bottom-2 -right-2 opacity-5"><TrendingUpIcon className="w-20 h-20" /></div>
                 </div>
-                <div className={`p-8 rounded-[2.5rem] border ${theme.card}`}>
+                <div className={`p-8 rounded-[2.5rem] border ${theme.card} relative overflow-hidden group`}>
                     <p className="text-[10px] uppercase font-black text-slate-500 mb-2 tracking-widest">Lucro do Dia</p>
-                    <p className={`text-3xl font-black ${ (dailyRecordForSelectedDay?.netProfitUSD || 0) >= 0 ? 'text-white' : 'text-red-500' }`}>
+                    <p className={`text-3xl font-black ${ (dailyRecordForSelectedDay?.netProfitUSD || 0) >= 0 ? 'text-white' : 'text-red-500' } group-hover:scale-110 transition-transform origin-left`}>
                         {formatMoney(dailyRecordForSelectedDay?.netProfitUSD ?? 0)}
                     </p>
                 </div>
                 <div className={`p-8 rounded-[2.5rem] border ${theme.card}`}>
                     <p className="text-[10px] uppercase font-black text-slate-500 mb-2 tracking-widest">Placar Sniper</p>
-                    <p className="text-3xl font-black text-blue-400">{winCount}W - {lossCount}L</p>
+                    <p className="text-3xl font-black text-blue-400 italic">{winCount}W - {lossCount}L</p>
                 </div>
                 <div className={`p-8 rounded-[2.5rem] border ${theme.card}`}>
-                    <p className="text-[10px] uppercase font-black text-slate-500 mb-2 tracking-widest">Status</p>
+                    <p className="text-[10px] uppercase font-black text-slate-500 mb-2 tracking-widest">Status Sniper</p>
                     <p className={`text-sm font-black uppercase ${stopReached ? 'text-red-500 animate-pulse' : 'text-emerald-500'}`}>{stopReached ? 'STOP ATIVADO' : 'OPERANDO'}</p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                <div className={`p-10 rounded-[3.5rem] border ${theme.card} space-y-8 shadow-2xl`}>
-                    <h3 className="text-[12px] font-black uppercase tracking-[0.3em] text-emerald-500">Operacional</h3>
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Valor Entrada</label>
-                            <input type="number" step="0.01" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border text-xl font-black ${theme.input} focus:border-emerald-500 transition-colors`} />
+                <div className="space-y-6">
+                    <div className={`p-10 rounded-[3.5rem] border ${theme.card} space-y-8 shadow-2xl relative overflow-hidden`}>
+                        <h3 className="text-[12px] font-black uppercase tracking-[0.3em] text-emerald-500">Painel Operacional</h3>
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Valor Entrada</label>
+                                <input type="number" step="0.01" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border text-xl font-black ${theme.input} focus:border-emerald-500 transition-colors shadow-inner`} />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Payout %</label>
+                                <input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border text-xl font-black ${theme.input} focus:border-emerald-500 transition-colors shadow-inner`} />
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Payout %</label>
-                            <input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border text-xl font-black ${theme.input} focus:border-emerald-500 transition-colors`} />
+                        <div className="grid grid-cols-2 gap-8 pt-4">
+                            <button disabled={stopReached} onClick={() => addRecord(1, 0, parseFloat(customEntryValue), parseFloat(customPayout))} className="h-20 bg-emerald-500 text-slate-950 font-black rounded-3xl uppercase tracking-widest hover:translate-y-[-2px] active:translate-y-[2px] disabled:grayscale disabled:opacity-50 shadow-2xl shadow-emerald-500/20 transition-all text-xl">WIN</button>
+                            <button disabled={stopReached} onClick={() => addRecord(0, 1, parseFloat(customEntryValue), parseFloat(customPayout))} className="h-20 bg-red-600 text-white font-black rounded-3xl uppercase tracking-widest hover:translate-y-[-2px] active:translate-y-[2px] disabled:grayscale disabled:opacity-50 shadow-2xl shadow-red-500/20 transition-all text-xl">LOSS</button>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-8 pt-4">
-                        <button disabled={stopReached} onClick={() => addRecord(1, 0, parseFloat(customEntryValue), parseFloat(customPayout))} className="h-20 bg-emerald-500 text-slate-950 font-black rounded-3xl uppercase tracking-widest hover:scale-[1.02] active:scale-95 disabled:grayscale disabled:opacity-50 shadow-2xl transition-all text-xl">WIN</button>
-                        <button disabled={stopReached} onClick={() => addRecord(0, 1, parseFloat(customEntryValue), parseFloat(customPayout))} className="h-20 bg-red-600 text-white font-black rounded-3xl uppercase tracking-widest hover:scale-[1.02] active:scale-95 disabled:grayscale disabled:opacity-50 shadow-2xl transition-all text-xl">LOSS</button>
-                    </div>
+                    <SorosCalculator balance={currentBalance} payout={parseFloat(customPayout)} isDarkMode={isDarkMode} />
                 </div>
-                <div className={`p-10 rounded-[3.5rem] border ${theme.card} flex flex-col max-h-[450px]`}>
-                    <h3 className="text-[12px] font-black uppercase text-slate-500 mb-8 tracking-widest">Fita Diária</h3>
+                <div className={`p-10 rounded-[3.5rem] border ${theme.card} flex flex-col max-h-[620px] shadow-2xl`}>
+                    <h3 className="text-[12px] font-black uppercase text-slate-500 mb-8 tracking-widest">Histórico de Ordens</h3>
                     <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
                         {dailyRecordForSelectedDay?.trades?.length ? [...dailyRecordForSelectedDay.trades].reverse().map(t => (
-                            <div key={t.id} className="flex items-center justify-between p-5 rounded-3xl bg-slate-950/40 border border-slate-900 group">
+                            <div key={t.id} className="flex items-center justify-between p-5 rounded-3xl bg-slate-950/40 border border-slate-900 group hover:border-slate-700 transition-all">
                                 <div className="flex items-center gap-4">
-                                    <div className={`w-2 h-12 rounded-full ${t.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                    <div className={`w-2 h-12 rounded-full ${t.result === 'win' ? 'bg-green-500 shadow-[0_0_10px_green]' : 'bg-red-500 shadow-[0_0_10px_red]'}`} />
                                     <div>
                                         <p className="text-[10px] font-black text-slate-600 uppercase">{new Date(t.timestamp || 0).toLocaleTimeString()}</p>
                                         <p className="font-black text-lg tracking-tight">{t.result === 'win' ? 'WIN' : 'LOSS'}</p>
@@ -184,10 +232,10 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                                     <p className={`text-xl font-black ${t.result === 'win' ? 'text-green-500' : 'text-red-500'}`}>
                                         {t.result === 'win' ? '+' : '-'}{formatMoney(t.result === 'win' ? t.entryValue * (t.payoutPercentage/100) : t.entryValue)}
                                     </p>
-                                    <button onClick={() => deleteTrade(t.id, selectedDateString)} className="text-[9px] font-black text-red-500/30 hover:text-red-500 uppercase transition-all opacity-0 group-hover:opacity-100 mt-1">Apagar</button>
+                                    <button onClick={() => deleteTrade(t.id, selectedDateString)} className="text-[9px] font-black text-red-500/30 hover:text-red-500 uppercase transition-all opacity-0 group-hover:opacity-100 mt-1">Excluir</button>
                                 </div>
                             </div>
-                        )) : <div className="flex-1 flex flex-col items-center justify-center opacity-10 py-16"><InformationCircleIcon className="w-16 h-16" /></div>}
+                        )) : <div className="flex-1 flex flex-col items-center justify-center opacity-10 py-16"><InformationCircleIcon className="w-16 h-16" /><p className="text-[10px] font-black mt-4 uppercase tracking-widest">Sem operações registradas</p></div>}
                     </div>
                 </div>
             </div>
@@ -213,7 +261,7 @@ const SettingsPanel: React.FC<any> = ({ brokerage, setBrokerages, setRecords, is
             stopGainTrades: parseInt(sg) || 0,
             stopLossTrades: parseInt(sl) || 0
         } : b));
-        alert("Configurações Sniper Salvas!");
+        alert("Configurações Sniper Salvas no Banco de Dados!");
     };
 
     return (
@@ -221,16 +269,16 @@ const SettingsPanel: React.FC<any> = ({ brokerage, setBrokerages, setRecords, is
             <h2 className="text-2xl font-black uppercase italic text-emerald-500 mb-6">Configurações de Gestão</h2>
             <div className={`p-10 rounded-[3.5rem] border ${theme.card} space-y-8 shadow-2xl`}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-2"><label className="text-[11px] font-black uppercase text-slate-500 ml-2">Banca de Início (R$)</label><input type="number" step="0.01" value={bal} onChange={e => setBal(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border ${theme.input} font-black focus:border-emerald-500 outline-none`} /></div>
-                    <div className="space-y-2"><label className="text-[11px] font-black uppercase text-slate-500 ml-2">Modelo de Entrada</label><select value={entryMode} onChange={e => setEntryMode(e.target.value as any)} className={`w-full h-14 px-6 rounded-2xl border ${theme.input} font-black outline-none`}><option value="fixed">Valor Fixo</option><option value="percentage">Percentual (%)</option></select></div>
+                    <div className="space-y-2"><label className="text-[11px] font-black uppercase text-slate-500 ml-2">Banca de Início (R$)</label><input type="number" step="0.01" value={bal} onChange={e => setBal(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border ${theme.input} font-black focus:border-emerald-500 outline-none shadow-inner`} /></div>
+                    <div className="space-y-2"><label className="text-[11px] font-black uppercase text-slate-500 ml-2">Modelo de Entrada</label><select value={entryMode} onChange={e => setEntryMode(e.target.value as any)} className={`w-full h-14 px-6 rounded-2xl border ${theme.input} font-black outline-none shadow-inner`}><option value="fixed">Valor Fixo (Soros/Martingale)</option><option value="percentage">Percentual (%)</option></select></div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <div className="space-y-2"><label className="text-[11px] font-black uppercase text-slate-500 ml-2">Valor/Taxa (%)</label><input type="number" step="0.01" value={entryValue} onChange={e => setEntryValue(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border ${theme.input} font-black outline-none`} /></div>
-                    <div className="space-y-2"><label className="text-[11px] font-black uppercase text-slate-500 ml-2">Stop Win (Wins)</label><input type="number" value={sg} onChange={e => setSg(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border ${theme.input} font-black outline-none`} /></div>
-                    <div className="space-y-2"><label className="text-[11px] font-black uppercase text-slate-500 ml-2">Stop Loss (Losses)</label><input type="number" value={sl} onChange={e => setSl(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border ${theme.input} font-black outline-none`} /></div>
+                    <div className="space-y-2"><label className="text-[11px] font-black uppercase text-slate-500 ml-2">Valor/Taxa (%)</label><input type="number" step="0.01" value={entryValue} onChange={e => setEntryValue(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border ${theme.input} font-black outline-none shadow-inner`} /></div>
+                    <div className="space-y-2"><label className="text-[11px] font-black uppercase text-slate-500 ml-2">Stop Win (Wins)</label><input type="number" value={sg} onChange={e => setSg(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border ${theme.input} font-black outline-none shadow-inner`} /></div>
+                    <div className="space-y-2"><label className="text-[11px] font-black uppercase text-slate-500 ml-2">Stop Loss (Losses)</label><input type="number" value={sl} onChange={e => setSl(e.target.value)} className={`w-full h-14 px-6 rounded-2xl border ${theme.input} font-black outline-none shadow-inner`} /></div>
                 </div>
-                <button onClick={handleSave} className="w-full h-16 bg-emerald-500 text-slate-950 font-black rounded-3xl uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all">Sincronizar Banca</button>
-                <button onClick={() => { if(confirm("Apagar todos os registros permanentemente?")) setRecords([]); }} className="w-full text-[10px] font-black uppercase text-red-500/50 hover:text-red-500 transition-colors">Zerar Todo Histórico</button>
+                <button onClick={handleSave} className="w-full h-16 bg-emerald-500 text-slate-950 font-black rounded-3xl uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-emerald-500/20">Salvar e Sincronizar Tudo</button>
+                <button onClick={() => { if(confirm("Cuidado! Apagar todos os registros permanentemente?")) setRecords([]); }} className="w-full text-[10px] font-black uppercase text-red-500/50 hover:text-red-500 transition-colors">Zerar Todo Histórico</button>
             </div>
         </div>
     );
@@ -242,7 +290,7 @@ const SavingStatusIndicator: React.FC<{ status: 'idle' | 'saving' | 'saved' | 'e
     return (
         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/50 border border-slate-800 animate-fade-in">
             <div className={`w-1.5 h-1.5 rounded-full ${status === 'saving' ? 'bg-blue-400 animate-pulse' : status === 'saved' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-            <span className={`text-[9px] font-black uppercase tracking-widest ${status === 'saving' ? 'text-blue-400' : status === 'saved' ? 'text-emerald-500' : 'text-red-500'}`}>{status === 'saving' ? 'Salvando' : status === 'saved' ? 'Nuvem OK' : 'Erro'}</span>
+            <span className={`text-[9px] font-black uppercase tracking-widest ${status === 'saving' ? 'text-blue-400' : status === 'saved' ? 'text-emerald-500' : 'text-red-500'}`}>{status === 'saving' ? 'Sincronizando' : status === 'saved' ? 'Banco OK' : 'Falha Cloud'}</span>
         </div>
     );
 };
@@ -310,6 +358,13 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     }, []);
 
     const debouncedSave = useDebouncedCallback(saveData, 2000);
+
+    // Watcher de persistência para as configurações
+    useEffect(() => {
+        if (!isLoading) {
+            debouncedSave();
+        }
+    }, [brokerages, isLoading, debouncedSave]);
 
     const recalibrate = (all: AppRecord[], init: number) => {
         let curr = init;
@@ -390,8 +445,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                         <div className="p-8 max-w-5xl mx-auto space-y-4">
                             <h2 className="text-2xl font-black uppercase italic tracking-tighter">Histórico de Performance</h2>
                             {[...records].flatMap(r => (r as DailyRecord).trades ? (r as DailyRecord).trades.map(t=>({...t, date: r.id})) : []).sort((a,b)=>b.timestamp!-a.timestamp!).map(t=>(
-                                <div key={t.id} className={`p-4 rounded-2xl border ${theme.card} flex justify-between items-center group`}>
-                                    <div className="flex items-center gap-4"><div className={`w-1.5 h-10 rounded-full ${t.result === 'win' ? 'bg-green-500 shadow-[0_0_8px_green]' : 'bg-red-500 shadow-[0_0_8px_red]'}`} /><div><p className="text-[9px] font-black text-slate-500 uppercase">{t.date}</p><p className="font-black text-sm">{t.result === 'win' ? 'VITORIA' : 'DERROTA'}</p></div></div>
+                                <div key={t.id} className={`p-4 rounded-2xl border ${theme.card} flex justify-between items-center group hover:border-emerald-500 transition-all`}>
+                                    <div className="flex items-center gap-4"><div className={`w-1.5 h-10 rounded-full ${t.result === 'win' ? 'bg-green-500 shadow-[0_0_8px_green]' : 'bg-red-500 shadow-[0_0_8px_red]'}`} /><div><p className="text-[9px] font-black text-slate-500 uppercase">{t.date}</p><p className="font-black text-sm uppercase">{t.result === 'win' ? 'VITORIA' : 'DERROTA'}</p></div></div>
                                     <p className={`text-lg font-black ${t.result === 'win' ? 'text-green-500' : 'text-red-500'}`}>{formatMoney(t.result === 'win' ? t.entryValue * (t.payoutPercentage/100) : t.entryValue)}</p>
                                 </div>
                             ))}
@@ -420,40 +475,25 @@ const AIAnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
 
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            // Mudança para o modelo Gemini 3 Flash para maior velocidade e menos bloqueios
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: {
                     parts: [
                         { inlineData: { mimeType: 'image/jpeg', data: selectedImage.split(',')[1] } },
-                        { text: "Você é um assistente educativo de análise técnica. Analise este gráfico para fins de estudo. Identifique as tendências e forças de mercado. Retorne OBRIGATORIAMENTE um JSON puro (sem markdown) seguindo este esquema: {\"recommendation\": \"COMPRA\"|\"VENDA\"|\"AGUARDAR\", \"confidence\": 0-100, \"reasoning\": \"string resumida\", \"bull_force\": 0-100, \"bear_force\": 0-100}" }
+                        { text: "Analise este gráfico tecnicamente. Retorne APENAS um JSON: {\"recommendation\": \"COMPRA\"|\"VENDA\"|\"AGUARDAR\", \"confidence\": 0-100, \"reasoning\": \"resumo curto\", \"bull_force\": 0-100, \"bear_force\": 0-100}" }
                     ]
                 }
             });
 
-            // Extração robusta do JSON usando regex
-            const responseText = response.text || "";
-            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-            
+            const jsonMatch = response.text.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-                try {
-                    const parsed = JSON.parse(jsonMatch[0]);
-                    setResult(parsed);
-                } catch (parseError) {
-                    console.error("Erro ao converter JSON:", responseText);
-                    setAnalysisError("A IA enviou dados em formato inválido. Tente novamente.");
-                }
+                setResult(JSON.parse(jsonMatch[0]));
             } else {
-                setAnalysisError("Não foi possível processar a resposta da IA. Verifique o print.");
+                setAnalysisError("Resposta da IA fora do padrão. Tente novamente.");
             }
         } catch (e: any) { 
-            console.error("Erro na API Gemini:", e); 
-            const errorMsg = e?.message || "";
-            if (errorMsg.includes("SAFETY")) {
-                setAnalysisError("Conteúdo bloqueado pelos filtros de segurança. Tente outro print.");
-            } else {
-                setAnalysisError("Falha de conexão com o servidor Sniper IA. Verifique sua chave API.");
-            }
+            console.error(e); 
+            setAnalysisError("Erro Sniper IA: Verifique a imagem ou conexão.");
         } finally { 
             setIsAnalyzing(false); 
         }
@@ -466,8 +506,8 @@ const AIAnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
                 <div className={`p-6 rounded-[2.5rem] border ${theme.card} flex flex-col min-h-[420px] shadow-2xl`}>
                     {!selectedImage ? (
                         <label className="flex-1 border-2 border-dashed border-slate-800 rounded-[2rem] flex flex-col items-center justify-center cursor-pointer hover:bg-emerald-500/5 transition-all group">
-                            <PlusIcon className="w-12 h-12 text-slate-800 mb-2 group-hover:text-emerald-500 transition-colors" />
-                            <span className="text-[10px] font-black uppercase text-slate-700 tracking-widest">Carregar Screenshot</span>
+                            <PlusIcon className="w-12 h-12 text-slate-800 mb-2 group-hover:text-emerald-500" />
+                            <span className="text-[10px] font-black uppercase text-slate-700 tracking-widest">Enviar Print</span>
                             <input type="file" className="hidden" accept="image/*" onChange={e => {
                                 const file = e.target.files?.[0];
                                 if (file) {
@@ -485,41 +525,32 @@ const AIAnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
                             <div className="flex gap-2">
                                 <button onClick={analyzeChart} disabled={isAnalyzing} className="flex-1 h-14 bg-emerald-500 text-slate-950 font-black rounded-2xl uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/20 active:scale-95 disabled:grayscale transition-all">
                                     {isAnalyzing ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CpuChipIcon className="w-5 h-5" />}
-                                    {isAnalyzing ? 'Processando...' : 'Analisar'}
+                                    {isAnalyzing ? 'Processando...' : 'Analisar Gatilho'}
                                 </button>
-                                <button onClick={() => {setSelectedImage(null); setResult(null); setAnalysisError(null);}} className="p-4 bg-slate-900 border border-slate-800 rounded-2xl text-red-500 hover:bg-red-500 hover:text-white transition-all"><TrashIcon className="w-6 h-6" /></button>
+                                <button onClick={() => setSelectedImage(null)} className="p-4 bg-slate-900 border border-slate-800 rounded-2xl text-red-500 hover:bg-red-500 hover:text-white transition-all"><TrashIcon className="w-6 h-6" /></button>
                             </div>
                         </div>
                     )}
                 </div>
                 <div className={`p-8 rounded-[2.5rem] border ${theme.card} shadow-2xl relative overflow-hidden`}>
                     <h3 className="text-[10px] font-black uppercase text-blue-400 mb-8 tracking-[0.2em]">Métrica de Assertividade</h3>
-                    
-                    {analysisError && (
-                        <div className="p-6 bg-red-500/10 border border-red-500/30 rounded-3xl text-red-500 text-xs font-bold text-center mb-6 animate-pulse leading-relaxed">
-                            {analysisError}
-                        </div>
-                    )}
-
+                    {analysisError && <div className="p-6 bg-red-500/10 border border-red-500/30 rounded-3xl text-red-500 text-xs font-bold text-center mb-6 animate-pulse">{analysisError}</div>}
                     {result ? (
                         <div className="space-y-8 animate-fade-in">
                             <div className="flex justify-between items-end border-b border-slate-900 pb-8">
-                                <div><p className="text-[10px] uppercase font-black text-slate-600 mb-1 tracking-widest">Gatilho Sniper</p><p className={`text-5xl font-black italic tracking-tighter ${result.recommendation === 'COMPRA' ? 'text-green-500' : result.recommendation === 'VENDA' ? 'text-red-500' : 'text-yellow-500'}`}>{result.recommendation === 'COMPRA' ? 'CALL' : result.recommendation === 'VENDA' ? 'PUT' : 'WAIT'}</p></div>
+                                <div><p className="text-[10px] uppercase font-black text-slate-600 mb-1 tracking-widest">Gatilho</p><p className={`text-5xl font-black italic tracking-tighter ${result.recommendation === 'COMPRA' ? 'text-green-500' : result.recommendation === 'VENDA' ? 'text-red-500' : 'text-yellow-500'}`}>{result.recommendation === 'COMPRA' ? 'CALL' : result.recommendation === 'VENDA' ? 'PUT' : 'WAIT'}</p></div>
                                 <div className="text-right"><p className="text-[10px] uppercase font-black text-slate-600 mb-1 tracking-widest">Confiança</p><p className="text-4xl font-black text-white">{result.confidence}%</p></div>
                             </div>
                             <div className="space-y-3">
-                                <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter"><span className="text-green-500">Pressão Touro {result.bull_force}%</span><span className="text-red-500">Pressão Urso {result.bear_force}%</span></div>
-                                <div className="h-3 bg-slate-900/50 rounded-full flex overflow-hidden p-0.5 border border-slate-800"><div className="bg-green-500 rounded-full transition-all duration-1000 shadow-[0_0_10px_green]" style={{width: `${result.bull_force}%`}} /><div className="bg-red-500 rounded-full transition-all duration-1000 shadow-[0_0_10px_red] ml-auto" style={{width: `${result.bear_force}%`}} /></div>
+                                <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter"><span className="text-green-500">Touros {result.bull_force}%</span><span className="text-red-500">Ursos {result.bear_force}%</span></div>
+                                <div className="h-3 bg-slate-900/50 rounded-full flex overflow-hidden p-0.5 border border-slate-800"><div className="bg-green-500 rounded-full transition-all duration-1000" style={{width: `${result.bull_force}%`}} /><div className="bg-red-500 rounded-full transition-all duration-1000 ml-auto" style={{width: `${result.bear_force}%`}} /></div>
                             </div>
-                            <div className="p-5 rounded-3xl bg-slate-950/40 border border-slate-900 text-xs italic text-slate-400 leading-relaxed shadow-inner">
-                                <InformationCircleIcon className="w-4 h-4 inline mr-2 text-blue-400 mb-0.5" />
-                                "{result.reasoning}"
-                            </div>
+                            <div className="p-5 rounded-3xl bg-slate-950/40 border border-slate-900 text-xs italic text-slate-400 leading-relaxed shadow-inner">"{result.reasoning}"</div>
                         </div>
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center opacity-20 py-24 transition-opacity">
                             <CpuChipIcon className={`w-20 h-20 mb-4 ${isAnalyzing ? 'animate-spin text-emerald-500' : ''}`} />
-                            <p className="text-[10px] font-black uppercase tracking-[0.3em]">{isAnalyzing ? 'Escaneando Gráfico...' : 'Sniper Pronto'}</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.3em]">{isAnalyzing ? 'Analisando Gráfico...' : 'Aguardando Print'}</p>
                         </div>
                     )}
                 </div>
