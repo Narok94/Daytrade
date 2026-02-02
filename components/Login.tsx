@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { UserIcon, LockClosedIcon } from './icons';
 
@@ -44,9 +45,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
         if (!track) return;
 
         const createCandles = () => {
-            track.innerHTML = ''; // Clear previous
+            track.innerHTML = '';
             const fragment = document.createDocumentFragment();
-            // Generate enough candles to fill the track twice for a seamless loop
             const numCandles = Math.ceil(window.innerWidth / 18) * 2; 
 
             for (let i = 0; i < numCandles; i++) {
@@ -57,15 +57,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                 const isGreen = Math.random() > 0.5;
                 candle.className = `chart-candle ${isGreen ? 'green' : 'red'}`;
                 
-                const totalHeight = Math.random() * 200 + 50; // 50px to 250px
+                const totalHeight = Math.random() * 250 + 70;
                 const bodyHeight = Math.random() * (totalHeight * 0.8) + (totalHeight * 0.1);
                 const bodyTop = Math.random() * (totalHeight - bodyHeight);
 
                 candle.style.height = `${totalHeight}px`;
-
                 wick.className = 'wick';
                 wick.style.height = `${totalHeight}px`;
-
                 body.className = 'body';
                 body.style.height = `${bodyHeight}px`;
                 body.style.top = `${bodyTop}px`;
@@ -75,7 +73,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                 fragment.appendChild(candle);
             }
             
-            // Clone the entire set of candles for a perfect animation loop
             const clonedFragment = fragment.cloneNode(true);
             track.appendChild(fragment);
             track.appendChild(clonedFragment);
@@ -108,7 +105,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
             }
             draw() {
                 if (ctx) {
-                    ctx.fillStyle = 'rgba(74, 222, 128, 0.3)';
+                    ctx.fillStyle = 'rgba(16, 185, 129, 0.25)';
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                     ctx.fill();
@@ -119,13 +116,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
         let particlesArray: Particle[] = [];
         const init = () => {
             particlesArray = [];
-            const numberOfParticles = (canvas.width * canvas.height) / 12000;
+            const numberOfParticles = (canvas.width * canvas.height) / 8000;
             for (let i = 0; i < numberOfParticles; i++) {
-                const size = Math.random() * 1.5 + 0.5;
+                const size = Math.random() * 3 + 1;
                 const x = Math.random() * canvas.width;
                 const y = Math.random() * canvas.height;
-                const speedX = (Math.random() * 0.4) - 0.2;
-                const speedY = (Math.random() * 0.4) - 0.2;
+                const speedX = (Math.random() * 0.8) - 0.4;
+                const speedY = (Math.random() * 0.8) - 0.4;
                 particlesArray.push(new Particle(x, y, size, speedX, speedY));
             }
         };
@@ -150,7 +147,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
         init();
         animate();
         window.addEventListener('resize', handleResize);
-
         return () => {
             window.cancelAnimationFrame(animationFrameId);
             window.removeEventListener('resize', handleResize);
@@ -186,7 +182,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
     };
 
     return (
-        <div className="login-container min-h-screen w-full flex items-center justify-center p-4 font-sans">
+        <div className="login-container min-h-screen w-full flex items-center justify-center p-6 font-sans">
             <canvas ref={canvasRef} className="particle-canvas"></canvas>
             <div className="cyber-grid"></div>
             
@@ -195,67 +191,61 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
             </div>
 
             <div className="binary-signals-container">
-                <div className="signal call signal-1">↑ CALL</div>
-                <div className="signal put signal-2">↓ PUT</div>
-                <div className="signal call signal-3">↑ CALL</div>
-                <div className="signal put signal-4">↓ PUT</div>
-                <div className="signal call signal-5">↑ CALL</div>
+                <div className="signal call signal-1">↑ ARSENAL CARREGADO</div>
+                <div className="signal put signal-2">↓ ZONA DE RISCO</div>
+                <div className="signal call signal-3">↑ ALVO LOCALIZADO</div>
+                <div className="signal put signal-4">↓ PRESSÃO VENDEDORA</div>
+                <div className="signal call signal-5">↑ HRK SNIPER ONLINE</div>
             </div>
 
-
-            <div className="glass-card w-full max-w-[340px] p-8 md:p-10 rounded-[2rem] relative">
-                <div className="text-center mb-6">
-                    <h1 className="text-3xl font-black text-white tracking-[0.2em] uppercase neon-glow-text">HRK</h1>
-                    <p className="text-white/70 mt-1 text-[9px] font-bold tracking-[0.1em] uppercase opacity-80">Binary Operations Control</p>
-                    <h2 className="text-4xl font-black text-emerald-400 mt-8 tracking-widest uppercase neon-glow-text">{isRegistering ? 'REGISTRO' : 'LOGIN'}</h2>
+            <div className="glass-card w-full max-w-[420px] p-12 md:p-16 relative overflow-hidden transition-all duration-700 hover:shadow-emerald-500/10 hover:border-emerald-500/50">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent" />
+                <div className="text-center mb-14">
+                    <h1 className="text-5xl font-black text-white tracking-[0.4em] uppercase sniper-glow-text leading-none italic">HRK</h1>
+                    <p className="text-emerald-400 font-black mt-3 text-[12px] tracking-[0.6em] uppercase">SNIPER ELITE</p>
+                    <h2 className="text-2xl font-black text-white mt-16 tracking-[0.3em] uppercase opacity-80">{isRegistering ? 'ALISTAMENTO' : 'AUTENTICAÇÃO'}</h2>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <fieldset disabled={isLoading} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+                    <fieldset disabled={isLoading} className="space-y-6">
                         <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                <UserIcon className="w-5 h-5 text-white/50 group-focus-within:text-emerald-400 transition-colors" />
+                            <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+                                <UserIcon className="w-6 h-6 text-emerald-400/30 group-focus-within:text-emerald-400 transition-all" />
                             </div>
                             <input
                                 type="text"
                                 id="username"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                className="quantum-input w-full h-12 pl-12 pr-12 rounded-full text-[10px] font-black tracking-widest placeholder-white/40 focus:outline-none"
-                                placeholder="USERNAME"
+                                className="quantum-input w-full h-16 pl-16 pr-8 rounded-full text-xs font-black tracking-[0.3em] uppercase placeholder-white/10 focus:outline-none bg-black/40 border-2 border-emerald-500/20"
+                                placeholder="CODINOME AGENTE"
                                 required
                             />
-                            <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                                <LockClosedIcon className="w-5 h-5 text-white/80" />
-                            </div>
                         </div>
                         <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                <UserIcon className="w-5 h-5 text-white/50 group-focus-within:text-emerald-400 transition-colors" />
+                            <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+                                <LockClosedIcon className="w-6 h-6 text-emerald-400/30 group-focus-within:text-emerald-400 transition-all" />
                             </div>
                             <input
                                 type="password"
                                 id="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="quantum-input w-full h-12 pl-12 pr-12 rounded-full text-[10px] font-black tracking-widest placeholder-white/40 focus:outline-none"
-                                placeholder="PASSWORD"
+                                className="quantum-input w-full h-16 pl-16 pr-8 rounded-full text-xs font-black tracking-[0.3em] uppercase placeholder-white/10 focus:outline-none bg-black/40 border-2 border-emerald-500/20"
+                                placeholder="CHAVE DE ACESSO"
                                 required
                             />
-                            <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                                <LockClosedIcon className="w-5 h-5 text-white/80" />
-                            </div>
                         </div>
                         
                         {isRegistering && (
-                             <div className="relative group">
+                             <div className="relative group animate-in slide-in-from-top-4">
                                 <input
                                     type="password"
                                     id="confirmPassword"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="quantum-input w-full h-12 px-6 rounded-full text-[10px] font-black tracking-widest placeholder-white/40 focus:outline-none"
-                                    placeholder="CONFIRM PASSWORD"
+                                    className="quantum-input w-full h-16 px-10 rounded-full text-xs font-black tracking-[0.3em] uppercase placeholder-white/10 focus:outline-none bg-black/40 border-2 border-emerald-500/20"
+                                    placeholder="REPETIR CHAVE"
                                     required
                                 />
                             </div>
@@ -263,48 +253,48 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                     </fieldset>
 
                     {error && (
-                        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
-                             <p className="text-[9px] text-red-400 text-center font-black uppercase tracking-widest">{error}</p>
+                        <div className="p-5 bg-rose-500/20 border-2 border-rose-500/40 rounded-full animate-in shake duration-500">
+                             <p className="text-[10px] text-rose-400 text-center font-black uppercase tracking-[0.2em]">{error}</p>
                         </div>
                     )}
                     
-                    <div className="pt-4 flex justify-center">
+                    <div className="pt-8 flex justify-center">
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="enter-button w-[160px] h-12 rounded-xl text-xs font-black uppercase tracking-[0.4em] text-white disabled:opacity-50"
+                            className="enter-button w-full h-20 rounded-full text-sm font-black uppercase tracking-[0.6em] text-slate-950 disabled:opacity-50 active:scale-95 transition-all border-b-8 border-emerald-700 active:border-b-0"
                         >
                             {isLoading ? (
-                                <svg className="animate-spin h-5 w-5 text-white mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <svg className="animate-spin h-8 w-8 text-slate-950 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
                             ) : (
-                               'ENTER'
+                               'ATIVAR SESSÃO'
                             )}
                         </button>
                     </div>
                 </form>
 
-                <div className="mt-8 flex items-center justify-center">
+                <div className="mt-12 flex items-center justify-center">
                     <button
                         type="button"
                         onClick={toggleView}
                         disabled={isLoading}
-                        className="text-[9px] font-black text-emerald-400/70 hover:text-emerald-300 tracking-widest transition-all uppercase hover:scale-105"
+                        className="text-[10px] font-black text-emerald-400/40 hover:text-emerald-400 tracking-[0.4em] transition-all uppercase hover:scale-110"
                     >
-                        {isRegistering ? 'LOGIN' : `SIGN UP`}
+                        {isRegistering ? 'VOLTAR PARA LOGIN' : `NOVO ALISTAMENTO`}
                     </button>
                 </div>
             </div>
             
-            <div className="absolute bottom-6 text-center w-full z-10 px-4">
-                <p className="text-white/40 text-[9px] font-mono tracking-widest font-bold">{currentTime}</p>
+            <div className="absolute bottom-10 text-center w-full z-10 px-6">
+                <p className="text-white/10 text-[11px] font-mono tracking-[0.4em] font-black uppercase">{currentTime}</p>
             </div>
             
-            <div className="absolute bottom-10 right-10 opacity-30 animate-pulse">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 0L14.59 9.41L24 12L14.59 14.59L12 24L9.41 14.59L0 12L9.41 9.41L12 0Z" fill="#4ade80"/>
+            <div className="absolute top-12 right-12 opacity-5 animate-pulse pointer-events-none scale-150">
+                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 0L14.59 9.41L24 12L14.59 14.59L12 24L9.41 14.59L0 12L9.41 9.41L12 0Z" fill="#10b981"/>
                 </svg>
             </div>
         </div>

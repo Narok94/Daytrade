@@ -1,25 +1,26 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HRK - Binary Operations Control</title>
+    <title>HRK SNIPER - Elite Trading</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@700&display=swap');
 
-      /* Custom scrollbar for dark mode */
+      /* Custom scrollbar for HRK Sniper */
       .dark ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
       }
       .dark ::-webkit-scrollbar-track {
         background: #020617;
       }
       .dark ::-webkit-scrollbar-thumb {
         background: #10b981;
-        border-radius: 4px;
+        border-radius: 10px;
       }
 
       body {
@@ -29,10 +30,10 @@
         overflow: hidden;
       }
 
-      /* --- HRK Professional OB Login Background --- */
+      /* --- HRK Sniper Elite Login Background --- */
        .login-container {
         background-color: #010409;
-        background-image: radial-gradient(ellipse at 50% 50%, rgba(16, 185, 129, 0.15) 0%, rgba(1, 4, 9, 1) 70%);
+        background-image: radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.15) 0%, rgba(1, 4, 9, 1) 85%);
         position: relative;
         overflow: hidden;
       }
@@ -52,10 +53,10 @@
           linear-gradient(rgba(16, 185, 129, 0.07) 1px, transparent 1px),
           linear-gradient(90deg, rgba(16, 185, 129, 0.07) 1px, transparent 1px);
         background-size: 60px 60px;
-        perspective: 800px;
-        transform: rotateX(55deg) scale(1.5);
+        perspective: 1200px;
+        transform: rotateX(55deg) scale(2.2);
         opacity: 0.5;
-        animation: grid-move 30s linear infinite;
+        animation: grid-move 25s linear infinite;
         z-index: 2;
       }
 
@@ -72,50 +73,42 @@
       }
       .signal {
         position: absolute;
-        font-family: monospace;
-        font-weight: bold;
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 800;
         font-size: 10px;
-        padding: 4px 10px;
-        border: 1px solid;
+        padding: 8px 18px;
+        border: 2px solid;
         border-radius: 999px;
-        background: rgba(2, 6, 23, 0.6);
-        backdrop-filter: blur(3px);
-        animation: fade-pulse 10s ease-in-out infinite;
+        background: rgba(2, 6, 23, 0.85);
+        backdrop-filter: blur(8px);
+        animation: sniper-pulse 10s ease-in-out infinite;
         opacity: 0;
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 8px;
+        letter-spacing: 0.15em;
       }
-      .signal.call { color: #4ade80; border-color: #4ade80; box-shadow: 0 0 10px #4ade8044; }
-      .signal.put { color: #f43f5e; border-color: #f43f5e; box-shadow: 0 0 10px #f43f5e44; }
+      .signal.call { color: #10b981; border-color: #10b981; box-shadow: 0 0 25px rgba(16, 185, 129, 0.4); }
+      .signal.put { color: #f43f5e; border-color: #f43f5e; box-shadow: 0 0 25px rgba(244, 63, 94, 0.4); }
 
-      .signal-1 { top: 20%; left: 15%; animation-delay: 0s; }
-      .signal-2 { top: 75%; left: 80%; animation-delay: -5s; }
-      .signal-3 { top: 50%; left: 5%; animation-delay: -2s; }
-      .signal-4 { top: 80%; left: 25%; animation-delay: -8s; }
-      .signal-5 { top: 30%; left: 70%; animation-delay: -3s; }
-
-      @keyframes fade-pulse {
-        0%, 100% { opacity: 0; transform: scale(0.9) translateY(10px); }
-        10%, 60% { opacity: 0.8; transform: scale(1) translateY(0); }
-        70% { opacity: 0; transform: scale(0.95) translateY(-5px); }
+      @keyframes sniper-pulse {
+        0%, 100% { opacity: 0; transform: scale(0.7) translate(0, 30px); }
+        10%, 90% { opacity: 1; transform: scale(1) translate(0, 0); }
       }
 
-      /* --- Scrolling Candlestick Chart --- */
       .scrolling-chart-container {
         position: absolute;
         inset: 0;
         z-index: 3;
         overflow: hidden;
         pointer-events: none;
-        opacity: 0.1;
+        opacity: 0.18;
       }
       .chart-track {
         display: flex;
         align-items: center;
         height: 100%;
-        will-change: transform;
-        animation: scroll-chart 120s linear infinite;
+        animation: scroll-chart 100s linear infinite;
       }
       @keyframes scroll-chart {
         from { transform: translateX(0); }
@@ -126,76 +119,37 @@
         display: flex;
         justify-content: center;
         flex-shrink: 0;
-        width: 16px;
-        margin: 0 2px;
+        width: 14px;
+        margin: 0 4px;
       }
-      .chart-candle .wick {
-        width: 2px;
-        background-color: currentColor;
-      }
-      .chart-candle .body {
-        position: absolute;
-        width: 10px;
-        background-color: currentColor;
-      }
-      .chart-candle.green { color: #4ade80; }
+      .chart-candle .wick { width: 1.5px; background-color: currentColor; }
+      .chart-candle .body { position: absolute; width: 10px; background-color: currentColor; border-radius: 3px; }
+      .chart-candle.green { color: #10b981; }
       .chart-candle.red { color: #f43f5e; }
 
       .glass-card {
-        background: rgba(10, 20, 30, 0.25);
-        backdrop-filter: blur(15px) saturate(180%);
-        -webkit-backdrop-filter: blur(15px) saturate(180%);
-        border: 1.5px solid rgba(16, 185, 129, 0.3);
-        box-shadow: 
-          0 0 40px rgba(0, 0, 0, 0.6), 
-          inset 0 0 15px rgba(16, 185, 129, 0.1);
-        z-index: 10;
+        background: rgba(8, 15, 25, 0.6);
+        backdrop-filter: blur(35px) saturate(180%);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        box-shadow: 0 20px 80px rgba(0, 0, 0, 0.9);
+        border-radius: 3.5rem;
       }
 
-      .neon-glow-text {
-        text-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
-      }
-
-      .quantum-input {
-        background: rgba(0, 0, 0, 0.3) !important;
-        border: 1px solid rgba(16, 185, 129, 0.5) !important;
-        color: white !important;
-        transition: all 0.4s ease;
-      }
-
-      .quantum-input:focus {
-        border-color: #10b981 !important;
-        box-shadow: 0 0 20px rgba(16, 185, 129, 0.2) !important;
-        background: rgba(0, 0, 0, 0.5) !important;
+      .sniper-glow-text {
+        text-shadow: 0 0 25px rgba(16, 185, 129, 0.9);
       }
 
       .enter-button {
-        background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
-        box-shadow: 0 0 25px rgba(74, 222, 128, 0.4);
-        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        box-shadow: 0 10px 40px rgba(16, 185, 129, 0.4);
       }
 
-      .enter-button:hover {
-        box-shadow: 0 0 40px rgba(34, 197, 94, 0.7);
-        transform: translateY(-2px);
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 5px;
       }
-
-      .circle-btn {
-        width: 46px;
-        height: 46px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        background: rgba(0, 0, 0, 0.4);
-        transition: all 0.3s ease;
-      }
-
-      .circle-btn:hover {
-        border-color: #4ade80;
-        background: rgba(74, 222, 128, 0.15);
-        transform: rotate(5deg) scale(1.1);
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #10b981;
+        border-radius: 10px;
       }
     </style>
     <script type="importmap">
