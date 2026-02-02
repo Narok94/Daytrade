@@ -8,7 +8,7 @@ export interface Brokerage {
   payoutPercentage: number;
   stopGainTrades: number;
   stopLossTrades: number;
-  dailyInterestRate?: number; // Porcentagem de projeção diária
+  dailyInterestRate?: number; // Porcentagem de projeção diária (ex: 3% para 3 wins)
   currency: 'BRL' | 'USD';
 }
 
