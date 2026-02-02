@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
-import { GoogleGenAI } from "@google/genai";
 import { 
     SettingsIcon, 
     LogoutIcon, LayoutGridIcon, PieChartIcon, 
@@ -10,7 +9,7 @@ import {
     CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ArrowPathIcon, 
     InformationCircleIcon, TrophyIcon, 
     ChartBarIcon, CheckIcon, DocumentTextIcon,
-    PlusIcon, TrashIcon, CpuChipIcon
+    PlusIcon, TrashIcon
 } from './components/icons';
 
 // --- Helper Functions ---
@@ -26,256 +25,9 @@ const useThemeClasses = (isDarkMode: boolean) => {
         border: isDarkMode ? 'border-slate-800' : 'border-slate-200',
         sidebar: isDarkMode ? 'bg-slate-950 border-r border-slate-800' : 'bg-white border-r border-slate-200',
         header: isDarkMode ? 'bg-slate-950 border-b border-slate-800' : 'bg-white border-b border-slate-200',
-        navActive: isDarkMode ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600',
+        navActive: isDarkMode ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-600',
         navInactive: isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100',
     }), [isDarkMode]);
-};
-
-// --- AI Analyzer Panel ---
-const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
-    const [imageData, setImageData] = useState<{base64: string, mimeType: string} | null>(null);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    const [analyzing, setAnalyzing] = useState(false);
-    const [result, setResult] = useState<any>(null);
-    const [error, setError] = useState<{title: string, message: string, type: 'quota' | 'generic'} | null>(null);
-
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const base64Full = reader.result as string;
-                const mimeType = base64Full.match(/data:([^;]+);base64,/)?.[1] || 'image/jpeg';
-                const base64Data = base64Full.split(',')[1];
-                
-                setImageData({ base64: base64Data, mimeType });
-                setPreviewUrl(base64Full);
-                setResult(null);
-                setError(null);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const handleSelectKey = async () => {
-        try {
-            // @ts-ignore - aistudio is injected in the environment
-            await window.aistudio.openSelectKey();
-            // Proceed to analyze if image is present
-            if (imageData) analyzeChart();
-        } catch (e) {
-            console.error("Error opening key selector", e);
-        }
-    };
-
-    const analyzeChart = async () => {
-        if (!imageData) return;
-        setAnalyzing(true);
-        setError(null);
-
-        try {
-            // Re-initializing to ensure we pick up any new API Key from selection dialog
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            
-            const prompt = `Aja como um motor de análise de visão computacional especializado em geometria de gráficos de velas (Candlesticks).
-            Sua tarefa é analisar os padrões visuais, cores e disposições das velas nesta imagem para fins educacionais.
-            
-            Analise:
-            1. Predominância de cor (Vendedores vs Compradores).
-            2. Padrões de Price Action (Martelos, Engolfos, Dojis).
-            3. Localização de zonas de retração (pavios longos).
-            
-            RETORNE APENAS UM JSON NO FORMATO ABAIXO. NÃO ADICIONE TEXTO EXPLICATIVO ANTES OU DEPOIS.
-            
-            {
-                "operacao": "CALL" | "PUT" | "AGUARDAR",
-                "confianca": numero_de_0_a_100,
-                "motivo": "resumo técnico curto do que foi visto",
-                "detalhes": ["confluência 1", "confluência 2", "confluência 3"]
-            }`;
-
-            const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: {
-                    parts: [
-                        { inlineData: { data: imageData.base64, mimeType: imageData.mimeType } },
-                        { text: prompt }
-                    ]
-                }
-            });
-
-            const text = response.text || '';
-            let cleanJson = text;
-            const jsonBlockMatch = text.match(/```json\s?([\s\S]*?)```/i);
-            if (jsonBlockMatch) {
-                cleanJson = jsonBlockMatch[1];
-            } else {
-                const bracketMatch = text.match(/\{[\s\S]*\}/);
-                if (bracketMatch) cleanJson = bracketMatch[0];
-            }
-
-            try {
-                const parsed = JSON.parse(cleanJson);
-                setResult(parsed);
-            } catch (parseErr) {
-                throw new Error("Formato de resposta inválido.");
-            }
-            
-        } catch (err: any) {
-            const errStr = JSON.stringify(err);
-            if (errStr.includes("429") || errStr.toLowerCase().includes("quota") || errStr.toLowerCase().includes("exhausted")) {
-                setError({
-                    title: "Limite de Cota Excedido",
-                    message: "A versão gratuita atingiu o limite de uso. Aguarde 1 minuto ou use sua própria chave profissional do Google AI Studio.",
-                    type: 'quota'
-                });
-            } else if (errStr.includes("Requested entity was not found")) {
-                 setError({
-                    title: "Chave Inválida",
-                    message: "A chave de API selecionada parece não ter as permissões necessárias. Tente selecionar novamente.",
-                    type: 'quota'
-                });
-            } else {
-                setError({
-                    title: "Erro de Processamento",
-                    message: "Não foi possível analisar este gráfico. Verifique a nitidez da imagem.",
-                    type: 'generic'
-                });
-            }
-        } finally {
-            setAnalyzing(false);
-        }
-    };
-
-    return (
-        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h2 className={`text-2xl font-black ${theme.text}`}>Analista de Gráficos IA</h2>
-                    <p className={theme.textMuted}>Utilize visão computacional para ler padrões de mercado.</p>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Upload Section */}
-                <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col items-center justify-center min-h-[420px] border-dashed border-2 relative overflow-hidden group transition-all duration-300`}>
-                    {previewUrl ? (
-                        <div className="relative w-full h-full flex items-center justify-center animate-in zoom-in duration-300">
-                            <img src={previewUrl} alt="Chart Preview" className="max-w-full max-h-[360px] object-contain rounded-xl shadow-2xl border border-white/5" />
-                            <button onClick={() => {setPreviewUrl(null); setImageData(null); setResult(null); setError(null);}} className="absolute top-4 right-4 p-3 bg-red-600/90 backdrop-blur-md text-white rounded-full hover:scale-110 transition-all shadow-xl"><TrashIcon className="w-5 h-5" /></button>
-                        </div>
-                    ) : (
-                        <label className="cursor-pointer flex flex-col items-center gap-4 text-center group w-full h-full justify-center hover:bg-emerald-500/5 transition-colors">
-                            <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-all border border-emerald-500/20">
-                                <PlusIcon className="w-10 h-10 text-emerald-500" />
-                            </div>
-                            <div className="space-y-1">
-                                <p className="font-black text-xs uppercase tracking-[0.2em] text-emerald-500">Enviar Print do Gráfico</p>
-                                <p className="text-[9px] opacity-40 font-bold uppercase tracking-widest">Suporte M1 / M5 / M15</p>
-                            </div>
-                            <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
-                        </label>
-                    )}
-                </div>
-
-                {/* Analysis/Results Section */}
-                <div className="space-y-6 flex flex-col">
-                    <button 
-                        onClick={analyzeChart} 
-                        disabled={!imageData || analyzing}
-                        className={`w-full h-20 rounded-2xl font-black uppercase tracking-[0.2em] transition-all flex flex-col items-center justify-center gap-1 relative overflow-hidden
-                        ${!imageData || analyzing ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-[0_10px_30px_rgba(16,185,129,0.3)] active:scale-95'}`}
-                    >
-                        {analyzing ? (
-                            <>
-                                <ArrowPathIcon className="w-6 h-6 animate-spin mb-1" />
-                                <span className="text-[10px]">Lendo Gráfico...</span>
-                            </>
-                        ) : (
-                            <>
-                                <div className="flex items-center gap-3">
-                                    <CpuChipIcon className="w-6 h-6" />
-                                    <span>Analisar Gráfico</span>
-                                </div>
-                                <span className="text-[8px] opacity-60 font-bold tracking-[0.3em]">IA PROFISSIONAL GEMINI 3.0</span>
-                            </>
-                        )}
-                        {analyzing && <div className="absolute inset-0 bg-white/10 animate-pulse" />}
-                    </button>
-
-                    {error && (
-                        <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-2xl flex flex-col gap-4 animate-in slide-in-from-top-4">
-                            <div className="flex items-start gap-4 text-red-500">
-                                <InformationCircleIcon className="w-6 h-6 shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest mb-1">{error.title}</p>
-                                    <p className="text-[11px] font-bold opacity-80 leading-relaxed">{error.message}</p>
-                                </div>
-                            </div>
-                            {error.type === 'quota' && (
-                                <button 
-                                    onClick={handleSelectKey}
-                                    className="w-full py-3 bg-red-500 hover:bg-red-400 text-slate-950 font-black text-[10px] uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg active:scale-95"
-                                >
-                                    Usar Minha Própria Chave (Profissional)
-                                </button>
-                            )}
-                        </div>
-                    )}
-
-                    {result && (
-                        <div className={`p-8 rounded-3xl border ${theme.card} space-y-6 animate-in slide-in-from-bottom-8 duration-500 shadow-2xl relative overflow-hidden`}>
-                            <div className="flex justify-between items-end border-b border-slate-800/10 pb-6">
-                                <div className="space-y-1">
-                                    <p className="text-[10px] font-black uppercase opacity-40 tracking-widest">Direção Sugerida</p>
-                                    <h3 className={`text-6xl font-black tracking-tighter ${result.operacao === 'CALL' ? 'text-emerald-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
-                                        {result.operacao === 'CALL' ? '↑ CALL' : result.operacao === 'PUT' ? '↓ PUT' : 'ESPERAR'}
-                                    </h3>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase opacity-40 tracking-widest mb-1">Acurácia IA</p>
-                                    <p className="text-4xl font-black text-blue-400 italic">{result.confianca}%</p>
-                                </div>
-                            </div>
-
-                            <div className="p-5 bg-slate-950/60 rounded-2xl border border-slate-800/50 backdrop-blur-sm">
-                                <p className="text-[9px] font-black uppercase text-emerald-500/60 mb-2 tracking-widest">Conclusão Analítica</p>
-                                <p className="text-sm font-bold leading-relaxed opacity-90">{result.motivo}</p>
-                            </div>
-
-                            <div className="space-y-3">
-                                <p className="text-[9px] font-black uppercase opacity-40 tracking-widest">Confluências Técnicas</p>
-                                <div className="grid grid-cols-1 gap-2">
-                                    {result.detalhes?.map((detail: string, i: number) => (
-                                        <div key={i} className="flex items-center gap-3 text-xs font-bold opacity-80 p-2 bg-white/5 rounded-lg">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                            {detail}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            
-                            <div className="pt-4 border-t border-slate-800/10">
-                                <p className="text-[8px] text-center uppercase font-black text-slate-600 leading-tight">
-                                    O mercado de Opções Binárias envolve alto risco. Esta análise é apenas para suporte visual.
-                                </p>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {!result && !analyzing && !error && (
-                        <div className="flex-1 border border-slate-800/20 rounded-3xl flex flex-col items-center justify-center opacity-20 text-center space-y-4 p-10 border-dashed">
-                            <CpuChipIcon className="w-16 h-16 animate-pulse" />
-                            <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest">Scanner Standby</p>
-                                <p className="text-[9px] font-bold mt-1">Aguardando entrada visual para processamento neural</p>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
 };
 
 // --- Dashboard Panel ---
@@ -313,9 +65,9 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     }
 
     const kpis = [
-        { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-emerald-500' },
-        { label: 'Lucro Diário', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol} ${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-emerald-500' : 'text-red-500' },
-        { label: 'Meta Diária', val: `${Math.min(100, dailyGoalPercent).toFixed(0)}%`, subVal: `${currencySymbol}${formatMoney(currentProfit)} de ${formatMoney(dailyGoalTarget)}`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-emerald-500' : 'text-blue-400' },
+        { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-green-500' },
+        { label: 'Lucro Diário', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol} ${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-green-500' : 'text-red-500' },
+        { label: 'Meta Diária', val: `${Math.min(100, dailyGoalPercent).toFixed(0)}%`, subVal: `${currencySymbol}${formatMoney(currentProfit)} de ${formatMoney(dailyGoalTarget)}`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-green-500' : 'text-blue-400' },
         { label: 'Win Rate', val: `${winRate}%`, icon: TrophyIcon, color: 'text-purple-400' },
     ];
 
@@ -328,7 +80,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                 {kpis.map((kpi, i) => (
-                    <div key={i} className={`p-4 rounded-3xl border ${theme.card} flex flex-col justify-between hover:scale-[1.02] transition-transform`}>
+                    <div key={i} className={`p-4 rounded-3xl border ${theme.card} flex flex-col justify-between`}>
                         <div className="flex justify-between items-start mb-1">
                             <p className="text-[9px] md:text-[10px] uppercase font-black text-slate-500 tracking-wider leading-none">{kpi.label}</p>
                             <kpi.icon className={`w-4 h-4 ${kpi.color} opacity-80`} />
@@ -341,19 +93,19 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div className={`p-6 rounded-3xl border ${theme.card}`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-emerald-500" /> Nova Ordem</h3>
+                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-green-500" /> Nova Ordem</h3>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor (Entrada)</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} placeholder="1.00" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-emerald-500 outline-none font-bold ${theme.input}`} /></div>
-                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout %</label><input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} placeholder="80" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-emerald-500 outline-none font-bold ${theme.input}`} /></div>
-                            <div className="space-y-1 col-span-2 md:col-span-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-emerald-500 outline-none font-bold ${theme.input}`} /></div>
+                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor (10% Banca)</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} placeholder="1.00" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout %</label><input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} placeholder="80" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                            <div className="space-y-1 col-span-2 md:col-span-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                         </div>
                         <div className="grid grid-cols-2 gap-4 pt-2">
-                            <button onClick={() => handleQuickAdd('win')} disabled={stopWinReached || stopLossReached} className="h-14 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 active:scale-95 disabled:bg-slate-700 disabled:shadow-none disabled:cursor-not-allowed">WIN</button>
+                            <button onClick={() => handleQuickAdd('win')} disabled={stopWinReached || stopLossReached} className="h-14 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg shadow-green-500/20 active:scale-95 disabled:bg-slate-700 disabled:shadow-none disabled:cursor-not-allowed">WIN</button>
                             <button onClick={() => handleQuickAdd('loss')} disabled={stopWinReached || stopLossReached} className="h-14 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg shadow-red-500/20 active:scale-95 disabled:bg-slate-700 disabled:shadow-none disabled:cursor-not-allowed">LOSS</button>
                         </div>
                          {stopMessage && (
-                            <div className="mt-4 text-center text-xs font-bold text-yellow-500 p-3 bg-yellow-500/10 rounded-xl border border-yellow-500/20 animate-pulse">
+                            <div className="mt-4 text-center text-xs font-bold text-yellow-500 p-3 bg-yellow-500/10 rounded-xl border border-yellow-500/20">
                                 {stopMessage} Operações bloqueadas por hoje.
                             </div>
                         )}
@@ -370,14 +122,14 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                                     return (
                                         <div key={trade.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-slate-950/50 border-slate-800/50' : 'bg-slate-50 border-slate-200/50'}`}>
                                             <div className="flex items-center gap-3">
-                                                <div className={`w-2 h-8 rounded-full ${trade.result === 'win' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`} />
+                                                <div className={`w-2 h-8 rounded-full ${trade.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} />
                                                 <div>
                                                     <p className="text-[10px] font-black uppercase text-slate-500 leading-none">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                                                     <p className="text-sm font-bold">{trade.result === 'win' ? 'Vitória' : 'Derrota'}</p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <p className={`text-sm font-black ${tradeProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}</p>
+                                                <p className={`text-sm font-black ${tradeProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}</p>
                                                 <button onClick={() => deleteTrade(trade.id, selectedDateString)} className="text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button>
                                             </div>
                                         </div>
@@ -404,10 +156,12 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 
     const tableData = useMemo(() => {
         const rows = [];
+        // Ordenar registros reais por data
         const sortedRealRecords = records
             .filter((r: any): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0)
             .sort((a, b) => a.id.localeCompare(b.id));
         
+        // Data de início da simulação: Ou o primeiro dia operado, ou "Hoje"
         let startDate: Date;
         if (sortedRealRecords.length > 0) {
             startDate = new Date(sortedRealRecords[0].id + 'T12:00:00');
@@ -423,12 +177,14 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             currentDate.setDate(startDate.getDate() + i);
             const dateId = currentDate.toISOString().split('T')[0];
             
+            // Tentar achar registro real para este dia
             const realRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateId && r.trades.length > 0);
             
             let initial = runningBalance;
             let win, loss, profit, final, isProjection, operationValue;
 
             if (realRecord) {
+                // Registro Real
                 win = realRecord.winCount;
                 loss = realRecord.lossCount;
                 profit = realRecord.netProfitUSD;
@@ -436,6 +192,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                 operationValue = (realRecord.trades.length > 0) ? realRecord.trades[0].entryValue : (initial * 0.10);
                 isProjection = false;
             } else {
+                // Projeção 3x0
                 isProjection = true;
                 operationValue = initial * 0.10;
                 win = 3;
@@ -476,7 +233,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                 <th className="py-5 px-3 border-b border-slate-800/20">Data</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Saldo Inicial</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Valor Operação</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20 text-emerald-500">Win</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20 text-green-500">Win</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20 text-red-500">Loss</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Lucro</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Saldo Final</th>
@@ -489,9 +246,9 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                     <td className="py-4 px-3 text-[10px] uppercase font-black opacity-60">{row.dateDisplay}</td>
                                     <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
                                     <td className="py-4 px-3 font-mono text-sm text-blue-400">{currencySymbol} {formatMoney(row.operationValue)}</td>
-                                    <td className="py-4 px-3"><span className="bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-xl">{row.win}</span></td>
+                                    <td className="py-4 px-3"><span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-xl">{row.win}</span></td>
                                     <td className="py-4 px-3"><span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-xl">{row.loss}</span></td>
-                                    <td className={`py-4 px-3 font-black ${row.profit > 0 ? 'text-emerald-500' : row.profit < 0 ? 'text-red-500' : 'opacity-30'}`}>{row.profit > 0 ? '+' : ''}{currencySymbol} {formatMoney(row.profit)}</td>
+                                    <td className={`py-4 px-3 font-black ${row.profit > 0 ? 'text-green-500' : row.profit < 0 ? 'text-red-500' : 'opacity-30'}`}>{row.profit > 0 ? '+' : ''}{currencySymbol} {formatMoney(row.profit)}</td>
                                     <td className="py-4 px-3 font-black opacity-90">{currencySymbol} {formatMoney(row.final)}</td>
                                 </tr>
                             ))}
@@ -522,19 +279,19 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
-                <div><h2 className={`text-2xl font-black ${theme.text}`}>Relatório Mensal</h2><p className={theme.textMuted}>Histórico detalhado por competência.</p></div>
+                <div><h2 className={`text-2xl font-black ${theme.text}`}>Relatório</h2><p className={theme.textMuted}>Histórico detalhado por mês.</p></div>
                 <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className={`border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className={`p-6 rounded-3xl border ${theme.card}`}><p className="text-[9px] uppercase font-black opacity-50 mb-1">Lucro no Mês</p><p className={`text-2xl font-black ${reportData.totalProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{reportData.totalProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(reportData.totalProfit)}</p></div>
-                <div className={`p-6 rounded-3xl border ${theme.card}`}><p className="text-[9px] uppercase font-black opacity-50 mb-1">Banca Final</p><p className="text-2xl font-black text-blue-400">{currencySymbol} {formatMoney(reportData.finalMonthBalance)}</p></div>
+                <div className={`p-6 rounded-3xl border ${theme.card}`}><p className="text-[9px] uppercase font-black opacity-50 mb-1">Lucro no Mês</p><p className={`text-2xl font-black ${reportData.totalProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{reportData.totalProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(reportData.totalProfit)}</p></div>
+                <div className={`p-6 rounded-3xl border ${theme.card}`}><p className="text-[9px] uppercase font-black opacity-50 mb-1">Banca Atual</p><p className="text-2xl font-black text-blue-400">{currencySymbol} {formatMoney(reportData.finalMonthBalance)}</p></div>
                 <div className={`p-6 rounded-3xl border ${theme.card}`}><p className="text-[9px] uppercase font-black opacity-50 mb-1">Volume de Trades</p><p className="text-2xl font-black">{reportData.allTrades.length}</p></div>
             </div>
             <div className={`rounded-3xl border overflow-hidden ${theme.card}`}>
-                <div className="p-6 border-b border-slate-800/10 font-black text-[10px] uppercase opacity-60">Lista de Operações</div>
+                <div className="p-6 border-b border-slate-800/10 font-black text-[10px] uppercase opacity-60">Operações Realizadas</div>
                 <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-left">
-                        <thead><tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}><th className="py-4 px-6">Data / Hora</th><th className="py-4 px-6">Status</th><th className="py-4 px-6">Entrada</th><th className="py-4 px-6">Resultado</th><th className="py-4 px-6 text-right">Ação</th></tr></thead>
+                        <thead><tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}><th className="py-4 px-6">Data / Hora</th><th className="py-4 px-6">Status</th><th className="py-4 px-6">Entrada</th><th className="py-4 px-6">Lucro/Prej</th><th className="py-4 px-6 text-right">Ação</th></tr></thead>
                         <tbody className="divide-y divide-slate-800/5">
                             {reportData.allTrades.map((t) => {
                                 const profit = t.result === 'win' ? (t.entryValue * (t.payoutPercentage / 100)) : -t.entryValue;
@@ -547,9 +304,9 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
                                                 {tradeDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                         </td>
-                                        <td className="py-4 px-6"><span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg ${t.result === 'win' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>{t.result.toUpperCase()}</span></td>
+                                        <td className="py-4 px-6"><span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg ${t.result === 'win' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>{t.result.toUpperCase()}</span></td>
                                         <td className="py-4 px-6 font-mono text-sm opacity-60">{currencySymbol} {formatMoney(t.entryValue)}</td>
-                                        <td className={`py-4 px-6 font-black ${profit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{profit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(profit)}</td>
+                                        <td className={`py-4 px-6 font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{profit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(profit)}</td>
                                         <td className="py-4 px-6 text-right"><button onClick={() => deleteTrade(t.id, t.dayId)} className="text-red-500/30 hover:text-red-500 transition-colors"><TrashIcon className="w-4 h-4" /></button></td>
                                     </tr>
                                 );
@@ -590,32 +347,32 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div>
                 <h2 className="text-2xl font-black">Calculadora de Soros</h2>
-                <p className={theme.textMuted}>Planeje seus ciclos de reinvestimento agressivo.</p>
+                <p className={theme.textMuted}>Planeje seus ciclos de reinvestimento.</p>
             </div>
-            <div className={`p-6 rounded-3xl border ${theme.card} grid grid-cols-1 md:grid-cols-3 gap-6 shadow-xl`}>
+            <div className={`p-6 rounded-3xl border ${theme.card} grid grid-cols-1 md:grid-cols-3 gap-6`}>
                 <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-500 uppercase">Entrada Inicial ({currencySymbol})</label>
-                    <input type="number" value={initialEntry} onChange={e => setInitialEntry(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-emerald-500 outline-none font-bold ${theme.input}`} />
+                    <input type="number" value={initialEntry} onChange={e => setInitialEntry(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
                 </div>
                 <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-500 uppercase">Payout %</label>
-                    <input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-emerald-500 outline-none font-bold ${theme.input}`} />
+                    <input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
                 </div>
                 <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-500 uppercase">Níveis</label>
-                    <input type="number" value={levels} onChange={e => setLevels(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-emerald-500 outline-none font-bold ${theme.input}`} />
+                    <input type="number" value={levels} onChange={e => setLevels(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
                 </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {calculations.map((res) => (
-                    <div key={res.level} className={`p-6 rounded-3xl border ${theme.card} relative overflow-hidden group hover:border-emerald-500/50 transition-colors`}>
-                        <div className="absolute top-0 right-0 p-4 opacity-5 font-black text-4xl group-hover:scale-110 transition-transform">L{res.level}</div>
+                    <div key={res.level} className={`p-6 rounded-3xl border ${theme.card} relative overflow-hidden group`}>
+                        <div className="absolute top-0 right-0 p-4 opacity-10 font-black text-4xl group-hover:scale-110 transition-transform">L{res.level}</div>
                         <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Nível {res.level}</p>
                         <div className="space-y-1">
                             <p className="text-xs font-bold text-slate-400">Entrada: {currencySymbol} {formatMoney(res.entry)}</p>
-                            <p className="text-lg font-black text-emerald-500">Lucro: +{currencySymbol} {formatMoney(res.profit)}</p>
+                            <p className="text-lg font-black text-green-500">Lucro: +{currencySymbol} {formatMoney(res.profit)}</p>
                             <div className="h-px bg-slate-800/20 my-2" />
-                            <p className="text-xs font-bold opacity-60">Próxima Mão: {currencySymbol} {formatMoney(res.total)}</p>
+                            <p className="text-xs font-bold opacity-60">Próxima: {currencySymbol} {formatMoney(res.total)}</p>
                         </div>
                     </div>
                 ))}
@@ -654,17 +411,17 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className="text-2xl font-black">Metas Financeiras</h2>
-                    <p className={theme.textMuted}>Defina e acompanhe seus objetivos de longo prazo.</p>
+                    <p className={theme.textMuted}>Defina e acompanhe seus objetivos.</p>
                 </div>
             </div>
 
-            <div className={`p-6 rounded-3xl border ${theme.card} shadow-lg`}>
-                <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-6">Cadastrar Novo Objetivo</h3>
+            <div className={`p-6 rounded-3xl border ${theme.card}`}>
+                <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-6">Nova Meta</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Nome da Meta</label><input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Viagem de Luxo" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-emerald-500 outline-none font-bold ${theme.input}`} /></div>
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Valor Alvo ({currencySymbol})</label><input type="number" value={target} onChange={e => setTarget(e.target.value)} placeholder="5000" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-emerald-500 outline-none font-bold ${theme.input}`} /></div>
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Frequência</label><select value={type} onChange={e => setType(e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-emerald-500 outline-none font-bold ${theme.input}`}><option value="daily">Diária</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option><option value="annual">Anual</option></select></div>
-                    <div className="flex items-end"><button onClick={addGoal} className="w-full h-12 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"><PlusIcon className="w-4 h-4" /> Adicionar</button></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Nome</label><input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Viagem 2024" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Valor Alvo ({currencySymbol})</label><input type="number" value={target} onChange={e => setTarget(e.target.value)} placeholder="5000" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Tipo</label><select value={type} onChange={e => setType(e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`}><option value="daily">Diária</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option><option value="annual">Anual</option></select></div>
+                    <div className="flex items-end"><button onClick={addGoal} className="w-full h-12 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-xl uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"><PlusIcon className="w-4 h-4" /> Adicionar</button></div>
                 </div>
             </div>
 
@@ -673,21 +430,21 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
                     const currentProfit = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day').reduce((acc, r) => acc + r.netProfitUSD, 0);
                     const progress = Math.min(100, (currentProfit / goal.targetAmount) * 100);
                     return (
-                        <div key={goal.id} className={`p-6 rounded-3xl border ${theme.card} hover:shadow-2xl transition-all`}>
+                        <div key={goal.id} className={`p-6 rounded-3xl border ${theme.card}`}>
                             <div className="flex justify-between items-start mb-4">
                                 <div><p className="text-[10px] font-black uppercase text-slate-500">{goal.type}</p><h4 className="text-xl font-black">{goal.name}</h4></div>
-                                <button onClick={() => deleteGoal(goal.id)} className="text-red-500/50 hover:text-red-500 transition-colors p-2 hover:bg-red-500/10 rounded-full"><TrashIcon className="w-5 h-5" /></button>
+                                <button onClick={() => deleteGoal(goal.id)} className="text-red-500/50 hover:text-red-500 transition-colors"><TrashIcon className="w-5 h-5" /></button>
                             </div>
                             <div className="space-y-2">
                                 <div className="flex justify-between text-xs font-bold">
-                                    <span>Progresso Atual</span>
-                                    <span className="text-emerald-500">{progress.toFixed(1)}%</span>
+                                    <span>Progresso Total</span>
+                                    <span>{progress.toFixed(1)}%</span>
                                 </div>
-                                <div className="h-3 w-full bg-slate-800/20 rounded-full overflow-hidden shadow-inner">
-                                    <div className="h-full bg-emerald-500 transition-all duration-1000 shadow-[0_0_15px_rgba(16,185,129,0.5)]" style={{ width: `${progress}%` }} />
+                                <div className="h-2 w-full bg-slate-800/20 rounded-full overflow-hidden">
+                                    <div className="h-full bg-green-500 transition-all duration-1000" style={{ width: `${progress}%` }} />
                                 </div>
                                 <div className="flex justify-between items-baseline pt-2">
-                                    <p className="text-2xl font-black text-emerald-500">{currencySymbol} {formatMoney(currentProfit)}</p>
+                                    <p className="text-2xl font-black text-green-500">{currencySymbol} {formatMoney(currentProfit)}</p>
                                     <p className="text-xs font-bold opacity-40">de {currencySymbol} {formatMoney(goal.targetAmount)}</p>
                                 </div>
                             </div>
@@ -708,72 +465,72 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
             <div>
-                <h2 className="text-2xl font-black">Configurações do Perfil</h2>
-                <p className={theme.textMuted}>Ajuste os parâmetros globais da sua banca e gestão.</p>
+                <h2 className="text-2xl font-black">Configurações</h2>
+                <p className={theme.textMuted}>Ajuste os parâmetros da sua gestão.</p>
             </div>
 
-            <div className={`p-8 rounded-3xl border ${theme.card} space-y-8 shadow-xl`}>
+            <div className={`p-8 rounded-3xl border ${theme.card} space-y-8`}>
                 <section className="space-y-6">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2 text-emerald-500">Capital & Moeda</h3>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">Parametrização de Banca</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Identificação da Banca</label>
-                            <input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-emerald-500 outline-none font-bold ${theme.input}`} />
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Nome da Banca</label>
+                            <input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Moeda de Operação</label>
-                            <select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-emerald-500 outline-none font-bold ${theme.input}`}>
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Moeda Principal</label>
+                            <select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`}>
                                 <option value="USD">Dólar ($)</option>
                                 <option value="BRL">Real (R$)</option>
                             </select>
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Capital Inicial</label>
-                            <input type="number" value={brokerage.initialBalance} onChange={e => updateBrokerage('initialBalance', parseFloat(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-emerald-500 outline-none font-bold ${theme.input}`} />
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Saldo Inicial</label>
+                            <input type="number" value={brokerage.initialBalance} onChange={e => updateBrokerage('initialBalance', parseFloat(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout Médio %</label>
-                            <input type="number" value={brokerage.payoutPercentage} onChange={e => updateBrokerage('payoutPercentage', parseInt(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-emerald-500 outline-none font-bold ${theme.input}`} />
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Payout Padrão %</label>
+                            <input type="number" value={brokerage.payoutPercentage} onChange={e => updateBrokerage('payoutPercentage', parseInt(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
                         </div>
                     </div>
                 </section>
 
                 <section className="space-y-6 pt-8 border-t border-slate-800/10">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2 text-blue-500">Gestão de Lotes</h3>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">Configuração de Entrada</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Método de Entrada</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Modo de Entrada</label>
                             <div className="flex bg-slate-800/10 p-1 rounded-xl">
-                                <button onClick={() => updateBrokerage('entryMode', 'percentage')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${brokerage.entryMode === 'percentage' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'text-slate-500 hover:text-slate-300'}`}>Porcentagem</button>
-                                <button onClick={() => updateBrokerage('entryMode', 'fixed')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${brokerage.entryMode === 'fixed' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'text-slate-500 hover:text-slate-300'}`}>Fixo</button>
+                                <button onClick={() => updateBrokerage('entryMode', 'percentage')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${brokerage.entryMode === 'percentage' ? 'bg-green-500 text-slate-950' : 'text-slate-500 hover:text-slate-300'}`}>Porcentagem</button>
+                                <button onClick={() => updateBrokerage('entryMode', 'fixed')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${brokerage.entryMode === 'fixed' ? 'bg-green-500 text-slate-950' : 'text-slate-500 hover:text-slate-300'}`}>Valor Fixo</button>
                             </div>
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor/Pct de Entrada ({brokerage.entryMode === 'percentage' ? '%' : (brokerage.currency === 'USD' ? '$' : 'R$')})</label>
-                            <input type="number" value={brokerage.entryValue} onChange={e => updateBrokerage('entryValue', parseFloat(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-emerald-500 outline-none font-bold ${theme.input}`} />
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Valor da Entrada ({brokerage.entryMode === 'percentage' ? '%' : (brokerage.currency === 'USD' ? '$' : 'R$')})</label>
+                            <input type="number" value={brokerage.entryValue} onChange={e => updateBrokerage('entryValue', parseFloat(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
                         </div>
                     </div>
                 </section>
 
                 <section className="space-y-6 pt-8 border-t border-slate-800/10">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2 text-red-500">Controle de Risco (Stop)</h3>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">Gerenciamento de Risco (Stop)</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Stop Win (Metas Batidas)</label>
-                            <input type="number" value={brokerage.stopGainTrades} onChange={e => updateBrokerage('stopGainTrades', parseInt(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-emerald-500 outline-none font-bold ${theme.input}`} />
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Stop Gain (Vitórias)</label>
+                            <input type="number" value={brokerage.stopGainTrades} onChange={e => updateBrokerage('stopGainTrades', parseInt(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Stop Loss (Limite de Perda)</label>
-                            <input type="number" value={brokerage.stopLossTrades} onChange={e => updateBrokerage('stopLossTrades', parseInt(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-emerald-500 outline-none font-bold ${theme.input}`} />
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Stop Loss (Derrotas)</label>
+                            <input type="number" value={brokerage.stopLossTrades} onChange={e => updateBrokerage('stopLossTrades', parseInt(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
                         </div>
                     </div>
                 </section>
 
                 <section className="pt-12 space-y-4">
                     <div className="p-6 rounded-3xl bg-red-500/5 border border-red-500/20">
-                        <h4 className="text-sm font-black text-red-500 uppercase mb-2">Segurança de Dados</h4>
-                        <p className="text-xs font-bold text-red-500/60 mb-6">A limpeza de histórico é irreversível. Certifique-se de exportar seus dados se necessário.</p>
-                        <button onClick={onReset} className="px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all active:scale-95 shadow-lg shadow-red-500/20">Limpar Histórico Completo</button>
+                        <h4 className="text-sm font-black text-red-500 uppercase mb-2">Zona de Perigo</h4>
+                        <p className="text-xs font-bold text-red-500/60 mb-6">Ao redefinir os dados, todo o seu histórico de operações será apagado permanentemente.</p>
+                        <button onClick={onReset} className="px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all active:scale-95">Apagar Todo Histórico</button>
                     </div>
                 </section>
             </div>
@@ -923,18 +680,17 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const activeDailyGoal = monthlyGoal ? (monthlyGoal.targetAmount / 22) : (activeBrokerage?.initialBalance * 0.03 || 1);
 
     const theme = useThemeClasses(isDarkMode);
-    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" /></div>;
+    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin" /></div>;
 
     return (
         <div className={`flex h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
             {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
             <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col border-r transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
-                <div className="h-20 flex items-center px-8 border-b border-slate-800/50 font-black italic text-emerald-400 text-2xl tracking-tighter">HRK</div>
+                <div className="h-20 flex items-center px-8 border-b border-slate-800/50 font-black italic text-teal-400 text-xl tracking-tighter">HRK</div>
                 <nav className="flex-1 p-4 space-y-1">
                     <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
                     <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Planilha Juros</button>
                     <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Relatório</button>
-                    <button onClick={() => {setActiveTab('ai'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Analista IA</button>
                     <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
                     <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
                     <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Configurações</button>
@@ -944,13 +700,12 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             <main className="flex-1 flex flex-col overflow-hidden">
                 <header className={`h-20 flex items-center justify-between px-6 md:px-8 border-b ${theme.header}`}>
                     <div className="flex items-center gap-4"><button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-6 h-6" /></button><SavingStatusIndicator status={savingStatus} /></div>
-                    <div className="flex items-center gap-3"><button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 hover:bg-slate-800/20 rounded-full transition-colors">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button><div className="w-10 h-10 rounded-2xl bg-emerald-500 flex items-center justify-center text-slate-950 font-black text-xs shadow-[0_0_15px_rgba(16,185,129,0.5)]">{user.username.slice(0, 2).toUpperCase()}</div></div>
+                    <div className="flex items-center gap-3"><button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button><div className="w-10 h-10 rounded-2xl bg-green-500 flex items-center justify-center text-slate-950 font-black text-xs">{user.username.slice(0, 2).toUpperCase()}</div></div>
                 </header>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeDailyGoal} />}
                     {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
                     {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
-                    {activeTab === 'ai' && <AIAnalyzerPanel theme={theme} isDarkMode={isDarkMode} />}
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} />}
@@ -961,9 +716,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 };
 
 const SavingStatusIndicator: React.FC<{status: string}> = ({status}) => {
-    if (status === 'saving') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500 animate-pulse"><ArrowPathIcon className="w-3 h-3 animate-spin" /> Sincronizando...</div>;
-    if (status === 'saved') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-emerald-500"><CheckIcon className="w-3 h-3" /> Nuvem Atualizada</div>;
-    if (status === 'error') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-red-500"><InformationCircleIcon className="w-3 h-3" /> Erro ao salvar</div>;
+    if (status === 'saving') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500"><ArrowPathIcon className="w-3 h-3 animate-spin" /> Salvando...</div>;
+    if (status === 'saved') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-green-500"><CheckIcon className="w-3 h-3" /> Sincronizado</div>;
     return null;
 };
 
