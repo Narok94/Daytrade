@@ -77,32 +77,24 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
 
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            const mimeType = image.split(';')[0].split(':')[1];
             const base64Data = image.split(',')[1];
+            const mimeType = image.split(';')[0].split(':')[1];
             
-            // PROMPT OTIMIZADO PARA EVITAR FILTROS DE SEGURANÇA E MARCA D'ÁGUA
-            const prompt = `Identifique padrões de geometria visual nesta imagem de gráfico.
+            const prompt = `Aja como um analista master de Opções Binárias M1. 
+            OBJETIVO: Identificar a probabilidade da próxima vela baseado em Price Action e indicadores visuais.
             
-            CONTEXTO VISUAL:
-            1. Desconsidere o texto "AXIUN BROKER" e o logo "A" no fundo. Eles são marcas d'água estáticas.
-            2. Analise as velas (candlesticks) e procure por indicadores de seta (triângulos verdes e vermelhos).
-            3. Foque nas últimas 5 velas no canto direito.
+            LEITURA TÉCNICA:
+            1. Verifique se há setas de indicadores (triângulos verdes/vermelhos).
+            2. Analise a cor e tamanho das últimas 2 velas e seus pavios (rejeição).
+            3. Verifique se o preço está em tendência ou lateralizado.
             
-            LOGICA DE RECONHECIMENTO:
-            - Se vir seta verde + velas de corpo verde na sequência, retorne CALL.
-            - Se vir seta vermelha + velas de corpo vermelho na sequência, retorne PUT.
-            - Se as velas forem minúsculas (doji) ou o sinal for confuso pela marca d'água, retorne AGUARDAR.
-            
-            RESPONDA APENAS EM JSON:
-            {
-              "operacao": "CALL" | "PUT" | "AGUARDAR",
-              "confianca": 0-100,
-              "motivo": "string",
-              "detalhes": ["confluência 1", "confluência 2", "confluência 3"]
-            }`;
+            RESPOSTA (JSON APENAS):
+            - "operacao": CALL, PUT ou AGUARDAR.
+            - "confianca": 0 a 100.
+            - "gatilho": Uma frase técnica matadora (ex: "Seta de sinal + Rejeição em suporte M1").`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash-latest', // Modelo mais robusto para multimodality e visão
+                model: 'gemini-2.5-flash',
                 contents: {
                     parts: [
                         { inlineData: { data: base64Data, mimeType: mimeType } },
@@ -116,158 +108,130 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         properties: {
                             operacao: { type: Type.STRING },
                             confianca: { type: Type.NUMBER },
-                            motivo: { type: Type.STRING },
-                            detalhes: { type: Type.ARRAY, items: { type: Type.STRING } }
+                            gatilho: { type: Type.STRING }
                         },
-                        required: ["operacao", "confianca", "motivo", "detalhes"]
+                        required: ["operacao", "confianca", "gatilho"]
                     }
                 }
             });
 
-            const textResponse = response.text;
-            if (textResponse) {
-                const parsed = JSON.parse(textResponse.trim());
-                setResult(parsed);
+            const text = response.text;
+            if (text) {
+                const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                setResult(JSON.parse(cleanJson));
             } else {
-                throw new Error("O modelo retornou uma resposta vazia. O gráfico pode estar bloqueado por filtros de segurança.");
+                throw new Error("Erro na IA.");
             }
         } catch (err: any) {
-            console.error("Sniper Scan Failure:", err);
-            setError("ERRO DE LEITURA: O GRÁFICO ESTÁ MUITO POLUÍDO OU O SISTEMA BLOQUEOU A IMAGEM. TENTE DAR ZOOM NAS ÚLTIMAS VELAS.");
+            console.error(err);
+            setError("Erro ao ler o gráfico. Certifique-se de capturar as últimas velas e indicadores.");
         } finally {
             setAnalyzing(false);
         }
     };
 
     return (
-        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6 h-[calc(100vh-100px)] flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center shrink-0">
-                <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                        <h2 className={`text-2xl font-black ${theme.text}`}>Analista IA</h2>
-                        <span className="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border border-emerald-500/30">Vision Core v4.0</span>
-                    </div>
-                    <p className={theme.textMuted}>Ignorando marcas Axiun. Foco em Geometria de Velas M1.</p>
+        <div className="p-4 md:p-6 max-w-6xl mx-auto h-full flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center mb-4">
+                <div>
+                    <h2 className={`text-2xl font-black ${theme.text} flex items-center gap-2`}>
+                        <CpuChipIcon className="w-6 h-6 text-green-500" />
+                        Analista IA
+                    </h2>
+                    <p className="text-[10px] uppercase font-bold opacity-40">Análise técnica instantânea M1</p>
                 </div>
-                <div className="hidden md:flex items-center gap-3 bg-slate-900/50 px-4 py-2 rounded-2xl border border-slate-800">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_#10b981]" />
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Motor Gemini 2.5 Ativo</span>
+                <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1 rounded-full">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-[9px] font-black uppercase text-slate-400">Vision 2.5 Active</span>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 overflow-hidden min-h-0">
-                {/* Lado Esquerdo: Área de Upload */}
-                <div className={`group relative rounded-3xl border-2 border-dashed ${image ? 'border-emerald-500/30' : 'border-slate-800'} ${theme.card} flex flex-col items-center justify-center overflow-hidden bg-slate-950/20 transition-all hover:border-emerald-500/50`}>
-                    {image ? (
-                        <div className="relative w-full h-full p-2 flex items-center justify-center">
-                            <img src={image} alt="Chart" className="max-h-full max-w-full object-contain rounded-2xl shadow-2xl transition-transform group-hover:scale-[1.01]" />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                                <button onClick={() => setImage(null)} className="p-4 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-2xl active:scale-90"><TrashIcon className="w-8 h-8" /></button>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 overflow-hidden min-h-0">
+                {/* Upload Section */}
+                <div className="lg:col-span-7 flex flex-col gap-3 h-full overflow-hidden">
+                    <div className={`flex-1 rounded-[2rem] border-2 border-dashed ${image ? 'border-green-500/20' : 'border-slate-800'} ${theme.card} flex items-center justify-center relative overflow-hidden bg-slate-950/40`}>
+                        {image ? (
+                            <div className="w-full h-full p-2 flex items-center justify-center relative">
+                                <img src={image} alt="Chart" className="max-h-full w-full object-contain rounded-2xl" />
+                                <button onClick={() => setImage(null)} className="absolute top-3 right-3 p-2 bg-red-600 text-white rounded-xl shadow-lg z-20 hover:scale-105 transition-all"><TrashIcon className="w-4 h-4" /></button>
                             </div>
-                        </div>
-                    ) : (
-                        <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center gap-6 p-8">
-                            <div className="w-24 h-24 bg-emerald-500/5 rounded-full flex items-center justify-center border border-emerald-500/10 group-hover:bg-emerald-500/10 transition-all">
-                                <PlusIcon className="w-12 h-12 text-emerald-500" />
-                            </div>
-                            <div className="text-center">
-                                <p className="font-black text-sm uppercase tracking-[0.2em]">Importar Gráfico M1</p>
-                                <p className="text-[10px] opacity-40 font-bold mt-2 uppercase">A IA fará a limpeza automática do fundo</p>
-                            </div>
-                            <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
-                        </label>
-                    )}
-                </div>
-
-                {/* Lado Direito: Resultados e Painel de Decisão */}
-                <div className="flex flex-col gap-4 overflow-hidden">
+                        ) : (
+                            <label className="cursor-pointer flex flex-col items-center gap-4 text-center group py-10 w-full h-full justify-center">
+                                <div className="w-16 h-16 bg-green-500/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-all border border-green-500/10">
+                                    <PlusIcon className="w-8 h-8 text-green-500" />
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="font-black text-sm uppercase tracking-widest text-white">COLAR (CTRL+V)</p>
+                                    <p className="text-[9px] opacity-30 font-bold uppercase tracking-tight">Print do gráfico de M1</p>
+                                </div>
+                                <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                            </label>
+                        )}
+                    </div>
                     <button 
                         onClick={analyzeChart} 
                         disabled={!image || analyzing}
-                        className={`w-full h-20 shrink-0 rounded-[2rem] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-4 text-xs shadow-2xl
-                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border border-slate-800' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 active:scale-95'}`}
+                        className={`h-14 rounded-2xl font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3 text-sm
+                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border border-slate-800' : 'bg-green-500 hover:bg-green-400 text-slate-950 shadow-xl shadow-green-500/20 active:scale-95'}`}
                     >
-                        {analyzing ? (
-                            <>
-                                <ArrowPathIcon className="w-6 h-6 animate-spin" />
-                                <span className="animate-pulse">Analisando Geometria...</span>
-                            </>
-                        ) : (
-                            <>
-                                <CpuChipIcon className="w-7 h-7" />
-                                Analisar Próxima Vela
-                            </>
-                        )}
+                        {analyzing ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CpuChipIcon className="w-5 h-5" />}
+                        {analyzing ? 'Analisando...' : 'Analisar Vela'}
                     </button>
+                </div>
 
-                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
-                        {error && (
-                            <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-start gap-4 text-red-500 animate-in fade-in zoom-in">
-                                <InformationCircleIcon className="w-8 h-8 shrink-0 mt-1" />
-                                <div className="space-y-1">
-                                    <p className="text-xs font-black uppercase">Falha na Extração</p>
-                                    <p className="text-[10px] font-bold opacity-80 leading-relaxed uppercase">Não foi possível isolar os sinais. Dica: Use zoom para que as velas preencham a tela.</p>
+                {/* Result Section */}
+                <div className="lg:col-span-5 h-full overflow-hidden">
+                    {result ? (
+                        <div className={`p-6 rounded-[2rem] border ${theme.card} h-full flex flex-col justify-between animate-in fade-in slide-in-from-right-4 duration-500 shadow-2xl relative overflow-hidden bg-slate-900/60`}>
+                            <div className={`absolute -top-10 -right-10 w-32 h-32 blur-[80px] rounded-full opacity-20 ${result.operacao === 'CALL' ? 'bg-green-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
+                            
+                            <div className="space-y-6 relative z-10">
+                                <div>
+                                    <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">Decisão Sugerida</p>
+                                    <h3 className={`text-6xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-green-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
+                                        {result.operacao}
+                                    </h3>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-end">
+                                        <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Confiança do Sinal</p>
+                                        <p className={`text-2xl font-black ${result.confianca > 75 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
+                                    </div>
+                                    <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                                        <div className={`h-full transition-all duration-1000 ${result.confianca > 75 ? 'bg-blue-400' : 'bg-yellow-500'}`} style={{ width: `${result.confianca}%` }} />
+                                    </div>
+                                </div>
+
+                                <div className="p-4 bg-slate-950/60 rounded-2xl border border-slate-800/50">
+                                    <p className="text-[9px] font-black uppercase opacity-40 mb-1">Gatilho Detectado</p>
+                                    <p className="text-xs font-bold text-white italic leading-relaxed">"{result.gatilho}"</p>
                                 </div>
                             </div>
-                        )}
 
-                        {result ? (
-                            <div className={`p-8 rounded-[2.5rem] border ${theme.card} space-y-8 animate-in fade-in slide-in-from-right-8 duration-700 shadow-2xl relative overflow-hidden bg-gradient-to-br ${result.operacao === 'CALL' ? 'from-emerald-500/5 to-transparent' : result.operacao === 'PUT' ? 'from-red-500/5 to-transparent' : 'from-blue-500/5 to-transparent'}`}>
-                                <div className={`absolute -top-12 -right-12 w-48 h-48 blur-[80px] opacity-20 rounded-full ${result.operacao === 'CALL' ? 'bg-emerald-500' : result.operacao === 'PUT' ? 'bg-red-500' : 'bg-blue-500'}`} />
-                                
-                                <div className="flex justify-between items-end relative z-10">
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Sinal Previsto</p>
-                                        <h3 className={`text-7xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-emerald-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
-                                            {result.operacao}
-                                        </h3>
-                                    </div>
-                                    <div className="text-right space-y-1">
-                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Confiança</p>
-                                        <p className={`text-4xl font-black ${result.confianca > 85 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
-                                    </div>
-                                </div>
-
-                                <div className="p-5 bg-slate-950/60 rounded-3xl border border-white/5 backdrop-blur-xl">
-                                    <div className="flex items-center gap-2 mb-2 opacity-50">
-                                        <div className="w-1 h-3 bg-emerald-500 rounded-full" />
-                                        <p className="text-[9px] font-black uppercase tracking-widest">Por que entrar?</p>
-                                    </div>
-                                    <p className="text-sm font-bold leading-relaxed italic text-white/90">"{result.motivo}"</p>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Análise do Print (Axiun)</p>
-                                    <div className="grid grid-cols-1 gap-2">
-                                        {result.detalhes?.map((detail: string, i: number) => (
-                                            <div key={i} className="flex items-center gap-4 text-[11px] font-bold text-slate-300 bg-white/5 p-3 rounded-2xl border border-white/5">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981]" />
-                                                {detail}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                
-                                <div className="pt-6 border-t border-white/5 flex justify-between items-center opacity-40">
-                                     <p className="text-[9px] font-black uppercase tracking-tighter">Filtro de Ruído v4.0 Ativado</p>
-                                     <p className="text-[9px] font-black uppercase tracking-tighter">Expiração: 1m</p>
-                                </div>
+                            <div className="pt-4 flex items-center gap-2 opacity-20 relative z-10 border-t border-slate-800/50">
+                                <InformationCircleIcon className="w-3 h-3" />
+                                <p className="text-[7px] uppercase font-black tracking-widest leading-none">Válido apenas para a próxima vela de M1.</p>
                             </div>
-                        ) : !analyzing && !error && (
-                            <div className="h-full rounded-[2.5rem] border border-slate-800/30 flex flex-col items-center justify-center opacity-40 text-center space-y-6 py-16 bg-slate-900/5">
-                                <div className="relative">
-                                    <LayoutGridIcon className="w-20 h-20 text-slate-700" />
-                                    <div className="absolute inset-0 bg-emerald-500/10 blur-3xl rounded-full" />
-                                </div>
-                                <div className="max-w-[240px] space-y-2">
-                                    <p className="text-xs font-black uppercase tracking-[0.2em] leading-tight">Painel de Sinais IA</p>
-                                    <p className="text-[9px] font-bold opacity-60 uppercase leading-relaxed">Cole um print do seu gráfico Axiun. A IA irá ignorar marcas d'água e focar nos candles e setas de sinal.</p>
-                                </div>
+                        </div>
+                    ) : (
+                        <div className={`p-10 rounded-[2rem] border border-slate-800/30 bg-slate-900/10 h-full flex flex-col items-center justify-center text-center space-y-4 opacity-40 grayscale`}>
+                            <PieChartIcon className="w-12 h-12 text-slate-700" />
+                            <div className="space-y-1">
+                                <h4 className="text-sm font-black uppercase tracking-widest">Aguardando Print</h4>
+                                <p className="text-[9px] font-bold max-w-[180px] uppercase">A leitura técnica de confluência aparecerá aqui.</p>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
             </div>
+
+            {error && (
+                <div className="mt-4 p-3 bg-red-600/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-500 animate-in zoom-in duration-300">
+                    <InformationCircleIcon className="w-5 h-5 shrink-0" />
+                    <p className="text-[10px] font-black uppercase tracking-tight">{error}</p>
+                </div>
+            )}
         </div>
     );
 };
@@ -276,7 +240,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
 const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, startBalanceForSelectedDay, isDarkMode, dailyGoalTarget }) => {
     const theme = useThemeClasses(isDarkMode);
     const [quantity, setQuantity] = useState('1');
-    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
     
     const handleQuickAdd = (type: 'win' | 'loss') => {
          const entryValue = parseFloat(customEntryValue) || 0;
@@ -294,8 +258,8 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     
     const dailyGoalPercent = dailyGoalTarget > 0 ? (currentProfit / dailyGoalTarget) * 100 : 0;
 
-    const stopWinTrades = activeBrokerage.stopGainTrades || 0;
-    const stopLossTrades = activeBrokerage.stopLossTrades || 0;
+    const stopWinTrades = activeBrokerage?.stopGainTrades || 0;
+    const stopLossTrades = activeBrokerage?.stopLossTrades || 0;
     const stopWinReached = stopWinTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.winCount >= stopWinTrades;
     const stopLossReached = stopLossTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.lossCount >= stopLossTrades;
 
@@ -314,7 +278,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     ];
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto h-full overflow-y-auto custom-scrollbar">
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div><h2 className={`text-2xl font-black ${theme.text}`}>Dashboard</h2><p className={theme.textMuted}>Gestão ativa de operações</p></div>
                 <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
@@ -391,10 +355,10 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     );
 };
 
-// --- Compound Interest Panel ---
+// --- Outros Paineis ---
 const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
     const theme = useThemeClasses(isDarkMode);
-    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
 
     const tableData = useMemo(() => {
         const rows = [];
@@ -410,7 +374,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             startDate.setHours(12,0,0,0);
         }
 
-        let runningBalance = activeBrokerage.initialBalance;
+        let runningBalance = activeBrokerage?.initialBalance || 0;
 
         for (let i = 0; i < 30; i++) {
             const currentDate = new Date(startDate);
@@ -434,7 +398,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                 operationValue = initial * 0.10;
                 win = 3;
                 loss = 0;
-                profit = (operationValue * (activeBrokerage.payoutPercentage / 100)) * 3;
+                profit = (operationValue * ((activeBrokerage?.payoutPercentage || 80) / 100)) * 3;
                 final = initial + profit;
             }
 
@@ -453,10 +417,10 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             runningBalance = final;
         }
         return rows;
-    }, [records, activeBrokerage.initialBalance, activeBrokerage.payoutPercentage]);
+    }, [records, activeBrokerage]);
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto h-full overflow-y-auto custom-scrollbar">
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div>
                 <h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros (30 Dias)</h2>
                 <p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Dias em baixa opacidade são projeções automáticas de 3x0.</p>
@@ -497,24 +461,23 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
     );
 };
 
-// --- Report Panel ---
 const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, deleteTrade }) => {
     const theme = useThemeClasses(isDarkMode);
-    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
     const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
     const reportData = useMemo(() => {
         const filteredDays = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.id.startsWith(selectedMonth));
         const allTrades = filteredDays.flatMap(day => day.trades.map(t => ({ ...t, date: day.date, dayId: day.id }))).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         const dayRecordsBefore = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.id < `${selectedMonth}-01`).sort((a, b) => b.id.localeCompare(a.id));
-        const initialMonthBalance = dayRecordsBefore.length > 0 ? dayRecordsBefore[0].endBalanceUSD : activeBrokerage.initialBalance;
+        const initialMonthBalance = dayRecordsBefore.length > 0 ? dayRecordsBefore[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
         const finalMonthBalance = filteredDays.length > 0 ? filteredDays[filteredDays.length - 1].endBalanceUSD : initialMonthBalance;
         const totalProfit = filteredDays.reduce((acc, r) => acc + r.netProfitUSD, 0);
         return { totalProfit, finalMonthBalance, allTrades };
-    }, [records, selectedMonth, activeBrokerage.initialBalance]);
+    }, [records, selectedMonth, activeBrokerage]);
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto h-full overflow-y-auto custom-scrollbar">
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div><h2 className={`text-2xl font-black ${theme.text}`}>Relatório</h2><p className={theme.textMuted}>Histórico detalhado por mês.</p></div>
                 <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className={`border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
@@ -556,10 +519,9 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
     );
 };
 
-// --- Soros Calculator Panel ---
 const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
     const [initialEntry, setInitialEntry] = useState('10');
-    const [payout, setPayout] = useState(activeBrokerage?.payoutPercentage || '80');
+    const [payout, setPayout] = useState(String(activeBrokerage?.payoutPercentage || '80'));
     const [levels, setLevels] = useState('4');
 
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
@@ -581,7 +543,7 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
     }, [initialEntry, payout, levels]);
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto h-full overflow-y-auto custom-scrollbar">
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div>
                 <h2 className="text-2xl font-black">Calculadora de Soros</h2>
                 <p className={theme.textMuted}>Planeje seus ciclos de reinvestimento.</p>
@@ -618,7 +580,6 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
     );
 };
 
-// --- Goals Panel ---
 const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrokerage }) => {
     const [name, setName] = useState('');
     const [target, setTarget] = useState('');
@@ -644,7 +605,7 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
     };
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto h-full overflow-y-auto custom-scrollbar">
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className="text-2xl font-black">Metas Financeiras</h2>
@@ -693,14 +654,13 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
     );
 };
 
-// --- Settings Panel ---
 const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset }) => {
     const updateBrokerage = (field: keyof Brokerage, value: any) => {
         setBrokerages((prev: Brokerage[]) => prev.map((b, i) => i === 0 ? { ...b, [field]: value } : b));
     };
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto h-full overflow-y-auto custom-scrollbar">
+        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
             <div>
                 <h2 className="text-2xl font-black">Configurações</h2>
                 <p className={theme.textMuted}>Ajuste os parâmetros da sua gestão.</p>
@@ -866,12 +826,12 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             const dailyRecordForSelectedDay = prev.find((r): r is DailyRecord => r.id === dateKey && r.recordType === 'day');
             const currentBalance = dailyRecordForSelectedDay?.endBalanceUSD ?? startBal;
 
-            const suggestedEntryValue = brokerages[0].entryMode === 'fixed' 
-                ? brokerages[0].entryValue 
-                : currentBalance * (brokerages[0].entryValue / 100);
+            const suggestedEntryValue = brokerages[0]?.entryMode === 'fixed' 
+                ? (brokerages[0]?.entryValue || 1) 
+                : currentBalance * ((brokerages[0]?.entryValue || 10) / 100);
 
             const entryValue = (customEntry && customEntry > 0) ? customEntry : suggestedEntryValue;
-            const payout = (customPayout && customPayout > 0) ? customPayout : brokerages[0].payoutPercentage;
+            const payout = (customPayout && customPayout > 0) ? customPayout : (brokerages[0]?.payoutPercentage || 80);
             
             const newTrades: Trade[] = [];
             for(let i=0; i<win; i++) newTrades.push({ id: crypto.randomUUID(), result: 'win', entryValue, payoutPercentage: payout, timestamp: Date.now() });
@@ -883,9 +843,9 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 const rec = updatedRecords[existingIdx] as DailyRecord;
                 updatedRecords[existingIdx] = { ...rec, trades: [...rec.trades, ...newTrades] };
             } else {
-                updatedRecords.push({ recordType: 'day', brokerageId: brokerages[0].id, id: dateKey, date: dateKey, trades: newTrades, startBalanceUSD: 0, winCount: 0, lossCount: 0, netProfitUSD: 0, endBalanceUSD: 0 });
+                updatedRecords.push({ recordType: 'day', brokerageId: brokerages[0]?.id || crypto.randomUUID(), id: dateKey, date: dateKey, trades: newTrades, startBalanceUSD: 0, winCount: 0, lossCount: 0, netProfitUSD: 0, endBalanceUSD: 0 });
             }
-            const recalibrated = recalibrateHistory(updatedRecords, brokerages[0].initialBalance);
+            const recalibrated = recalibrateHistory(updatedRecords, brokerages[0]?.initialBalance || 0);
             debouncedSave();
             return recalibrated;
         });
@@ -894,7 +854,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const deleteTrade = (id: string, dateId: string) => {
         setRecords(prev => {
             const updated = prev.map(r => (r.id === dateId && r.recordType === 'day') ? { ...r, trades: r.trades.filter(t => t.id !== id) } : r);
-            const recalibrated = recalibrateHistory(updated, brokerages[0].initialBalance);
+            const recalibrated = recalibrateHistory(updated, brokerages[0]?.initialBalance || 0);
             debouncedSave();
             return recalibrated;
         });
@@ -912,7 +872,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.id.localeCompare(a.id));
     const startBalDashboard = sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
 
-    // Dynamic Daily Goal derived from Monthly Goal
     const monthlyGoal = goals.find(g => g.type === 'monthly');
     const activeDailyGoal = monthlyGoal ? (monthlyGoal.targetAmount / 22) : (activeBrokerage?.initialBalance * 0.03 || 1);
 
@@ -940,14 +899,14 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     <div className="flex items-center gap-4"><button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-6 h-6" /></button><SavingStatusIndicator status={savingStatus} /></div>
                     <div className="flex items-center gap-3"><button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button><div className="w-10 h-10 rounded-2xl bg-green-500 flex items-center justify-center text-slate-950 font-black text-xs">{user.username.slice(0, 2).toUpperCase()}</div></div>
                 </header>
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                    {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeDailyGoal} />}
-                    {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
-                    {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
+                <div className="flex-1 overflow-hidden">
+                    {activeTab === 'dashboard' && <div className="h-full overflow-y-auto custom-scrollbar"><DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeDailyGoal} /></div>}
+                    {activeTab === 'compound' && <div className="h-full overflow-y-auto custom-scrollbar"><CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} /></div>}
+                    {activeTab === 'report' && <div className="h-full overflow-y-auto custom-scrollbar"><ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} /></div>}
                     {activeTab === 'ai' && <AIAnalyzerPanel theme={theme} isDarkMode={isDarkMode} />}
-                    {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
-                    {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
-                    {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} />}
+                    {activeTab === 'soros' && <div className="h-full overflow-y-auto custom-scrollbar"><SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} /></div>}
+                    {activeTab === 'goals' && <div className="h-full overflow-y-auto custom-scrollbar"><GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} /></div>}
+                    {activeTab === 'settings' && <div className="h-full overflow-y-auto custom-scrollbar"><SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} /></div>}
                 </div>
             </main>
         </div>
