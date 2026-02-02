@@ -126,14 +126,18 @@ const AIAnalysisPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
 const CompoundInterestPanel: React.FC<{ isDarkMode: boolean, activeBrokerage: Brokerage, records: AppRecord[] }> = ({ isDarkMode, activeBrokerage, records }) => {
     const theme = useThemeClasses(isDarkMode);
     const initial = activeBrokerage.initialBalance || 0;
+    const rate = activeBrokerage.dailyInterestRate || 3;
     
     const tableData = useMemo(() => {
         let curr = initial;
+        // Ordenamos os registros por data para garantir o cálculo correto
+        const dailyRecords = records.filter(r => r.recordType === 'day') as DailyRecord[];
+        
         return Array.from({ length: 30 }, (_, i) => {
             const dateStr = new Date();
             dateStr.setDate(dateStr.getDate() + i);
             const key = dateStr.toISOString().split('T')[0];
-            const actual = records.find(r => r.id === key && r.recordType === 'day') as DailyRecord | undefined;
+            const actual = dailyRecords.find(r => r.id === key);
             
             const start = curr;
             let profit = 0;
@@ -144,21 +148,21 @@ const CompoundInterestPanel: React.FC<{ isDarkMode: boolean, activeBrokerage: Br
                 isActual = true;
                 curr += profit;
             } else {
-                // Simulação: Ganho de 3% (ex: 3 wins de 1% cada)
-                profit = curr * 0.03;
+                // Projeção baseada na taxa configurada (default 3%)
+                profit = curr * (rate / 100);
                 curr += profit;
             }
 
             return { day: i + 1, key, start, profit, end: curr, isActual };
         });
-    }, [initial, records]);
+    }, [initial, records, rate]);
 
     return (
         <div className="p-8 max-w-5xl mx-auto space-y-6">
-            <h2 className="text-2xl font-black uppercase tracking-tighter">Planilha de Juros (Meta 3% ao Dia)</h2>
+            <h2 className="text-2xl font-black uppercase tracking-tighter">Planilha de Juros (Meta {rate}% ao Dia)</h2>
             <div className={`rounded-[2rem] border ${theme.card} overflow-hidden`}>
                 <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-900 font-black text-slate-500 uppercase tracking-widest"><tr className="border-b border-slate-800"><th className="p-5">DIA</th><th className="p-5">BANCA</th><th className="p-5">LUCRO (3%)</th><th className="p-5">FINAL</th><th className="p-5">TIPO</th></tr></thead>
+                    <thead className="bg-slate-900 font-black text-slate-500 uppercase tracking-widest"><tr className="border-b border-slate-800"><th className="p-5">DIA</th><th className="p-5">BANCA</th><th className="p-5">LUCRO ({rate}%)</th><th className="p-5">FINAL</th><th className="p-5">TIPO</th></tr></thead>
                     <tbody className="divide-y divide-slate-800">
                         {tableData.map(d => (
                             <tr key={d.day} className={`transition-colors ${!d.isActual ? 'opacity-30 grayscale' : 'bg-emerald-500/5'}`}>
@@ -171,44 +175,6 @@ const CompoundInterestPanel: React.FC<{ isDarkMode: boolean, activeBrokerage: Br
                         ))}
                     </tbody>
                 </table>
-            </div>
-        </div>
-    );
-};
-
-// --- Soros Calculator ---
-const SorosPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
-    const theme = useThemeClasses(isDarkMode);
-    const [entry, setEntry] = useState('10');
-    const [payout, setPayout] = useState('80');
-
-    const levels = useMemo(() => {
-        let curr = parseFloat(entry) || 0;
-        const p = (parseFloat(payout) || 0) / 100;
-        return Array.from({ length: 4 }, (_, i) => {
-            const profit = curr * p;
-            const next = curr + profit;
-            const res = { lv: i + 1, entry: curr, profit, total: next };
-            curr = next;
-            return res;
-        });
-    }, [entry, payout]);
-
-    return (
-        <div className="p-8 max-w-4xl mx-auto space-y-6">
-            <h2 className="text-2xl font-black uppercase tracking-tighter">Calculadora de Soros</h2>
-            <div className="flex gap-4 p-6 rounded-3xl bg-slate-900 border border-slate-800">
-                <div className="flex-1 space-y-1"><label className="text-[10px] font-black uppercase text-slate-500">Capital</label><input type="number" value={entry} onChange={e => setEntry(e.target.value)} className={`w-full h-12 px-4 rounded-xl border ${theme.input}`} /></div>
-                <div className="flex-1 space-y-1"><label className="text-[10px] font-black uppercase text-slate-500">Payout %</label><input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full h-12 px-4 rounded-xl border ${theme.input}`} /></div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {levels.map(l => (
-                    <div key={l.lv} className={`p-6 rounded-[2rem] border ${theme.card} relative overflow-hidden`}>
-                        <p className="text-blue-500 font-black text-[10px] uppercase tracking-widest mb-3">NÍVEL {l.lv}</p>
-                        <p className="text-lg font-bold">Entrada: R$ {formatMoney(l.entry)}</p>
-                        <p className="text-xl font-black text-green-500">Retorno: R$ {formatMoney(l.total)}</p>
-                    </div>
-                ))}
             </div>
         </div>
     );
@@ -276,6 +242,7 @@ const SettingsPanel: React.FC<any> = ({ brokerage, setBrokerages, isDarkMode }) 
     const [entryValue, setEntryValue] = useState(String(brokerage.entryValue || ''));
     const [sg, setSg] = useState(String(brokerage.stopGainTrades || ''));
     const [sl, setSl] = useState(String(brokerage.stopLossTrades || ''));
+    const [dir, setDir] = useState(String(brokerage.dailyInterestRate || '3'));
 
     const handleSave = () => {
         setBrokerages((prev: any) => prev.map((b: any) => b.id === brokerage.id ? { 
@@ -285,28 +252,33 @@ const SettingsPanel: React.FC<any> = ({ brokerage, setBrokerages, isDarkMode }) 
             entryMode,
             entryValue: parseFloat(entryValue) || 0,
             stopGainTrades: parseInt(sg) || 0,
-            stopLossTrades: parseInt(sl) || 0
+            stopLossTrades: parseInt(sl) || 0,
+            dailyInterestRate: parseFloat(dir) || 3
         } : b));
-        alert("Gestão atualizada com sucesso!");
+        alert("Gerenciamento Sniper atualizado com sucesso!");
     };
 
     return (
-        <div className="p-8 max-w-2xl mx-auto space-y-6">
-            <h2 className="text-2xl font-black uppercase">Gerenciamento de Banca</h2>
+        <div className="p-8 max-w-3xl mx-auto space-y-6">
+            <h2 className="text-2xl font-black uppercase italic text-emerald-500">Configurações de Gerenciamento</h2>
             <div className={`p-10 rounded-[3rem] border ${theme.card} space-y-8`}>
-                <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500">Nome da Banca</label><input type="text" value={name} onChange={e => setName(e.target.value)} className={`w-full h-12 px-4 rounded-xl border ${theme.input} font-black`} /></div>
-                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500">Capital Base (R$)</label><input type="number" value={bal} onChange={e => setBal(e.target.value)} className={`w-full h-12 px-4 rounded-xl border ${theme.input} font-black`} /></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500 ml-1">Identificação da Banca</label><input type="text" value={name} onChange={e => setName(e.target.value)} className={`w-full h-12 px-4 rounded-xl border ${theme.input} font-black`} /></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500 ml-1">Capital Inicial (R$)</label><input type="number" value={bal} onChange={e => setBal(e.target.value)} className={`w-full h-12 px-4 rounded-xl border ${theme.input} font-black`} /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500">Modo de Entrada</label><select value={entryMode} onChange={e => setEntryMode(e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border ${theme.input} font-black`}><option value="fixed">Valor Fixo</option><option value="percentage">Porcentagem (%)</option></select></div>
-                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500">Valor / %</label><input type="number" value={entryValue} onChange={e => setEntryValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border ${theme.input} font-black`} /></div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500 ml-1">Modo de Entrada</label><select value={entryMode} onChange={e => setEntryMode(e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border ${theme.input} font-black`}><option value="fixed">Valor Fixo</option><option value="percentage">Porcentagem (%)</option></select></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500 ml-1">Valor / %</label><input type="number" value={entryValue} onChange={e => setEntryValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border ${theme.input} font-black`} /></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500 ml-1">Projeção Diária (%)</label><input type="number" value={dir} onChange={e => setDir(e.target.value)} className={`w-full h-12 px-4 rounded-xl border ${theme.input} font-black`} /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500">Stop Gain (Wins)</label><input type="number" value={sg} onChange={e => setSg(e.target.value)} className={`w-full h-12 px-4 rounded-xl border ${theme.input} font-black`} /></div>
-                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500">Stop Loss (Losses)</label><input type="number" value={sl} onChange={e => setSl(e.target.value)} className={`w-full h-12 px-4 rounded-xl border ${theme.input} font-black`} /></div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500 ml-1">Stop Win (Quantidade de Vitórias)</label><input type="number" value={sg} onChange={e => setSg(e.target.value)} className={`w-full h-12 px-4 rounded-xl border ${theme.input} font-black`} /></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500 ml-1">Stop Loss (Quantidade de Derrotas)</label><input type="number" value={sl} onChange={e => setSl(e.target.value)} className={`w-full h-12 px-4 rounded-xl border ${theme.input} font-black`} /></div>
                 </div>
-                <button onClick={handleSave} className="w-full h-16 bg-emerald-500 text-slate-950 font-black rounded-2xl uppercase tracking-widest shadow-xl shadow-emerald-500/10 hover:scale-[1.01] transition-transform">Salvar Gerenciamento</button>
+
+                <button onClick={handleSave} className="w-full h-16 bg-emerald-500 text-slate-950 font-black rounded-2xl uppercase tracking-widest shadow-xl shadow-emerald-500/10 hover:scale-[1.01] transition-transform">Salvar Perfil Operacional</button>
             </div>
         </div>
     );
@@ -323,9 +295,11 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const [isLoading, setIsLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState(new Date());
 
-    const activeBrokerage = useMemo(() => brokerages[0] || { id: '1', name: 'Gestão Sniper', initialBalance: 10, currency: 'USD', payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, entryMode: 'percentage', entryValue: 10 }, [brokerages]);
+    const activeBrokerage = useMemo(() => brokerages[0] || { id: '1', name: 'Gestão Sniper', initialBalance: 10, currency: 'USD', payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, entryMode: 'percentage', entryValue: 10, dailyInterestRate: 3 }, [brokerages]);
 
     const dailyRecordForSelectedDay = records.find(r => r.id === selectedDate.toISOString().split('T')[0]) as DailyRecord | undefined;
+    
+    // Cálculo da entrada sugerida com base na banca atual (balance no início do dia selecionado)
     const currentBalance = dailyRecordForSelectedDay?.startBalanceUSD ?? activeBrokerage.initialBalance;
     const suggestedEntry = activeBrokerage.entryMode === 'fixed' ? activeBrokerage.entryValue : currentBalance * (activeBrokerage.entryValue / 100);
     
@@ -346,7 +320,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             const response = await fetch(`/api/get-data?userId=${user.id}&_=${Date.now()}`);
             if (response.ok) {
                 const data = await response.json();
-                setBrokerages(data.brokerages?.length ? data.brokerages : [{ id: crypto.randomUUID(), name: 'Gestão Sniper', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' }]);
+                setBrokerages(data.brokerages?.length ? data.brokerages : [{ id: crypto.randomUUID(), name: 'Gestão Sniper', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD', dailyInterestRate: 3 }]);
                 setRecords(data.records || []);
             }
         } catch (e) { console.error(e); } finally { setIsLoading(false); }
@@ -443,9 +417,9 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {activeTab === 'report' && (
                         <div className="p-8 max-w-5xl mx-auto space-y-4">
                             <h2 className="text-2xl font-black uppercase">Relatório Histórico Sniper</h2>
-                            {records.flatMap(r => (r as DailyRecord).trades.map(t=>({...t, date: r.id}))).sort((a,b)=>b.timestamp-a.timestamp).map(t=>(
+                            {records.flatMap(r => (r as DailyRecord).trades.map(t=>({...t, date: r.id}))).sort((a,b)=>b.timestamp!-a.timestamp!).map(t=>(
                                 <div key={t.id} className={`p-5 rounded-2xl border ${theme.card} flex justify-between items-center`}>
-                                    <div className="flex items-center gap-4"><div className={`w-1.5 h-12 rounded-full ${t.result === 'win' ? 'bg-green-500 shadow-[0_0_10px_green]' : 'bg-red-500'}`} /><div><p className="text-[10px] font-black text-slate-500 uppercase">{t.date} às {new Date(t.timestamp).toLocaleTimeString()}</p><p className="font-bold text-lg">{t.result === 'win' ? 'Operação de Sucesso' : 'Loss Calculado'}</p></div></div>
+                                    <div className="flex items-center gap-4"><div className={`w-1.5 h-12 rounded-full ${t.result === 'win' ? 'bg-green-500 shadow-[0_0_10px_green]' : 'bg-red-500'}`} /><div><p className="text-[10px] font-black text-slate-500 uppercase">{t.date} às {new Date(t.timestamp!).toLocaleTimeString()}</p><p className="font-bold text-lg">{t.result === 'win' ? 'Operação de Sucesso' : 'Loss Calculado'}</p></div></div>
                                     <p className={`text-xl font-black ${t.result === 'win' ? 'text-green-500' : 'text-red-500'}`}>R$ {formatMoney(t.result === 'win' ? t.entryValue * (t.payoutPercentage/100) : t.entryValue)}</p>
                                 </div>
                             ))}
@@ -455,12 +429,12 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {activeTab === 'soros' && <SorosPanel isDarkMode={isDarkMode} />}
                     {activeTab === 'goals' && (
                         <div className="p-8 max-w-5xl mx-auto space-y-8">
-                            <h2 className="text-2xl font-black uppercase">Objetivos e Metas</h2>
-                            <div className={`p-10 rounded-[3rem] border ${theme.card} flex flex-col items-center justify-center text-center space-y-4`}>
+                            <h2 className="text-2xl font-black uppercase text-emerald-500 italic tracking-widest">Objetivos Operacionais</h2>
+                            <div className={`p-10 rounded-[3rem] border ${theme.card} flex flex-col items-center justify-center text-center space-y-4 shadow-2xl`}>
                                 <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20"><TargetIcon className="w-10 h-10 text-emerald-500" /></div>
-                                <h3 className="text-3xl font-black">Meta Mensal</h3>
-                                <p className="text-slate-500 font-bold">Você já acumulou R$ {formatMoney(records.reduce((acc, r) => acc + (r.recordType === 'day' ? r.netProfitUSD : 0), 0))} este mês.</p>
-                                <div className="w-full max-w-md h-4 bg-slate-900 rounded-full overflow-hidden border border-slate-800"><div className="h-full bg-emerald-500" style={{width: '25%'}} /></div>
+                                <h3 className="text-3xl font-black">Performance Mensal</h3>
+                                <p className="text-slate-500 font-bold">Volume total acumulado: R$ {formatMoney(records.reduce((acc, r) => acc + (r.recordType === 'day' ? r.netProfitUSD : 0), 0))}</p>
+                                <div className="w-full max-w-md h-4 bg-slate-900 rounded-full overflow-hidden border border-slate-800 shadow-inner"><div className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400" style={{width: '25%'}} /></div>
                             </div>
                         </div>
                     )}
@@ -476,6 +450,51 @@ const SavingStatusIndicator: React.FC<{status: string}> = ({status}) => {
     if (status === 'saved') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-emerald-500"><CheckIcon className="w-3.5 h-3.5" /> Nuvem Atualizada</div>;
     if (status === 'error') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-red-500"><InformationCircleIcon className="w-3.5 h-3.5" /> Erro ao Sincronizar</div>;
     return null;
+};
+
+// --- Soros Panel Local ---
+const SorosPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
+    const theme = useThemeClasses(isDarkMode);
+    const [entry, setEntry] = useState('10');
+    const [payout, setPayout] = useState('80');
+
+    const levels = useMemo(() => {
+        let curr = parseFloat(entry) || 0;
+        const p = (parseFloat(payout) || 0) / 100;
+        return Array.from({ length: 4 }, (_, i) => {
+            const profit = curr * p;
+            const next = curr + profit;
+            const res = { lv: i + 1, entry: curr, profit, total: next };
+            curr = next;
+            return res;
+        });
+    }, [entry, payout]);
+
+    return (
+        <div className="p-8 max-w-4xl mx-auto space-y-6">
+            <h2 className="text-2xl font-black uppercase tracking-tighter text-emerald-500 italic">Estratégia de Soros</h2>
+            <div className="flex gap-4 p-6 rounded-3xl bg-slate-900 border border-slate-800">
+                <div className="flex-1 space-y-1"><label className="text-[10px] font-black uppercase text-slate-500">Capital Inicial</label><input type="number" value={entry} onChange={e => setEntry(e.target.value)} className={`w-full h-12 px-4 rounded-xl border ${theme.input} font-black`} /></div>
+                <div className="flex-1 space-y-1"><label className="text-[10px] font-black uppercase text-slate-500">Payout Médio %</label><input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full h-12 px-4 rounded-xl border ${theme.input} font-black`} /></div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {levels.map(l => (
+                    <div key={l.lv} className={`p-8 rounded-[2.5rem] border ${theme.card} relative overflow-hidden group hover:border-emerald-500 transition-colors`}>
+                        <p className="text-emerald-500 font-black text-[10px] uppercase tracking-[0.3em] mb-4">NÍVEL {l.lv}</p>
+                        <div className="space-y-1">
+                            <p className="text-xs font-bold text-slate-500 uppercase">Entrada Sugerida</p>
+                            <p className="text-2xl font-black text-white">R$ {formatMoney(l.entry)}</p>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-slate-800">
+                             <p className="text-xs font-bold text-green-500 uppercase">Retorno Estimado</p>
+                             <p className="text-xl font-black text-green-500">R$ {formatMoney(l.total)}</p>
+                        </div>
+                        <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity"><CalculatorIcon className="w-20 h-20" /></div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 };
 
 export default App;
