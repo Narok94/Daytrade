@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
+import { GoogleGenAI, Type } from "@google/genai";
 import { 
     SettingsIcon, 
     LogoutIcon, LayoutGridIcon, PieChartIcon, 
@@ -9,7 +10,7 @@ import {
     CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ArrowPathIcon, 
     InformationCircleIcon, TrophyIcon, 
     ChartBarIcon, CheckIcon, DocumentTextIcon,
-    PlusIcon, TrashIcon
+    PlusIcon, TrashIcon, CpuChipIcon, TrendingDownIcon
 } from './components/icons';
 
 // --- Helper Functions ---
@@ -28,6 +29,233 @@ const useThemeClasses = (isDarkMode: boolean) => {
         navActive: isDarkMode ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-600',
         navInactive: isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100',
     }), [isDarkMode]);
+};
+
+// --- AI Analysis Panel ---
+interface AIAnalysisResult {
+    recommendation: 'COMPRA' | 'VENDA' | 'AGUARDAR';
+    entry_time: string;
+    timeframe: string;
+    confidence: number;
+    reasoning: string;
+    risks: string;
+}
+
+const AIAnalysisPanel: React.FC<any> = ({ isDarkMode }) => {
+    const theme = useThemeClasses(isDarkMode);
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setSelectedImage(reader.result as string);
+                setAnalysisResult(null);
+                setError(null);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const analyzeChart = async () => {
+        if (!selectedImage) return;
+
+        setIsAnalyzing(true);
+        setError(null);
+
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const base64Data = selectedImage.split(',')[1];
+            
+            const response = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: [
+                    {
+                        parts: [
+                            {
+                                inlineData: {
+                                    mimeType: 'image/jpeg',
+                                    data: base64Data
+                                }
+                            },
+                            {
+                                text: `Você é um analista sênior de Opções Binárias especialista em Price Action, Probabilidade e Análise Técnica. 
+                                Analise o print do gráfico enviado.
+                                Aplique estratégias de: Suporte e Resistência, Pullback, Médias Móveis, Padrões de Velas (Price Action), Fibonacci e Scalping.
+                                Sua resposta deve ser exclusivamente em JSON seguindo este esquema:
+                                {
+                                  "recommendation": "COMPRA" | "VENDA" | "AGUARDAR",
+                                  "entry_time": "Horário exato ou 'Próxima Vela'",
+                                  "timeframe": "Ex: M1, M5",
+                                  "confidence": número de 0 a 100,
+                                  "reasoning": "explicação técnica curta",
+                                  "risks": "riscos identificados"
+                                }
+                                Linguagem: Português.`
+                            }
+                        ]
+                    }
+                ],
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            recommendation: { type: Type.STRING },
+                            entry_time: { type: Type.STRING },
+                            timeframe: { type: Type.STRING },
+                            confidence: { type: Type.NUMBER },
+                            reasoning: { type: Type.STRING },
+                            risks: { type: Type.STRING }
+                        },
+                        required: ["recommendation", "entry_time", "timeframe", "confidence", "reasoning", "risks"]
+                    }
+                }
+            });
+
+            const result = JSON.parse(response.text || '{}');
+            setAnalysisResult(result);
+        } catch (err) {
+            console.error(err);
+            setError("Falha ao analisar o gráfico. Verifique a imagem e tente novamente.");
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
+    return (
+        <div className="p-4 md:p-8 space-y-6 max-w-5xl mx-auto">
+            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
+                <div>
+                    <h2 className={`text-2xl font-black ${theme.text}`}>Análise Técnica IA</h2>
+                    <p className={theme.textMuted}>Análise instantânea baseada em padrões de mercado (OB)</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Upload Section */}
+                <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col items-center justify-center min-h-[400px] relative overflow-hidden`}>
+                    {!selectedImage ? (
+                        <label className="flex flex-col items-center justify-center cursor-pointer w-full h-full border-2 border-dashed border-slate-700 rounded-2xl hover:bg-slate-800/20 transition-all">
+                            <PlusIcon className="w-12 h-12 text-slate-500 mb-4" />
+                            <span className="text-sm font-black uppercase text-slate-500 tracking-widest">Carregar Print do Gráfico</span>
+                            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                        </label>
+                    ) : (
+                        <div className="w-full h-full flex flex-col gap-4">
+                            <div className="flex-1 rounded-2xl overflow-hidden border border-slate-800 relative group">
+                                <img src={selectedImage} alt="Chart" className="w-full h-full object-contain bg-black" />
+                                <button onClick={() => setSelectedImage(null)} className="absolute top-4 right-4 bg-red-500 text-white p-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"><TrashIcon className="w-4 h-4" /></button>
+                            </div>
+                            <button 
+                                onClick={analyzeChart} 
+                                disabled={isAnalyzing}
+                                className="h-14 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-50"
+                            >
+                                {isAnalyzing ? (
+                                    <>
+                                        <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                                        Processando IA...
+                                    </>
+                                ) : (
+                                    <>
+                                        <CpuChipIcon className="w-5 h-5" />
+                                        Gerar Sinal de Operação
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Results Section */}
+                <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col`}>
+                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60">
+                        <InformationCircleIcon className="w-5 h-5 text-blue-400" /> Resultado da Análise
+                    </h3>
+
+                    {error && (
+                        <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl text-red-500 text-xs font-bold mb-4">
+                            {error}
+                        </div>
+                    )}
+
+                    {analysisResult ? (
+                        <div className="flex-1 space-y-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Recomendação</p>
+                                    <div className={`text-3xl font-black flex items-center gap-2 ${
+                                        analysisResult.recommendation === 'COMPRA' ? 'text-green-500' : 
+                                        analysisResult.recommendation === 'VENDA' ? 'text-red-500' : 'text-yellow-500'
+                                    }`}>
+                                        {analysisResult.recommendation === 'COMPRA' ? <TrendingUpIcon className="w-8 h-8" /> : 
+                                         analysisResult.recommendation === 'VENDA' ? <TrendingDownIcon className="w-8 h-8" /> : 
+                                         <InformationCircleIcon className="w-8 h-8" />}
+                                        {analysisResult.recommendation}
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Confiabilidade</p>
+                                    <p className="text-3xl font-black text-blue-400">{analysisResult.confidence}%</p>
+                                </div>
+                            </div>
+
+                            <div className="w-full bg-slate-800/30 h-2 rounded-full overflow-hidden">
+                                <div 
+                                    className={`h-full transition-all duration-1000 ${
+                                        analysisResult.confidence > 80 ? 'bg-green-500' : 
+                                        analysisResult.confidence > 60 ? 'bg-yellow-500' : 'bg-red-500'
+                                    }`}
+                                    style={{ width: `${analysisResult.confidence}%` }} 
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800/50">
+                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Horário de Entrada</p>
+                                    <p className="text-sm font-black text-white">{analysisResult.entry_time}</p>
+                                </div>
+                                <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800/50">
+                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Expiração</p>
+                                    <p className="text-sm font-black text-white">{analysisResult.timeframe}</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-[9px] font-black uppercase text-blue-400 mb-1">Justificativa Técnica</p>
+                                    <p className="text-xs font-bold leading-relaxed opacity-80">{analysisResult.reasoning}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[9px] font-black uppercase text-red-400 mb-1">Pontos de Atenção</p>
+                                    <p className="text-xs font-bold leading-relaxed opacity-80">{analysisResult.risks}</p>
+                                </div>
+                            </div>
+
+                            <div className="pt-4 mt-auto">
+                                <div className="p-4 rounded-2xl bg-yellow-500/5 border border-yellow-500/20 flex gap-3">
+                                    <InformationCircleIcon className="w-5 h-5 text-yellow-500 shrink-0" />
+                                    <p className="text-[10px] font-bold text-yellow-500/80 leading-tight">
+                                        AVISO: Esta análise é gerada por inteligência artificial e não constitui indicação absoluta. O mercado de renda variável possui riscos. Opere com responsabilidade.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center opacity-30 py-10 text-center">
+                            <CpuChipIcon className="w-16 h-16 mb-4" />
+                            <p className="text-xs font-black uppercase tracking-widest max-w-[200px]">Aguardando imagem para processar análise técnica</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
 };
 
 // --- Dashboard Panel ---
@@ -156,12 +384,10 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 
     const tableData = useMemo(() => {
         const rows = [];
-        // Ordenar registros reais por data
         const sortedRealRecords = records
             .filter((r: any): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0)
             .sort((a, b) => a.id.localeCompare(b.id));
         
-        // Data de início da simulação: Ou o primeiro dia operado, ou "Hoje"
         let startDate: Date;
         if (sortedRealRecords.length > 0) {
             startDate = new Date(sortedRealRecords[0].id + 'T12:00:00');
@@ -177,14 +403,12 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             currentDate.setDate(startDate.getDate() + i);
             const dateId = currentDate.toISOString().split('T')[0];
             
-            // Tentar achar registro real para este dia
             const realRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateId && r.trades.length > 0);
             
             let initial = runningBalance;
             let win, loss, profit, final, isProjection, operationValue;
 
             if (realRecord) {
-                // Registro Real
                 win = realRecord.winCount;
                 loss = realRecord.lossCount;
                 profit = realRecord.netProfitUSD;
@@ -192,7 +416,6 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                 operationValue = (realRecord.trades.length > 0) ? realRecord.trades[0].entryValue : (initial * 0.10);
                 isProjection = false;
             } else {
-                // Projeção 3x0
                 isProjection = true;
                 operationValue = initial * 0.10;
                 win = 3;
@@ -675,7 +898,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.id.localeCompare(a.id));
     const startBalDashboard = sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
 
-    // Dynamic Daily Goal derived from Monthly Goal
     const monthlyGoal = goals.find(g => g.type === 'monthly');
     const activeDailyGoal = monthlyGoal ? (monthlyGoal.targetAmount / 22) : (activeBrokerage?.initialBalance * 0.03 || 1);
 
@@ -687,8 +909,9 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
             <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col border-r transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
                 <div className="h-20 flex items-center px-8 border-b border-slate-800/50 font-black italic text-teal-400 text-xl tracking-tighter">HRK</div>
-                <nav className="flex-1 p-4 space-y-1">
+                <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
                     <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
+                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
                     <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Planilha Juros</button>
                     <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Relatório</button>
                     <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
@@ -704,6 +927,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 </header>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeDailyGoal} />}
+                    {activeTab === 'ai-analysis' && <AIAnalysisPanel isDarkMode={isDarkMode} />}
                     {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
                     {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
