@@ -38,10 +38,12 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     const winRate = ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0)) > 0 
         ? (((dailyRecordForSelectedDay?.winCount || 0) / ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0))) * 100).toFixed(0) : '0';
     
+    const goalPercentage = dailyGoalTarget > 0 ? (currentProfit / dailyGoalTarget) * 100 : 0;
+
     const kpis = [
         { label: 'Arsenal', val: `${currencySymbol}${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-emerald-400' },
         { label: 'Lucro Hoje', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol}${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-emerald-400' : 'text-rose-500' },
-        { label: 'Meta Diária', val: `${((currentProfit / (dailyGoalTarget || 1)) * 100).toFixed(0)}%`, icon: TargetIcon, color: 'text-blue-400' },
+        { label: 'Meta Diária', val: `${goalPercentage.toFixed(0)}%`, icon: TargetIcon, color: 'text-blue-400', sub: `Alvo: ${currencySymbol}${formatMoney(dailyGoalTarget)}` },
         { label: 'Win Rate', val: `${winRate}%`, icon: TrophyIcon, color: 'text-fuchsia-400' },
     ];
 
@@ -59,7 +61,10 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                             <p className="text-[9px] uppercase font-black text-slate-500 tracking-widest">{kpi.label}</p>
                             <kpi.icon className={`w-4 h-4 ${kpi.color} opacity-60`} />
                         </div>
-                        <p className={`text-xl font-black ${kpi.color} tracking-tighter`}>{kpi.val}</p>
+                        <div>
+                            <p className={`text-xl font-black ${kpi.color} tracking-tighter`}>{kpi.val}</p>
+                            {kpi.sub && <p className="text-[8px] font-black uppercase text-slate-600 mt-1">{kpi.sub}</p>}
+                        </div>
                     </div>
                 ))}
             </div>
@@ -80,7 +85,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     );
 };
 
-// --- Escalada Panel (Compound Interest) ---
+// --- Escalada Panel ---
 const CompoundInterestPanel = ({ isDarkMode, activeBrokerage }: any) => {
     const theme = useThemeClasses(isDarkMode);
     const tableData = useMemo(() => {
@@ -120,7 +125,66 @@ const CompoundInterestPanel = ({ isDarkMode, activeBrokerage }: any) => {
     );
 };
 
-// --- Soros Calculator Panel ---
+// --- Goals Panel (Metas) ---
+const GoalsPanel = ({ theme, goals, setGoals, currencySymbol, debouncedSave }: any) => {
+    const [name, setName] = useState('');
+    const [target, setTarget] = useState('');
+
+    const addGoal = () => {
+        if(!name || !target) return;
+        const newGoal: Goal = { 
+            id: crypto.randomUUID(), 
+            name, 
+            type: 'daily', // Todas como Diária para simplificar o Dashboard
+            targetAmount: parseFloat(target), 
+            createdAt: Date.now() 
+        };
+        setGoals((prev: Goal[]) => [...prev, newGoal]);
+        setName(''); setTarget('');
+        debouncedSave();
+    };
+
+    const removeGoal = (id: string) => {
+        setGoals((prev: Goal[]) => prev.filter(g => g.id !== id));
+        debouncedSave();
+    };
+
+    return (
+        <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in pb-32">
+            <div>
+                <h2 className="text-xl font-black uppercase italic">Missões <span className="text-emerald-400">Estratégicas</span></h2>
+                <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mt-1">Defina seus alvos de lucro diário</p>
+            </div>
+            
+            <div className={`p-6 ${theme.card} border ${theme.border} rounded-3xl grid grid-cols-1 md:grid-cols-3 gap-4 shadow-xl`}>
+                <input type="text" placeholder="NOME DO ALVO" value={name} onChange={e=>setName(e.target.value)} className={`h-14 px-6 rounded-2xl border text-[10px] font-black uppercase ${theme.input}`} />
+                <input type="number" placeholder="VALOR (R$)" value={target} onChange={e=>setTarget(e.target.value)} className={`h-14 px-6 rounded-2xl border text-[10px] font-black uppercase ${theme.input}`} />
+                <button onClick={addGoal} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg transition-all active:scale-95">Definir Missão</button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {goals.length > 0 ? goals.map((g: Goal) => (
+                    <div key={g.id} className={`p-8 ${theme.card} border ${theme.border} rounded-3xl relative group hover:border-emerald-500/30 transition-all shadow-xl`}>
+                         <button onClick={() => removeGoal(g.id)} className="absolute top-6 right-6 text-rose-500/20 hover:text-rose-500 transition-all"><TrashIcon className="w-5 h-5" /></button>
+                         <div className="flex items-center gap-2 mb-3">
+                             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                             <h4 className="text-[10px] font-black uppercase italic text-slate-500 tracking-widest">{g.name}</h4>
+                         </div>
+                         <p className="text-3xl font-black text-emerald-400 tracking-tighter">{currencySymbol}{formatMoney(g.targetAmount)}</p>
+                         <p className="text-[8px] font-black text-slate-700 uppercase mt-4">Tipo: Meta Diária Ativa</p>
+                    </div>
+                )) : (
+                    <div className="col-span-2 py-32 text-center opacity-10 border-2 border-dashed border-white/5 rounded-3xl">
+                        <TargetIcon className="w-12 h-12 mx-auto mb-4" />
+                        <p className="text-[11px] font-black uppercase tracking-[0.5em] italic">Nenhum Alvo Definido</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// --- Soros Calculator ---
 const SorosCalculatorPanel = ({ theme, activeBrokerage }: any) => {
     const [entry, setEntry] = useState(10);
     const levels = useMemo(() => {
@@ -152,7 +216,7 @@ const SorosCalculatorPanel = ({ theme, activeBrokerage }: any) => {
     );
 };
 
-// --- Relatório Panel (FULL CONSOLIDATED) ---
+// --- Relatório Panel ---
 const RelatorioPanel = ({ isDarkMode, records, currencySymbol, deleteTrade }: any) => {
     const theme = useThemeClasses(isDarkMode);
     const [expandedDay, setExpandedDay] = useState<string | null>(null);
@@ -190,10 +254,7 @@ const RelatorioPanel = ({ isDarkMode, records, currencySymbol, deleteTrade }: an
                 <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em] ml-2">Histórico de Disparos</h3>
                 {records.length > 0 ? [...records].reverse().map((day: DailyRecord) => (
                     <div key={day.id} className={`border ${theme.border} ${theme.card} rounded-3xl overflow-hidden transition-all ${expandedDay === day.id ? 'ring-2 ring-emerald-500/20' : ''}`}>
-                        <div 
-                            onClick={() => setExpandedDay(expandedDay === day.id ? null : day.id)}
-                            className="p-6 flex items-center justify-between cursor-pointer hover:bg-white/5"
-                        >
+                        <div onClick={() => setExpandedDay(expandedDay === day.id ? null : day.id)} className="p-6 flex items-center justify-between cursor-pointer hover:bg-white/5">
                             <div className="flex items-center gap-6">
                                 <div className="text-left">
                                     <p className="text-[11px] font-black text-white">{new Date(day.date + 'T12:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: 'short', year: 'numeric'})}</p>
@@ -207,13 +268,12 @@ const RelatorioPanel = ({ isDarkMode, records, currencySymbol, deleteTrade }: an
                             </div>
                             <div className="flex items-center gap-4">
                                 <div className="text-right">
-                                    <p className="text-[8px] font-black text-slate-500 uppercase">Win Rate</p>
+                                    <p className="text-[8px] font-black text-slate-500 uppercase">WR%</p>
                                     <p className="text-[12px] font-black text-white">{day.trades.length > 0 ? ((day.winCount / day.trades.length) * 100).toFixed(0) : 0}%</p>
                                 </div>
                                 {expandedDay === day.id ? <ChevronUpIcon className="w-5 h-5 text-emerald-500" /> : <ChevronDownIcon className="w-5 h-5 text-slate-600" />}
                             </div>
                         </div>
-
                         {expandedDay === day.id && (
                             <div className="p-6 pt-0 space-y-3 bg-black/10 animate-in slide-in-from-top-2">
                                 <div className="border-t border-white/5 mb-4" />
@@ -222,13 +282,10 @@ const RelatorioPanel = ({ isDarkMode, records, currencySymbol, deleteTrade }: an
                                         <div className="flex items-center gap-4">
                                             <div className={`w-1 h-6 rounded-full ${trade.result === 'win' ? 'bg-emerald-400' : 'bg-rose-500'}`} />
                                             <span className="text-[10px] font-black text-white uppercase">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</span>
-                                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${trade.result === 'win' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-500'}`}>{trade.result}</span>
                                         </div>
                                         <div className="flex items-center gap-4">
                                             <span className="text-[10px] font-black text-slate-400">V: {currencySymbol}{formatMoney(trade.entryValue)}</span>
-                                            <span className={`text-[11px] font-black ${trade.result === 'win' ? 'text-emerald-400' : 'text-rose-500'}`}>
-                                                {trade.result === 'win' ? '+' : '-'}{currencySymbol}{formatMoney(trade.entryValue * (trade.result === 'win' ? (trade.payoutPercentage/100) : 1))}
-                                            </span>
+                                            <span className={`text-[11px] font-black ${trade.result === 'win' ? 'text-emerald-400' : 'text-rose-500'}`}>{trade.result === 'win' ? '+' : '-'}{currencySymbol}{formatMoney(trade.entryValue * (trade.result === 'win' ? (trade.payoutPercentage/100) : 1))}</span>
                                             <button onClick={() => deleteTrade(trade.id, day.id)} className="p-1 text-rose-500/20 hover:text-rose-500 transition-all"><TrashIcon className="w-4 h-4" /></button>
                                         </div>
                                     </div>
@@ -236,9 +293,7 @@ const RelatorioPanel = ({ isDarkMode, records, currencySymbol, deleteTrade }: an
                             </div>
                         )}
                     </div>
-                )) : (
-                    <div className="py-20 text-center opacity-10 italic uppercase font-black tracking-widest text-xs">Vazio de Dados</div>
-                )}
+                )) : <div className="py-20 text-center opacity-10 italic uppercase font-black tracking-widest text-xs">Vazio de Dados</div>}
             </div>
         </div>
     );
@@ -379,11 +434,13 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         { id: 'dashboard', label: 'Painel', icon: LayoutGridIcon },
         { id: 'compound', label: 'Escalada', icon: ChartBarIcon },
         { id: 'soros', label: 'Ciclos', icon: CalculatorIcon },
+        { id: 'goals', label: 'Missões', icon: TargetIcon },
         { id: 'relatorio', label: 'Relatório', icon: DocumentTextIcon },
         { id: 'settings', label: 'HQ', icon: SettingsIcon }
     ];
 
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
+    const dailyGoalTarget = goals.find(g => g.type === 'daily')?.targetAmount || 100;
 
     return (
         <div className={`flex flex-col h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
@@ -408,25 +465,26 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 </div>
             </header>
 
-            {/* Conteúdo Principal com Scroll */}
+            {/* Conteúdo Principal */}
             <main className="flex-1 overflow-y-auto custom-scrollbar">
-                {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={100} />}
+                {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={dailyGoalTarget} />}
                 {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} />}
                 {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
+                {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} currencySymbol={currencySymbol} debouncedSave={debouncedSave} />}
                 {activeTab === 'relatorio' && <RelatorioPanel isDarkMode={isDarkMode} records={records} currencySymbol={currencySymbol} deleteTrade={deleteTrade} />}
-                {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onLogout={onLogout} onReset={() => { if(confirm("Deseja resetar todos os dados?")) { setRecords([]); debouncedSave(); } }} />}
+                {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onLogout={onLogout} onReset={() => { if(confirm("Deseja resetar todos os dados?")) { setRecords([]); setGoals([]); debouncedSave(); } }} />}
             </main>
 
-            {/* Bottom Navigation Horizontal */}
-            <nav className={`fixed bottom-0 left-0 right-0 h-20 md:h-24 bg-[#020617]/90 backdrop-blur-2xl border-t border-white/5 flex items-center justify-around px-2 md:px-8 z-50`}>
+            {/* Bottom Navigation */}
+            <nav className={`fixed bottom-0 left-0 right-0 h-20 md:h-24 bg-[#020617]/95 backdrop-blur-2xl border-t border-white/5 flex items-center justify-around px-2 md:px-8 z-50`}>
                 {tabs.map(tab => (
                     <button 
                         key={tab.id} 
                         onClick={() => setActiveTab(tab.id)} 
-                        className={`flex flex-col items-center justify-center gap-1.5 px-3 py-2 rounded-2xl transition-all duration-300 min-w-[60px] ${activeTab === tab.id ? theme.navActive : theme.navInactive}`}
+                        className={`flex flex-col items-center justify-center gap-1 px-2 py-2 rounded-2xl transition-all duration-300 min-w-[50px] ${activeTab === tab.id ? theme.navActive : theme.navInactive}`}
                     >
                         <tab.icon className={`w-5 h-5 md:w-6 md:h-6 transition-transform ${activeTab === tab.id ? 'scale-110' : 'scale-100'}`} />
-                        <span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest hidden sm:block">{tab.label}</span>
+                        <span className="text-[7px] md:text-[9px] font-black uppercase tracking-widest block text-center truncate w-full">{tab.label}</span>
                     </button>
                 ))}
             </nav>
