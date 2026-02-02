@@ -32,7 +32,7 @@ const useThemeClasses = (isDarkMode: boolean) => {
     }), [isDarkMode]);
 };
 
-// --- Radar Sniper Panel (CORREÇÃO DA IA) ---
+// --- Radar Sniper Panel (CORREÇÃO E ANÁLISE PREDITIVA) ---
 const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
     const [image, setImage] = useState<string | null>(null);
     const [analyzing, setAnalyzing] = useState(false);
@@ -47,27 +47,28 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             
-            // Extração robusta de dados base64
+            // Extração robusta de dados base64 (Fix Erro de Conexão)
             const base64Data = image.split(',')[1];
             const mimeType = image.split(',')[0].split(':')[1].split(';')[0];
             
-            const prompt = `ANALISTA DE OCR TRADING - MISSÃO CRÍTICA:
-            Identifique o resultado da última operação no gráfico ou painel lateral.
-            CRITÉRIOS DE VITÓRIA (WIN):
-            - Velas verdes, textos "Lucro", "Profit", ou valores positivos em verde.
-            - Pop-ups de sucesso ou histórico com indicador verde.
-            CRITÉRIOS DE DERROTA (LOSS):
-            - Velas vermelhas, textos "Prejuízo", "Loss", ou valores em vermelho.
-            - Histórico com indicador vermelho.
+            const prompt = `VOCÊ É O HRK SNIPER - ESPECIALISTA EM PRICE ACTION E PADRÕES DE VELAS.
+            Sua missão é dupla:
+            1. DETECTAR RESULTADO PASSADO: Identifique se o último candle fechado/operação foi WIN ou LOSS.
+            2. PREDIÇÃO TÁTICA: Analise a sequência de velas (cores, tamanhos e pavios) e sugira a operação para o PRÓXIMO CANDLE.
             
-            EXTRAIA APENAS JSON:
+            Critérios para Predição:
+            - Se houver padrão de reversão de alta ou força compradora: SINAL "CALL" (COMPRA).
+            - Se houver padrão de reversão de baixa ou força vendedora: SINAL "PUT" (VENDA).
+            
+            EXTRAIA APENAS ESTE JSON:
             {
-              "resultado": "WIN" ou "LOSS",
-              "valor": número da entrada,
-              "payout": número do payout (ex: 80),
-              "ativo": "nome do par de moedas"
-            }
-            Seja resiliente a marcas d'água e interfaces de corretoras (como Axion/IQ/Quotex).`;
+              "resultado_passado": "WIN" ou "LOSS",
+              "valor": número da entrada detectado,
+              "payout": número do payout detectado,
+              "sinal_proxima": "CALL" ou "PUT",
+              "confianca": "porcentagem de 0 a 100",
+              "analise_curta": "uma frase técnica sobre o padrão detectado"
+            }`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
@@ -78,17 +79,19 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                     ]
                 },
                 config: {
-                    systemInstruction: "Você é um Radar de Sniper. Sua função é converter imagens de trading em dados JSON puros. Ignore menus e foque no resultado financeiro.",
+                    systemInstruction: "Radar Sniper: Identificador de padrões de candlestick e preditor de sinais táticos.",
                     responseMimeType: "application/json",
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
-                            resultado: { type: Type.STRING, enum: ["WIN", "LOSS"] },
+                            resultado_passado: { type: Type.STRING, enum: ["WIN", "LOSS"] },
                             valor: { type: Type.NUMBER },
                             payout: { type: Type.NUMBER },
-                            ativo: { type: Type.STRING }
+                            sinal_proxima: { type: Type.STRING, enum: ["CALL", "PUT"] },
+                            confianca: { type: Type.STRING },
+                            analise_curta: { type: Type.STRING }
                         },
-                        required: ["resultado", "valor"]
+                        required: ["resultado_passado", "valor", "sinal_proxima"]
                     }
                 }
             });
@@ -100,7 +103,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
             setResult(data);
         } catch (err: any) {
             console.error("AI Analysis Error:", err);
-            setError("FALHA DE COMUNICAÇÃO RADAR. GARANTA QUE O RESULTADO (WIN/LOSS) ESTEJA VISÍVEL NA IMAGEM E TENTE NOVAMENTE.");
+            setError("ERRO NO RADAR. VERIFIQUE SE O GRÁFICO ESTÁ LEGÍVEL E TENTE NOVAMENTE.");
         } finally {
             setAnalyzing(false);
         }
@@ -112,26 +115,29 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                 <h2 className={`text-lg font-black tracking-tight ${theme.text}`}>Radar <span className="text-emerald-400 italic">Sniper</span></h2>
                 <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${analyzing ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500/60">Operacional</span>
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500/60 uppercase">Escaner Inteligente</span>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className={`p-4 ${theme.roundedCard} border border-dashed ${theme.border} ${theme.card} flex flex-col items-center justify-center min-h-[300px]`}>
+                <div className={`p-4 ${theme.roundedCard} border border-dashed ${theme.border} ${theme.card} flex flex-col items-center justify-center min-h-[320px]`}>
                     {image ? (
                         <div className="w-full space-y-4">
-                            <img src={image} className="w-full h-48 object-contain rounded-lg bg-black/40 border border-white/5 shadow-2xl" />
+                            <img src={image} className="w-full h-52 object-contain rounded-lg bg-black/40 border border-white/5 shadow-2xl" />
                             <div className="grid grid-cols-2 gap-3">
                                 <button onClick={() => {setImage(null); setResult(null);}} className="py-2.5 text-[9px] font-black uppercase bg-rose-500/10 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all">Descartar</button>
                                 <button onClick={analyzeChart} disabled={analyzing} className="py-2.5 text-[9px] font-black uppercase bg-emerald-500 text-slate-950 rounded-lg disabled:opacity-50 hover:bg-emerald-400 transition-all">
-                                    {analyzing ? 'Escaneando...' : 'Iniciar Scan'}
+                                    {analyzing ? 'Escaneando...' : 'Analisar Padrões'}
                                 </button>
                             </div>
                         </div>
                     ) : (
-                        <label className="cursor-pointer flex flex-col items-center gap-4 py-12 w-full group">
-                            <PlusIcon className="w-10 h-10 text-emerald-500/20 group-hover:text-emerald-500/40 transition-all" />
-                            <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em]">Subir Print do Gráfico</p>
+                        <label className="cursor-pointer flex flex-col items-center gap-4 py-16 w-full group">
+                            <CpuChipIcon className="w-12 h-12 text-emerald-500/20 group-hover:text-emerald-500/50 transition-all" />
+                            <div className="text-center">
+                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em]">Importar Captura Técnica</p>
+                                <p className="text-[8px] font-bold text-slate-600 mt-1 uppercase">A IA Lerá as Velas e dará o sinal</p>
+                            </div>
                             <input type="file" className="hidden" accept="image/*" onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (file) {
@@ -150,39 +156,59 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                             {error}
                         </div>
                     )}
+                    
                     {result ? (
-                        <div className={`p-6 ${theme.roundedCard} border border-emerald-500/20 ${theme.card} space-y-5 shadow-2xl animate-in zoom-in-95`}>
-                            <div className="flex justify-between items-center border-b border-white/5 pb-3">
-                                <span className={`text-2xl font-black italic tracking-tighter ${result.resultado === 'WIN' ? 'text-emerald-400' : 'text-rose-500'}`}>
-                                    {result.resultado === 'WIN' ? 'ALVO ATINGIDO' : 'MISSÃO FALHA'}
-                                </span>
+                        <div className={`p-6 ${theme.roundedCard} border border-emerald-500/20 ${theme.card} space-y-6 shadow-2xl animate-in zoom-in-95`}>
+                            {/* Bloco de Sinal Preditivo */}
+                            <div className={`p-4 rounded-xl border-2 flex flex-col items-center text-center ${result.sinal_proxima === 'CALL' ? 'bg-emerald-500/5 border-emerald-500/40' : 'bg-rose-500/5 border-rose-500/40'}`}>
+                                <p className="text-[9px] font-black uppercase text-slate-400 tracking-[0.3em] mb-1">Próxima Entrada (Sinal)</p>
+                                <h3 className={`text-3xl font-black italic tracking-tighter ${result.sinal_proxima === 'CALL' ? 'text-emerald-400' : 'text-rose-500'}`}>
+                                    {result.sinal_proxima === 'CALL' ? '↑ COMPRA (CALL)' : '↓ VENDA (PUT)'}
+                                </h3>
+                                <div className="mt-2 px-3 py-1 bg-black/40 rounded-full border border-white/5">
+                                    <span className="text-[10px] font-bold uppercase text-blue-400">Precisão: {result.confianca}</span>
+                                </div>
+                                <p className="mt-3 text-[9px] font-bold text-slate-500 italic leading-tight px-4">"{result.analise_curta}"</p>
                             </div>
+
+                            {/* Detecção Histórica */}
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="p-4 bg-black/40 rounded-xl border border-white/5">
-                                    <p className="text-[9px] text-slate-500 font-bold uppercase mb-1">Entrada</p>
-                                    <p className="text-xl font-black">R$ {result.valor}</p>
+                                <div className="p-3 bg-black/40 rounded-xl border border-white/5">
+                                    <p className="text-[8px] text-slate-500 font-black uppercase mb-1">Status Anterior</p>
+                                    <p className={`text-sm font-black italic ${result.resultado_passado === 'WIN' ? 'text-emerald-400' : 'text-rose-500'}`}>
+                                        {result.resultado_passado}
+                                    </p>
                                 </div>
-                                <div className="p-4 bg-black/40 rounded-xl border border-white/5">
-                                    <p className="text-[9px] text-slate-500 font-bold uppercase mb-1">Payout</p>
-                                    <p className="text-xl font-black text-emerald-400">{result.payout || 80}%</p>
+                                <div className="p-3 bg-black/40 rounded-xl border border-white/5">
+                                    <p className="text-[8px] text-slate-500 font-black uppercase mb-1">Última Entrada</p>
+                                    <p className="text-sm font-black">R$ {result.valor}</p>
                                 </div>
                             </div>
+
                             <button onClick={() => {
-                                addRecord(result.resultado === 'WIN' ? 1 : 0, result.resultado === 'LOSS' ? 1 : 0, result.valor, result.payout || 80);
+                                addRecord(result.resultado_passado === 'WIN' ? 1 : 0, result.resultado_passado === 'LOSS' ? 1 : 0, result.valor, result.payout || 80);
                                 setResult(null); setImage(null);
-                            }} className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-[11px] uppercase tracking-widest shadow-lg transition-all active:scale-95">Confirmar e Sincronizar</button>
+                            }} className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-[11px] uppercase tracking-widest transition-all shadow-lg active:scale-95">Sincronizar com Arsenal</button>
                         </div>
                     ) : !analyzing && (
-                        <div className="p-12 border border-slate-800/20 rounded-2xl bg-slate-900/5 text-center opacity-30 flex flex-col items-center justify-center min-h-[220px]">
-                            <CpuChipIcon className="w-10 h-10 mb-3" />
-                            <p className="text-[10px] font-black uppercase tracking-[0.3em]">Aguardando Captura</p>
+                        <div className="p-12 border border-slate-800/20 rounded-2xl bg-slate-900/5 text-center opacity-30 flex flex-col items-center justify-center min-h-[240px]">
+                            <TargetIcon className="w-10 h-10 mb-3" />
+                            <p className="text-[10px] font-black uppercase tracking-[0.4em]">Aguardando Captura Técnica</p>
                         </div>
                     )}
+                    
                     {analyzing && (
-                        <div className="h-56 w-full bg-slate-900/40 rounded-2xl border border-emerald-500/10 flex flex-col items-center justify-center relative overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/5 to-transparent animate-pulse" />
+                        <div className="h-64 w-full bg-slate-900/40 rounded-2xl border border-emerald-500/10 flex flex-col items-center justify-center relative overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/5 to-transparent animate-scan-line" />
                             <ArrowPathIcon className="w-10 h-10 text-emerald-500/40 animate-spin mb-4" />
-                            <p className="text-[10px] font-black uppercase tracking-[0.5em] text-emerald-500/60">Análise de Dados em Curso</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.5em] text-emerald-500/60">Decodificando Price Action</p>
+                            <style>{`
+                                @keyframes scan-line {
+                                    0% { transform: translateY(-100%); }
+                                    100% { transform: translateY(100%); }
+                                }
+                                .animate-scan-line { animation: scan-line 2s linear infinite; }
+                            `}</style>
                         </div>
                     )}
                 </div>
