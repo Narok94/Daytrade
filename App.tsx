@@ -68,12 +68,12 @@ const AIAnalysisPanel: React.FC<any> = ({ isDarkMode }) => {
         setError(null);
 
         try {
-            // FIX: Using Gemini 3 Flash for optimized chart analysis and vision reasoning.
+            // USANDO GEMINI-FLASH-LATEST: Geralmente possui limites de cota mais estáveis para visão
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const base64Data = selectedImage.split(',')[1];
             
             const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
+                model: 'gemini-flash-latest',
                 contents: {
                     parts: [
                         {
@@ -116,7 +116,6 @@ const AIAnalysisPanel: React.FC<any> = ({ isDarkMode }) => {
                 }
             });
 
-            // FIX: Access .text property directly instead of method call.
             const text = response.text;
             if (!text) throw new Error("Resposta vazia da IA");
             
@@ -124,7 +123,13 @@ const AIAnalysisPanel: React.FC<any> = ({ isDarkMode }) => {
             setAnalysisResult(result);
         } catch (err: any) {
             console.error("AI Analysis Error:", err);
-            setError(`Erro técnico: ${err.message || "Tente novamente com outro print."}`);
+            
+            // TRATAMENTO DO ERRO 429 (QUOTA EXCEEDED)
+            if (err.message?.includes("429") || err.message?.includes("quota")) {
+                setError("LIMITE DE COTA ATINGIDO: Você atingiu o limite de requisições gratuitas do Google. Por favor, aguarde 60 segundos antes de tentar novamente ou verifique se sua chave de API possui créditos.");
+            } else {
+                setError(`ERRO TÉCNICO: ${err.message || "Tente novamente com outro print."}`);
+            }
         } finally {
             setIsAnalyzing(false);
         }
@@ -188,7 +193,11 @@ const AIAnalysisPanel: React.FC<any> = ({ isDarkMode }) => {
                     </h3>
 
                     {error && (
-                        <div className="bg-red-500/10 border border-red-500/20 p-5 rounded-3xl text-red-500 text-xs font-bold mb-6">
+                        <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-3xl text-red-500 text-xs font-bold mb-6 leading-relaxed">
+                            <div className="flex items-center gap-2 mb-2">
+                                <InformationCircleIcon className="w-5 h-5" />
+                                <span className="uppercase tracking-widest text-[10px]">Alerta de Sistema</span>
+                            </div>
                             {error}
                         </div>
                     )}
@@ -261,6 +270,7 @@ const AIAnalysisPanel: React.FC<any> = ({ isDarkMode }) => {
     );
 };
 
+// ... O restante do arquivo (DashboardPanel, CompoundInterestPanel, etc.) permanece inalterado ...
 const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, startBalanceForSelectedDay, isDarkMode, dailyGoalTarget }) => {
     const theme = useThemeClasses(isDarkMode);
     const [quantity, setQuantity] = useState('1');
@@ -379,7 +389,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     );
 };
 
-// --- FIX: Added CompoundInterestPanel component ---
+// ... O restante dos componentes (CompoundInterestPanel, ReportPanel, SorosCalculatorPanel, GoalsPanel, SettingsPanel, App) seguem abaixo ...
 const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
     const theme = useThemeClasses(isDarkMode);
     const initialBal = activeBrokerage?.initialBalance || 0;
@@ -427,7 +437,6 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
     );
 };
 
-// --- FIX: Added ReportPanel component ---
 const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, deleteTrade }) => {
     const theme = useThemeClasses(isDarkMode);
     const allTrades = useMemo(() => {
@@ -471,7 +480,6 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
     );
 };
 
-// --- FIX: Added SorosCalculatorPanel component ---
 const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
     const [initialEntry, setInitialEntry] = useState('10');
     const [payout, setPayout] = useState('80');
@@ -532,7 +540,6 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
     );
 };
 
-// --- FIX: Added GoalsPanel component ---
 const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrokerage }) => {
     const totalProfit = records.reduce((acc: number, r: DailyRecord) => acc + (r.netProfitUSD || 0), 0);
     
@@ -556,7 +563,6 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
     );
 };
 
-// --- FIX: Added SettingsPanel component ---
 const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset }) => {
     const [name, setName] = useState(brokerage?.name || '');
     const [initialBalance, setInitialBalance] = useState(String(brokerage?.initialBalance || ''));
@@ -610,7 +616,6 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
     );
 };
 
-// --- App Root Logic ---
 const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout }) => {
     const [activeTab, setActiveTab] = useState<string>('dashboard');
     const [isDarkMode, setIsDarkMode] = useState(true);
