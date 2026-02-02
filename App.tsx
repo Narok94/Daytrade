@@ -53,31 +53,42 @@ const AIAnalystPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         setIsAnalyzing(true);
         setAnalysis('');
         try {
+            // Requirement for Gemini 3 models in this environment: Ensure a key is selected
+            if (window.aistudio && !(await window.aistudio.hasSelectedApiKey())) {
+                await window.aistudio.openSelectKey();
+            }
+
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             
-            // Extract actual mimeType from data URL (e.g. image/png, image/jpeg)
+            // Extract actual mimeType from data URL
             const mimeType = image.split(';')[0].split(':')[1] || 'image/jpeg';
             const base64Data = image.split(',')[1];
             
+            // Using gemini-3-flash-preview as it's highly reliable for fast multimodal tasks
             const response = await ai.models.generateContent({
-                model: 'gemini-3-pro-preview', // Pro model is significantly better for chart analysis/STEM tasks
+                model: 'gemini-3-flash-preview', 
                 contents: {
                     parts: [
                         { inlineData: { data: base64Data, mimeType: mimeType } },
-                        { text: "Analise este gráfico de day trade profissionalmente. Identifique a tendência atual (alta, baixa ou lateral), níveis de suporte e resistência importantes, e quaisquer indicadores ou padrões de candlestick visíveis. Com base no Price Action, sugira a próxima operação (CALL, PUT ou AGUARDAR) com uma justificativa técnica clara em português brasileiro. Foque na probabilidade estatística para o próximo candle." }
+                        { text: "Analise este gráfico de day trade profissionalmente. Identifique a tendência (alta, baixa ou lateral), principais suportes e resistências. Com base no movimento recente, sugira a próxima operação (CALL, PUT ou AGUARDAR) com uma justificativa técnica curta em português brasileiro." }
                     ]
-                },
-                config: {
-                    thinkingConfig: { thinkingBudget: 2000 } // Enable reasoning for deeper chart insight
                 }
             });
             
             setAnalysis(response.text || 'Não foi possível analisar o gráfico.');
         } catch (error: any) {
             console.error('AI Analysis Error:', error);
-            // Provide more descriptive error messages if available
-            let errorMsg = 'Erro ao conectar com a IA. Tente novamente.';
-            if (error?.message?.includes('API key')) errorMsg = 'Erro de Chave API. Verifique sua conexão.';
+            let errorMsg = 'Erro ao conectar com a IA.';
+            
+            if (error?.message?.includes('Requested entity was not found')) {
+                errorMsg = 'Modelo não encontrado. Tentando reconfigurar chave...';
+                if (window.aistudio) await window.aistudio.openSelectKey();
+            } else if (error?.message?.includes('API key')) {
+                errorMsg = 'Problema com a Chave API. Por favor, selecione uma chave válida.';
+            } else if (error?.message) {
+                errorMsg = `Erro: ${error.message}`;
+            }
+            
             setAnalysis(errorMsg);
         } finally {
             setIsAnalyzing(false);
