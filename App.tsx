@@ -60,12 +60,18 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             
-            // Parsing robusto da imagem base64
             const parts = image.split(',');
             const mimeType = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
             const base64Data = parts[1];
             
-            const prompt = "Analise este print de trading. Extraia: 1. Resultado (WIN ou LOSS). 2. Valor da entrada (apenas número). 3. Payout % (apenas número). 4. Par de moedas. Retorne estritamente em JSON.";
+            const prompt = `ANALISE VISUAL DE CANDLESTICKS (VELAS):
+            Localize as velas no gráfico. Determine o resultado da operação focando apenas na ação do preço e cores das velas (Verde/Vermelha).
+            Ignore menus, botões de compra/venda e marcas d'água da corretora.
+            Extraia em JSON:
+            1. "resultado_detectado": "WIN" (vela verde/preço acima) ou "LOSS" (vela vermelha/preço abaixo).
+            2. "valor_detectado": Valor numérico da aposta/entrada.
+            3. "payout_detectado": Porcentagem de lucro exibida.
+            4. "par_moedas": Nome do par ativo.`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
@@ -76,28 +82,29 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                     ]
                 },
                 config: {
-                    systemInstruction: "Você é um especialista em OCR financeiro. Identifique valores, cores (verde=WIN, vermelho=LOSS) e textos em prints de corretoras. Retorne apenas JSON válido.",
+                    systemInstruction: "Você é um especialista em leitura de padrões de velas (candlesticks). Sua tarefa é ignorar ruídos de interface e focar 100% no gráfico de preços e nas cores das velas para determinar o resultado do trade.",
                     responseMimeType: "application/json",
+                    thinkingConfig: { thinkingBudget: 0 },
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
-                            resultado_detectado: { type: Type.STRING, enum: ["WIN", "LOSS", "NEUTRO"] },
+                            resultado_detectado: { type: Type.STRING, enum: ["WIN", "LOSS"] },
                             valor_detectado: { type: Type.NUMBER },
                             payout_detectado: { type: Type.NUMBER },
-                            par_moedas: { type: Type.STRING },
-                            analise_tecnica: { type: Type.STRING }
+                            par_moedas: { type: Type.STRING }
                         },
                         required: ["resultado_detectado", "valor_detectado", "payout_detectado"]
                     }
                 }
             });
 
-            const textResponse = response.text;
-            if (!textResponse) throw new Error("Vazio");
-            setResult(JSON.parse(textResponse));
+            if (!response.text) throw new Error("A IA não retornou conteúdo.");
+            
+            const data = JSON.parse(response.text.trim());
+            setResult(data);
         } catch (err: any) {
-            console.error("AI connection error:", err);
-            setError("ERRO DE CONEXÃO RADAR. VERIFIQUE A CLAREZA DO PRINT OU TENTE NOVAMENTE EM ALGUNS SEGUNDOS.");
+            console.error("Radar critical error:", err);
+            setError("ERRO DE CONEXÃO RADAR. VERIFIQUE SE O PRINT MOSTRA AS VELAS COM CLAREZA E TENTE NOVAMENTE.");
         } finally {
             setAnalyzing(false);
         }
@@ -112,7 +119,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
             result.valor_detectado || 10, 
             result.payout_detectado || 80
         );
-        alert("Sincronizado!");
+        alert("Arsenal Sincronizado com Sucesso!");
         setResult(null);
         setImage(null);
     };
@@ -122,8 +129,10 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
             <div className="flex items-center justify-between border-b border-emerald-500/10 pb-2">
                 <h2 className={`text-lg font-black tracking-tight ${theme.text}`}>Radar <span className="text-emerald-400 italic">Sniper</span></h2>
                 <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500/60">Operacional</span>
+                    <div className={`w-1.5 h-1.5 rounded-full ${analyzing ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500/60">
+                        {analyzing ? 'Escaneando Velas' : 'Radar Pronto'}
+                    </span>
                 </div>
             </div>
 
@@ -133,16 +142,18 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                         <div className="w-full flex flex-col gap-3">
                             <img src={image} className="w-full h-40 object-contain rounded-lg bg-black/20" />
                             <div className="grid grid-cols-2 gap-2">
-                                <button onClick={() => setImage(null)} className="py-2 text-[9px] font-black uppercase bg-rose-500/10 text-rose-500 rounded-lg">Descartar</button>
-                                <button onClick={analyzeChart} disabled={analyzing} className="py-2 text-[9px] font-black uppercase bg-emerald-500 text-slate-950 rounded-lg disabled:opacity-50">
-                                    {analyzing ? 'Escaneando...' : 'Iniciar Scan'}
+                                <button onClick={() => setImage(null)} className="py-2 text-[9px] font-black uppercase bg-rose-500/10 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all">Descartar</button>
+                                <button onClick={analyzeChart} disabled={analyzing} className="py-2 text-[9px] font-black uppercase bg-emerald-500 text-slate-950 rounded-lg disabled:opacity-50 hover:bg-emerald-400 transition-all">
+                                    {analyzing ? 'Lendo Gráfico...' : 'Iniciar Scan'}
                                 </button>
                             </div>
                         </div>
                     ) : (
-                        <label className="cursor-pointer flex flex-col items-center gap-3 py-10 w-full">
-                            <PlusIcon className="w-8 h-8 text-emerald-500/30" />
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Subir Print do Trade</p>
+                        <label className="cursor-pointer flex flex-col items-center gap-3 py-10 w-full group">
+                            <div className="w-12 h-12 rounded-full bg-emerald-500/5 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <PlusIcon className="w-6 h-6 text-emerald-500/40" />
+                            </div>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Subir Print do Gráfico</p>
                             <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                         </label>
                     )}
@@ -150,25 +161,25 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
 
                 <div className="space-y-3">
                     {error && (
-                        <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-500 text-[9px] font-black uppercase leading-tight tracking-wider">
+                        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-500 text-[9px] font-black uppercase leading-tight tracking-widest animate-in shake">
                             {error}
                         </div>
                     )}
 
                     {result ? (
-                        <div className={`p-5 ${theme.roundedCard} border border-emerald-500/20 ${theme.card} space-y-4 shadow-xl`}>
-                            <div className="flex justify-between items-center">
+                        <div className={`p-5 ${theme.roundedCard} border border-emerald-500/20 ${theme.card} space-y-4 shadow-2xl animate-in zoom-in-95`}>
+                            <div className="flex justify-between items-center border-b border-white/5 pb-3">
                                 <span className={`text-xl font-black italic tracking-tighter ${result.resultado_detectado === 'WIN' ? 'text-emerald-400' : 'text-rose-500'}`}>
-                                    {result.resultado_detectado === 'WIN' ? 'TARGET HIT' : 'MISSION FAILED'}
+                                    {result.resultado_detectado === 'WIN' ? 'ALVO ATINGIDO' : 'MISSÃO FALHA'}
                                 </span>
-                                <span className="text-xs font-black text-blue-400/70">{result.par_moedas || '---'}</span>
+                                <span className="text-[10px] font-black text-blue-400 px-2 py-1 bg-blue-500/5 rounded border border-blue-500/10">{result.par_moedas || 'ATIVO'}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="p-3 bg-black/20 rounded-lg">
-                                    <p className="text-[8px] text-slate-500 font-bold uppercase mb-1">Valor</p>
+                                <div className="p-3 bg-black/40 rounded-lg border border-white/5">
+                                    <p className="text-[8px] text-slate-500 font-bold uppercase mb-1">Entrada</p>
                                     <p className="text-base font-black">R$ {result.valor_detectado || '0'}</p>
                                 </div>
-                                <div className="p-3 bg-black/20 rounded-lg">
+                                <div className="p-3 bg-black/40 rounded-lg border border-white/5">
                                     <p className="text-[8px] text-slate-500 font-bold uppercase mb-1">Payout</p>
                                     <p className="text-base font-black text-emerald-400">{result.payout_detectado || '0'}%</p>
                                 </div>
@@ -176,12 +187,18 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode, addRecord }) => {
                             <button onClick={syncWithLedger} className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-lg text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95">Sincronizar Arsenal</button>
                         </div>
                     ) : !analyzing && (
-                        <div className="p-10 border border-slate-800/30 rounded-xl bg-slate-900/10 text-center opacity-30 flex flex-col items-center">
-                            <CpuChipIcon className="w-6 h-6 mb-2" />
-                            <p className="text-[9px] font-black uppercase tracking-[0.2em]">Aguardando Dados</p>
+                        <div className="p-10 border border-slate-800/30 rounded-xl bg-slate-900/10 text-center opacity-30 flex flex-col items-center min-h-[180px] justify-center">
+                            <CpuChipIcon className="w-8 h-8 mb-2" />
+                            <p className="text-[9px] font-black uppercase tracking-[0.3em]">Aguardando Captura</p>
                         </div>
                     )}
-                    {analyzing && <div className="h-40 w-full bg-slate-900/20 rounded-xl animate-pulse border border-slate-800/30" />}
+                    {analyzing && (
+                         <div className="h-44 w-full bg-slate-900/20 rounded-xl border border-emerald-500/10 flex flex-col items-center justify-center relative overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/5 to-transparent animate-pulse" />
+                            <ArrowPathIcon className="w-8 h-8 text-emerald-500/30 animate-spin mb-3" />
+                            <p className="text-[8px] font-black uppercase tracking-[0.5em] text-emerald-500/40">Analisando Candlesticks</p>
+                         </div>
+                    )}
                 </div>
             </div>
         </div>
