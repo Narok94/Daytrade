@@ -54,20 +54,31 @@ const AIAnalystPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         setAnalysis('');
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            
+            // Extract actual mimeType from data URL (e.g. image/png, image/jpeg)
+            const mimeType = image.split(';')[0].split(':')[1] || 'image/jpeg';
             const base64Data = image.split(',')[1];
+            
             const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
+                model: 'gemini-3-pro-preview', // Pro model is significantly better for chart analysis/STEM tasks
                 contents: {
                     parts: [
-                        { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
-                        { text: "Analise este gráfico de day trade profissionalmente. Identifique tendências, suportes, resistências e indicadores visíveis. Sugira a próxima operação (CALL, PUT ou AGUARDAR) com uma justificativa técnica curta e clara em português brasileiro." }
+                        { inlineData: { data: base64Data, mimeType: mimeType } },
+                        { text: "Analise este gráfico de day trade profissionalmente. Identifique a tendência atual (alta, baixa ou lateral), níveis de suporte e resistência importantes, e quaisquer indicadores ou padrões de candlestick visíveis. Com base no Price Action, sugira a próxima operação (CALL, PUT ou AGUARDAR) com uma justificativa técnica clara em português brasileiro. Foque na probabilidade estatística para o próximo candle." }
                     ]
+                },
+                config: {
+                    thinkingConfig: { thinkingBudget: 2000 } // Enable reasoning for deeper chart insight
                 }
             });
+            
             setAnalysis(response.text || 'Não foi possível analisar o gráfico.');
-        } catch (error) {
-            console.error(error);
-            setAnalysis('Erro ao conectar com a IA. Tente novamente.');
+        } catch (error: any) {
+            console.error('AI Analysis Error:', error);
+            // Provide more descriptive error messages if available
+            let errorMsg = 'Erro ao conectar com a IA. Tente novamente.';
+            if (error?.message?.includes('API key')) errorMsg = 'Erro de Chave API. Verifique sua conexão.';
+            setAnalysis(errorMsg);
         } finally {
             setIsAnalyzing(false);
         }
