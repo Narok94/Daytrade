@@ -15,7 +15,6 @@ import {
 // --- Helper Functions ---
 const formatMoney = (val: number) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// Converte um objeto Date para string YYYY-MM-DD respeitando o fuso horário LOCAL do dispositivo
 const getLocalISOString = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -89,26 +88,25 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const base64Data = image.split(',')[1];
             
             const prompt = `Aja como um Expert Trader Quantitativo em Opções Binárias. 
-            Analise visualmente este gráfico e identifique padrões baseados nestas 9 estratégias:
-            1. Médias Móveis (Tendência e Cruzamentos)
-            2. Reversões (Exaustão de preço)
-            3. Pullback (Retorno à zona rompida)
-            4. Suporte e Resistência (Zonas de impacto)
-            5. Price Action (Formatos de candles: Martelo, Engolfo, Doji)
-            6. Estocástico (Sobrecompra/Sobrevenda)
-            7. Bandas de Bollinger (Toque nas extremidades)
-            8. Fractal de Williams (Sinais de topo e fundo)
-            9. RSI (Força Relativa)
+            Analise visualmente TODO O HISTÓRICO de velas e indicadores presentes nesta imagem.
+            Considere o fluxo macro para identificar a força real do movimento.
+            
+            ESTRATÉGIAS PARA CONFLUÊNCIA:
+            1. Médias Móveis (Alinhamento e Cruzamentos)
+            2. Reversões e Pullbacks em zonas de Suporte/Resistência
+            3. Price Action (Candles de força, martelos, engolfos)
+            4. Estocástico, Bollinger e RSI (Exaustão e zonas de retorno)
+            5. Fractal de Williams (Topos e fundos históricos visíveis)
 
-            IGNORE a marca d'água "AXIUN" no fundo. Foque nos sinais dos indicadores e candles.
+            IGNORE a marca d'água "AXIUN". Analise o cenário COMPLETO para máxima assertividade.
             
             SÓ RESPONDA EM JSON:
             {
               "operacao": "CALL" | "PUT" | "AGUARDAR",
               "confianca": 0-100,
-              "analise_tecnica": "Resumo técnico da decisão",
-              "setups_vistos": ["lista de estratégias confirmadas na imagem"],
-              "detalhes": ["confluência 1", "confluência 2"]
+              "analise_tecnica": "Análise detalhada do fluxo histórico e sinal atual",
+              "setups_vistos": ["lista de gatilhos detectados no histórico"],
+              "detalhes": ["observação 1", "observação 2"]
             }`;
 
             const response = await ai.models.generateContent({
@@ -138,11 +136,11 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             if (response.text) {
                 setResult(JSON.parse(response.text.trim()));
             } else {
-                throw new Error("Resposta da IA vazia");
+                throw new Error("Erro na conexão");
             }
         } catch (err: any) {
             console.error("AI Analysis Error:", err);
-            setError("FALHA DE LEITURA: O gráfico está ilegível ou muito poluído. Tente um print mais focado nas últimas 10 velas.");
+            setError("ERRO DE PROCESSAMENTO: Não foi possível processar o gráfico. Certifique-se de que a imagem está clara e mostra o fluxo de velas e indicadores.");
         } finally {
             setAnalyzing(false);
         }
@@ -153,11 +151,11 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             <div className="flex justify-between items-center shrink-0">
                 <div className="space-y-1">
                     <h2 className={`text-2xl font-black ${theme.text} tracking-tighter`}>SNIPER IA <span className="text-emerald-500">CONFLUENCE</span></h2>
-                    <p className={theme.textMuted}>9 Estratégias integradas: Bollinger, RSI, Médias e mais.</p>
+                    <p className={theme.textMuted}>Análise de fluxo histórico completo: Bollinger, Médias e Price Action.</p>
                 </div>
                 <div className="flex items-center gap-3 bg-slate-900/50 px-4 py-2 rounded-2xl border border-slate-800">
                     <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_#10b981]" />
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Multi-Setup Core v5.0</span>
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Macro-Context Core v5.1</span>
                 </div>
             </div>
 
@@ -178,8 +176,8 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                     <PlusIcon className="w-12 h-12 text-emerald-500" />
                                 </div>
                                 <div className="text-center">
-                                    <p className="font-black text-sm uppercase tracking-[0.2em] text-white">Importar Gráfico M1</p>
-                                    <p className="text-[10px] opacity-40 font-bold mt-2 uppercase text-slate-400">Arraste, cole (Ctrl+V) ou clique para subir</p>
+                                    <p className="font-black text-sm uppercase tracking-[0.2em] text-white">Importar Fluxo M1</p>
+                                    <p className="text-[10px] opacity-40 font-bold mt-2 uppercase text-slate-400">Quanto mais velas visíveis, maior a assertividade da IA</p>
                                 </div>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                             </label>
@@ -189,17 +187,17 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         onClick={analyzeChart} 
                         disabled={!image || analyzing}
                         className={`w-full h-20 shrink-0 rounded-[2rem] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-4 text-xs shadow-2xl
-                        ${!image || analyzing ? 'bg-slate-900 text-slate-700 cursor-not-allowed border border-slate-800' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 active:scale-95'}`}
+                        ${!image || analyzing ? 'bg-slate-950 text-slate-700 cursor-not-allowed border border-slate-800' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 active:scale-95'}`}
                     >
                         {analyzing ? (
                             <>
                                 <ArrowPathIcon className="w-6 h-6 animate-spin" />
-                                <span className="animate-pulse">Calculando Confluência...</span>
+                                <span className="animate-pulse">Calculando Macro Confluência...</span>
                             </>
                         ) : (
                             <>
                                 <CpuChipIcon className="w-7 h-7" />
-                                Analisar Próxima Vela
+                                Executar Leitura de Fluxo
                             </>
                         )}
                     </button>
@@ -212,7 +210,7 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-start gap-4 text-red-500 animate-in fade-in zoom-in">
                                 <InformationCircleIcon className="w-8 h-8 shrink-0 mt-1" />
                                 <div className="space-y-1">
-                                    <p className="text-xs font-black uppercase">Erro de Leitura</p>
+                                    <p className="text-xs font-black uppercase">Aviso do Sistema</p>
                                     <p className="text-[10px] font-bold opacity-80 leading-relaxed uppercase">{error}</p>
                                 </div>
                             </div>
@@ -224,13 +222,13 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 
                                 <div className="flex justify-between items-end relative z-10">
                                     <div className="space-y-1">
-                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Gatilho Detectado</p>
+                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Sinal de Fluxo</p>
                                         <h3 className={`text-7xl font-black tracking-tighter italic ${result.operacao === 'CALL' ? 'text-emerald-500' : result.operacao === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
                                             {result.operacao}
                                         </h3>
                                     </div>
                                     <div className="text-right space-y-1">
-                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Confiança</p>
+                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Assertividade</p>
                                         <p className={`text-4xl font-black ${result.confianca > 85 ? 'text-blue-400' : 'text-yellow-500'}`}>{result.confianca}%</p>
                                     </div>
                                 </div>
@@ -238,13 +236,13 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 <div className="p-5 bg-slate-950/60 rounded-3xl border border-white/5 backdrop-blur-xl">
                                     <div className="flex items-center gap-2 mb-2 opacity-50">
                                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                        <p className="text-[9px] font-black uppercase tracking-widest">Resumo Estratégico</p>
+                                        <p className="text-[9px] font-black uppercase tracking-widest">Análise do Histórico</p>
                                     </div>
                                     <p className="text-sm font-bold leading-relaxed italic text-white/90">"{result.analise_tecnica}"</p>
                                 </div>
 
                                 <div className="space-y-3">
-                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Checklist de Setups</p>
+                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Confluências Detectadas</p>
                                     <div className="grid grid-cols-1 gap-2">
                                         {result.setups_vistos?.map((setup: string, i: number) => (
                                             <div key={i} className="flex items-center gap-4 text-[11px] font-bold text-slate-300 bg-white/5 p-3 rounded-2xl border border-white/5">
@@ -256,8 +254,8 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 </div>
                                 
                                 <div className="pt-6 border-t border-white/5 flex justify-between items-center opacity-40">
-                                     <p className="text-[9px] font-black uppercase tracking-tighter">Filtro Axiun Ativo</p>
-                                     <p className="text-[9px] font-black uppercase tracking-tighter">Exp: 1 min</p>
+                                     <p className="text-[9px] font-black uppercase tracking-tighter">Filtro Axiun Ativado</p>
+                                     <p className="text-[9px] font-black uppercase tracking-tighter">Expiração: 1 min</p>
                                 </div>
                             </div>
                         ) : !analyzing && !error && (
@@ -267,8 +265,8 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                     <div className="absolute inset-0 bg-emerald-500/10 blur-3xl rounded-full" />
                                 </div>
                                 <div className="max-w-[240px] space-y-2">
-                                    <p className="text-xs font-black uppercase tracking-[0.2em] leading-tight text-white">Motor Sniper V5</p>
-                                    <p className="text-[9px] font-bold opacity-60 uppercase leading-relaxed text-slate-400">Cole um print do gráfico. A IA buscará por confluências entre Bollinger, RSI, Médias e Price Action automaticamente.</p>
+                                    <p className="text-xs font-black uppercase tracking-[0.2em] leading-tight text-white">Análise de Contexto Amplo</p>
+                                    <p className="text-[9px] font-bold opacity-60 uppercase leading-relaxed text-slate-400">Envie um print que mostre a sequência de velas. A IA fará uma leitura completa de todo o histórico visível para máxima precisão.</p>
                                 </div>
                             </div>
                         )}
