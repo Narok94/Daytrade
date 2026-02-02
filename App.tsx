@@ -65,18 +65,22 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             
-            const prompt = `Analise tecnicamente este gráfico de velas para Opções Binárias (Timeframe M1).
-            Identifique padrões de Price Action, suportes/resistências e tendências.
-            Aja como um simulador de análise técnica para fins educacionais.
+            const prompt = `Aja como um motor de análise de visão computacional especializado em geometria de gráficos de velas (Candlesticks).
+            Sua tarefa é analisar os padrões visuais, cores e disposições das velas nesta imagem para fins educacionais.
             
-            RETORNE ESTRITAMENTE UM JSON NO SEGUINTE FORMATO:
+            Analise:
+            1. Predominância de cor (Vendedores vs Compradores).
+            2. Padrões de Price Action (Martelos, Engolfos, Dojis).
+            3. Localização de zonas de retração (pavios longos).
+            
+            RETORNE APENAS UM JSON NO FORMATO ABAIXO. NÃO ADICIONE TEXTO EXPLICATIVO ANTES OU DEPOIS.
+            
             {
                 "operacao": "CALL" | "PUT" | "AGUARDAR",
-                "confianca": numero,
-                "motivo": "resumo técnico curto",
-                "detalhes": ["ponto 1", "ponto 2", "ponto 3"]
-            }
-            Não inclua markdown, não inclua explicações fora do JSON.`;
+                "confianca": numero_de_0_a_100,
+                "motivo": "resumo técnico curto do que foi visto",
+                "detalhes": ["confluência 1", "confluência 2", "confluência 3"]
+            }`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
@@ -89,17 +93,28 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             });
 
             const text = response.text || '';
+            
             // Robust JSON extraction
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                const cleanJson = jsonMatch[0];
-                setResult(JSON.parse(cleanJson));
+            let cleanJson = text;
+            const jsonBlockMatch = text.match(/```json\s?([\s\S]*?)```/i);
+            if (jsonBlockMatch) {
+                cleanJson = jsonBlockMatch[1];
             } else {
-                throw new Error("Resposta da IA em formato inválido.");
+                const bracketMatch = text.match(/\{[\s\S]*\}/);
+                if (bracketMatch) cleanJson = bracketMatch[0];
             }
+
+            try {
+                const parsed = JSON.parse(cleanJson);
+                setResult(parsed);
+            } catch (parseErr) {
+                console.error("Incomplete AI Response:", text);
+                throw new Error("A IA não conseguiu estruturar os dados. Tente um print mais nítido ou reduza o zoom do gráfico.");
+            }
+            
         } catch (err: any) {
-            console.error("AI Analysis Error:", err);
-            setError("Falha ao analisar a imagem. Verifique se o gráfico está legível e tente novamente.");
+            console.error("Analysis Error:", err);
+            setError(err.message || "Erro de comunicação com o servidor. Verifique sua conexão.");
         } finally {
             setAnalyzing(false);
         }
@@ -110,42 +125,46 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className={`text-2xl font-black ${theme.text}`}>Analista de Gráficos IA</h2>
-                    <p className={theme.textMuted}>Utilize visão computacional para auxiliar sua tomada de decisão.</p>
+                    <p className={theme.textMuted}>Utilize inteligência artificial para ler padrões de mercado em segundos.</p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col items-center justify-center min-h-[400px] border-dashed border-2 relative overflow-hidden group`}>
+                {/* Upload Section */}
+                <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col items-center justify-center min-h-[420px] border-dashed border-2 relative overflow-hidden group transition-all duration-300`}>
                     {previewUrl ? (
-                        <div className="relative w-full h-full flex items-center justify-center">
-                            <img src={previewUrl} alt="Chart Preview" className="max-w-full max-h-[350px] object-contain rounded-xl shadow-2xl" />
-                            <button onClick={() => {setPreviewUrl(null); setImageData(null); setResult(null);}} className="absolute top-2 right-2 p-3 bg-red-600/90 backdrop-blur-md text-white rounded-full hover:scale-110 transition-all shadow-xl z-10"><TrashIcon className="w-5 h-5" /></button>
+                        <div className="relative w-full h-full flex items-center justify-center animate-in zoom-in duration-300">
+                            <img src={previewUrl} alt="Chart Preview" className="max-w-full max-h-[360px] object-contain rounded-xl shadow-2xl border border-white/5" />
+                            <div className="absolute top-4 right-4 flex gap-2">
+                                <button onClick={() => {setPreviewUrl(null); setImageData(null); setResult(null); setError(null);}} className="p-3 bg-red-600/90 backdrop-blur-md text-white rounded-full hover:scale-110 transition-all shadow-xl"><TrashIcon className="w-5 h-5" /></button>
+                            </div>
                         </div>
                     ) : (
-                        <label className="cursor-pointer flex flex-col items-center gap-4 text-center group w-full h-full justify-center">
-                            <div className="w-24 h-24 bg-emerald-500/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-all border border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
-                                <PlusIcon className="w-12 h-12 text-emerald-500" />
+                        <label className="cursor-pointer flex flex-col items-center gap-4 text-center group w-full h-full justify-center hover:bg-emerald-500/5 transition-colors">
+                            <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-all border border-emerald-500/20">
+                                <PlusIcon className="w-10 h-10 text-emerald-500" />
                             </div>
-                            <div>
-                                <p className="font-black text-sm uppercase tracking-widest text-emerald-500">Subir Print do Gráfico</p>
-                                <p className="text-[10px] opacity-40 font-bold mt-2">Arraste ou clique para selecionar (M1/M5)</p>
+                            <div className="space-y-1">
+                                <p className="font-black text-xs uppercase tracking-[0.2em] text-emerald-500">Enviar Print do Gráfico</p>
+                                <p className="text-[9px] opacity-40 font-bold uppercase tracking-widest">Recomendado: M1 ou M5 com zoom equilibrado</p>
                             </div>
                             <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                         </label>
                     )}
                 </div>
 
+                {/* Analysis/Results Section */}
                 <div className="space-y-6 flex flex-col">
                     <button 
                         onClick={analyzeChart} 
                         disabled={!imageData || analyzing}
-                        className={`w-full h-20 rounded-2xl font-black uppercase tracking-[0.2em] transition-all flex flex-col items-center justify-center gap-1
+                        className={`w-full h-20 rounded-2xl font-black uppercase tracking-[0.2em] transition-all flex flex-col items-center justify-center gap-1 relative overflow-hidden
                         ${!imageData || analyzing ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-[0_10px_30px_rgba(16,185,129,0.3)] active:scale-95'}`}
                     >
                         {analyzing ? (
                             <>
                                 <ArrowPathIcon className="w-6 h-6 animate-spin mb-1" />
-                                <span className="text-xs">Processando Visão...</span>
+                                <span className="text-[10px]">Interpretando Candles...</span>
                             </>
                         ) : (
                             <>
@@ -153,67 +172,68 @@ const AIAnalyzerPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                     <CpuChipIcon className="w-6 h-6" />
                                     <span>Analisar Gráfico</span>
                                 </div>
-                                <span className="text-[9px] opacity-60">IA GENERATIVA GEMINI 2.0</span>
+                                <span className="text-[8px] opacity-60 font-bold tracking-[0.3em]">GEMINI 3.0 MULTIMODAL VISON</span>
                             </>
                         )}
+                        {analyzing && <div className="absolute inset-0 bg-white/10 animate-pulse" />}
                     </button>
 
                     {error && (
-                        <div className="p-5 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-start gap-3 text-red-500 animate-in fade-in zoom-in duration-300">
+                        <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-start gap-4 text-red-500 animate-in slide-in-from-top-4">
                             <InformationCircleIcon className="w-6 h-6 shrink-0 mt-0.5" />
                             <div>
-                                <p className="text-xs font-black uppercase tracking-widest mb-1">Erro de Identificação</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest mb-1">Erro de Identificação</p>
                                 <p className="text-[11px] font-bold opacity-80 leading-relaxed">{error}</p>
                             </div>
                         </div>
                     )}
 
                     {result && (
-                        <div className={`p-8 rounded-3xl border ${theme.card} space-y-6 animate-in slide-in-from-right-8 fade-in duration-500 shadow-2xl relative overflow-hidden`}>
-                            <div className="absolute top-0 right-0 p-6 opacity-5">
-                                <CpuChipIcon className="w-20 h-20" />
-                            </div>
-                            
+                        <div className={`p-8 rounded-3xl border ${theme.card} space-y-6 animate-in slide-in-from-bottom-8 duration-500 shadow-2xl relative overflow-hidden`}>
                             <div className="flex justify-between items-end border-b border-slate-800/10 pb-6">
-                                <div>
-                                    <p className="text-[10px] font-black uppercase opacity-40 tracking-widest mb-2">Recomendação</p>
-                                    <h3 className={`text-5xl font-black tracking-tighter ${result.operacao === 'CALL' ? 'text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]' : result.operacao === 'PUT' ? 'text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'text-slate-500'}`}>
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-black uppercase opacity-40 tracking-widest">Sentimento da IA</p>
+                                    <h3 className={`text-6xl font-black tracking-tighter ${result.operacao === 'CALL' ? 'text-emerald-500 drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]' : result.operacao === 'PUT' ? 'text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.4)]' : 'text-slate-400'}`}>
                                         {result.operacao === 'CALL' ? '↑ CALL' : result.operacao === 'PUT' ? '↓ PUT' : 'ESPERAR'}
                                     </h3>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase opacity-40 tracking-widest mb-1">Assertividade</p>
-                                    <p className="text-3xl font-black text-blue-400">{result.confianca}%</p>
+                                    <p className="text-[10px] font-black uppercase opacity-40 tracking-widest mb-1">Confiabilidade</p>
+                                    <p className="text-4xl font-black text-blue-400 italic">{result.confianca}%</p>
                                 </div>
                             </div>
 
-                            <div className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800/50">
-                                <p className="text-xs font-black uppercase text-emerald-500/50 mb-2 tracking-widest">Justificativa Técnica</p>
-                                <p className="text-sm font-bold leading-relaxed">{result.motivo}</p>
+                            <div className="p-5 bg-slate-950/60 rounded-2xl border border-slate-800/50 backdrop-blur-sm">
+                                <p className="text-[9px] font-black uppercase text-emerald-500/60 mb-2 tracking-widest">Resumo Técnico</p>
+                                <p className="text-sm font-bold leading-relaxed opacity-90">{result.motivo}</p>
                             </div>
 
                             <div className="space-y-3">
-                                <p className="text-[9px] font-black uppercase opacity-40 tracking-widest">Pontos de Atenção</p>
-                                {result.detalhes?.map((detail: string, i: number) => (
-                                    <div key={i} className="flex items-center gap-3 text-xs font-bold opacity-80 group">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 group-hover:scale-150 transition-transform" />
-                                        {detail}
-                                    </div>
-                                ))}
+                                <p className="text-[9px] font-black uppercase opacity-40 tracking-widest">Confluências Identificadas</p>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {result.detalhes?.map((detail: string, i: number) => (
+                                        <div key={i} className="flex items-center gap-3 text-xs font-bold opacity-80 p-2 bg-white/5 rounded-lg">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]" />
+                                            {detail}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                             
                             <div className="pt-4 border-t border-slate-800/10">
-                                <p className="text-[8px] text-center uppercase font-black text-slate-600 italic">Isenção de Responsabilidade: Esta análise é gerada por IA e não constitui conselho financeiro.</p>
+                                <p className="text-[8px] text-center uppercase font-black text-slate-600 leading-tight">
+                                    AVISO: Esta análise é meramente informativa e baseada em visão computacional. O mercado de renda variável apresenta riscos elevados de perda.
+                                </p>
                             </div>
                         </div>
                     )}
                     
                     {!result && !analyzing && !error && (
-                        <div className="flex-1 border border-slate-800/20 rounded-3xl flex flex-col items-center justify-center opacity-20 text-center space-y-4 p-10">
-                            <CpuChipIcon className="w-16 h-16" />
+                        <div className="flex-1 border border-slate-800/20 rounded-3xl flex flex-col items-center justify-center opacity-20 text-center space-y-4 p-10 border-dashed">
+                            <CpuChipIcon className="w-16 h-16 animate-pulse" />
                             <div>
-                                <p className="text-xs font-black uppercase tracking-widest">Processador Offline</p>
-                                <p className="text-[10px] font-bold mt-1">Aguardando entrada de dados visuais</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest">Scanner Offline</p>
+                                <p className="text-[9px] font-bold mt-1">Carregue uma imagem para iniciar o processamento neural</p>
                             </div>
                         </div>
                     )}
