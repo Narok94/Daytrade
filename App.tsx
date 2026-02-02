@@ -38,7 +38,8 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     const winRate = ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0)) > 0 
         ? (((dailyRecordForSelectedDay?.winCount || 0) / ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0))) * 100).toFixed(0) : '0';
     
-    const goalPercentage = dailyGoalTarget > 0 ? (currentProfit / dailyGoalTarget) * 100 : 0;
+    // Cálculo da meta: Se o lucro for negativo, a % é 0. Se for positivo, calcula em cima do alvo diário.
+    const goalPercentage = dailyGoalTarget > 0 ? Math.max(0, (currentProfit / dailyGoalTarget) * 100) : 0;
 
     const kpis = [
         { label: 'Arsenal', val: `${currencySymbol}${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-emerald-400' },
@@ -56,14 +57,14 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {kpis.map((kpi, i) => (
-                    <div key={i} className={`p-5 rounded-2xl border ${theme.card} flex flex-col justify-between hover:border-emerald-500/30 transition-all`}>
+                    <div key={i} className={`p-5 rounded-2xl border ${theme.card} flex flex-col justify-between hover:border-emerald-500/30 transition-all group`}>
                         <div className="flex justify-between items-start mb-3">
                             <p className="text-[9px] uppercase font-black text-slate-500 tracking-widest">{kpi.label}</p>
-                            <kpi.icon className={`w-4 h-4 ${kpi.color} opacity-60`} />
+                            <kpi.icon className={`w-4 h-4 ${kpi.color} opacity-60 group-hover:scale-110 transition-transform`} />
                         </div>
                         <div>
                             <p className={`text-xl font-black ${kpi.color} tracking-tighter`}>{kpi.val}</p>
-                            {kpi.sub && <p className="text-[8px] font-black uppercase text-slate-600 mt-1">{kpi.sub}</p>}
+                            {kpi.sub && <p className="text-[8px] font-black uppercase text-slate-600 mt-1 italic opacity-70">{kpi.sub}</p>}
                         </div>
                     </div>
                 ))}
@@ -85,57 +86,18 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     );
 };
 
-// --- Escalada Panel ---
-const CompoundInterestPanel = ({ isDarkMode, activeBrokerage }: any) => {
-    const theme = useThemeClasses(isDarkMode);
-    const tableData = useMemo(() => {
-        let running = activeBrokerage.initialBalance;
-        const res = [];
-        for(let i=1; i<=30; i++) {
-            const entry = running * 0.10; 
-            const profit = (entry * (activeBrokerage.payoutPercentage/100)); 
-            res.push({ day: i, initial: running, entry, profit, final: running + profit });
-            running += profit;
-        }
-        return res;
-    }, [activeBrokerage]);
-
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-5xl mx-auto animate-in fade-in">
-            <h2 className="text-xl font-black uppercase tracking-tighter italic">Projeção <span className="text-emerald-400">Exponencial</span></h2>
-            <div className={`p-4 border ${theme.border} ${theme.card} rounded-3xl overflow-hidden shadow-2xl`}>
-                <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-center text-[10px] font-black uppercase tracking-tight">
-                        <thead className="bg-black/20 text-slate-500 text-[8px]"><tr className="border-b border-white/5"><th className="p-5">Meta #</th><th>Arsenal</th><th>Disparo</th><th>Lucro Alvo</th><th>Total HQ</th></tr></thead>
-                        <tbody>
-                            {tableData.map(d => (
-                                <tr key={d.day} className="border-b border-white/5 hover:bg-white/5 transition-all">
-                                    <td className="p-4 opacity-40 italic">DIA {d.day}</td>
-                                    <td className="text-white">R$ {formatMoney(d.initial)}</td>
-                                    <td className="text-emerald-500/60">R$ {formatMoney(d.entry)}</td>
-                                    <td className="text-emerald-400 font-bold">+R$ {formatMoney(d.profit)}</td>
-                                    <td className="text-emerald-400 font-black">R$ {formatMoney(d.final)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// --- Goals Panel (Metas) ---
+// --- Goals Panel (Missões) ---
 const GoalsPanel = ({ theme, goals, setGoals, currencySymbol, debouncedSave }: any) => {
     const [name, setName] = useState('');
     const [target, setTarget] = useState('');
+    const [goalType, setGoalType] = useState<'daily' | 'monthly'>('monthly');
 
     const addGoal = () => {
         if(!name || !target) return;
         const newGoal: Goal = { 
             id: crypto.randomUUID(), 
             name, 
-            type: 'daily', // Todas como Diária para simplificar o Dashboard
+            type: goalType, 
             targetAmount: parseFloat(target), 
             createdAt: Date.now() 
         };
@@ -151,15 +113,25 @@ const GoalsPanel = ({ theme, goals, setGoals, currencySymbol, debouncedSave }: a
 
     return (
         <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in pb-32">
-            <div>
-                <h2 className="text-xl font-black uppercase italic">Missões <span className="text-emerald-400">Estratégicas</span></h2>
-                <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mt-1">Defina seus alvos de lucro diário</p>
+            <div className="flex justify-between items-end">
+                <div>
+                    <h2 className="text-xl font-black uppercase italic">Missões <span className="text-emerald-400">Estratégicas</span></h2>
+                    <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mt-1">Defina seus alvos táticos</p>
+                </div>
             </div>
             
-            <div className={`p-6 ${theme.card} border ${theme.border} rounded-3xl grid grid-cols-1 md:grid-cols-3 gap-4 shadow-xl`}>
-                <input type="text" placeholder="NOME DO ALVO" value={name} onChange={e=>setName(e.target.value)} className={`h-14 px-6 rounded-2xl border text-[10px] font-black uppercase ${theme.input}`} />
-                <input type="number" placeholder="VALOR (R$)" value={target} onChange={e=>setTarget(e.target.value)} className={`h-14 px-6 rounded-2xl border text-[10px] font-black uppercase ${theme.input}`} />
-                <button onClick={addGoal} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg transition-all active:scale-95">Definir Missão</button>
+            <div className={`p-6 ${theme.card} border ${theme.border} rounded-3xl space-y-6 shadow-xl`}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="text" placeholder="NOME DO ALVO (EX: BANCÃO)" value={name} onChange={e=>setName(e.target.value)} className={`h-14 px-6 rounded-2xl border text-[10px] font-black uppercase ${theme.input}`} />
+                    <input type="number" placeholder="VALOR TOTAL (R$)" value={target} onChange={e=>setTarget(e.target.value)} className={`h-14 px-6 rounded-2xl border text-[10px] font-black uppercase ${theme.input}`} />
+                </div>
+                <div className="flex flex-col md:flex-row gap-4 items-center">
+                    <div className="flex bg-black/40 p-1 rounded-2xl border border-white/5 w-full md:w-auto">
+                        <button onClick={() => setGoalType('monthly')} className={`flex-1 md:flex-none px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${goalType === 'monthly' ? 'bg-emerald-500 text-slate-950 shadow-lg' : 'text-slate-500 hover:text-white'}`}>Meta Mensal</button>
+                        <button onClick={() => setGoalType('daily')} className={`flex-1 md:flex-none px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${goalType === 'daily' ? 'bg-emerald-500 text-slate-950 shadow-lg' : 'text-slate-500 hover:text-white'}`}>Meta Direta</button>
+                    </div>
+                    <button onClick={addGoal} className="w-full md:flex-1 h-14 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg transition-all active:scale-95">Lançar Missão</button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -167,16 +139,25 @@ const GoalsPanel = ({ theme, goals, setGoals, currencySymbol, debouncedSave }: a
                     <div key={g.id} className={`p-8 ${theme.card} border ${theme.border} rounded-3xl relative group hover:border-emerald-500/30 transition-all shadow-xl`}>
                          <button onClick={() => removeGoal(g.id)} className="absolute top-6 right-6 text-rose-500/20 hover:text-rose-500 transition-all"><TrashIcon className="w-5 h-5" /></button>
                          <div className="flex items-center gap-2 mb-3">
-                             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                             <div className={`w-2 h-2 rounded-full ${g.type === 'monthly' ? 'bg-blue-500 animate-pulse' : 'bg-emerald-500'}`} />
                              <h4 className="text-[10px] font-black uppercase italic text-slate-500 tracking-widest">{g.name}</h4>
                          </div>
                          <p className="text-3xl font-black text-emerald-400 tracking-tighter">{currencySymbol}{formatMoney(g.targetAmount)}</p>
-                         <p className="text-[8px] font-black text-slate-700 uppercase mt-4">Tipo: Meta Diária Ativa</p>
+                         <div className="mt-4 pt-4 border-t border-white/5">
+                            {g.type === 'monthly' ? (
+                                <div className="flex justify-between items-center">
+                                    <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Esforço Diário Necessário:</p>
+                                    <p className="text-[10px] font-black text-white">{currencySymbol}{formatMoney(g.targetAmount / 22)}</p>
+                                </div>
+                            ) : (
+                                <p className="text-[8px] font-black text-slate-700 uppercase">Tipo: Objetivo Diário Direto</p>
+                            )}
+                         </div>
                     </div>
                 )) : (
                     <div className="col-span-2 py-32 text-center opacity-10 border-2 border-dashed border-white/5 rounded-3xl">
                         <TargetIcon className="w-12 h-12 mx-auto mb-4" />
-                        <p className="text-[11px] font-black uppercase tracking-[0.5em] italic">Nenhum Alvo Definido</p>
+                        <p className="text-[11px] font-black uppercase tracking-[0.5em] italic">Aguardando Estratégia</p>
                     </div>
                 )}
             </div>
@@ -184,139 +165,201 @@ const GoalsPanel = ({ theme, goals, setGoals, currencySymbol, debouncedSave }: a
     );
 };
 
-// --- Soros Calculator ---
-const SorosCalculatorPanel = ({ theme, activeBrokerage }: any) => {
-    const [entry, setEntry] = useState(10);
-    const levels = useMemo(() => {
-        let current = entry;
-        const res = [];
-        for(let i=1; i<=6; i++) {
-            const profit = current * (activeBrokerage.payoutPercentage/100);
-            res.push({ lvl: i, entry: current, profit, total: current + profit });
+// --- Compound Interest Panel ---
+const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage }) => {
+    const theme = useThemeClasses(isDarkMode);
+    const [days, setDays] = useState(30);
+    const [dailyRate, setDailyRate] = useState(3);
+    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+
+    const results = useMemo(() => {
+        let current = activeBrokerage.initialBalance;
+        const list = [];
+        for (let i = 1; i <= days; i++) {
+            const profit = current * (dailyRate / 100);
             current += profit;
+            list.push({ day: i, balance: current });
         }
-        return res;
-    }, [entry, activeBrokerage]);
+        return list;
+    }, [activeBrokerage.initialBalance, days, dailyRate]);
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-2xl mx-auto animate-in zoom-in-95">
-            <h2 className="text-xl font-black uppercase italic">Protocolo <span className="text-emerald-400">Soros</span></h2>
-            <div className={`p-8 border ${theme.border} ${theme.card} rounded-3xl space-y-6 shadow-2xl`}>
-                <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 italic">Base do Ciclo</label><input type="number" value={entry} onChange={e=>setEntry(Number(e.target.value))} className={`w-full h-14 px-6 rounded-2xl border font-black text-sm outline-none ${theme.input}`} /></div>
-                <div className="space-y-3">
-                    {levels.map(l => (
-                        <div key={l.lvl} className="flex justify-between items-center p-5 bg-black/30 rounded-2xl border border-white/5 hover:border-emerald-500/30 transition-all">
-                            <span className="text-[11px] font-black text-emerald-500 italic tracking-widest">NÍVEL {l.lvl}</span>
-                            <span className="text-[14px] font-bold text-white">R$ {formatMoney(l.entry)} <span className="text-slate-600 mx-3">➔</span> <span className="text-emerald-400 font-black">R$ {formatMoney(l.total)}</span></span>
-                        </div>
-                    ))}
-                </div>
+        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto animate-in fade-in">
+            <h2 className="text-xl font-black uppercase italic">Simulação de <span className="text-emerald-400">Escalada</span></h2>
+            <div className={`p-6 rounded-3xl border ${theme.card} grid grid-cols-1 md:grid-cols-2 gap-6`}>
+                 <div className="space-y-4">
+                    <div>
+                        <label className="text-[9px] font-black text-slate-500 uppercase">Dias de Operação</label>
+                        <input type="number" value={days} onChange={e => setDays(Number(e.target.value))} className={`w-full h-12 px-4 rounded-xl border text-[12px] font-black ${theme.input}`} />
+                    </div>
+                    <div>
+                        <label className="text-[9px] font-black text-slate-500 uppercase">Meta Diária %</label>
+                        <input type="number" value={dailyRate} onChange={e => setDailyRate(Number(e.target.value))} className={`w-full h-12 px-4 rounded-xl border text-[12px] font-black ${theme.input}`} />
+                    </div>
+                 </div>
+                 <div className="flex flex-col justify-center items-center p-6 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
+                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-2">Projeção Final</p>
+                    <p className="text-3xl font-black text-emerald-400">{currencySymbol}{formatMoney(results[results.length-1]?.balance || 0)}</p>
+                 </div>
+            </div>
+            <div className={`overflow-hidden rounded-3xl border ${theme.border} ${theme.card}`}>
+                <table className="w-full text-left text-[10px]">
+                    <thead className="bg-black/20">
+                        <tr>
+                            <th className="px-6 py-4 font-black uppercase">Dia</th>
+                            <th className="px-6 py-4 font-black uppercase">Saldo Projetado</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                        {results.slice(0, 10).map(r => (
+                            <tr key={r.day} className="hover:bg-white/5 transition-colors">
+                                <td className="px-6 py-4 font-black">Dia {r.day}</td>
+                                <td className="px-6 py-4 font-black text-emerald-400">{currencySymbol}{formatMoney(r.balance)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                <div className="p-4 text-center text-[8px] font-black uppercase text-slate-500 italic">Exibindo primeiros 10 dias...</div>
             </div>
         </div>
     );
 };
 
-// --- Relatório Panel ---
-const RelatorioPanel = ({ isDarkMode, records, currencySymbol, deleteTrade }: any) => {
-    const theme = useThemeClasses(isDarkMode);
-    const [expandedDay, setExpandedDay] = useState<string | null>(null);
+// --- Soros Calculator Panel ---
+const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
+    const [entry, setEntry] = useState(10);
+    const [payout, setPayout] = useState(80);
+    const [levels, setLevels] = useState(4);
+    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
 
-    const stats = useMemo(() => {
-        const allTrades = records.flatMap((r: any) => r.trades || []);
-        const total = allTrades.length;
-        const wins = allTrades.filter((t: any) => t.result === 'win').length;
-        const losses = total - wins;
-        const profit = records.reduce((acc: number, r: any) => acc + (r.netProfitUSD || 0), 0);
-        const avgProfit = total > 0 ? profit / total : 0;
-        return { total, wins, losses, profit, wr: total > 0 ? ((wins / total) * 100).toFixed(1) : '0', avgProfit };
-    }, [records]);
+    const steps = useMemo(() => {
+        let currentEntry = entry;
+        const list = [];
+        for (let i = 1; i <= levels; i++) {
+            const profit = currentEntry * (payout / 100);
+            list.push({ level: i, entry: currentEntry, profit });
+            currentEntry += profit;
+        }
+        return list;
+    }, [entry, payout, levels]);
 
     return (
-        <div className="p-4 md:p-8 space-y-8 max-w-5xl mx-auto animate-in fade-in pb-32">
-            <div className="flex justify-between items-end">
-                <div>
-                    <h2 className="text-xl font-black uppercase italic">Relatório <span className="text-emerald-400">Tático</span></h2>
-                    <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mt-1">Consolidação de Dados Sniper</p>
+        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto animate-in fade-in">
+            <h2 className="text-xl font-black uppercase italic">Calculadora de <span className="text-emerald-400">Ciclos (Soros)</span></h2>
+            <div className={`p-6 rounded-3xl border ${theme.card} grid grid-cols-1 md:grid-cols-3 gap-4`}>
+                <div className="space-y-2">
+                    <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Entrada Inicial</label>
+                    <input type="number" value={entry} onChange={e => setEntry(Number(e.target.value))} className={`w-full h-12 px-4 rounded-xl border text-[12px] font-black ${theme.input}`} />
                 </div>
-                <div className="bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/20">
-                    <span className="text-[10px] font-black text-emerald-400 uppercase">Performance: {stats.wr}%</span>
+                <div className="space-y-2">
+                    <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Payout %</label>
+                    <input type="number" value={payout} onChange={e => setPayout(Number(e.target.value))} className={`w-full h-12 px-4 rounded-xl border text-[12px] font-black ${theme.input}`} />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Níveis</label>
+                    <input type="number" value={levels} onChange={e => setLevels(Number(e.target.value))} className={`w-full h-12 px-4 rounded-xl border text-[12px] font-black ${theme.input}`} />
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className={`p-6 ${theme.card} border ${theme.border} rounded-2xl text-center`}><p className="text-[8px] font-black text-slate-500 uppercase mb-2">Trades</p><p className="text-xl font-black text-white">{stats.total}</p></div>
-                <div className={`p-6 ${theme.card} border ${theme.border} rounded-2xl text-center`}><p className="text-[8px] font-black text-slate-500 uppercase mb-2">Vitórias</p><p className="text-xl font-black text-emerald-400">{stats.wins}</p></div>
-                <div className={`p-6 ${theme.card} border ${theme.border} rounded-2xl text-center`}><p className="text-[8px] font-black text-slate-500 uppercase mb-2">Lucro Médio</p><p className="text-xl font-black text-blue-400">{currencySymbol}{formatMoney(stats.avgProfit)}</p></div>
-                <div className={`p-6 ${theme.card} border ${theme.border} rounded-2xl text-center`}><p className="text-[8px] font-black text-slate-500 uppercase mb-2">Profit Total</p><p className="text-xl font-black text-emerald-400">{currencySymbol}{formatMoney(stats.profit)}</p></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {steps.map(step => (
+                    <div key={step.level} className={`p-6 rounded-2xl border ${theme.card} relative overflow-hidden group`}>
+                        <div className="absolute top-0 right-0 p-2 bg-emerald-500/10 text-emerald-400 text-[8px] font-black uppercase rounded-bl-xl">Nível {step.level}</div>
+                        <p className="text-[9px] font-black text-slate-500 uppercase mb-2">Entrada</p>
+                        <p className="text-lg font-black text-white">{currencySymbol}{formatMoney(step.entry)}</p>
+                        <p className="text-[9px] font-black text-emerald-400 uppercase mt-4">Lucro: +{currencySymbol}{formatMoney(step.profit)}</p>
+                    </div>
+                ))}
             </div>
+        </div>
+    );
+};
 
-            <div className="space-y-4">
-                <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em] ml-2">Histórico de Disparos</h3>
-                {records.length > 0 ? [...records].reverse().map((day: DailyRecord) => (
-                    <div key={day.id} className={`border ${theme.border} ${theme.card} rounded-3xl overflow-hidden transition-all ${expandedDay === day.id ? 'ring-2 ring-emerald-500/20' : ''}`}>
-                        <div onClick={() => setExpandedDay(expandedDay === day.id ? null : day.id)} className="p-6 flex items-center justify-between cursor-pointer hover:bg-white/5">
-                            <div className="flex items-center gap-6">
-                                <div className="text-left">
-                                    <p className="text-[11px] font-black text-white">{new Date(day.date + 'T12:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: 'short', year: 'numeric'})}</p>
-                                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{day.trades.length} Operações</p>
+// --- Relatorio Panel ---
+const RelatorioPanel: React.FC<any> = ({ isDarkMode, records, currencySymbol, deleteTrade }) => {
+    const theme = useThemeClasses(isDarkMode);
+    const sortedDays = useMemo(() => [...records].filter(r => r.recordType === 'day').sort((a,b) => b.id.localeCompare(a.id)), [records]);
+
+    return (
+        <div className="p-4 md:p-8 space-y-6 max-w-6xl mx-auto animate-in fade-in pb-32">
+            <h2 className="text-xl font-black uppercase italic">Histórico de <span className="text-emerald-400">Missões</span></h2>
+            {sortedDays.length === 0 ? (
+                <div className="py-32 text-center opacity-20"><DocumentTextIcon className="w-16 h-16 mx-auto mb-4" /><p className="font-black uppercase tracking-widest italic">Sem registros encontrados</p></div>
+            ) : (
+                <div className="space-y-4">
+                    {sortedDays.map(day => (
+                        <div key={day.id} className={`p-6 rounded-3xl border ${theme.card} space-y-4`}>
+                            <div className="flex justify-between items-center border-b border-white/5 pb-4">
+                                <div className="flex items-center gap-4">
+                                    <p className="text-[12px] font-black text-white">{new Date(day.date + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                                    <div className="flex gap-2">
+                                        <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[8px] font-black rounded-full border border-emerald-500/20">{day.winCount} WIN</span>
+                                        <span className="px-3 py-1 bg-rose-500/10 text-rose-500 text-[8px] font-black rounded-full border border-rose-500/20">{day.lossCount} LOSS</span>
+                                    </div>
                                 </div>
-                                <div className="h-8 w-px bg-white/5 hidden sm:block" />
-                                <div className="hidden sm:block">
-                                    <p className="text-[8px] font-black text-slate-500 uppercase">Resultado</p>
-                                    <p className={`text-[12px] font-black ${day.netProfitUSD >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>{day.netProfitUSD >= 0 ? '+' : ''}{currencySymbol}{formatMoney(day.netProfitUSD)}</p>
-                                </div>
+                                <p className={`text-sm font-black ${day.netProfitUSD >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>{day.netProfitUSD >= 0 ? '+' : ''}{currencySymbol}{formatMoney(day.netProfitUSD)}</p>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <div className="text-right">
-                                    <p className="text-[8px] font-black text-slate-500 uppercase">WR%</p>
-                                    <p className="text-[12px] font-black text-white">{day.trades.length > 0 ? ((day.winCount / day.trades.length) * 100).toFixed(0) : 0}%</p>
-                                </div>
-                                {expandedDay === day.id ? <ChevronUpIcon className="w-5 h-5 text-emerald-500" /> : <ChevronDownIcon className="w-5 h-5 text-slate-600" />}
-                            </div>
-                        </div>
-                        {expandedDay === day.id && (
-                            <div className="p-6 pt-0 space-y-3 bg-black/10 animate-in slide-in-from-top-2">
-                                <div className="border-t border-white/5 mb-4" />
-                                {day.trades.map((trade) => (
-                                    <div key={trade.id} className="flex items-center justify-between p-4 rounded-xl bg-black/20 border border-white/5">
+                            <div className="grid grid-cols-1 gap-2">
+                                {day.trades.map((trade: Trade) => (
+                                    <div key={trade.id} className="flex justify-between items-center bg-black/20 p-4 rounded-2xl group hover:bg-black/30 transition-all border border-transparent hover:border-white/5">
                                         <div className="flex items-center gap-4">
-                                            <div className={`w-1 h-6 rounded-full ${trade.result === 'win' ? 'bg-emerald-400' : 'bg-rose-500'}`} />
-                                            <span className="text-[10px] font-black text-white uppercase">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</span>
+                                            <div className={`w-2 h-2 rounded-full ${trade.result === 'win' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]'}`} />
+                                            <div>
+                                                <p className="text-[10px] font-black text-white uppercase tracking-widest">Operação {trade.result === 'win' ? 'HIT' : 'MISS'}</p>
+                                                <p className="text-[8px] font-black text-slate-500 uppercase">{new Date(trade.timestamp || 0).toLocaleTimeString('pt-BR')}</p>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-4">
-                                            <span className="text-[10px] font-black text-slate-400">V: {currencySymbol}{formatMoney(trade.entryValue)}</span>
-                                            <span className={`text-[11px] font-black ${trade.result === 'win' ? 'text-emerald-400' : 'text-rose-500'}`}>{trade.result === 'win' ? '+' : '-'}{currencySymbol}{formatMoney(trade.entryValue * (trade.result === 'win' ? (trade.payoutPercentage/100) : 1))}</span>
-                                            <button onClick={() => deleteTrade(trade.id, day.id)} className="p-1 text-rose-500/20 hover:text-rose-500 transition-all"><TrashIcon className="w-4 h-4" /></button>
+                                        <div className="flex items-center gap-6">
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-black text-white">{currencySymbol}{formatMoney(trade.entryValue)}</p>
+                                                <p className="text-[8px] font-black text-slate-500 uppercase">{trade.payoutPercentage}% Payout</p>
+                                            </div>
+                                            <button onClick={() => deleteTrade(trade.id, day.id)} className="text-slate-600 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><TrashIcon className="w-4 h-4" /></button>
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                        )}
-                    </div>
-                )) : <div className="py-20 text-center opacity-10 italic uppercase font-black tracking-widest text-xs">Vazio de Dados</div>}
-            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
 
 // --- Settings Panel ---
-const SettingsPanel = ({ theme, brokerage, setBrokerages, onReset, onLogout }: any) => {
-    const update = (field: keyof Brokerage, val: any) => {
-        setBrokerages((prev: Brokerage[]) => prev.map((b, i) => i === 0 ? { ...b, [field]: val } : b));
-    };
+const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onLogout, onReset }) => {
     return (
-        <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-8 pb-32">
-            <h2 className="text-xl font-black uppercase italic">Configuração <span className="text-emerald-400">HQ</span></h2>
-            <div className={`p-10 border ${theme.border} ${theme.card} rounded-[2rem] space-y-8 shadow-2xl`}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Identidade</label><input type="text" value={brokerage.name} onChange={e => update('name', e.target.value)} className={`w-full h-14 px-6 rounded-2xl border font-bold text-sm ${theme.input}`} /></div>
-                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Moeda HQ</label><select value={brokerage.currency} onChange={e => update('currency', e.target.value as any)} className={`w-full h-14 px-6 rounded-2xl border font-bold text-sm ${theme.input}`}><option value="USD">Dólar ($)</option><option value="BRL">Real (R$)</option></select></div>
-                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Arsenal Inicial</label><input type="number" value={brokerage.initialBalance} onChange={e => update('initialBalance', parseFloat(e.target.value))} className={`w-full h-14 px-6 rounded-2xl border font-bold text-sm ${theme.input}`} /></div>
-                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Payout Padrão %</label><input type="number" value={brokerage.payoutPercentage} onChange={e => update('payoutPercentage', parseInt(e.target.value))} className={`w-full h-14 px-6 rounded-2xl border font-bold text-sm ${theme.input}`} /></div>
+        <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto animate-in fade-in pb-32">
+            <h2 className="text-xl font-black uppercase italic">Base de Operações <span className="text-emerald-400">(HQ)</span></h2>
+            
+            <div className={`p-8 rounded-3xl border ${theme.card} space-y-8`}>
+                <div className="space-y-6">
+                    <h3 className="text-[10px] font-black uppercase text-emerald-400 tracking-widest italic">Configuração do Arsenal</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Capital Inicial</label>
+                            <input type="number" value={brokerage?.initialBalance} onChange={e => setBrokerages((prev: any) => [{...prev[0], initialBalance: Number(e.target.value)}])} className={`w-full h-14 px-6 rounded-2xl border text-[11px] font-black ${theme.input}`} />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Moeda Base</label>
+                            <select value={brokerage?.currency} onChange={e => setBrokerages((prev: any) => [{...prev[0], currency: e.target.value}])} className={`w-full h-14 px-6 rounded-2xl border text-[11px] font-black ${theme.input}`}>
+                                <option value="USD">DÓLAR ($)</option>
+                                <option value="BRL">REAL (R$)</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-                <div className="pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <button onClick={onReset} className="py-5 bg-rose-500/5 border border-rose-500/20 text-rose-500 hover:bg-rose-500/10 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] transition-all">Protocolo Reset Geral</button>
-                    <button onClick={onLogout} className="py-5 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3"><LogoutIcon className="w-5 h-5" />Encerrar Sessão</button>
+
+                <div className="pt-8 border-t border-white/5 space-y-4">
+                    <h3 className="text-[10px] font-black uppercase text-rose-500 tracking-widest italic">Protocolos de Segurança</h3>
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <button onClick={onReset} className="flex-1 h-14 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white font-black rounded-2xl text-[9px] uppercase tracking-widest transition-all border border-rose-500/20">Resetar Todo o Arsenal</button>
+                        <button onClick={onLogout} className="flex-1 h-14 bg-slate-500/10 hover:bg-slate-500 text-slate-400 hover:text-white font-black rounded-2xl text-[9px] uppercase tracking-widest transition-all border border-white/5 flex items-center justify-center gap-2">
+                            <LogoutIcon className="w-4 h-4" />
+                            Encerrar Sessão
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -440,7 +483,12 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     ];
 
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-    const dailyGoalTarget = goals.find(g => g.type === 'daily')?.targetAmount || 100;
+    
+    // LÓGICA DE CÁLCULO DE META:
+    // Prioriza o cálculo mensal dividido por 22 dias úteis.
+    const monthlyGoal = goals.find(g => g.type === 'monthly');
+    const directDailyGoal = goals.find(g => g.type === 'daily');
+    const dailyGoalTarget = monthlyGoal ? (monthlyGoal.targetAmount / 22) : (directDailyGoal?.targetAmount || 100);
 
     return (
         <div className={`flex flex-col h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
