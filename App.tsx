@@ -548,7 +548,7 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
 };
 
 // --- Soros Calculator Panel ---
-const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
+const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage, currentBalance }) => {
     const [initialEntry, setInitialEntry] = useState('10');
     const [payout, setPayout] = useState(activeBrokerage?.payoutPercentage || '80');
     const [levels, setLevels] = useState('4');
@@ -573,10 +573,20 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div>
-                <h2 className="text-2xl font-black">Calculadora de Soros</h2>
-                <p className={theme.textMuted}>Planeje seus ciclos de reinvestimento.</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-2xl font-black">Calculadora de Soros</h2>
+                    <p className={theme.textMuted}>Planeje seus ciclos de reinvestimento.</p>
+                </div>
+                <div className={`px-6 py-3 rounded-2xl border ${theme.card} flex items-center gap-4 shadow-sm`}>
+                    <div>
+                        <p className="text-[10px] font-black uppercase text-slate-500 mb-0.5">Banca Atual</p>
+                        <p className="text-xl font-black text-green-500">{currencySymbol} {formatMoney(currentBalance)}</p>
+                    </div>
+                    <PieChartIcon className="w-8 h-8 text-green-500 opacity-40" />
+                </div>
             </div>
+
             <div className={`p-6 rounded-3xl border ${theme.card} grid grid-cols-1 md:grid-cols-3 gap-6`}>
                 <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-500 uppercase">Entrada Inicial ({currencySymbol})</label>
@@ -902,6 +912,11 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const dailyRecord = records.find((r): r is DailyRecord => r.id === dateStr && r.recordType === 'day');
     const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.id.localeCompare(a.id));
     const startBalDashboard = sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
+    
+    // Banca absoluta mais recente para a calculadora de soros
+    const currentAbsoluteBalance = records.length > 0 
+        ? (records.filter(r => r.recordType === 'day').sort((a,b) => b.id.localeCompare(a.id))[0] as DailyRecord).endBalanceUSD
+        : (activeBrokerage?.initialBalance || 0);
 
     const monthlyGoal = goals.find(g => g.type === 'monthly');
     const activeDailyGoal = monthlyGoal ? (monthlyGoal.targetAmount / 22) : (activeBrokerage?.initialBalance * 0.03 || 1);
@@ -935,7 +950,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {activeTab === 'ai-analysis' && <AIAnalysisPanel theme={theme} isDarkMode={isDarkMode} />}
                     {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
                     {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
-                    {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
+                    {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} currentBalance={currentAbsoluteBalance} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} />}
                 </div>
