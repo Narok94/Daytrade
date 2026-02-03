@@ -19,8 +19,8 @@ const useThemeClasses = (isDarkMode: boolean) => {
     return useMemo(() => ({
         bg: isDarkMode ? 'bg-[#020617]' : 'bg-slate-50',
         text: isDarkMode ? 'text-slate-100' : 'text-slate-900',
-        card: isDarkMode ? 'bg-[#0f172a]/60 border-slate-800/50 backdrop-blur-xl' : 'bg-white border-slate-200 shadow-sm',
-        input: isDarkMode ? 'bg-[#020617] border-slate-800/80 text-white placeholder-slate-600 focus:border-emerald-500/50' : 'bg-white border-slate-200 text-slate-900',
+        card: isDarkMode ? 'bg-[#0f172a]/80 border-slate-800/60 backdrop-blur-xl' : 'bg-white border-slate-200 shadow-sm',
+        input: isDarkMode ? 'bg-[#020617] border-slate-800 text-white placeholder-slate-600 focus:border-emerald-500/50' : 'bg-white border-slate-200 text-slate-900',
         border: isDarkMode ? 'border-slate-800' : 'border-slate-200',
         navActive: isDarkMode ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-600 bg-emerald-50',
         navInactive: isDarkMode ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600',
@@ -35,18 +35,17 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     
     const currentProfit = dailyRecordForSelectedDay?.netProfitUSD ?? 0;
     const currentBalance = dailyRecordForSelectedDay?.endBalanceUSD ?? startBalanceForSelectedDay;
-    const totalTrades = (dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0);
-    const winRate = totalTrades > 0 
-        ? (((dailyRecordForSelectedDay?.winCount || 0) / totalTrades) * 100).toFixed(0) : '0';
+    const winRate = ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0)) > 0 
+        ? (((dailyRecordForSelectedDay?.winCount || 0) / ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0))) * 100).toFixed(0) : '0';
     
-    const goalPercentage = dailyGoalTarget > 0 ? Math.min(100, Math.max(0, (currentProfit / dailyGoalTarget) * 100)) : 0;
+    const goalPercentage = dailyGoalTarget > 0 ? Math.max(0, (currentProfit / dailyGoalTarget) * 100) : 0;
 
     const kpis = [
         { label: 'Arsenal', val: `${currencySymbol}${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-emerald-400' },
         { label: 'Lucro Hoje', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol}${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-emerald-400' : 'text-rose-500' },
         { 
             label: 'Meta Diária', 
-            val: `${goalPercentage.toFixed(0)}%`, 
+            val: dailyGoalTarget > 0 ? `${goalPercentage.toFixed(0)}%` : '--', 
             icon: TargetIcon, 
             color: 'text-blue-400', 
             sub: dailyGoalTarget > 0 ? `Alvo: ${currencySymbol}${formatMoney(dailyGoalTarget)}` : 'Sem alvo' 
@@ -55,91 +54,68 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     ];
 
     return (
-        <div className="flex flex-col h-full max-w-5xl mx-auto p-3 md:p-4 justify-around animate-in fade-in zoom-in-95 duration-500 overflow-hidden">
+        <div className="flex flex-col h-full max-w-5xl mx-auto p-2 md:p-4 justify-around animate-in fade-in duration-500 overflow-hidden">
             {/* Header Interno Compacto */}
             <div className="flex justify-between items-center mb-1">
-                <div className="flex flex-col">
-                    <h2 className="text-xs md:text-sm font-black uppercase tracking-[0.2em] italic leading-none text-slate-500">
-                        Painel de <span className="text-emerald-400">Comando</span>
-                    </h2>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-[8px] font-black text-emerald-500/50 uppercase tracking-widest hidden sm:block">Fuso UTC-3</span>
-                    <input 
-                        type="date" 
-                        value={selectedDateString} 
-                        onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} 
-                        className={`text-[9px] md:text-[11px] font-black px-2 py-1 rounded border outline-none cursor-pointer hover:border-emerald-500/50 transition-colors ${theme.input}`} 
-                    />
-                </div>
+                <h2 className="text-sm md:text-lg font-black uppercase tracking-tighter italic leading-none">Painel de <span className="text-emerald-400">Comando</span></h2>
+                <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`text-[8px] md:text-[10px] font-black px-2 py-1 rounded-lg border outline-none ${theme.input}`} />
             </div>
 
-            {/* Grid de KPIs - Reduzido 15% conforme solicitado */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3">
+            {/* Grid de KPIs - Reduzido em 15% conforme solicitado */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                 {kpis.map((kpi, i) => (
-                    <div key={i} className={`p-2 md:p-3 rounded-xl border ${theme.card} flex flex-col justify-between hover:border-emerald-500/30 transition-all group relative overflow-hidden`}>
-                        <div className="absolute -right-1 -top-1 opacity-5 group-hover:opacity-10 transition-opacity">
-                            <kpi.icon className="w-8 h-8 md:w-10 md:h-10 text-white" />
+                    <div key={i} className={`p-2 md:p-3 rounded-xl border ${theme.card} flex flex-col justify-between hover:border-emerald-500/30 transition-all group`}>
+                        <div className="flex justify-between items-start mb-0.5">
+                            <p className="text-[6px] md:text-[8px] uppercase font-black text-slate-500 tracking-widest leading-none">{kpi.label}</p>
+                            <kpi.icon className={`w-2.5 h-2.5 md:w-3.5 md:h-3.5 ${kpi.color} opacity-60`} />
                         </div>
-                        <div className="flex justify-between items-start mb-1 relative z-10">
-                            <p className="text-[6px] md:text-[8px] uppercase font-black text-slate-500 tracking-[0.2em] leading-none">{kpi.label}</p>
-                            <kpi.icon className={`w-3 h-3 md:w-4 md:h-4 ${kpi.color} opacity-60`} />
-                        </div>
-                        <div className="relative z-10">
-                            <p className={`text-sm md:text-xl font-black ${kpi.color} tracking-tighter truncate leading-none drop-shadow-[0_0_8px_rgba(16,185,129,0.2)]`}>{kpi.val}</p>
-                            {kpi.sub && <p className="text-[5px] md:text-[7px] font-black uppercase text-slate-600 italic opacity-70 truncate mt-1">{kpi.sub}</p>}
+                        <div>
+                            <p className={`text-xs md:text-lg font-black ${kpi.color} tracking-tighter truncate leading-none`}>{kpi.val}</p>
+                            {kpi.sub && <p className="text-[5px] md:text-[7px] font-black uppercase text-slate-600 italic opacity-70 truncate">{kpi.sub}</p>}
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* Protocolo de Disparo - Visual "Glass Sniper" */}
-            <div className={`p-4 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border ${theme.card} shadow-2xl max-w-xl mx-auto w-full relative overflow-hidden flex flex-col justify-center border-emerald-500/10`}>
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
-                <div className="absolute -top-10 -right-10 p-10 opacity-[0.03] pointer-events-none rotate-12">
-                    <TargetIcon className="w-32 h-32 md:w-56 md:h-56 text-emerald-500" />
+            {/* Protocolo de Disparo - Ajustado para o centro */}
+            <div className={`p-4 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border ${theme.card} shadow-2xl max-w-xl mx-auto w-full relative overflow-hidden flex flex-col justify-center`}>
+                <div className="absolute -top-6 -right-6 p-10 opacity-[0.02] pointer-events-none">
+                    <TargetIcon className="w-24 h-24 md:w-48 md:h-48 text-emerald-500" />
                 </div>
                 
                 <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-4 md:mb-8">
-                        <h3 className="text-[8px] md:text-[12px] font-black uppercase text-emerald-400/90 tracking-[0.4em] italic flex items-center gap-2 leading-none">
-                            <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,1)]" />
-                            Protocolo Sniper
-                        </h3>
-                        <div className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                             <span className="text-[7px] md:text-[9px] font-black text-emerald-500 uppercase tracking-widest">Ativo</span>
-                        </div>
-                    </div>
+                    <h3 className="text-[7px] md:text-[11px] font-black uppercase text-emerald-400/80 mb-4 md:mb-8 tracking-[0.4em] italic flex items-center gap-2 leading-none">
+                        <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Protocolo de Disparo
+                    </h3>
                     
-                    <div className="grid grid-cols-3 gap-3 md:gap-5 mb-5 md:mb-8">
-                        <div className="space-y-1.5 md:space-y-2">
-                            <label className="text-[6px] md:text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest opacity-80 leading-none">Aporte</label>
-                            <input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-10 md:h-14 px-3 md:px-5 rounded-lg md:rounded-2xl border text-[12px] md:text-[16px] font-black outline-none transition-all focus:ring-2 focus:ring-emerald-500/20 ${theme.input}`} />
+                    <div className="grid grid-cols-3 gap-3 md:gap-5 mb-5 md:mb-10">
+                        <div className="space-y-1 md:space-y-2">
+                            <label className="text-[6px] md:text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest opacity-80 leading-none">Valor</label>
+                            <input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-10 md:h-14 px-3 md:px-5 rounded-lg md:rounded-2xl border text-[11px] md:text-[14px] font-black outline-none transition-all ${theme.input}`} />
                         </div>
-                        <div className="space-y-1.5 md:space-y-2">
+                        <div className="space-y-1 md:space-y-2">
                             <label className="text-[6px] md:text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest opacity-80 leading-none">Payout %</label>
-                            <input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-10 md:h-14 px-3 md:px-5 rounded-lg md:rounded-2xl border text-[12px] md:text-[16px] font-black outline-none transition-all focus:ring-2 focus:ring-emerald-500/20 ${theme.input}`} />
+                            <input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-10 md:h-14 px-3 md:px-5 rounded-lg md:rounded-2xl border text-[11px] md:text-[14px] font-black outline-none transition-all ${theme.input}`} />
                         </div>
-                        <div className="space-y-1.5 md:space-y-2">
-                            <label className="text-[6px] md:text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest opacity-80 leading-none">Disparos</label>
-                            <input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} className={`w-full h-10 md:h-14 px-3 md:px-5 rounded-lg md:rounded-2xl border text-[12px] md:text-[16px] font-black outline-none transition-all focus:ring-2 focus:ring-emerald-500/20 ${theme.input}`} />
+                        <div className="space-y-1 md:space-y-2">
+                            <label className="text-[6px] md:text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest opacity-80 leading-none">Qtd</label>
+                            <input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} className={`w-full h-10 md:h-14 px-3 md:px-5 rounded-lg md:rounded-2xl border text-[11px] md:text-[14px] font-black outline-none transition-all ${theme.input}`} />
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 md:gap-6">
                         <button 
                             onClick={() => addRecord(parseInt(quantity), 0, parseFloat(customEntryValue), parseFloat(customPayout))} 
-                            className="group py-4 md:py-6 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl md:rounded-2xl text-[10px] md:text-[14px] uppercase tracking-[0.3em] shadow-[0_10px_30px_rgba(16,185,129,0.3)] active:scale-95 transition-all flex flex-col items-center justify-center gap-1"
+                            className="py-4 md:py-7 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl md:rounded-2xl text-[9px] md:text-[12px] uppercase tracking-[0.3em] shadow-xl active:scale-95 transition-all"
                         >
                             HIT (VITÓRIA)
-                            <span className="text-[7px] md:text-[9px] opacity-60 font-black group-hover:tracking-[0.4em] transition-all">EXECUTAR</span>
                         </button>
                         <button 
                             onClick={() => addRecord(0, parseInt(quantity), parseFloat(customEntryValue), parseFloat(customPayout))} 
-                            className="group py-4 md:py-6 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl md:rounded-2xl text-[10px] md:text-[14px] uppercase tracking-[0.3em] shadow-[0_10px_30px_rgba(244,63,94,0.3)] active:scale-95 transition-all flex flex-col items-center justify-center gap-1"
+                            className="py-4 md:py-7 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl md:rounded-2xl text-[9px] md:text-[12px] uppercase tracking-[0.3em] shadow-xl active:scale-95 transition-all"
                         >
                             MISS (DERROTA)
-                            <span className="text-[7px] md:text-[9px] opacity-60 font-black group-hover:tracking-[0.4em] transition-all">ABORTAR</span>
                         </button>
                     </div>
                 </div>
@@ -173,16 +149,13 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage }) =
                     <div><label className="text-[8px] font-black text-slate-500 uppercase">Dias</label><input type="number" value={days} onChange={e => setDays(Number(e.target.value))} className={`w-full h-10 px-3 rounded-lg border text-[12px] font-black ${theme.input}`} /></div>
                     <div><label className="text-[8px] font-black text-slate-500 uppercase">Meta %</label><input type="number" value={dailyRate} onChange={e => setDailyRate(Number(e.target.value))} className={`w-full h-10 px-3 rounded-lg border text-[12px] font-black ${theme.input}`} /></div>
                  </div>
-                 <div className="flex flex-col justify-center items-center p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                    <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Saldo Final</p>
-                    <p className="text-2xl font-black text-emerald-400 tracking-tighter drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]">{currencySymbol}{formatMoney(results[results.length-1]?.balance || 0)}</p>
-                </div>
+                 <div className="flex flex-col justify-center items-center p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/20"><p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Saldo Final</p><p className="text-2xl font-black text-emerald-400 tracking-tighter">{currencySymbol}{formatMoney(results[results.length-1]?.balance || 0)}</p></div>
             </div>
             <div className={`overflow-hidden rounded-xl border ${theme.border} ${theme.card} shadow-lg`}>
                 <table className="w-full text-left text-[9px] md:text-[10px]">
                     <thead className="bg-black/40"><tr><th className="px-4 py-3 font-black uppercase tracking-widest text-slate-400">Dia</th><th className="px-4 py-3 font-black uppercase tracking-widest text-slate-400">Saldo</th></tr></thead>
                     <tbody className="divide-y divide-white/5">
-                        {results.slice(0, 100).map(r => (<tr key={r.day} className="hover:bg-white/5 transition-colors"><td className="px-4 py-2 font-black opacity-60">Dia {r.day}</td><td className="px-4 py-2 font-black text-emerald-400">{currencySymbol}{formatMoney(r.balance)}</td></tr>))}
+                        {results.slice(0, 30).map(r => (<tr key={r.day} className="hover:bg-white/5"><td className="px-4 py-2 font-black opacity-60">Dia {r.day}</td><td className="px-4 py-2 font-black text-emerald-400">{currencySymbol}{formatMoney(r.balance)}</td></tr>))}
                     </tbody>
                 </table>
             </div>
@@ -216,12 +189,7 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {steps.map(step => (
-                    <div key={step.level} className={`p-4 rounded-xl border ${theme.card} relative shadow-lg overflow-hidden group hover:border-emerald-500/40 transition-all`}>
-                        <div className="absolute top-0 right-0 p-1.5 bg-emerald-500/10 text-emerald-400 text-[6px] font-black uppercase border-l border-b border-emerald-500/20">Lv {step.level}</div>
-                        <p className="text-[8px] font-black text-slate-500 mb-1 uppercase tracking-widest">Aporte</p>
-                        <p className="text-base font-black text-white">{currencySymbol}{formatMoney(step.entry)}</p>
-                        <p className="text-[8px] font-black text-emerald-400 mt-2">Lucro: +{currencySymbol}{formatMoney(step.profit)}</p>
-                    </div>
+                    <div key={step.level} className={`p-4 rounded-xl border ${theme.card} relative shadow-lg overflow-hidden`}><div className="absolute top-0 right-0 p-1.5 bg-emerald-500/10 text-emerald-400 text-[6px] font-black uppercase border-l border-b border-emerald-500/20">Lv {step.level}</div><p className="text-[8px] font-black text-slate-500 mb-1 uppercase tracking-widest">Aporte</p><p className="text-base font-black text-white">{currencySymbol}{formatMoney(step.entry)}</p><p className="text-[8px] font-black text-emerald-400 mt-2">Lucro: +{currencySymbol}{formatMoney(step.profit)}</p></div>
                 ))}
             </div>
         </div>
@@ -245,16 +213,11 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, currencySymbol, deb
             <h2 className="text-lg font-black uppercase italic">Missões Estratégicas</h2>
             <div className={`p-4 ${theme.card} border ${theme.border} rounded-xl space-y-3 shadow-xl`}>
                 <div className="grid grid-cols-2 gap-2"><input type="text" placeholder="ALVO" value={name} onChange={e=>setName(e.target.value)} className={`h-10 px-3 rounded-lg border text-[10px] font-black uppercase placeholder-slate-600 ${theme.input}`} /><input type="number" placeholder="VALOR" value={target} onChange={e=>setTarget(e.target.value)} className={`h-10 px-3 rounded-lg border text-[10px] font-black uppercase placeholder-slate-600 ${theme.input}`} /></div>
-                <div className="flex gap-2"><button onClick={() => setGoalType('monthly')} className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${goalType === 'monthly' ? 'bg-emerald-500 text-slate-950' : 'bg-black/20 text-slate-500 hover:text-slate-300'}`}>Mensal</button><button onClick={() => setGoalType('daily')} className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${goalType === 'daily' ? 'bg-emerald-500 text-slate-950' : 'bg-black/20 text-slate-500 hover:text-slate-300'}`}>Direta</button><button onClick={addGoal} className="flex-[1.5] bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-lg text-[9px] uppercase tracking-widest shadow-lg shadow-emerald-500/10 active:scale-95 transition-all">Ativar Alvo</button></div>
+                <div className="flex gap-2"><button onClick={() => setGoalType('monthly')} className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest ${goalType === 'monthly' ? 'bg-emerald-500 text-slate-950' : 'text-slate-500'}`}>Mensal</button><button onClick={() => setGoalType('daily')} className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest ${goalType === 'daily' ? 'bg-emerald-500 text-slate-950' : 'text-slate-500'}`}>Direta</button><button onClick={addGoal} className="flex-[1.5] bg-emerald-500 text-slate-950 font-black rounded-lg text-[9px] uppercase tracking-widest">Ativar Alvo</button></div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {goals.map((g: Goal) => (
-                    <div key={g.id} className={`p-4 ${theme.card} border ${theme.border} rounded-xl relative shadow-lg group hover:border-emerald-500/20 transition-all`}>
-                        <button onClick={() => removeGoal(g.id)} className="absolute top-3 right-3 text-rose-500/20 group-hover:text-rose-500 transition-colors"><TrashIcon className="w-4 h-4" /></button>
-                        <p className="text-[9px] font-black uppercase text-slate-500 mb-1 tracking-widest">{g.name}</p>
-                        <p className="text-2xl font-black text-emerald-400 tracking-tighter drop-shadow-[0_0_10px_rgba(16,185,129,0.2)]">{currencySymbol}{formatMoney(g.targetAmount)}</p>
-                        <p className="text-[7px] font-black text-slate-600 uppercase mt-2 italic">{g.type === 'monthly' ? `Esforço diário: ${currencySymbol}${formatMoney(g.targetAmount/22)}` : 'Meta Direta'}</p>
-                    </div>
+                    <div key={g.id} className={`p-4 ${theme.card} border ${theme.border} rounded-xl relative shadow-lg group hover:border-emerald-500/20 transition-all`}><button onClick={() => removeGoal(g.id)} className="absolute top-3 right-3 text-rose-500/20 group-hover:text-rose-500 transition-colors"><TrashIcon className="w-4 h-4" /></button><p className="text-[9px] font-black uppercase text-slate-500 mb-1 tracking-widest">{g.name}</p><p className="text-2xl font-black text-emerald-400 tracking-tighter">{currencySymbol}{formatMoney(g.targetAmount)}</p><p className="text-[7px] font-black text-slate-600 uppercase mt-2 italic">{g.type === 'monthly' ? `Esforço diário: ${currencySymbol}${formatMoney(g.targetAmount/22)}` : 'Meta Direta'}</p></div>
                 ))}
             </div>
         </div>
@@ -268,25 +231,10 @@ const RelatorioPanel: React.FC<any> = ({ isDarkMode, records, currencySymbol, de
         <div className="p-4 space-y-4 max-w-6xl mx-auto pb-32 h-full overflow-y-auto custom-scrollbar">
             <h2 className="text-lg font-black uppercase italic">Histórico de Operações</h2>
             {sortedDays.map(day => (
-                <div key={day.id} className={`p-4 rounded-xl border ${theme.card} space-y-3 shadow-lg hover:border-emerald-500/10 transition-colors`}>
-                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                        <div>
-                            <p className="text-[10px] font-black text-white">{new Date(day.date + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
-                            <p className="text-[7px] font-black text-slate-500 uppercase">{day.winCount} WIN | {day.lossCount} LOSS</p>
-                        </div>
-                        <p className={`text-base font-black ${day.netProfitUSD >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>{day.netProfitUSD >= 0 ? '+' : ''}{currencySymbol}{formatMoney(day.netProfitUSD)}</p>
-                    </div>
+                <div key={day.id} className={`p-4 rounded-xl border ${theme.card} space-y-3 shadow-lg`}>
+                    <div className="flex justify-between items-center border-b border-white/5 pb-2"><div><p className="text-[10px] font-black text-white">{new Date(day.date + 'T12:00:00').toLocaleDateString('pt-BR')}</p><p className="text-[7px] font-black text-slate-500 uppercase">{day.winCount} WIN | {day.lossCount} LOSS</p></div><p className={`text-base font-black ${day.netProfitUSD >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>{day.netProfitUSD >= 0 ? '+' : ''}{currencySymbol}{formatMoney(day.netProfitUSD)}</p></div>
                     <div className="space-y-1.5">{day.trades.map((t: Trade) => (
-                        <div key={t.id} className="flex justify-between items-center bg-black/40 p-2 rounded-lg border border-white/5 group hover:bg-black/60 transition-all">
-                            <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${t.result === 'win' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,1)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,1)]'}`} />
-                                <p className="text-[8px] font-black uppercase text-white tracking-widest">{t.result === 'win' ? 'HIT' : 'MISS'}</p>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <p className="text-[10px] font-black text-white">{currencySymbol}{formatMoney(t.entryValue)}</p>
-                                <button onClick={() => deleteTrade(t.id, day.id)} className="text-rose-500/20 group-hover:text-rose-500 transition-colors"><TrashIcon className="w-4 h-4" /></button>
-                            </div>
-                        </div>
+                        <div key={t.id} className="flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/5 group hover:bg-black/30 transition-all"><div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${t.result === 'win' ? 'bg-emerald-500' : 'bg-rose-500'}`} /><p className="text-[8px] font-black uppercase text-white tracking-widest">{t.result === 'win' ? 'HIT' : 'MISS'}</p></div><div className="flex items-center gap-4"><p className="text-[10px] font-black text-white">{currencySymbol}{formatMoney(t.entryValue)}</p><button onClick={() => deleteTrade(t.id, day.id)} className="text-rose-500/20 group-hover:text-rose-500 transition-colors"><TrashIcon className="w-4 h-4" /></button></div></div>
                     ))}</div>
                 </div>
             ))}
@@ -297,12 +245,12 @@ const RelatorioPanel: React.FC<any> = ({ isDarkMode, records, currencySymbol, de
 const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onLogout, onReset }) => (
     <div className="p-4 space-y-4 max-w-4xl mx-auto pb-32 h-full overflow-y-auto custom-scrollbar">
         <h2 className="text-lg font-black uppercase italic">Configurações da HQ</h2>
-        <div className={`p-6 md:p-8 rounded-2xl border ${theme.card} space-y-8 shadow-2xl`}>
+        <div className={`p-6 rounded-2xl border ${theme.card} space-y-8 shadow-2xl`}>
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5"><label className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Capital Inicial</label><input type="number" value={brokerage?.initialBalance} onChange={e => setBrokerages((prev: any) => [{...prev[0], initialBalance: Number(e.target.value)}])} className={`w-full h-12 px-4 rounded-xl border text-[11px] font-black ${theme.input}`} /></div>
                 <div className="space-y-1.5"><label className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Moeda Padrão</label><select value={brokerage?.currency} onChange={e => setBrokerages((prev: any) => [{...prev[0], currency: e.target.value}])} className={`w-full h-12 px-4 rounded-xl border text-[11px] font-black ${theme.input}`}><option value="USD">DÓLAR ($)</option><option value="BRL">REAL (R$)</option></select></div>
             </div>
-            <div className="flex flex-col md:flex-row gap-3"><button onClick={onReset} className="w-full py-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-black rounded-xl text-[9px] uppercase tracking-widest border border-rose-500/20 active:scale-95 transition-all">Resetar Todo o Arsenal</button><button onClick={onLogout} className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-xl text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all"><LogoutIcon className="w-4 h-4" />Sair do Sistema</button></div>
+            <div className="flex flex-col md:flex-row gap-3"><button onClick={onReset} className="w-full py-4 bg-rose-500/10 text-rose-500 font-black rounded-xl text-[9px] uppercase tracking-widest border border-rose-500/20 active:scale-95 transition-all">Resetar Todo o Arsenal</button><button onClick={onLogout} className="w-full py-4 bg-slate-800 text-white font-black rounded-xl text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all"><LogoutIcon className="w-4 h-4" />Sair do Sistema</button></div>
         </div>
     </div>
 );
@@ -427,19 +375,14 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     return (
         <div className={`flex flex-col h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
             {/* Header Ultra Compacto h-12 */}
-            <header className={`h-12 flex-shrink-0 flex items-center justify-between px-4 md:px-10 border-b border-white/5 backdrop-blur-3xl z-40 bg-black/40`}>
+            <header className={`h-12 flex-shrink-0 flex items-center justify-between px-4 md:px-10 border-b border-white/5 backdrop-blur-3xl z-40 bg-black/20`}>
                 <div className="flex items-center gap-2">
                     <h1 className="text-sm font-black italic tracking-tighter uppercase leading-none"><span className="text-emerald-500">HRK</span> Sniper</h1>
                     <div className="hidden sm:block w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="hidden sm:block text-[6px] font-black uppercase tracking-widest text-slate-500 opacity-60">Operacional</span>
+                    <span className="hidden sm:block text-[6px] font-black uppercase tracking-widest text-slate-500 opacity-60">Status: Operacional</span>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="hidden sm:flex items-center px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20">
-                        <span className={`text-[7px] font-black uppercase tracking-widest ${savingStatus === 'saving' ? 'text-blue-400 animate-pulse' : savingStatus === 'saved' ? 'text-emerald-400' : 'text-slate-500'}`}>
-                            {savingStatus === 'saving' ? 'SICRONIZANDO' : savingStatus === 'saved' ? 'SINCRONIZADO' : 'AGENTE ON'}
-                        </span>
-                    </div>
-                    <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1.5 bg-white/5 rounded-lg hover:bg-white/10 transition-all">{isDarkMode ? <SunIcon className="w-3.5 h-3.5 text-amber-400" /> : <MoonIcon className="w-3.5 h-3.5 text-emerald-400" />}</button>
+                    <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1.5 bg-white/5 rounded-lg hover:bg-white/10 transition-all">{isDarkMode ? <SunIcon className="w-3 h-3 text-amber-400" /> : <MoonIcon className="w-3 h-3 text-emerald-400" />}</button>
                     <div className="flex items-center gap-2">
                         <div className="text-right hidden sm:block leading-none">
                             <p className="text-[7px] font-black uppercase text-white truncate max-w-[80px]">{user.username}</p>
@@ -468,16 +411,16 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 </div>
             </main>
 
-            {/* Barra de Navegação - Tamanho original e Translúcida */}
+            {/* Barra de Navegação - Tamanho original (h-16/h-20) e Translúcida */}
             <nav className={`flex-shrink-0 h-16 md:h-20 bg-black/40 backdrop-blur-2xl border-t border-white/10 flex items-center justify-around px-2 md:px-8 z-50`}>
                 {tabs.map(tab => (
                     <button 
                         key={tab.id} 
                         onClick={() => setActiveTab(tab.id)} 
-                        className={`flex flex-col items-center justify-center gap-1.5 px-2 py-1 rounded-xl transition-all duration-300 min-w-[50px] ${activeTab === tab.id ? theme.navActive + ' shadow-[0_0_20px_rgba(16,185,129,0.1)]' : theme.navInactive}`}
+                        className={`flex flex-col items-center justify-center gap-1 px-1 py-1 rounded-xl transition-all duration-300 min-w-[45px] ${activeTab === tab.id ? theme.navActive : theme.navInactive}`}
                     >
                         <tab.icon className={`w-4 h-4 md:w-5 md:h-5 ${activeTab === tab.id ? 'scale-110' : 'scale-100'} transition-transform`} />
-                        <span className="text-[6px] md:text-[8px] font-black uppercase tracking-[0.2em] block text-center truncate w-full">{tab.label}</span>
+                        <span className="text-[6px] md:text-[8px] font-black uppercase tracking-widest block text-center truncate w-full">{tab.label}</span>
                     </button>
                 ))}
             </nav>
