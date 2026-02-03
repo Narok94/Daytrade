@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
-import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal, AIAnalysisResult } from './types';
+import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
 import { 
     SettingsIcon, 
@@ -10,7 +9,7 @@ import {
     CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ArrowPathIcon, 
     InformationCircleIcon, TrophyIcon, 
     ChartBarIcon, CheckIcon, DocumentTextIcon,
-    PlusIcon, TrashIcon, CpuChipIcon, TrendingDownIcon
+    PlusIcon, TrashIcon
 } from './components/icons';
 
 // --- Helper Functions ---
@@ -29,232 +28,6 @@ const useThemeClasses = (isDarkMode: boolean) => {
         navActive: isDarkMode ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-600',
         navInactive: isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100',
     }), [isDarkMode]);
-};
-
-// --- AI Analysis Panel ---
-const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
-    const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult | null>(null);
-    const [error, setError] = useState<string | null>(null);
-
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setSelectedImage(reader.result as string);
-                setAnalysisResult(null);
-                setError(null);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const runAIAnalysis = async () => {
-        if (!selectedImage) return;
-
-        setIsAnalyzing(true);
-        setError(null);
-
-        try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            const base64Data = selectedImage.split(',')[1];
-
-            const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: {
-                    parts: [
-                        {
-                            inlineData: {
-                                mimeType: 'image/png',
-                                data: base64Data,
-                            },
-                        },
-                        {
-                            text: `Aja como um especialista sênior em análise técnica de opções binárias. 
-                            Analise este gráfico de 1 minuto (M1). 
-                            Identifique padrões de velas (candles), níveis de suporte e resistência, pullbacks, Fibonacci, e indicadores (ADX, Estocástico).
-                            Forneça uma recomendação para a PRÓXIMA VELA.
-                            Determine o HORÁRIO EXATO DE ENTRADA baseado no fechamento da vela atual (ex: 14:35:58).
-                            A resposta deve ser em JSON no formato especificado.`,
-                        },
-                    ],
-                },
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            recommendation: { type: Type.STRING, enum: ['CALL', 'PUT', 'WAIT'] },
-                            confidence: { type: Type.NUMBER },
-                            patterns: { type: Type.ARRAY, items: { type: Type.STRING } },
-                            indicatorAnalysis: { type: Type.STRING },
-                            reasoning: { type: Type.STRING },
-                            supportLevel: { type: Type.STRING },
-                            resistanceLevel: { type: Type.STRING },
-                            entryTime: { type: Type.STRING, description: "O horário exato para clicar no botão de compra/venda (formato HH:MM:SS)" }
-                        },
-                        required: ['recommendation', 'confidence', 'patterns', 'indicatorAnalysis', 'reasoning', 'supportLevel', 'resistanceLevel', 'entryTime']
-                    }
-                }
-            });
-
-            const result = JSON.parse(response.text || '{}');
-            setAnalysisResult(result);
-        } catch (err) {
-            console.error("Erro na análise de IA:", err);
-            setError("Não foi possível processar a análise. Tente uma imagem mais clara do gráfico.");
-        } finally {
-            setIsAnalyzing(false);
-        }
-    };
-
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
-                <div>
-                    <h2 className={`text-2xl font-black ${theme.text}`}>Análise de IA Especialista</h2>
-                    <p className={theme.textMuted}>Suba o print do seu gráfico (M1) para análise preditiva e horário de entrada.</p>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Upload Section */}
-                <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><PlusIcon className="w-5 h-5 text-teal-400" /> Captura de Tela</h3>
-                    
-                    <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl p-4 min-h-[300px] relative overflow-hidden">
-                        {!selectedImage ? (
-                            <label className="cursor-pointer flex flex-col items-center gap-4 text-center">
-                                <div className="w-16 h-16 rounded-full bg-slate-900 flex items-center justify-center text-teal-400">
-                                    <PlusIcon className="w-8 h-8" />
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="font-bold text-sm">Clique ou arraste o print</p>
-                                    <p className="text-[10px] font-black uppercase opacity-40">Formatos: PNG, JPG (Somente M1)</p>
-                                </div>
-                                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                            </label>
-                        ) : (
-                            <div className="w-full h-full flex flex-col items-center gap-4">
-                                <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-slate-700">
-                                    <img src={selectedImage} alt="Preview" className="w-full h-full object-cover" />
-                                    {isAnalyzing && (
-                                        <div className="absolute inset-0 bg-teal-500/20 backdrop-blur-[2px] flex items-center justify-center overflow-hidden">
-                                            <div className="absolute inset-0 animate-pulse bg-gradient-to-b from-transparent via-teal-400/30 to-transparent h-20 top-[-20%] w-full" style={{ animation: 'scanning 2s linear infinite' }} />
-                                            <style>{`@keyframes scanning { 0% { top: -20%; } 100% { top: 120%; } }`}</style>
-                                            <p className="text-xs font-black uppercase tracking-widest text-white drop-shadow-lg">Processando Padrões...</p>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex gap-4 w-full">
-                                    <button onClick={() => setSelectedImage(null)} className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl border border-slate-800 hover:bg-slate-800/50 transition-all">Limpar</button>
-                                    <button 
-                                        disabled={isAnalyzing} 
-                                        onClick={runAIAnalysis}
-                                        className="flex-[2] py-3 text-[10px] font-black uppercase rounded-xl bg-teal-500 text-slate-950 hover:bg-teal-400 disabled:opacity-50 transition-all shadow-lg shadow-teal-500/20"
-                                    >
-                                        {isAnalyzing ? 'Analisando...' : 'Iniciar Análise IA'}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Results Section */}
-                <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CpuChipIcon className="w-5 h-5 text-purple-400" /> Relatório de Processamento</h3>
-                    
-                    {analysisResult ? (
-                        <div className="space-y-6">
-                            {/* Recommendation Header */}
-                            <div className={`p-5 rounded-3xl flex items-center justify-between border ${
-                                analysisResult.recommendation === 'CALL' ? 'bg-green-500/10 border-green-500/20' : 
-                                analysisResult.recommendation === 'PUT' ? 'bg-red-500/10 border-red-500/20' : 
-                                'bg-slate-800/20 border-slate-700'
-                            }`}>
-                                <div>
-                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Decisão Estratégica</p>
-                                    <h4 className={`text-3xl font-black ${
-                                        analysisResult.recommendation === 'CALL' ? 'text-green-500' : 
-                                        analysisResult.recommendation === 'PUT' ? 'text-red-500' : 
-                                        'text-slate-400'
-                                    }`}>
-                                        {analysisResult.recommendation === 'CALL' ? '↑ COMPRA' : 
-                                         analysisResult.recommendation === 'PUT' ? '↓ VENDA' : 
-                                         '∅ AGUARDAR'}
-                                    </h4>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Confiança</p>
-                                    <p className="text-2xl font-black">{analysisResult.confidence}%</p>
-                                </div>
-                            </div>
-
-                            {/* Entry Time Highlight */}
-                            <div className={`p-6 rounded-3xl border flex items-center justify-between bg-teal-500/10 border-teal-500/30 shadow-inner`}>
-                                <div>
-                                    <p className="text-[10px] font-black uppercase text-teal-400 mb-1">Horário de Entrada Sugerido</p>
-                                    <p className="text-4xl font-black text-white tracking-tighter">{analysisResult.entryTime}</p>
-                                </div>
-                                <div className="text-right">
-                                    <TargetIcon className="w-8 h-8 text-teal-400 opacity-50" />
-                                </div>
-                            </div>
-
-                            {/* Detailed Stats */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800">
-                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-2">Suporte</p>
-                                    <p className="text-xs font-bold text-green-400">{analysisResult.supportLevel}</p>
-                                </div>
-                                <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800">
-                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-2">Resistência</p>
-                                    <p className="text-xs font-bold text-red-400">{analysisResult.resistanceLevel}</p>
-                                </div>
-                            </div>
-
-                            {/* Patterns */}
-                            <div className="space-y-2">
-                                <p className="text-[9px] font-black uppercase opacity-40">Padrões Identificados</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {analysisResult.patterns.map((p, i) => (
-                                        <span key={i} className="px-2 py-1 rounded-lg bg-teal-500/10 text-teal-400 text-[9px] font-bold border border-teal-500/20">{p}</span>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Rationale */}
-                            <div className="space-y-4">
-                                <div className="p-4 rounded-2xl bg-slate-950/30 border border-slate-800/50">
-                                    <p className="text-[9px] font-black uppercase opacity-40 mb-2">Análise de Indicadores</p>
-                                    <p className="text-xs font-medium text-slate-300 leading-relaxed">{analysisResult.indicatorAnalysis}</p>
-                                </div>
-                                <div className="p-4 rounded-2xl bg-slate-950/30 border border-slate-800/50">
-                                    <p className="text-[9px] font-black uppercase opacity-40 mb-2">Raciocínio Técnico</p>
-                                    <p className="text-xs font-medium text-slate-300 leading-relaxed italic">"{analysisResult.reasoning}"</p>
-                                </div>
-                            </div>
-
-                            <p className="text-[8px] text-center opacity-30 font-bold uppercase tracking-widest pt-4">Aviso: Trade por conta e risco. IA é ferramenta de auxílio, não garantia.</p>
-                        </div>
-                    ) : error ? (
-                        <div className="h-full flex flex-col items-center justify-center py-12 text-center">
-                            <InformationCircleIcon className="w-12 h-12 text-red-500/40 mb-4" />
-                            <p className="text-sm font-bold text-red-400">{error}</p>
-                        </div>
-                    ) : (
-                        <div className="h-full flex flex-col items-center justify-center py-12 opacity-30 text-center">
-                            <CpuChipIcon className="w-12 h-12 mb-4" />
-                            <p className="text-xs font-black uppercase max-w-[200px]">Aguardando processamento de imagem</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
 };
 
 // --- Dashboard Panel ---
@@ -383,87 +156,86 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 
     const tableData = useMemo(() => {
         const rows = [];
-        // Filtramos apenas registros que tenham trades realizados e ordenamos cronologicamente
-        const realDays = records
+        // Ordenar registros reais por data
+        const sortedRealRecords = records
             .filter((r: any): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0)
             .sort((a, b) => a.id.localeCompare(b.id));
         
-        let runningBalance = activeBrokerage.initialBalance;
-        let dayCounter = 1;
+        // Data de início da simulação: Ou o primeiro dia operado, ou "Hoje"
+        let startDate: Date;
+        if (sortedRealRecords.length > 0) {
+            startDate = new Date(sortedRealRecords[0].id + 'T12:00:00');
+        } else {
+            startDate = new Date();
+            startDate.setHours(12,0,0,0);
+        }
 
-        // Primeiro adicionamos os dias em que realmente houve operação
-        for (const realRecord of realDays) {
-            const initial = runningBalance;
-            const profit = realRecord.netProfitUSD;
-            const final = initial + profit;
+        let runningBalance = activeBrokerage.initialBalance;
+
+        for (let i = 0; i < 30; i++) {
+            const currentDate = new Date(startDate);
+            currentDate.setDate(startDate.getDate() + i);
+            const dateId = currentDate.toISOString().split('T')[0];
             
+            // Tentar achar registro real para este dia
+            const realRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateId && r.trades.length > 0);
+            
+            let initial = runningBalance;
+            let win, loss, profit, final, isProjection, operationValue;
+
+            if (realRecord) {
+                // Registro Real
+                win = realRecord.winCount;
+                loss = realRecord.lossCount;
+                profit = realRecord.netProfitUSD;
+                final = realRecord.endBalanceUSD;
+                operationValue = (realRecord.trades.length > 0) ? realRecord.trades[0].entryValue : (initial * 0.10);
+                isProjection = false;
+            } else {
+                // Projeção 3x0
+                isProjection = true;
+                operationValue = initial * 0.10;
+                win = 3;
+                loss = 0;
+                profit = (operationValue * (activeBrokerage.payoutPercentage / 100)) * 3;
+                final = initial + profit;
+            }
+
             rows.push({
-                diaTrade: dayCounter++,
-                dateId: realRecord.id,
-                dateDisplay: new Date(realRecord.id + 'T12:00:00').toLocaleDateString('pt-BR'),
+                diaTrade: i + 1,
+                dateId,
+                dateDisplay: currentDate.toLocaleDateString('pt-BR'),
                 initial,
-                win: realRecord.winCount,
-                loss: realRecord.lossCount,
+                win,
+                loss,
                 profit,
                 final,
-                operationValue: realRecord.trades.length > 0 ? realRecord.trades[0].entryValue : (initial * (activeBrokerage.entryValue / 100)),
-                isProjection: false
+                operationValue,
+                isProjection
             });
             runningBalance = final;
         }
-
-        // Depois preenchemos o restante até completar 30 linhas com projeções
-        const remaining = 30 - rows.length;
-        if (remaining > 0) {
-            for (let i = 0; i < remaining; i++) {
-                const initial = runningBalance;
-                // Projeção baseada em 3x0 com a entrada padrão definida nas configs
-                const entryVal = activeBrokerage.entryMode === 'fixed' 
-                    ? activeBrokerage.entryValue 
-                    : initial * (activeBrokerage.entryValue / 100);
-                
-                const win = 3;
-                const loss = 0;
-                const profit = (entryVal * (activeBrokerage.payoutPercentage / 100)) * win;
-                const final = initial + profit;
-
-                rows.push({
-                    diaTrade: dayCounter++,
-                    dateId: 'PROJ',
-                    dateDisplay: '---',
-                    initial,
-                    win,
-                    loss,
-                    profit,
-                    final,
-                    operationValue: entryVal,
-                    isProjection: true
-                });
-                runningBalance = final;
-            }
-        }
-        
         return rows;
-    }, [records, activeBrokerage]);
+    }, [records, activeBrokerage.initialBalance, activeBrokerage.payoutPercentage]);
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div>
-                <h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros (Dias de Operação)</h2>
-                <p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Esta planilha lista sequencialmente cada dia operado. Linhas apagadas são projeções automáticas de 3x0.</p>
+                <h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros (30 Dias)</h2>
+                <p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Dias em baixa opacidade são projeções automáticas de 3x0.</p>
             </div>
             <div className={`rounded-3xl border overflow-hidden shadow-2xl ${theme.card}`}>
                 <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-center border-collapse min-w-[900px]">
                         <thead>
                             <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Dia Operação</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Data Calendário</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Dia</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Data</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Saldo Inicial</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Valor Operação</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20 text-green-500">Win</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20 text-red-500">Loss</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Lucro do Dia</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Lucro</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Saldo Final</th>
                             </tr>
                         </thead>
@@ -491,7 +263,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 // --- Report Panel ---
 const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, deleteTrade }) => {
     const theme = useThemeClasses(isDarkMode);
-    const currencySymbol = activeBrokerage.currency === '$' ? '$' : 'R$';
+    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
     const reportData = useMemo(() => {
@@ -548,7 +320,7 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
 };
 
 // --- Soros Calculator Panel ---
-const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage, currentBalance }) => {
+const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
     const [initialEntry, setInitialEntry] = useState('10');
     const [payout, setPayout] = useState(activeBrokerage?.payoutPercentage || '80');
     const [levels, setLevels] = useState('4');
@@ -573,20 +345,10 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage, currentBa
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-2xl font-black">Calculadora de Soros</h2>
-                    <p className={theme.textMuted}>Planeje seus ciclos de reinvestimento.</p>
-                </div>
-                <div className={`px-6 py-3 rounded-2xl border ${theme.card} flex items-center gap-4 shadow-sm`}>
-                    <div>
-                        <p className="text-[10px] font-black uppercase text-slate-500 mb-0.5">Banca Atual</p>
-                        <p className="text-xl font-black text-green-500">{currencySymbol} {formatMoney(currentBalance)}</p>
-                    </div>
-                    <PieChartIcon className="w-8 h-8 text-green-500 opacity-40" />
-                </div>
+            <div>
+                <h2 className="text-2xl font-black">Calculadora de Soros</h2>
+                <p className={theme.textMuted}>Planeje seus ciclos de reinvestimento.</p>
             </div>
-
             <div className={`p-6 rounded-3xl border ${theme.card} grid grid-cols-1 md:grid-cols-3 gap-6`}>
                 <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-500 uppercase">Entrada Inicial ({currencySymbol})</label>
@@ -912,12 +674,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const dailyRecord = records.find((r): r is DailyRecord => r.id === dateStr && r.recordType === 'day');
     const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.id.localeCompare(a.id));
     const startBalDashboard = sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
-    
-    // Banca absoluta mais recente para a calculadora de soros
-    const currentAbsoluteBalance = records.length > 0 
-        ? (records.filter(r => r.recordType === 'day').sort((a,b) => b.id.localeCompare(a.id))[0] as DailyRecord).endBalanceUSD
-        : (activeBrokerage?.initialBalance || 0);
 
+    // Dynamic Daily Goal derived from Monthly Goal
     const monthlyGoal = goals.find(g => g.type === 'monthly');
     const activeDailyGoal = monthlyGoal ? (monthlyGoal.targetAmount / 22) : (activeBrokerage?.initialBalance * 0.03 || 1);
 
@@ -931,7 +689,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 <div className="h-20 flex items-center px-8 border-b border-slate-800/50 font-black italic text-teal-400 text-xl tracking-tighter">HRK</div>
                 <nav className="flex-1 p-4 space-y-1">
                     <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
-                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
                     <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Planilha Juros</button>
                     <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Relatório</button>
                     <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
@@ -947,10 +704,9 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 </header>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeDailyGoal} />}
-                    {activeTab === 'ai-analysis' && <AIAnalysisPanel theme={theme} isDarkMode={isDarkMode} />}
                     {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
                     {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
-                    {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} currentBalance={currentAbsoluteBalance} />}
+                    {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} />}
                 </div>
