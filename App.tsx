@@ -17,12 +17,12 @@ const formatMoney = (val: number) => val.toLocaleString('pt-BR', { minimumFracti
 
 const useThemeClasses = (isDarkMode: boolean) => {
     return useMemo(() => ({
-        bg: isDarkMode ? 'bg-[#020617]' : 'bg-slate-50',
+        bg: isDarkMode ? 'bg-[#010409]' : 'bg-slate-50',
         text: isDarkMode ? 'text-slate-100' : 'text-slate-900',
-        card: isDarkMode ? 'bg-[#0f172a]/60 border-slate-800/50 backdrop-blur-xl' : 'bg-white border-slate-200 shadow-sm',
-        input: isDarkMode ? 'bg-[#020617] border-slate-800/80 text-white placeholder-slate-600 focus:border-emerald-500/50' : 'bg-white border-slate-200 text-slate-900',
+        card: isDarkMode ? 'bg-[#0d1117]/80 border-slate-800/60 backdrop-blur-2xl' : 'bg-white border-slate-200 shadow-sm',
+        input: isDarkMode ? 'bg-[#010409] border-slate-700/80 text-white placeholder-slate-600 focus:border-emerald-500/50' : 'bg-white border-slate-200 text-slate-900',
         border: isDarkMode ? 'border-slate-800' : 'border-slate-200',
-        navActive: isDarkMode ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-600 bg-emerald-50',
+        navActive: isDarkMode ? 'text-emerald-400 bg-emerald-500/15' : 'text-emerald-600 bg-emerald-50',
         navInactive: isDarkMode ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600',
     }), [isDarkMode]);
 };
@@ -42,104 +42,113 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     const goalPercentage = dailyGoalTarget > 0 ? Math.min(100, Math.max(0, (currentProfit / dailyGoalTarget) * 100)) : 0;
 
     const kpis = [
-        { label: 'Arsenal', val: `${currencySymbol}${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-emerald-400' },
-        { label: 'Lucro Hoje', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol}${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-emerald-400' : 'text-rose-500' },
+        { label: 'Arsenal Total', val: `${currencySymbol}${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-emerald-400', glow: 'shadow-[0_0_20px_rgba(16,185,129,0.2)]' },
+        { label: 'Lucro do Dia', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol}${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-emerald-400' : 'text-rose-500', glow: currentProfit >= 0 ? 'shadow-[0_0_20px_rgba(16,185,129,0.2)]' : 'shadow-[0_0_20px_rgba(244,63,94,0.2)]' },
         { 
-            label: 'Meta Diária', 
+            label: 'Progresso Meta', 
             val: `${goalPercentage.toFixed(0)}%`, 
             icon: TargetIcon, 
-            color: 'text-blue-400', 
+            color: 'text-cyan-400', 
+            glow: 'shadow-[0_0_20px_rgba(34,211,238,0.2)]',
             sub: dailyGoalTarget > 0 ? `Alvo: ${currencySymbol}${formatMoney(dailyGoalTarget)}` : 'Sem alvo' 
         },
-        { label: 'Win Rate', val: `${winRate}%`, icon: TrophyIcon, color: 'text-fuchsia-400' },
+        { label: 'Precisão', val: `${winRate}%`, icon: TrophyIcon, color: 'text-amber-400', glow: 'shadow-[0_0_20px_rgba(251,191,36,0.2)]' },
     ];
 
     return (
-        <div className="flex flex-col h-full max-w-5xl mx-auto p-3 md:p-4 justify-around animate-in fade-in zoom-in-95 duration-500 overflow-hidden">
-            {/* Header Interno Compacto */}
-            <div className="flex justify-between items-center mb-1">
+        <div className="flex flex-col h-full max-w-6xl mx-auto p-4 md:p-6 justify-around animate-in fade-in zoom-in-95 duration-700 overflow-hidden">
+            {/* Header Interno - Estética Terminal */}
+            <div className="flex justify-between items-end mb-2 px-2">
                 <div className="flex flex-col">
-                    <h2 className="text-xs md:text-sm font-black uppercase tracking-[0.2em] italic leading-none text-slate-500">
-                        Painel de <span className="text-emerald-400">Comando</span>
+                    <span className="text-[10px] font-black uppercase text-emerald-500 tracking-[0.4em] italic mb-1">Status: Online</span>
+                    <h2 className="text-sm md:text-xl font-black uppercase tracking-tight italic leading-none text-white/90">
+                        Central de <span className="text-emerald-400">Inteligência</span>
                     </h2>
                 </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-[8px] font-black text-emerald-500/50 uppercase tracking-widest hidden sm:block">Fuso UTC-3</span>
+                <div className="flex items-center gap-3">
                     <input 
                         type="date" 
                         value={selectedDateString} 
                         onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} 
-                        className={`text-[9px] md:text-[11px] font-black px-2 py-1 rounded border outline-none cursor-pointer hover:border-emerald-500/50 transition-colors ${theme.input}`} 
+                        className={`text-[10px] md:text-[13px] font-black px-4 py-2 rounded-xl border outline-none transition-all hover:ring-2 hover:ring-emerald-500/20 ${theme.input}`} 
                     />
                 </div>
             </div>
 
-            {/* Grid de KPIs - Reduzido 15% conforme solicitado */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3">
+            {/* Grid de KPIs - Números Aumentados e Efeito Glow */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                 {kpis.map((kpi, i) => (
-                    <div key={i} className={`p-2 md:p-3 rounded-xl border ${theme.card} flex flex-col justify-between hover:border-emerald-500/30 transition-all group relative overflow-hidden`}>
-                        <div className="absolute -right-1 -top-1 opacity-5 group-hover:opacity-10 transition-opacity">
-                            <kpi.icon className="w-8 h-8 md:w-10 md:h-10 text-white" />
+                    <div key={i} className={`p-4 md:p-6 rounded-3xl border ${theme.card} flex flex-col justify-between hover:border-emerald-500/40 transition-all duration-500 group relative overflow-hidden ${kpi.glow}`}>
+                        <div className="absolute -right-2 -top-2 opacity-5 group-hover:opacity-10 transition-opacity">
+                            <kpi.icon className="w-12 h-12 md:w-16 md:h-16 text-white" />
                         </div>
-                        <div className="flex justify-between items-start mb-1 relative z-10">
-                            <p className="text-[6px] md:text-[8px] uppercase font-black text-slate-500 tracking-[0.2em] leading-none">{kpi.label}</p>
-                            <kpi.icon className={`w-3 h-3 md:w-4 md:h-4 ${kpi.color} opacity-60`} />
+                        <div className="flex justify-between items-start mb-2 relative z-10">
+                            <p className="text-[8px] md:text-[10px] uppercase font-black text-slate-500 tracking-[0.3em] leading-none">{kpi.label}</p>
+                            <kpi.icon className={`w-4 h-4 md:w-5 md:h-5 ${kpi.color} opacity-80`} />
                         </div>
                         <div className="relative z-10">
-                            <p className={`text-sm md:text-xl font-black ${kpi.color} tracking-tighter truncate leading-none drop-shadow-[0_0_8px_rgba(16,185,129,0.2)]`}>{kpi.val}</p>
-                            {kpi.sub && <p className="text-[5px] md:text-[7px] font-black uppercase text-slate-600 italic opacity-70 truncate mt-1">{kpi.sub}</p>}
+                            <p className={`text-2xl md:text-4xl font-black ${kpi.color} tracking-tighter truncate leading-none drop-shadow-lg`}>{kpi.val}</p>
+                            {kpi.sub && <p className="text-[7px] md:text-[9px] font-black uppercase text-slate-500 italic mt-2 tracking-widest truncate">{kpi.sub}</p>}
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* Protocolo de Disparo - Visual "Glass Sniper" */}
-            <div className={`p-4 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border ${theme.card} shadow-2xl max-w-xl mx-auto w-full relative overflow-hidden flex flex-col justify-center border-emerald-500/10`}>
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
-                <div className="absolute -top-10 -right-10 p-10 opacity-[0.03] pointer-events-none rotate-12">
-                    <TargetIcon className="w-32 h-32 md:w-56 md:h-56 text-emerald-500" />
+            {/* Protocolo Sniper - Visual Industrial de Elite */}
+            <div className={`p-6 md:p-10 rounded-[2.5rem] md:rounded-[4rem] border ${theme.card} shadow-2xl max-w-2xl mx-auto w-full relative overflow-hidden flex flex-col justify-center border-emerald-500/20`}>
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
+                <div className="absolute -bottom-10 -left-10 p-12 opacity-[0.03] pointer-events-none -rotate-12">
+                    <TargetIcon className="w-40 h-40 md:w-64 md:h-64 text-emerald-500" />
                 </div>
                 
                 <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-4 md:mb-8">
-                        <h3 className="text-[8px] md:text-[12px] font-black uppercase text-emerald-400/90 tracking-[0.4em] italic flex items-center gap-2 leading-none">
-                            <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,1)]" />
-                            Protocolo Sniper
-                        </h3>
-                        <div className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                             <span className="text-[7px] md:text-[9px] font-black text-emerald-500 uppercase tracking-widest">Ativo</span>
+                    <div className="flex items-center justify-between mb-6 md:mb-10">
+                        <div className="flex flex-col">
+                            <h3 className="text-[10px] md:text-[14px] font-black uppercase text-emerald-400 tracking-[0.5em] italic flex items-center gap-3 leading-none">
+                                <span className="relative flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                                </span>
+                                Comando de Operação
+                            </h3>
+                        </div>
+                        <div className="hidden sm:flex flex-col items-end">
+                             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Sincronização</span>
+                             <div className="flex gap-1">
+                                {[1,2,3].map(i => <div key={i} className="w-3 h-1 bg-emerald-500/30 rounded-full" />)}
+                             </div>
                         </div>
                     </div>
                     
-                    <div className="grid grid-cols-3 gap-3 md:gap-5 mb-5 md:mb-8">
-                        <div className="space-y-1.5 md:space-y-2">
-                            <label className="text-[6px] md:text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest opacity-80 leading-none">Aporte</label>
-                            <input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-10 md:h-14 px-3 md:px-5 rounded-lg md:rounded-2xl border text-[12px] md:text-[16px] font-black outline-none transition-all focus:ring-2 focus:ring-emerald-500/20 ${theme.input}`} />
+                    <div className="grid grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-12">
+                        <div className="space-y-2">
+                            <label className="text-[8px] md:text-[12px] font-black text-slate-400 uppercase ml-2 tracking-widest opacity-90">Valor Entrada</label>
+                            <input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-12 md:h-16 px-5 md:px-8 rounded-2xl md:rounded-3xl border text-[16px] md:text-[22px] font-black outline-none transition-all focus:ring-4 focus:ring-emerald-500/10 ${theme.input}`} />
                         </div>
-                        <div className="space-y-1.5 md:space-y-2">
-                            <label className="text-[6px] md:text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest opacity-80 leading-none">Payout %</label>
-                            <input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-10 md:h-14 px-3 md:px-5 rounded-lg md:rounded-2xl border text-[12px] md:text-[16px] font-black outline-none transition-all focus:ring-2 focus:ring-emerald-500/20 ${theme.input}`} />
+                        <div className="space-y-2">
+                            <label className="text-[8px] md:text-[12px] font-black text-slate-400 uppercase ml-2 tracking-widest opacity-90">Retorno %</label>
+                            <input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-12 md:h-16 px-5 md:px-8 rounded-2xl md:rounded-3xl border text-[16px] md:text-[22px] font-black outline-none transition-all focus:ring-4 focus:ring-emerald-500/10 ${theme.input}`} />
                         </div>
-                        <div className="space-y-1.5 md:space-y-2">
-                            <label className="text-[6px] md:text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest opacity-80 leading-none">Disparos</label>
-                            <input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} className={`w-full h-10 md:h-14 px-3 md:px-5 rounded-lg md:rounded-2xl border text-[12px] md:text-[16px] font-black outline-none transition-all focus:ring-2 focus:ring-emerald-500/20 ${theme.input}`} />
+                        <div className="space-y-2">
+                            <label className="text-[8px] md:text-[12px] font-black text-slate-400 uppercase ml-2 tracking-widest opacity-90">Nº Ordens</label>
+                            <input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} className={`w-full h-12 md:h-16 px-5 md:px-8 rounded-2xl md:rounded-3xl border text-[16px] md:text-[22px] font-black outline-none transition-all focus:ring-4 focus:ring-emerald-500/10 ${theme.input}`} />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 md:gap-6">
+                    <div className="grid grid-cols-2 gap-6 md:gap-8">
                         <button 
                             onClick={() => addRecord(parseInt(quantity), 0, parseFloat(customEntryValue), parseFloat(customPayout))} 
-                            className="group py-4 md:py-6 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl md:rounded-2xl text-[10px] md:text-[14px] uppercase tracking-[0.3em] shadow-[0_10px_30px_rgba(16,185,129,0.3)] active:scale-95 transition-all flex flex-col items-center justify-center gap-1"
+                            className="group py-5 md:py-8 bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-slate-950 font-black rounded-2xl md:rounded-[2.5rem] text-[12px] md:text-[18px] uppercase tracking-[0.4em] shadow-[0_20px_40px_rgba(16,185,129,0.3)] active:scale-95 transition-all flex flex-col items-center justify-center"
                         >
-                            HIT (VITÓRIA)
-                            <span className="text-[7px] md:text-[9px] opacity-60 font-black group-hover:tracking-[0.4em] transition-all">EXECUTAR</span>
+                            CONFIRMAR HIT
+                            <span className="text-[8px] md:text-[10px] opacity-60 font-black group-hover:tracking-[0.6em] transition-all mt-1">SINAL VERDE</span>
                         </button>
                         <button 
                             onClick={() => addRecord(0, parseInt(quantity), parseFloat(customEntryValue), parseFloat(customPayout))} 
-                            className="group py-4 md:py-6 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl md:rounded-2xl text-[10px] md:text-[14px] uppercase tracking-[0.3em] shadow-[0_10px_30px_rgba(244,63,94,0.3)] active:scale-95 transition-all flex flex-col items-center justify-center gap-1"
+                            className="group py-5 md:py-8 bg-gradient-to-br from-rose-600 to-rose-800 hover:from-rose-500 hover:to-rose-700 text-white font-black rounded-2xl md:rounded-[2.5rem] text-[12px] md:text-[18px] uppercase tracking-[0.4em] shadow-[0_20px_40px_rgba(244,63,94,0.3)] active:scale-95 transition-all flex flex-col items-center justify-center"
                         >
-                            MISS (DERROTA)
-                            <span className="text-[7px] md:text-[9px] opacity-60 font-black group-hover:tracking-[0.4em] transition-all">ABORTAR</span>
+                            REGISTRAR MISS
+                            <span className="text-[8px] md:text-[10px] opacity-60 font-black group-hover:tracking-[0.6em] transition-all mt-1">RECUPERAR ALVO</span>
                         </button>
                     </div>
                 </div>
@@ -148,7 +157,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     );
 };
 
-// --- Outros Painéis ---
+// --- Outros Painéis (Escalada, Ciclos, Missões, Relatório, HQ) ---
 const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage }) => {
     const theme = useThemeClasses(isDarkMode);
     const [days, setDays] = useState(30);
@@ -166,23 +175,23 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage }) =
     }, [activeBrokerage.initialBalance, days, dailyRate]);
 
     return (
-        <div className="p-4 space-y-4 max-w-4xl mx-auto pb-32 h-full overflow-y-auto custom-scrollbar">
-            <h2 className="text-lg font-black uppercase italic">Simulação de Escalada</h2>
-            <div className={`p-4 rounded-xl border ${theme.card} grid grid-cols-1 md:grid-cols-2 gap-4 shadow-lg`}>
-                 <div className="space-y-3">
-                    <div><label className="text-[8px] font-black text-slate-500 uppercase">Dias</label><input type="number" value={days} onChange={e => setDays(Number(e.target.value))} className={`w-full h-10 px-3 rounded-lg border text-[12px] font-black ${theme.input}`} /></div>
-                    <div><label className="text-[8px] font-black text-slate-500 uppercase">Meta %</label><input type="number" value={dailyRate} onChange={e => setDailyRate(Number(e.target.value))} className={`w-full h-10 px-3 rounded-lg border text-[12px] font-black ${theme.input}`} /></div>
+        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto pb-32 h-full overflow-y-auto custom-scrollbar">
+            <h2 className="text-xl md:text-2xl font-black uppercase italic tracking-wider text-emerald-400">Projeção de Arsenal</h2>
+            <div className={`p-6 md:p-8 rounded-3xl border ${theme.card} grid grid-cols-1 md:grid-cols-2 gap-8 shadow-xl`}>
+                 <div className="space-y-6">
+                    <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Período (Dias)</label><input type="number" value={days} onChange={e => setDays(Number(e.target.value))} className={`w-full h-12 px-5 rounded-2xl border text-lg font-black ${theme.input}`} /></div>
+                    <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Meta Diária %</label><input type="number" value={dailyRate} onChange={e => setDailyRate(Number(e.target.value))} className={`w-full h-12 px-5 rounded-2xl border text-lg font-black ${theme.input}`} /></div>
                  </div>
-                 <div className="flex flex-col justify-center items-center p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                    <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Saldo Final</p>
-                    <p className="text-2xl font-black text-emerald-400 tracking-tighter drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]">{currencySymbol}{formatMoney(results[results.length-1]?.balance || 0)}</p>
+                 <div className="flex flex-col justify-center items-center p-8 bg-emerald-500/5 rounded-3xl border border-emerald-500/20">
+                    <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] mb-2">Poder de Fogo Final</p>
+                    <p className="text-4xl md:text-5xl font-black text-emerald-400 tracking-tighter drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]">{currencySymbol}{formatMoney(results[results.length-1]?.balance || 0)}</p>
                 </div>
             </div>
-            <div className={`overflow-hidden rounded-xl border ${theme.border} ${theme.card} shadow-lg`}>
-                <table className="w-full text-left text-[9px] md:text-[10px]">
-                    <thead className="bg-black/40"><tr><th className="px-4 py-3 font-black uppercase tracking-widest text-slate-400">Dia</th><th className="px-4 py-3 font-black uppercase tracking-widest text-slate-400">Saldo</th></tr></thead>
+            <div className={`overflow-hidden rounded-3xl border ${theme.border} ${theme.card} shadow-lg`}>
+                <table className="w-full text-left">
+                    <thead className="bg-black/60"><tr className="text-[10px] uppercase font-black tracking-widest text-slate-400"><th className="px-6 py-4">Estágio</th><th className="px-6 py-4 text-right">Saldo Previsto</th></tr></thead>
                     <tbody className="divide-y divide-white/5">
-                        {results.slice(0, 100).map(r => (<tr key={r.day} className="hover:bg-white/5 transition-colors"><td className="px-4 py-2 font-black opacity-60">Dia {r.day}</td><td className="px-4 py-2 font-black text-emerald-400">{currencySymbol}{formatMoney(r.balance)}</td></tr>))}
+                        {results.slice(0, 100).map(r => (<tr key={r.day} className="hover:bg-white/5 transition-colors"><td className="px-6 py-3 font-black text-slate-400">Dia {r.day}</td><td className="px-6 py-3 font-black text-emerald-400 text-right text-lg">{currencySymbol}{formatMoney(r.balance)}</td></tr>))}
                     </tbody>
                 </table>
             </div>
@@ -207,20 +216,20 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
     }, [entry, payout, levels]);
 
     return (
-        <div className="p-4 space-y-4 max-w-4xl mx-auto pb-32 h-full overflow-y-auto custom-scrollbar">
-            <h2 className="text-lg font-black uppercase italic">Calculadora de Ciclos</h2>
-            <div className={`p-4 rounded-xl border ${theme.card} grid grid-cols-3 gap-3 shadow-lg`}>
-                <div><label className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Entrada</label><input type="number" value={entry} onChange={e => setEntry(Number(e.target.value))} className={`w-full h-10 px-3 rounded-lg border text-[12px] font-black ${theme.input}`} /></div>
-                <div><label className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Payout %</label><input type="number" value={payout} onChange={e => setPayout(Number(e.target.value))} className={`w-full h-10 px-3 rounded-lg border text-[12px] font-black ${theme.input}`} /></div>
-                <div><label className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Níveis</label><input type="number" value={levels} onChange={e => setLevels(Number(e.target.value))} className={`w-full h-10 px-3 rounded-lg border text-[12px] font-black ${theme.input}`} /></div>
+        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto pb-32 h-full overflow-y-auto custom-scrollbar">
+            <h2 className="text-xl md:text-2xl font-black uppercase italic tracking-wider text-amber-400">Ciclos de Ataque</h2>
+            <div className={`p-6 md:p-8 rounded-3xl border ${theme.card} grid grid-cols-3 gap-4 shadow-xl`}>
+                <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Entrada Inicial</label><input type="number" value={entry} onChange={e => setEntry(Number(e.target.value))} className={`w-full h-12 px-5 rounded-2xl border text-lg font-black ${theme.input}`} /></div>
+                <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Retorno %</label><input type="number" value={payout} onChange={e => setPayout(Number(e.target.value))} className={`w-full h-12 px-5 rounded-2xl border text-lg font-black ${theme.input}`} /></div>
+                <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Níveis</label><input type="number" value={levels} onChange={e => setLevels(Number(e.target.value))} className={`w-full h-12 px-5 rounded-2xl border text-lg font-black ${theme.input}`} /></div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 {steps.map(step => (
-                    <div key={step.level} className={`p-4 rounded-xl border ${theme.card} relative shadow-lg overflow-hidden group hover:border-emerald-500/40 transition-all`}>
-                        <div className="absolute top-0 right-0 p-1.5 bg-emerald-500/10 text-emerald-400 text-[6px] font-black uppercase border-l border-b border-emerald-500/20">Lv {step.level}</div>
-                        <p className="text-[8px] font-black text-slate-500 mb-1 uppercase tracking-widest">Aporte</p>
-                        <p className="text-base font-black text-white">{currencySymbol}{formatMoney(step.entry)}</p>
-                        <p className="text-[8px] font-black text-emerald-400 mt-2">Lucro: +{currencySymbol}{formatMoney(step.profit)}</p>
+                    <div key={step.level} className={`p-6 rounded-3xl border ${theme.card} relative shadow-xl overflow-hidden group hover:border-emerald-500/50 transition-all duration-500`}>
+                        <div className="absolute top-0 right-0 p-2 bg-emerald-500/15 text-emerald-400 text-[10px] font-black uppercase border-l border-b border-emerald-500/20">Aporte {step.level}</div>
+                        <p className="text-[10px] font-black text-slate-500 mb-2 uppercase tracking-widest">Aporte Operacional</p>
+                        <p className="text-2xl font-black text-white leading-none">{currencySymbol}{formatMoney(step.entry)}</p>
+                        <p className="text-[11px] font-black text-emerald-400 mt-4 bg-emerald-500/10 inline-block px-3 py-1 rounded-full">Lucro: +{currencySymbol}{formatMoney(step.profit)}</p>
                     </div>
                 ))}
             </div>
@@ -241,19 +250,26 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, currencySymbol, deb
     const removeGoal = (id: string) => { setGoals((prev: Goal[]) => prev.filter(g => g.id !== id)); debouncedSave(); };
 
     return (
-        <div className="p-4 space-y-4 max-w-4xl mx-auto pb-32 h-full overflow-y-auto custom-scrollbar">
-            <h2 className="text-lg font-black uppercase italic">Missões Estratégicas</h2>
-            <div className={`p-4 ${theme.card} border ${theme.border} rounded-xl space-y-3 shadow-xl`}>
-                <div className="grid grid-cols-2 gap-2"><input type="text" placeholder="ALVO" value={name} onChange={e=>setName(e.target.value)} className={`h-10 px-3 rounded-lg border text-[10px] font-black uppercase placeholder-slate-600 ${theme.input}`} /><input type="number" placeholder="VALOR" value={target} onChange={e=>setTarget(e.target.value)} className={`h-10 px-3 rounded-lg border text-[10px] font-black uppercase placeholder-slate-600 ${theme.input}`} /></div>
-                <div className="flex gap-2"><button onClick={() => setGoalType('monthly')} className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${goalType === 'monthly' ? 'bg-emerald-500 text-slate-950' : 'bg-black/20 text-slate-500 hover:text-slate-300'}`}>Mensal</button><button onClick={() => setGoalType('daily')} className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${goalType === 'daily' ? 'bg-emerald-500 text-slate-950' : 'bg-black/20 text-slate-500 hover:text-slate-300'}`}>Direta</button><button onClick={addGoal} className="flex-[1.5] bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-lg text-[9px] uppercase tracking-widest shadow-lg shadow-emerald-500/10 active:scale-95 transition-all">Ativar Alvo</button></div>
+        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto pb-32 h-full overflow-y-auto custom-scrollbar">
+            <h2 className="text-xl md:text-2xl font-black uppercase italic tracking-wider text-cyan-400">Missões de Elite</h2>
+            <div className={`p-6 md:p-8 ${theme.card} border ${theme.border} rounded-3xl space-y-6 shadow-2xl`}>
+                <div className="grid grid-cols-2 gap-4">
+                    <input type="text" placeholder="OBJETIVO (EX: CARRO NOVO)" value={name} onChange={e=>setName(e.target.value)} className={`h-14 px-6 rounded-2xl border text-[12px] font-black uppercase placeholder-slate-600 tracking-widest ${theme.input}`} />
+                    <input type="number" placeholder="VALOR ALVO" value={target} onChange={e=>setTarget(e.target.value)} className={`h-14 px-6 rounded-2xl border text-[12px] font-black uppercase placeholder-slate-600 tracking-widest ${theme.input}`} />
+                </div>
+                <div className="flex gap-4">
+                    <button onClick={() => setGoalType('monthly')} className={`flex-1 py-4 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all border ${goalType === 'monthly' ? 'bg-emerald-500 border-emerald-400 text-slate-950 shadow-lg' : 'bg-black/30 border-slate-800 text-slate-500 hover:text-slate-300'}`}>Mensal</button>
+                    <button onClick={() => setGoalType('daily')} className={`flex-1 py-4 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all border ${goalType === 'daily' ? 'bg-emerald-500 border-emerald-400 text-slate-950 shadow-lg' : 'bg-black/30 border-slate-800 text-slate-500 hover:text-slate-300'}`}>Direta</button>
+                    <button onClick={addGoal} className="flex-[1.5] bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl text-[11px] uppercase tracking-[0.3em] shadow-xl shadow-emerald-500/20 active:scale-95 transition-all">Ativar Missão</button>
+                </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {goals.map((g: Goal) => (
-                    <div key={g.id} className={`p-4 ${theme.card} border ${theme.border} rounded-xl relative shadow-lg group hover:border-emerald-500/20 transition-all`}>
-                        <button onClick={() => removeGoal(g.id)} className="absolute top-3 right-3 text-rose-500/20 group-hover:text-rose-500 transition-colors"><TrashIcon className="w-4 h-4" /></button>
-                        <p className="text-[9px] font-black uppercase text-slate-500 mb-1 tracking-widest">{g.name}</p>
-                        <p className="text-2xl font-black text-emerald-400 tracking-tighter drop-shadow-[0_0_10px_rgba(16,185,129,0.2)]">{currencySymbol}{formatMoney(g.targetAmount)}</p>
-                        <p className="text-[7px] font-black text-slate-600 uppercase mt-2 italic">{g.type === 'monthly' ? `Esforço diário: ${currencySymbol}${formatMoney(g.targetAmount/22)}` : 'Meta Direta'}</p>
+                    <div key={g.id} className={`p-6 ${theme.card} border ${theme.border} rounded-3xl relative shadow-xl group hover:border-emerald-500/30 transition-all duration-500`}>
+                        <button onClick={() => removeGoal(g.id)} className="absolute top-4 right-4 text-rose-500/30 group-hover:text-rose-500 transition-colors"><TrashIcon className="w-5 h-5" /></button>
+                        <p className="text-[10px] font-black uppercase text-slate-500 mb-2 tracking-[0.3em]">{g.name}</p>
+                        <p className="text-3xl md:text-4xl font-black text-cyan-400 tracking-tighter drop-shadow-[0_0_10px_rgba(34,211,238,0.3)] leading-none">{currencySymbol}{formatMoney(g.targetAmount)}</p>
+                        <p className="text-[9px] font-black text-slate-600 uppercase mt-4 italic tracking-widest border-t border-white/5 pt-3">{g.type === 'monthly' ? `Esforço diário sniper: ${currencySymbol}${formatMoney(g.targetAmount/22)}` : 'Meta de execução única'}</p>
                     </div>
                 ))}
             </div>
@@ -265,26 +281,28 @@ const RelatorioPanel: React.FC<any> = ({ isDarkMode, records, currencySymbol, de
     const theme = useThemeClasses(isDarkMode);
     const sortedDays = useMemo(() => [...records].filter(r => r.recordType === 'day').sort((a,b) => b.id.localeCompare(a.id)), [records]);
     return (
-        <div className="p-4 space-y-4 max-w-6xl mx-auto pb-32 h-full overflow-y-auto custom-scrollbar">
-            <h2 className="text-lg font-black uppercase italic">Histórico de Operações</h2>
+        <div className="p-4 md:p-8 space-y-6 max-w-6xl mx-auto pb-32 h-full overflow-y-auto custom-scrollbar">
+            <h2 className="text-xl md:text-2xl font-black uppercase italic tracking-wider text-slate-300">Registro de Incursões</h2>
             {sortedDays.map(day => (
-                <div key={day.id} className={`p-4 rounded-xl border ${theme.card} space-y-3 shadow-lg hover:border-emerald-500/10 transition-colors`}>
-                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                        <div>
-                            <p className="text-[10px] font-black text-white">{new Date(day.date + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
-                            <p className="text-[7px] font-black text-slate-500 uppercase">{day.winCount} WIN | {day.lossCount} LOSS</p>
+                <div key={day.id} className={`p-6 rounded-3xl border ${theme.card} space-y-4 shadow-xl hover:border-emerald-500/20 transition-all duration-500`}>
+                    <div className="flex justify-between items-center border-b border-white/5 pb-4">
+                        <div className="flex flex-col">
+                            <p className="text-[14px] font-black text-white tracking-widest uppercase">{new Date(day.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mt-1">{day.winCount} ACERTOS (HITS) | {day.lossCount} FALHAS (MISSES)</p>
                         </div>
-                        <p className={`text-base font-black ${day.netProfitUSD >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>{day.netProfitUSD >= 0 ? '+' : ''}{currencySymbol}{formatMoney(day.netProfitUSD)}</p>
+                        <p className={`text-2xl md:text-3xl font-black ${day.netProfitUSD >= 0 ? 'text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'text-rose-500 drop-shadow-[0_0_10px_rgba(244,63,94,0.3)]'}`}>
+                            {day.netProfitUSD >= 0 ? '+' : ''}{currencySymbol}{formatMoney(day.netProfitUSD)}
+                        </p>
                     </div>
-                    <div className="space-y-1.5">{day.trades.map((t: Trade) => (
-                        <div key={t.id} className="flex justify-between items-center bg-black/40 p-2 rounded-lg border border-white/5 group hover:bg-black/60 transition-all">
-                            <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${t.result === 'win' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,1)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,1)]'}`} />
-                                <p className="text-[8px] font-black uppercase text-white tracking-widest">{t.result === 'win' ? 'HIT' : 'MISS'}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">{day.trades.map((t: Trade) => (
+                        <div key={t.id} className="flex justify-between items-center bg-black/60 p-4 rounded-2xl border border-white/5 group hover:bg-black/80 transition-all">
+                            <div className="flex items-center gap-3">
+                                <div className={`w-3 h-3 rounded-full ${t.result === 'win' ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,1)]' : 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,1)]'}`} />
+                                <p className="text-[10px] font-black uppercase text-white tracking-widest">{t.result === 'win' ? 'HIT' : 'MISS'}</p>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <p className="text-[10px] font-black text-white">{currencySymbol}{formatMoney(t.entryValue)}</p>
-                                <button onClick={() => deleteTrade(t.id, day.id)} className="text-rose-500/20 group-hover:text-rose-500 transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                            <div className="flex items-center gap-6">
+                                <p className="text-[13px] font-black text-white">{currencySymbol}{formatMoney(t.entryValue)}</p>
+                                <button onClick={() => deleteTrade(t.id, day.id)} className="text-rose-500/10 group-hover:text-rose-500 transition-colors"><TrashIcon className="w-5 h-5" /></button>
                             </div>
                         </div>
                     ))}</div>
@@ -295,14 +313,14 @@ const RelatorioPanel: React.FC<any> = ({ isDarkMode, records, currencySymbol, de
 };
 
 const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onLogout, onReset }) => (
-    <div className="p-4 space-y-4 max-w-4xl mx-auto pb-32 h-full overflow-y-auto custom-scrollbar">
-        <h2 className="text-lg font-black uppercase italic">Configurações da HQ</h2>
-        <div className={`p-6 md:p-8 rounded-2xl border ${theme.card} space-y-8 shadow-2xl`}>
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5"><label className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Capital Inicial</label><input type="number" value={brokerage?.initialBalance} onChange={e => setBrokerages((prev: any) => [{...prev[0], initialBalance: Number(e.target.value)}])} className={`w-full h-12 px-4 rounded-xl border text-[11px] font-black ${theme.input}`} /></div>
-                <div className="space-y-1.5"><label className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">Moeda Padrão</label><select value={brokerage?.currency} onChange={e => setBrokerages((prev: any) => [{...prev[0], currency: e.target.value}])} className={`w-full h-12 px-4 rounded-xl border text-[11px] font-black ${theme.input}`}><option value="USD">DÓLAR ($)</option><option value="BRL">REAL (R$)</option></select></div>
+    <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto pb-32 h-full overflow-y-auto custom-scrollbar">
+        <h2 className="text-xl md:text-2xl font-black uppercase italic tracking-wider text-slate-400">Base de Operações</h2>
+        <div className={`p-8 md:p-12 rounded-[3rem] border ${theme.card} space-y-10 shadow-2xl`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-4">Capital Inicial Sniper</label><input type="number" value={brokerage?.initialBalance} onChange={e => setBrokerages((prev: any) => [{...prev[0], initialBalance: Number(e.target.value)}])} className={`w-full h-16 px-6 rounded-3xl border text-xl font-black transition-all ${theme.input}`} /></div>
+                <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-4">Unidade Monetária</label><select value={brokerage?.currency} onChange={e => setBrokerages((prev: any) => [{...prev[0], currency: e.target.value}])} className={`w-full h-16 px-6 rounded-3xl border text-xl font-black transition-all ${theme.input}`}><option value="USD">DOLAR AMERICANO ($)</option><option value="BRL">REAL BRASILEIRO (R$)</option></select></div>
             </div>
-            <div className="flex flex-col md:flex-row gap-3"><button onClick={onReset} className="w-full py-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-black rounded-xl text-[9px] uppercase tracking-widest border border-rose-500/20 active:scale-95 transition-all">Resetar Todo o Arsenal</button><button onClick={onLogout} className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-xl text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all"><LogoutIcon className="w-4 h-4" />Sair do Sistema</button></div>
+            <div className="flex flex-col md:flex-row gap-4 pt-6"><button onClick={onReset} className="w-full py-6 bg-rose-500/5 hover:bg-rose-500/15 text-rose-500 font-black rounded-3xl text-[11px] uppercase tracking-[0.3em] border border-rose-500/20 active:scale-95 transition-all">Eliminar Todo Arsenal</button><button onClick={onLogout} className="w-full py-6 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-3xl text-[11px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl"><LogoutIcon className="w-5 h-5" />Abortar Missão</button></div>
         </div>
     </div>
 );
@@ -403,7 +421,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     };
 
     const theme = useThemeClasses(isDarkMode);
-    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(16,185,129,0.3)]" /></div>;
+    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-16 h-16 border-8 border-emerald-500 border-t-transparent rounded-full animate-spin shadow-[0_0_40px_rgba(16,185,129,0.4)]" /></div>;
 
     const dateStr = selectedDate.toISOString().split('T')[0];
     const dailyRecord = records.find((r): r is DailyRecord => r.id === dateStr && r.recordType === 'day');
@@ -425,26 +443,31 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const dailyGoalTarget = monthlyGoal ? (monthlyGoal.targetAmount / 22) : (directDailyGoal?.targetAmount || 0);
 
     return (
-        <div className={`flex flex-col h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
-            {/* Header Ultra Compacto h-12 */}
-            <header className={`h-12 flex-shrink-0 flex items-center justify-between px-4 md:px-10 border-b border-white/5 backdrop-blur-3xl z-40 bg-black/40`}>
-                <div className="flex items-center gap-2">
-                    <h1 className="text-sm font-black italic tracking-tighter uppercase leading-none"><span className="text-emerald-500">HRK</span> Sniper</h1>
-                    <div className="hidden sm:block w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="hidden sm:block text-[6px] font-black uppercase tracking-widest text-slate-500 opacity-60">Operacional</span>
+        <div className={`flex flex-col h-screen overflow-hidden font-sans ${theme.bg} ${theme.text}`}>
+            {/* Header h-14 */}
+            <header className={`h-14 flex-shrink-0 flex items-center justify-between px-6 md:px-12 border-b border-white/5 backdrop-blur-3xl z-40 bg-black/50`}>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_12px_rgba(16,185,129,1)]" />
+                        <h1 className="text-xl font-black italic tracking-tighter uppercase leading-none"><span className="text-emerald-500">HRK</span> Sniper</h1>
+                    </div>
+                    <div className="hidden lg:flex items-center px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                         <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Operacional Elite</span>
+                    </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <div className="hidden sm:flex items-center px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20">
-                        <span className={`text-[7px] font-black uppercase tracking-widest ${savingStatus === 'saving' ? 'text-blue-400 animate-pulse' : savingStatus === 'saved' ? 'text-emerald-400' : 'text-slate-500'}`}>
-                            {savingStatus === 'saving' ? 'SICRONIZANDO' : savingStatus === 'saved' ? 'SINCRONIZADO' : 'AGENTE ON'}
+                <div className="flex items-center gap-4">
+                    <div className="hidden sm:flex items-center px-3 py-1.5 rounded-xl bg-black/40 border border-white/5">
+                        <span className={`text-[9px] font-black uppercase tracking-widest ${savingStatus === 'saving' ? 'text-blue-400 animate-pulse' : savingStatus === 'saved' ? 'text-emerald-400' : 'text-slate-500'}`}>
+                            {savingStatus === 'saving' ? 'SICRONIZANDO...' : savingStatus === 'saved' ? 'SALVO NO ARSENAL' : 'TERMINAL ATIVO'}
                         </span>
                     </div>
-                    <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1.5 bg-white/5 rounded-lg hover:bg-white/10 transition-all">{isDarkMode ? <SunIcon className="w-3.5 h-3.5 text-amber-400" /> : <MoonIcon className="w-3.5 h-3.5 text-emerald-400" />}</button>
-                    <div className="flex items-center gap-2">
-                        <div className="text-right hidden sm:block leading-none">
-                            <p className="text-[7px] font-black uppercase text-white truncate max-w-[80px]">{user.username}</p>
+                    <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 bg-white/5 rounded-xl hover:bg-white/10 transition-all border border-white/5">{isDarkMode ? <SunIcon className="w-5 h-5 text-amber-400" /> : <MoonIcon className="w-5 h-5 text-emerald-400" />}</button>
+                    <div className="flex items-center gap-3 pl-2 border-l border-white/10">
+                        <div className="text-right hidden md:block leading-none">
+                            <p className="text-[10px] font-black uppercase text-white truncate max-w-[100px]">{user.username}</p>
+                            <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mt-1">Nível Especialista</p>
                         </div>
-                        <div className="w-6 h-6 md:w-7 md:h-7 rounded-lg bg-emerald-500 flex items-center justify-center text-slate-950 font-black text-[8px] md:text-[10px] shadow-lg shadow-emerald-500/10">{user.username.slice(0, 2).toUpperCase()}</div>
+                        <div className="w-9 h-9 md:w-10 md:h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-slate-950 font-black text-[14px] shadow-lg shadow-emerald-500/20 border border-emerald-400/30">{user.username.slice(0, 2).toUpperCase()}</div>
                     </div>
                 </div>
             </header>
@@ -468,16 +491,16 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 </div>
             </main>
 
-            {/* Barra de Navegação - Tamanho original e Translúcida */}
-            <nav className={`flex-shrink-0 h-16 md:h-20 bg-black/40 backdrop-blur-2xl border-t border-white/10 flex items-center justify-around px-2 md:px-8 z-50`}>
+            {/* Barra de Navegação Premium h-20/h-24 */}
+            <nav className={`flex-shrink-0 h-20 md:h-24 bg-black/60 backdrop-blur-3xl border-t border-white/10 flex items-center justify-around px-4 md:px-12 z-50`}>
                 {tabs.map(tab => (
                     <button 
                         key={tab.id} 
                         onClick={() => setActiveTab(tab.id)} 
-                        className={`flex flex-col items-center justify-center gap-1.5 px-2 py-1 rounded-xl transition-all duration-300 min-w-[50px] ${activeTab === tab.id ? theme.navActive + ' shadow-[0_0_20px_rgba(16,185,129,0.1)]' : theme.navInactive}`}
+                        className={`flex flex-col items-center justify-center gap-2 px-3 py-2 rounded-2xl transition-all duration-500 min-w-[65px] group ${activeTab === tab.id ? theme.navActive + ' shadow-[0_0_30px_rgba(16,185,129,0.15)] border border-emerald-500/20' : theme.navInactive}`}
                     >
-                        <tab.icon className={`w-4 h-4 md:w-5 md:h-5 ${activeTab === tab.id ? 'scale-110' : 'scale-100'} transition-transform`} />
-                        <span className="text-[6px] md:text-[8px] font-black uppercase tracking-[0.2em] block text-center truncate w-full">{tab.label}</span>
+                        <tab.icon className={`w-5 h-5 md:w-6 md:h-6 ${activeTab === tab.id ? 'scale-125 text-emerald-400' : 'scale-100 opacity-60 group-hover:opacity-100 group-hover:scale-110'} transition-all`} />
+                        <span className={`text-[8px] md:text-[10px] font-black uppercase tracking-[0.25em] block text-center truncate w-full ${activeTab === tab.id ? 'text-emerald-400' : 'text-slate-500'}`}>{tab.label}</span>
                     </button>
                 ))}
             </nav>
