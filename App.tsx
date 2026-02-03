@@ -196,7 +196,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             {/* Entry Time Highlight */}
                             <div className={`p-6 rounded-3xl border flex items-center justify-between bg-teal-500/10 border-teal-500/30 shadow-inner`}>
                                 <div>
-                                    <p className="text-[10px] font-black uppercase text-teal-400 mb-1">Horário de Entrada (M1)</p>
+                                    <p className="text-[10px] font-black uppercase text-teal-400 mb-1">Horário de Entrada Sugerido</p>
                                     <p className="text-4xl font-black text-white tracking-tighter">{analysisResult.entryTime}</p>
                                 </div>
                                 <div className="text-right">
@@ -383,81 +383,87 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 
     const tableData = useMemo(() => {
         const rows = [];
-        const sortedRealRecords = records
+        // Filtramos apenas registros que tenham trades realizados e ordenamos cronologicamente
+        const realDays = records
             .filter((r: any): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0)
             .sort((a, b) => a.id.localeCompare(b.id));
         
-        let startDate: Date;
-        if (sortedRealRecords.length > 0) {
-            startDate = new Date(sortedRealRecords[0].id + 'T12:00:00');
-        } else {
-            startDate = new Date();
-            startDate.setHours(12,0,0,0);
-        }
-
         let runningBalance = activeBrokerage.initialBalance;
+        let dayCounter = 1;
 
-        for (let i = 0; i < 30; i++) {
-            const currentDate = new Date(startDate);
-            currentDate.setDate(startDate.getDate() + i);
-            const dateId = currentDate.toISOString().split('T')[0];
+        // Primeiro adicionamos os dias em que realmente houve operação
+        for (const realRecord of realDays) {
+            const initial = runningBalance;
+            const profit = realRecord.netProfitUSD;
+            const final = initial + profit;
             
-            const realRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateId && r.trades.length > 0);
-            
-            let initial = runningBalance;
-            let win, loss, profit, final, isProjection, operationValue;
-
-            if (realRecord) {
-                win = realRecord.winCount;
-                loss = realRecord.lossCount;
-                profit = realRecord.netProfitUSD;
-                final = realRecord.endBalanceUSD;
-                operationValue = (realRecord.trades.length > 0) ? realRecord.trades[0].entryValue : (initial * 0.10);
-                isProjection = false;
-            } else {
-                isProjection = true;
-                operationValue = initial * 0.10;
-                win = 3;
-                loss = 0;
-                profit = (operationValue * (activeBrokerage.payoutPercentage / 100)) * 3;
-                final = initial + profit;
-            }
-
             rows.push({
-                diaTrade: i + 1,
-                dateId,
-                dateDisplay: currentDate.toLocaleDateString('pt-BR'),
+                diaTrade: dayCounter++,
+                dateId: realRecord.id,
+                dateDisplay: new Date(realRecord.id + 'T12:00:00').toLocaleDateString('pt-BR'),
                 initial,
-                win,
-                loss,
+                win: realRecord.winCount,
+                loss: realRecord.lossCount,
                 profit,
                 final,
-                operationValue,
-                isProjection
+                operationValue: realRecord.trades.length > 0 ? realRecord.trades[0].entryValue : (initial * (activeBrokerage.entryValue / 100)),
+                isProjection: false
             });
             runningBalance = final;
         }
+
+        // Depois preenchemos o restante até completar 30 linhas com projeções
+        const remaining = 30 - rows.length;
+        if (remaining > 0) {
+            for (let i = 0; i < remaining; i++) {
+                const initial = runningBalance;
+                // Projeção baseada em 3x0 com a entrada padrão definida nas configs
+                const entryVal = activeBrokerage.entryMode === 'fixed' 
+                    ? activeBrokerage.entryValue 
+                    : initial * (activeBrokerage.entryValue / 100);
+                
+                const win = 3;
+                const loss = 0;
+                const profit = (entryVal * (activeBrokerage.payoutPercentage / 100)) * win;
+                const final = initial + profit;
+
+                rows.push({
+                    diaTrade: dayCounter++,
+                    dateId: 'PROJ',
+                    dateDisplay: '---',
+                    initial,
+                    win,
+                    loss,
+                    profit,
+                    final,
+                    operationValue: entryVal,
+                    isProjection: true
+                });
+                runningBalance = final;
+            }
+        }
+        
         return rows;
-    }, [records, activeBrokerage.initialBalance, activeBrokerage.payoutPercentage]);
+    }, [records, activeBrokerage]);
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div>
-                <h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros (30 Dias)</h2>
-                <p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Dias em baixa opacidade são projeções automáticas de 3x0.</p>
+                <h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros (Dias de Operação)</h2>
+                <p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Esta planilha lista sequencialmente cada dia operado. Linhas apagadas são projeções automáticas de 3x0.</p>
             </div>
             <div className={`rounded-3xl border overflow-hidden shadow-2xl ${theme.card}`}>
                 <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-center border-collapse min-w-[900px]">
                         <thead>
                             <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Dia</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Data</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Dia Operação</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Data Calendário</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Saldo Inicial</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Valor Operação</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20 text-green-500">Win</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20 text-red-500">Loss</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Lucro</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Lucro do Dia</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Saldo Final</th>
                             </tr>
                         </thead>
