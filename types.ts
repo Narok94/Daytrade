@@ -59,6 +59,7 @@ export interface AIAnalysisResult {
     reasoning: string;
     supportLevel: string;
     resistanceLevel: string;
+    entryTime: string;
 }
 
 export type AppRecord = DailyRecord | TransactionRecord;

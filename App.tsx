@@ -76,6 +76,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             Analise este gráfico de 1 minuto (M1). 
                             Identifique padrões de velas (candles), níveis de suporte e resistência, pullbacks, Fibonacci, e indicadores (ADX, Estocástico).
                             Forneça uma recomendação para a PRÓXIMA VELA.
+                            Determine o HORÁRIO EXATO DE ENTRADA baseado no fechamento da vela atual (ex: 14:35:58).
                             A resposta deve ser em JSON no formato especificado.`,
                         },
                     ],
@@ -92,8 +93,9 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             reasoning: { type: Type.STRING },
                             supportLevel: { type: Type.STRING },
                             resistanceLevel: { type: Type.STRING },
+                            entryTime: { type: Type.STRING, description: "O horário exato para clicar no botão de compra/venda (formato HH:MM:SS)" }
                         },
-                        required: ['recommendation', 'confidence', 'patterns', 'indicatorAnalysis', 'reasoning', 'supportLevel', 'resistanceLevel']
+                        required: ['recommendation', 'confidence', 'patterns', 'indicatorAnalysis', 'reasoning', 'supportLevel', 'resistanceLevel', 'entryTime']
                     }
                 }
             });
@@ -113,7 +115,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div>
                     <h2 className={`text-2xl font-black ${theme.text}`}>Análise de IA Especialista</h2>
-                    <p className={theme.textMuted}>Suba o print do seu gráfico (M1) para análise preditiva.</p>
+                    <p className={theme.textMuted}>Suba o print do seu gráfico (M1) para análise preditiva e horário de entrada.</p>
                 </div>
             </div>
 
@@ -188,6 +190,17 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 <div className="text-right">
                                     <p className="text-[10px] font-black uppercase opacity-60 mb-1">Confiança</p>
                                     <p className="text-2xl font-black">{analysisResult.confidence}%</p>
+                                </div>
+                            </div>
+
+                            {/* Entry Time Highlight */}
+                            <div className={`p-6 rounded-3xl border flex items-center justify-between bg-teal-500/10 border-teal-500/30 shadow-inner`}>
+                                <div>
+                                    <p className="text-[10px] font-black uppercase text-teal-400 mb-1">Horário de Entrada (M1)</p>
+                                    <p className="text-4xl font-black text-white tracking-tighter">{analysisResult.entryTime}</p>
+                                </div>
+                                <div className="text-right">
+                                    <TargetIcon className="w-8 h-8 text-teal-400 opacity-50" />
                                 </div>
                             </div>
 
@@ -472,7 +485,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 // --- Report Panel ---
 const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, deleteTrade }) => {
     const theme = useThemeClasses(isDarkMode);
-    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+    const currencySymbol = activeBrokerage.currency === '$' ? '$' : 'R$';
     const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
     const reportData = useMemo(() => {
