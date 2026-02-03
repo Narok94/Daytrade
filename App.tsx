@@ -94,61 +94,89 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                 ))}
             </div>
 
-            {/* Protocolo Sniper - Visual Industrial de Elite */}
-            <div className={`p-6 md:p-10 rounded-[2.5rem] md:rounded-[4rem] border ${theme.card} shadow-2xl max-w-2xl mx-auto w-full relative overflow-hidden flex flex-col justify-center border-emerald-500/20`}>
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
-                <div className="absolute -bottom-10 -left-10 p-12 opacity-[0.03] pointer-events-none -rotate-12">
-                    <TargetIcon className="w-40 h-40 md:w-64 md:h-64 text-emerald-500" />
-                </div>
+            {/* Painel de Comando Sniper - Redesenhado para Alta Performance */}
+            <div className={`p-6 md:p-12 rounded-[3rem] md:rounded-[4rem] border ${theme.card} shadow-[0_30px_100px_rgba(0,0,0,0.8)] max-w-3xl mx-auto w-full relative overflow-hidden border-emerald-500/30`}>
+                {/* Elementos Decorativos de HUD */}
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-slate-800 to-transparent" />
+                <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-emerald-500/30" />
+                <div className="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-emerald-500/30" />
+                <div className="absolute bottom-4 left-4 w-4 h-4 border-b-2 border-l-2 border-emerald-500/30" />
+                <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-emerald-500/30" />
                 
                 <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-6 md:mb-10">
+                    <div className="flex items-center justify-between mb-8 md:mb-10">
                         <div className="flex flex-col">
-                            <h3 className="text-[10px] md:text-[14px] font-black uppercase text-emerald-400 tracking-[0.5em] italic flex items-center gap-3 leading-none">
-                                <span className="relative flex h-3 w-3">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                            <h3 className="text-[12px] md:text-[16px] font-black uppercase text-emerald-400 tracking-[0.6em] italic flex items-center gap-4 leading-none">
+                                <span className="flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,1)]"></span>
                                 </span>
-                                Comando de Operação
+                                PROTOCOLO DE DISPARO
                             </h3>
+                            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-2 ml-7 opacity-60 italic">Hardware ID: SNPR-ALPHA-01</p>
                         </div>
-                        <div className="hidden sm:flex flex-col items-end">
-                             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Sincronização</span>
-                             <div className="flex gap-1">
-                                {[1,2,3].map(i => <div key={i} className="w-3 h-1 bg-emerald-500/30 rounded-full" />)}
+                        <div className="flex items-center gap-4 px-4 py-2 bg-emerald-500/5 rounded-full border border-emerald-500/10">
+                             <div className="flex gap-1.5">
+                                {[1,2,3,4].map(i => <div key={i} className={`w-1.5 h-1.5 rounded-full ${i <= 3 ? 'bg-emerald-500' : 'bg-slate-800 animate-pulse'}`} />)}
                              </div>
+                             <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">READY</span>
                         </div>
                     </div>
                     
-                    <div className="grid grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-12">
-                        <div className="space-y-2">
-                            <label className="text-[8px] md:text-[12px] font-black text-slate-400 uppercase ml-2 tracking-widest opacity-90">Valor Entrada</label>
-                            <input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-12 md:h-16 px-5 md:px-8 rounded-2xl md:rounded-3xl border text-[16px] md:text-[22px] font-black outline-none transition-all focus:ring-4 focus:ring-emerald-500/10 ${theme.input}`} />
+                    <div className="grid grid-cols-3 gap-4 md:gap-8 mb-8 md:mb-12">
+                        <div className="space-y-3 group">
+                            <label className="text-[10px] md:text-[14px] font-black text-slate-400 uppercase ml-3 tracking-[0.2em] group-focus-within:text-emerald-400 transition-colors">VALOR OPERAÇÃO</label>
+                            <div className="relative">
+                                <input 
+                                    type="number" 
+                                    value={customEntryValue} 
+                                    onChange={e => setCustomEntryValue(e.target.value)} 
+                                    className={`w-full h-14 md:h-20 px-6 md:px-10 rounded-2xl md:rounded-[2rem] border-2 text-[20px] md:text-[28px] font-black outline-none transition-all focus:ring-8 focus:ring-emerald-500/10 focus:border-emerald-500 shadow-inner ${theme.input}`} 
+                                />
+                                <span className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-600 font-black text-xs tracking-widest">{currencySymbol}</span>
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[8px] md:text-[12px] font-black text-slate-400 uppercase ml-2 tracking-widest opacity-90">Retorno %</label>
-                            <input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-12 md:h-16 px-5 md:px-8 rounded-2xl md:rounded-3xl border text-[16px] md:text-[22px] font-black outline-none transition-all focus:ring-4 focus:ring-emerald-500/10 ${theme.input}`} />
+                        <div className="space-y-3 group">
+                            <label className="text-[10px] md:text-[14px] font-black text-slate-400 uppercase ml-3 tracking-[0.2em] group-focus-within:text-emerald-400 transition-colors">RETORNO (PAYOUT)</label>
+                            <div className="relative">
+                                <input 
+                                    type="number" 
+                                    value={customPayout} 
+                                    onChange={e => setCustomPayout(e.target.value)} 
+                                    className={`w-full h-14 md:h-20 px-6 md:px-10 rounded-2xl md:rounded-[2rem] border-2 text-[20px] md:text-[28px] font-black outline-none transition-all focus:ring-8 focus:ring-emerald-500/10 focus:border-emerald-500 shadow-inner ${theme.input}`} 
+                                />
+                                <span className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-600 font-black text-xs tracking-widest">%</span>
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[8px] md:text-[12px] font-black text-slate-400 uppercase ml-2 tracking-widest opacity-90">Nº Ordens</label>
-                            <input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} className={`w-full h-12 md:h-16 px-5 md:px-8 rounded-2xl md:rounded-3xl border text-[16px] md:text-[22px] font-black outline-none transition-all focus:ring-4 focus:ring-emerald-500/10 ${theme.input}`} />
+                        <div className="space-y-3 group">
+                            <label className="text-[10px] md:text-[14px] font-black text-slate-400 uppercase ml-3 tracking-[0.2em] group-focus-within:text-emerald-400 transition-colors">QUANTIDADE</label>
+                            <div className="relative">
+                                <input 
+                                    type="number" 
+                                    value={quantity} 
+                                    onChange={e => setQuantity(e.target.value)} 
+                                    className={`w-full h-14 md:h-20 px-6 md:px-10 rounded-2xl md:rounded-[2rem] border-2 text-[20px] md:text-[28px] font-black outline-none transition-all focus:ring-8 focus:ring-emerald-500/10 focus:border-emerald-500 shadow-inner ${theme.input}`} 
+                                />
+                                <span className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-600 font-black text-xs tracking-widest">QTD</span>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6 md:gap-8">
+                    <div className="grid grid-cols-2 gap-6 md:gap-10">
                         <button 
                             onClick={() => addRecord(parseInt(quantity), 0, parseFloat(customEntryValue), parseFloat(customPayout))} 
-                            className="group py-5 md:py-8 bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-slate-950 font-black rounded-2xl md:rounded-[2.5rem] text-[12px] md:text-[18px] uppercase tracking-[0.4em] shadow-[0_20px_40px_rgba(16,185,129,0.3)] active:scale-95 transition-all flex flex-col items-center justify-center"
+                            className="group py-6 md:py-10 bg-gradient-to-br from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-slate-950 font-black rounded-3xl md:rounded-[3rem] text-[16px] md:text-[22px] uppercase tracking-[0.5em] shadow-[0_20px_60px_rgba(16,185,129,0.3)] active:scale-95 transition-all flex flex-col items-center justify-center border-b-8 border-emerald-800 active:border-b-0"
                         >
-                            CONFIRMAR HIT
-                            <span className="text-[8px] md:text-[10px] opacity-60 font-black group-hover:tracking-[0.6em] transition-all mt-1">SINAL VERDE</span>
+                            EXECUTAR HIT
+                            <span className="text-[10px] md:text-[12px] opacity-60 font-black group-hover:tracking-[0.8em] transition-all mt-2">CONFIRMAR VITÓRIA</span>
                         </button>
                         <button 
                             onClick={() => addRecord(0, parseInt(quantity), parseFloat(customEntryValue), parseFloat(customPayout))} 
-                            className="group py-5 md:py-8 bg-gradient-to-br from-rose-600 to-rose-800 hover:from-rose-500 hover:to-rose-700 text-white font-black rounded-2xl md:rounded-[2.5rem] text-[12px] md:text-[18px] uppercase tracking-[0.4em] shadow-[0_20px_40px_rgba(244,63,94,0.3)] active:scale-95 transition-all flex flex-col items-center justify-center"
+                            className="group py-6 md:py-10 bg-gradient-to-br from-rose-600 to-rose-800 hover:from-rose-500 hover:to-rose-700 text-white font-black rounded-3xl md:rounded-[3rem] text-[16px] md:text-[22px] uppercase tracking-[0.5em] shadow-[0_20px_60px_rgba(244,63,94,0.3)] active:scale-95 transition-all flex flex-col items-center justify-center border-b-8 border-rose-900 active:border-b-0"
                         >
                             REGISTRAR MISS
-                            <span className="text-[8px] md:text-[10px] opacity-60 font-black group-hover:tracking-[0.6em] transition-all mt-1">RECUPERAR ALVO</span>
+                            <span className="text-[10px] md:text-[12px] opacity-60 font-black group-hover:tracking-[0.8em] transition-all mt-2">ALVO PERDIDO</span>
                         </button>
                     </div>
                 </div>
@@ -157,7 +185,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     );
 };
 
-// --- Outros Painéis (Escalada, Ciclos, Missões, Relatório, HQ) ---
+// --- Outros Painéis ---
 const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage }) => {
     const theme = useThemeClasses(isDarkMode);
     const [days, setDays] = useState(30);
