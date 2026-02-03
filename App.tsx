@@ -59,10 +59,6 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
 
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            
-            // Extrair mimeType e base64 corretamente do DataURL
-            const mimeTypeMatch = selectedImage.match(/data:(.*?);base64,/);
-            const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/png';
             const base64Data = selectedImage.split(',')[1];
 
             const response = await ai.models.generateContent({
@@ -71,23 +67,16 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     parts: [
                         {
                             inlineData: {
-                                mimeType: mimeType,
+                                mimeType: 'image/png',
                                 data: base64Data,
                             },
                         },
                         {
-                            text: `Aja como um professor sênior de análise técnica comportamental. 
-                            Sua tarefa é identificar padrões visuais (Price Action) neste gráfico de 1 minuto para fins estritamente educacionais.
-                            Analise:
-                            1. Padrões de velas (ex: Martelo, Engolfo, Doji).
-                            2. Zonas de suporte e resistência visíveis.
-                            3. Comportamento dos indicadores (Volume, Estocástico ou médias móveis se houver).
-                            
-                            Dê uma recomendação técnica (CALL, PUT ou WAIT) para a PRÓXIMA VELA de 1 minuto.
-                            Determine o HORÁRIO EXATO DE ENTRADA baseado no encerramento da vela atual que você vê no gráfico (ex: se a vela atual encerra em 14:35, a entrada é 14:35:58).
-                            O horário de entrada deve ser no formato HH:MM:SS.
-                            
-                            Responda estritamente em JSON.`,
+                            text: `Aja como um especialista sênior em análise técnica de opções binárias. 
+                            Analise este gráfico de 1 minuto (M1). 
+                            Identifique padrões de velas (candles), níveis de suporte e resistência, pullbacks, Fibonacci, e indicadores (ADX, Estocástico).
+                            Forneça uma recomendação para a PRÓXIMA VELA.
+                            A resposta deve ser em JSON no formato especificado.`,
                         },
                     ],
                 },
@@ -103,26 +92,17 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             reasoning: { type: Type.STRING },
                             supportLevel: { type: Type.STRING },
                             resistanceLevel: { type: Type.STRING },
-                            entryTime: { type: Type.STRING, description: "O horário exato para a operação (formato HH:MM:SS)" }
                         },
-                        required: ['recommendation', 'confidence', 'patterns', 'indicatorAnalysis', 'reasoning', 'supportLevel', 'resistanceLevel', 'entryTime']
+                        required: ['recommendation', 'confidence', 'patterns', 'indicatorAnalysis', 'reasoning', 'supportLevel', 'resistanceLevel']
                     }
                 }
             });
 
-            const text = response.text;
-            if (!text) throw new Error("Resposta vazia da IA");
-            
-            const result = JSON.parse(text);
+            const result = JSON.parse(response.text || '{}');
             setAnalysisResult(result);
-        } catch (err: any) {
+        } catch (err) {
             console.error("Erro na análise de IA:", err);
-            // Mensagem mais informativa para o usuário
-            if (err.message?.includes('SAFETY')) {
-                setError("A análise foi bloqueada pelos filtros de segurança. Tente uma imagem apenas do gráfico, sem logotipos de corretoras.");
-            } else {
-                setError("Não foi possível processar a imagem. Tente um print com melhor resolução ou verifique sua internet.");
-            }
+            setError("Não foi possível processar a análise. Tente uma imagem mais clara do gráfico.");
         } finally {
             setIsAnalyzing(false);
         }
@@ -133,7 +113,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div>
                     <h2 className={`text-2xl font-black ${theme.text}`}>Análise de IA Especialista</h2>
-                    <p className={theme.textMuted}>Suba o print do seu gráfico (M1) para análise preditiva e horário de entrada.</p>
+                    <p className={theme.textMuted}>Suba o print do seu gráfico (M1) para análise preditiva.</p>
                 </div>
             </div>
 
@@ -150,19 +130,19 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 </div>
                                 <div className="space-y-1">
                                     <p className="font-bold text-sm">Clique ou arraste o print</p>
-                                    <p className="text-[10px] font-black uppercase opacity-40">Formatos: PNG, JPG (M1 Recomendado)</p>
+                                    <p className="text-[10px] font-black uppercase opacity-40">Formatos: PNG, JPG (Somente M1)</p>
                                 </div>
                                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                             </label>
                         ) : (
                             <div className="w-full h-full flex flex-col items-center gap-4">
-                                <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-slate-700 bg-black">
-                                    <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
+                                <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-slate-700">
+                                    <img src={selectedImage} alt="Preview" className="w-full h-full object-cover" />
                                     {isAnalyzing && (
                                         <div className="absolute inset-0 bg-teal-500/20 backdrop-blur-[2px] flex items-center justify-center overflow-hidden">
                                             <div className="absolute inset-0 animate-pulse bg-gradient-to-b from-transparent via-teal-400/30 to-transparent h-20 top-[-20%] w-full" style={{ animation: 'scanning 2s linear infinite' }} />
                                             <style>{`@keyframes scanning { 0% { top: -20%; } 100% { top: 120%; } }`}</style>
-                                            <p className="text-xs font-black uppercase tracking-widest text-white drop-shadow-lg z-10">Mapeando Candlesticks...</p>
+                                            <p className="text-xs font-black uppercase tracking-widest text-white drop-shadow-lg">Processando Padrões...</p>
                                         </div>
                                     )}
                                 </div>
@@ -173,7 +153,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                         onClick={runAIAnalysis}
                                         className="flex-[2] py-3 text-[10px] font-black uppercase rounded-xl bg-teal-500 text-slate-950 hover:bg-teal-400 disabled:opacity-50 transition-all shadow-lg shadow-teal-500/20"
                                     >
-                                        {isAnalyzing ? 'Processando Visão...' : 'Iniciar Análise Técnica'}
+                                        {isAnalyzing ? 'Analisando...' : 'Iniciar Análise IA'}
                                     </button>
                                 </div>
                             </div>
@@ -194,49 +174,38 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 'bg-slate-800/20 border-slate-700'
                             }`}>
                                 <div>
-                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Direção Predita</p>
+                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Decisão Estratégica</p>
                                     <h4 className={`text-3xl font-black ${
                                         analysisResult.recommendation === 'CALL' ? 'text-green-500' : 
                                         analysisResult.recommendation === 'PUT' ? 'text-red-500' : 
                                         'text-slate-400'
                                     }`}>
-                                        {analysisResult.recommendation === 'CALL' ? '↑ CALL' : 
-                                         analysisResult.recommendation === 'PUT' ? '↓ PUT' : 
+                                        {analysisResult.recommendation === 'CALL' ? '↑ COMPRA' : 
+                                         analysisResult.recommendation === 'PUT' ? '↓ VENDA' : 
                                          '∅ AGUARDAR'}
                                     </h4>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Assertividade</p>
+                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Confiança</p>
                                     <p className="text-2xl font-black">{analysisResult.confidence}%</p>
-                                </div>
-                            </div>
-
-                            {/* Entry Time Highlight */}
-                            <div className={`p-6 rounded-3xl border flex items-center justify-between bg-teal-500/10 border-teal-500/30 shadow-inner`}>
-                                <div>
-                                    <p className="text-[10px] font-black uppercase text-teal-400 mb-1">Horário Exato de Entrada</p>
-                                    <p className="text-4xl font-black text-white tracking-tighter">{analysisResult.entryTime}</p>
-                                </div>
-                                <div className="text-right">
-                                    <TargetIcon className="w-8 h-8 text-teal-400 opacity-50" />
                                 </div>
                             </div>
 
                             {/* Detailed Stats */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800">
-                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-2">Ponto de Suporte</p>
+                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-2">Suporte</p>
                                     <p className="text-xs font-bold text-green-400">{analysisResult.supportLevel}</p>
                                 </div>
                                 <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800">
-                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-2">Ponto de Resistência</p>
+                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-2">Resistência</p>
                                     <p className="text-xs font-bold text-red-400">{analysisResult.resistanceLevel}</p>
                                 </div>
                             </div>
 
                             {/* Patterns */}
                             <div className="space-y-2">
-                                <p className="text-[9px] font-black uppercase opacity-40">Padrões Detectados</p>
+                                <p className="text-[9px] font-black uppercase opacity-40">Padrões Identificados</p>
                                 <div className="flex flex-wrap gap-2">
                                     {analysisResult.patterns.map((p, i) => (
                                         <span key={i} className="px-2 py-1 rounded-lg bg-teal-500/10 text-teal-400 text-[9px] font-bold border border-teal-500/20">{p}</span>
@@ -247,18 +216,21 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             {/* Rationale */}
                             <div className="space-y-4">
                                 <div className="p-4 rounded-2xl bg-slate-950/30 border border-slate-800/50">
-                                    <p className="text-[9px] font-black uppercase opacity-40 mb-2">Leitura Técnica</p>
+                                    <p className="text-[9px] font-black uppercase opacity-40 mb-2">Análise de Indicadores</p>
+                                    <p className="text-xs font-medium text-slate-300 leading-relaxed">{analysisResult.indicatorAnalysis}</p>
+                                </div>
+                                <div className="p-4 rounded-2xl bg-slate-950/30 border border-slate-800/50">
+                                    <p className="text-[9px] font-black uppercase opacity-40 mb-2">Raciocínio Técnico</p>
                                     <p className="text-xs font-medium text-slate-300 leading-relaxed italic">"{analysisResult.reasoning}"</p>
                                 </div>
                             </div>
 
-                            <p className="text-[8px] text-center opacity-30 font-bold uppercase tracking-widest pt-4">Esta análise é baseada em probabilidade estatística. Use com gerenciamento de risco.</p>
+                            <p className="text-[8px] text-center opacity-30 font-bold uppercase tracking-widest pt-4">Aviso: Trade por conta e risco. IA é ferramenta de auxílio, não garantia.</p>
                         </div>
                     ) : error ? (
-                        <div className="h-full flex flex-col items-center justify-center py-12 text-center px-4">
+                        <div className="h-full flex flex-col items-center justify-center py-12 text-center">
                             <InformationCircleIcon className="w-12 h-12 text-red-500/40 mb-4" />
                             <p className="text-sm font-bold text-red-400">{error}</p>
-                            <button onClick={runAIAnalysis} className="mt-4 text-[10px] font-black uppercase text-teal-400 hover:underline">Tentar Novamente</button>
                         </div>
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center py-12 opacity-30 text-center">
@@ -500,7 +472,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 // --- Report Panel ---
 const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, deleteTrade }) => {
     const theme = useThemeClasses(isDarkMode);
-    const currencySymbol = activeBrokerage.currency === '$' ? '$' : 'R$';
+    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
     const reportData = useMemo(() => {
