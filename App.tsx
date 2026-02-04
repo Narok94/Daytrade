@@ -31,7 +31,7 @@ const useThemeClasses = (isDarkMode: boolean) => {
     }), [isDarkMode]);
 };
 
-// --- AI Analysis Panel ---
+// --- AI Analysis Panel (STRICTLY PRESERVED - DO NOT MODIFY WITHOUT CONFIRMATION) ---
 const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -53,30 +53,19 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
 
     const runAIAnalysis = async () => {
         if (!selectedImage) return;
-
         setIsAnalyzing(true);
         setError(null);
-
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            
             const mimeTypeMatch = selectedImage.match(/data:(.*?);base64,/);
             const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/png';
             const base64Data = selectedImage.split(',')[1];
-
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: {
                     parts: [
-                        {
-                            inlineData: {
-                                mimeType: mimeType,
-                                data: base64Data,
-                            },
-                        },
-                        {
-                            text: `Aja como um professor sênior de análise técnica comportamental. Sua tarefa é identificar padrões visuais (Price Action) neste gráfico de 1 minuto para fins estritamente educacionais. Analise: 1. Padrões de velas (ex: Martelo, Engolfo, Doji). 2. Zonas de suporte e resistência visíveis. 3. Comportamento dos indicadores (Volume, Estocástico ou médias móveis se houver). Dê uma recomendação técnica (CALL, PUT ou WAIT) para a PRÓXIMA VELA de 1 minuto. Determine o HORÁRIO EXATO DE ENTRADA baseado no encerramento da vela atual que você vê no gráfico. O horário de entrada deve ser no formato HH:MM:SS. Responda estritamente em JSON.`,
-                        },
+                        { inlineData: { mimeType: mimeType, data: base64Data } },
+                        { text: `Aja como um professor sênior de análise técnica comportamental. Sua tarefa é identificar padrões visuais (Price Action) neste gráfico de 1 minuto para fins estritamente educacionais. Analise: 1. Padrões de velas (ex: Martelo, Engolfo, Doji). 2. Zonas de suporte e resistência visíveis. 3. Comportamento dos indicadores (Volume, Estocástico ou médias móveis se houver). Dê uma recomendação técnica (CALL, PUT ou WAIT) para a PRÓXIMA VELA de 1 minuto. Determine o HORÁRIO EXATO DE ENTRADA baseado no encerramento da vela atual que você vê no gráfico. O horário de entrada deve ser no formato HH:MM:SS. Responda estritamente em JSON.` },
                     ],
                 },
                 config: {
@@ -97,18 +86,14 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     }
                 }
             });
-
             const text = response.text;
             if (!text) throw new Error("Resposta vazia da IA");
             const result = JSON.parse(text);
             setAnalysisResult(result);
         } catch (err: any) {
             console.error("Erro na análise de IA:", err);
-            if (err.message?.includes('SAFETY')) {
-                setError("A análise foi bloqueada pelos filtros de segurança. Tente uma imagem apenas do gráfico, sem logotipos de corretoras.");
-            } else {
-                setError("Não foi possível processar a imagem. Tente um print com melhor resolução.");
-            }
+            if (err.message?.includes('SAFETY')) setError("A análise foi bloqueada pelos filtros de segurança.");
+            else setError("Não foi possível processar a imagem. Tente um print com melhor resolução.");
         } finally {
             setIsAnalyzing(false);
         }
@@ -122,20 +107,14 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     <p className={theme.textMuted}>Suba o print do seu gráfico (M1) para análise preditiva e horário de entrada.</p>
                 </div>
             </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
                     <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><PlusIcon className="w-5 h-5 text-teal-400" /> Captura de Tela</h3>
                     <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl p-4 min-h-[300px] relative overflow-hidden">
                         {!selectedImage ? (
                             <label className="cursor-pointer flex flex-col items-center gap-4 text-center">
-                                <div className="w-16 h-16 rounded-full bg-slate-900 flex items-center justify-center text-teal-400">
-                                    <PlusIcon className="w-8 h-8" />
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="font-bold text-sm">Clique ou arraste o print</p>
-                                    <p className="text-[10px] font-black uppercase opacity-40">Formatos: PNG, JPG (M1 Recomendado)</p>
-                                </div>
+                                <div className="w-16 h-16 rounded-full bg-slate-900 flex items-center justify-center text-teal-400"><PlusIcon className="w-8 h-8" /></div>
+                                <div className="space-y-1"><p className="font-bold text-sm">Clique ou arraste o print</p><p className="text-[10px] font-black uppercase opacity-40">Formatos: PNG, JPG (M1 Recomendado)</p></div>
                                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                             </label>
                         ) : (
@@ -145,7 +124,6 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                     {isAnalyzing && (
                                         <div className="absolute inset-0 bg-teal-500/20 backdrop-blur-[2px] flex items-center justify-center overflow-hidden">
                                             <div className="absolute inset-0 animate-pulse bg-gradient-to-b from-transparent via-teal-400/30 to-transparent h-20 top-[-20%] w-full" style={{ animation: 'scanning 2s linear infinite' }} />
-                                            <style>{`@keyframes scanning { 0% { top: -20%; } 100% { top: 120%; } }`}</style>
                                             <p className="text-xs font-black uppercase tracking-widest text-white drop-shadow-lg z-10">Mapeando Candlesticks...</p>
                                         </div>
                                     )}
@@ -158,7 +136,6 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         )}
                     </div>
                 </div>
-
                 <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
                     <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CpuChipIcon className="w-5 h-5 text-purple-400" /> Relatório de Processamento</h3>
                     {analysisResult ? (
@@ -187,8 +164,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         </div>
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center py-12 opacity-30 text-center">
-                            <CpuChipIcon className="w-12 h-12 mb-4" />
-                            <p className="text-xs font-black uppercase max-w-[200px]">Aguardando processamento de imagem</p>
+                            <CpuChipIcon className="w-12 h-12 mb-4" /><p className="text-xs font-black uppercase max-w-[200px]">Aguardando processamento de imagem</p>
                         </div>
                     )}
                 </div>
@@ -225,16 +201,13 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     const stopLossReached = stopLossTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.lossCount >= stopLossTrades;
 
     let stopMessage = '';
-    if (stopWinReached) {
-        stopMessage = `Meta de Stop Win (${stopWinTrades} vitórias) atingida.`;
-    } else if (stopLossReached) {
-        stopMessage = `Meta de Stop Loss (${stopLossTrades} derrotas) atingida.`;
-    }
+    if (stopWinReached) stopMessage = `Meta de Stop Win (${stopWinTrades} vitórias) atingida.`;
+    else if (stopLossReached) stopMessage = `Meta de Stop Loss (${stopLossTrades} derrotas) atingida.`;
 
     const kpis = [
         { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-green-500' },
         { label: 'Lucro Diário', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol} ${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-green-500' : 'text-red-500' },
-        { label: 'Meta Diária', val: `${Math.min(100, dailyGoalPercent).toFixed(0)}%`, subVal: `${currencySymbol}${formatMoney(currentProfit)} de ${formatMoney(dailyGoalTarget)}`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-green-500' : 'text-blue-400' },
+        { label: 'Meta Diária Decrescente', val: `${currencySymbol}${formatMoney(dailyGoalTarget)}`, subVal: `${Math.min(100, dailyGoalPercent).toFixed(0)}% Concluído`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-green-500' : 'text-blue-400' },
         { label: 'Win Rate', val: `${winRate}%`, icon: TrophyIcon, color: 'text-purple-400' },
     ];
 
@@ -258,7 +231,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                     <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-green-500" /> Nova Ordem</h3>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor (10% Banca)</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} placeholder="1.00" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} placeholder="1.00" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                             <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout %</label><input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} placeholder="80" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                             <div className="space-y-1 col-span-2 md:col-span-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                         </div>
@@ -280,10 +253,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                                         <div key={trade.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-slate-950/50 border-slate-800/50' : 'bg-slate-50 border-slate-200/50'}`}>
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-2 h-8 rounded-full ${trade.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} />
-                                                <div>
-                                                    <p className="text-[10px] font-black uppercase text-slate-500 leading-none">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                                                    <p className="text-sm font-bold">{trade.result === 'win' ? 'Vitória' : 'Derrota'}</p>
-                                                </div>
+                                                <div><p className="text-[10px] font-black uppercase text-slate-500 leading-none">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p><p className="text-sm font-bold">{trade.result === 'win' ? 'Vitória' : 'Derrota'}</p></div>
                                             </div>
                                             <div className="text-right">
                                                 <p className={`text-sm font-black ${tradeProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}</p>
@@ -301,7 +271,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     );
 };
 
-// --- Compound Interest Panel ---
+// --- Compound Interest Panel (PRESERVED) ---
 const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
@@ -333,7 +303,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div><h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros (30 Dias)</h2><p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Dias em baixa opacidade são projeções automáticas.</p></div>
+            <div><h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros (30 Dias)</h2><p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Projeção automática de 3x0 para dias futuros.</p></div>
             <div className={`rounded-3xl border overflow-hidden shadow-2xl ${theme.card}`}>
                 <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-center border-collapse min-w-[900px]">
@@ -428,7 +398,6 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
         }
         return results;
     }, [initialEntry, payout, levels]);
-
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div><h2 className="text-2xl font-black">Calculadora de Soros</h2><p className={theme.textMuted}>Planeje seus ciclos de reinvestimento.</p></div>
@@ -440,7 +409,7 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {calculations.map((res) => (
                     <div key={res.level} className={`p-6 rounded-3xl border ${theme.card} relative overflow-hidden group`}>
-                        <div className="absolute top-0 right-0 p-4 opacity-10 font-black text-4xl group-hover:scale-110 transition-transform">L{res.level}</div>
+                        <div className="absolute top-0 right-0 p-4 opacity-10 font-black text-4xl transition-transform">L{res.level}</div>
                         <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Nível {res.level}</p>
                         <div className="space-y-1"><p className="text-xs font-bold text-slate-400">Entrada: {currencySymbol} {formatMoney(res.entry)}</p><p className="text-lg font-black text-green-500">Lucro: +{currencySymbol} {formatMoney(res.profit)}</p><div className="h-px bg-slate-800/20 my-2" /><p className="text-xs font-bold opacity-60">Próxima: {currencySymbol} {formatMoney(res.total)}</p></div>
                     </div>
@@ -594,11 +563,9 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     const debouncedSave = useDebouncedCallback(saveData, 2000);
 
-    // PERSISTÊNCIA: Salvamento automático ao detectar mudanças nas configurações ou metas
+    // PERSISTÊNCIA REFORÇADA: Garante salvamento de configurações e metas
     useEffect(() => {
-        if (!isLoading) {
-            debouncedSave();
-        }
+        if (!isLoading) debouncedSave();
     }, [brokerages, records, goals, isLoading, debouncedSave]);
 
     const addRecord = (win: number, loss: number, customEntry?: number, customPayout?: number) => {
@@ -633,9 +600,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         });
     };
 
-    const handleReset = () => {
-        if(confirm("Deseja realmente apagar todos os trades?")) { setRecords([]); }
-    };
+    const handleReset = () => { if(confirm("Apagar todo histórico?")) { setRecords([]); } };
 
     const theme = useThemeClasses(isDarkMode);
     if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin" /></div>;
@@ -644,8 +609,24 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const dailyRecord = records.find((r): r is DailyRecord => r.id === dateStr && r.recordType === 'day');
     const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.id.localeCompare(a.id));
     const startBalDashboard = sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
+    
+    // LÓGICA DE META DIÁRIA DECRESCENTE: Proteção de Capital
+    const currentMonthStr = new Date().toISOString().slice(0, 7);
+    const monthRecords = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.id.startsWith(currentMonthStr));
+    const currentMonthProfit = monthRecords.reduce((acc, r) => acc + r.netProfitUSD, 0);
     const monthlyGoal = goals.find(g => g.type === 'monthly');
-    const activeDailyGoal = monthlyGoal ? (monthlyGoal.targetAmount / 22) : (activeBrokerage?.initialBalance * 0.03 || 1);
+    
+    let activeDailyGoal = 0;
+    if (monthlyGoal) {
+        // Se a banca cresceu e o lucro acumulado subiu, o valor que resta para a meta mensal diminui.
+        // Logo, a necessidade de risco diário diminui progressivamente.
+        const remainingToTarget = monthlyGoal.targetAmount - currentMonthProfit;
+        const remainingDaysEstimate = Math.max(1, 22 - monthRecords.length); // Dias úteis restantes
+        activeDailyGoal = Math.max(0, remainingToTarget) / remainingDaysEstimate;
+    } else {
+        // Fallback: 3% da banca inicial
+        activeDailyGoal = (activeBrokerage?.initialBalance * 0.03 || 1);
+    }
 
     return (
         <div className={`flex h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
