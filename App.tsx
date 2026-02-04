@@ -59,6 +59,9 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
 
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            
+            const mimeTypeMatch = selectedImage.match(/data:(.*?);base64,/);
+            const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/png';
             const base64Data = selectedImage.split(',')[1];
 
             const response = await ai.models.generateContent({
@@ -67,16 +70,12 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     parts: [
                         {
                             inlineData: {
-                                mimeType: 'image/png',
+                                mimeType: mimeType,
                                 data: base64Data,
                             },
                         },
                         {
-                            text: `Aja como um especialista sênior em análise técnica de opções binárias. 
-                            Analise este gráfico de 1 minuto (M1). 
-                            Identifique padrões de velas (candles), níveis de suporte e resistência, pullbacks, Fibonacci, e indicadores (ADX, Estocástico).
-                            Forneça uma recomendação para a PRÓXIMA VELA.
-                            A resposta deve ser em JSON no formato especificado.`,
+                            text: `Aja como um professor sênior de análise técnica comportamental. Sua tarefa é identificar padrões visuais (Price Action) neste gráfico de 1 minuto para fins estritamente educacionais. Analise: 1. Padrões de velas (ex: Martelo, Engolfo, Doji). 2. Zonas de suporte e resistência visíveis. 3. Comportamento dos indicadores (Volume, Estocástico ou médias móveis se houver). Dê uma recomendação técnica (CALL, PUT ou WAIT) para a PRÓXIMA VELA de 1 minuto. Determine o HORÁRIO EXATO DE ENTRADA baseado no encerramento da vela atual que você vê no gráfico. O horário de entrada deve ser no formato HH:MM:SS. Responda estritamente em JSON.`,
                         },
                     ],
                 },
@@ -92,17 +91,24 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             reasoning: { type: Type.STRING },
                             supportLevel: { type: Type.STRING },
                             resistanceLevel: { type: Type.STRING },
+                            entryTime: { type: Type.STRING, description: "O horário exato para a operação (formato HH:MM:SS)" }
                         },
-                        required: ['recommendation', 'confidence', 'patterns', 'indicatorAnalysis', 'reasoning', 'supportLevel', 'resistanceLevel']
+                        required: ['recommendation', 'confidence', 'patterns', 'indicatorAnalysis', 'reasoning', 'supportLevel', 'resistanceLevel', 'entryTime']
                     }
                 }
             });
 
-            const result = JSON.parse(response.text || '{}');
+            const text = response.text;
+            if (!text) throw new Error("Resposta vazia da IA");
+            const result = JSON.parse(text);
             setAnalysisResult(result);
-        } catch (err) {
+        } catch (err: any) {
             console.error("Erro na análise de IA:", err);
-            setError("Não foi possível processar a análise. Tente uma imagem mais clara do gráfico.");
+            if (err.message?.includes('SAFETY')) {
+                setError("A análise foi bloqueada pelos filtros de segurança. Tente uma imagem apenas do gráfico, sem logotipos de corretoras.");
+            } else {
+                setError("Não foi possível processar a imagem. Tente um print com melhor resolução.");
+            }
         } finally {
             setIsAnalyzing(false);
         }
@@ -113,15 +119,13 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div>
                     <h2 className={`text-2xl font-black ${theme.text}`}>Análise de IA Especialista</h2>
-                    <p className={theme.textMuted}>Suba o print do seu gráfico (M1) para análise preditiva.</p>
+                    <p className={theme.textMuted}>Suba o print do seu gráfico (M1) para análise preditiva e horário de entrada.</p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Upload Section */}
                 <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
                     <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><PlusIcon className="w-5 h-5 text-teal-400" /> Captura de Tela</h3>
-                    
                     <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl p-4 min-h-[300px] relative overflow-hidden">
                         {!selectedImage ? (
                             <label className="cursor-pointer flex flex-col items-center gap-4 text-center">
@@ -130,107 +134,56 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 </div>
                                 <div className="space-y-1">
                                     <p className="font-bold text-sm">Clique ou arraste o print</p>
-                                    <p className="text-[10px] font-black uppercase opacity-40">Formatos: PNG, JPG (Somente M1)</p>
+                                    <p className="text-[10px] font-black uppercase opacity-40">Formatos: PNG, JPG (M1 Recomendado)</p>
                                 </div>
                                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                             </label>
                         ) : (
                             <div className="w-full h-full flex flex-col items-center gap-4">
-                                <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-slate-700">
-                                    <img src={selectedImage} alt="Preview" className="w-full h-full object-cover" />
+                                <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-slate-700 bg-black">
+                                    <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
                                     {isAnalyzing && (
                                         <div className="absolute inset-0 bg-teal-500/20 backdrop-blur-[2px] flex items-center justify-center overflow-hidden">
                                             <div className="absolute inset-0 animate-pulse bg-gradient-to-b from-transparent via-teal-400/30 to-transparent h-20 top-[-20%] w-full" style={{ animation: 'scanning 2s linear infinite' }} />
                                             <style>{`@keyframes scanning { 0% { top: -20%; } 100% { top: 120%; } }`}</style>
-                                            <p className="text-xs font-black uppercase tracking-widest text-white drop-shadow-lg">Processando Padrões...</p>
+                                            <p className="text-xs font-black uppercase tracking-widest text-white drop-shadow-lg z-10">Mapeando Candlesticks...</p>
                                         </div>
                                     )}
                                 </div>
                                 <div className="flex gap-4 w-full">
                                     <button onClick={() => setSelectedImage(null)} className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl border border-slate-800 hover:bg-slate-800/50 transition-all">Limpar</button>
-                                    <button 
-                                        disabled={isAnalyzing} 
-                                        onClick={runAIAnalysis}
-                                        className="flex-[2] py-3 text-[10px] font-black uppercase rounded-xl bg-teal-500 text-slate-950 hover:bg-teal-400 disabled:opacity-50 transition-all shadow-lg shadow-teal-500/20"
-                                    >
-                                        {isAnalyzing ? 'Analisando...' : 'Iniciar Análise IA'}
-                                    </button>
+                                    <button disabled={isAnalyzing} onClick={runAIAnalysis} className="flex-[2] py-3 text-[10px] font-black uppercase rounded-xl bg-teal-500 text-slate-950 hover:bg-teal-400 disabled:opacity-50 transition-all shadow-lg shadow-teal-500/20">{isAnalyzing ? 'Processando...' : 'Iniciar Análise Técnica'}</button>
                                 </div>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Results Section */}
                 <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
                     <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CpuChipIcon className="w-5 h-5 text-purple-400" /> Relatório de Processamento</h3>
-                    
                     {analysisResult ? (
                         <div className="space-y-6">
-                            {/* Recommendation Header */}
-                            <div className={`p-5 rounded-3xl flex items-center justify-between border ${
-                                analysisResult.recommendation === 'CALL' ? 'bg-green-500/10 border-green-500/20' : 
-                                analysisResult.recommendation === 'PUT' ? 'bg-red-500/10 border-red-500/20' : 
-                                'bg-slate-800/20 border-slate-700'
-                            }`}>
-                                <div>
-                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Decisão Estratégica</p>
-                                    <h4 className={`text-3xl font-black ${
-                                        analysisResult.recommendation === 'CALL' ? 'text-green-500' : 
-                                        analysisResult.recommendation === 'PUT' ? 'text-red-500' : 
-                                        'text-slate-400'
-                                    }`}>
-                                        {analysisResult.recommendation === 'CALL' ? '↑ COMPRA' : 
-                                         analysisResult.recommendation === 'PUT' ? '↓ VENDA' : 
-                                         '∅ AGUARDAR'}
-                                    </h4>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Confiança</p>
-                                    <p className="text-2xl font-black">{analysisResult.confidence}%</p>
-                                </div>
+                            <div className={`p-5 rounded-3xl flex items-center justify-between border ${analysisResult.recommendation === 'CALL' ? 'bg-green-500/10 border-green-500/20' : analysisResult.recommendation === 'PUT' ? 'bg-red-500/10 border-red-500/20' : 'bg-slate-800/20 border-slate-700'}`}>
+                                <div><p className="text-[10px] font-black uppercase opacity-60 mb-1">Direção Predita</p><h4 className={`text-3xl font-black ${analysisResult.recommendation === 'CALL' ? 'text-green-500' : analysisResult.recommendation === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>{analysisResult.recommendation === 'CALL' ? '↑ CALL' : analysisResult.recommendation === 'PUT' ? '↓ PUT' : '∅ AGUARDAR'}</h4></div>
+                                <div className="text-right"><p className="text-[10px] font-black uppercase opacity-60 mb-1">Assertividade</p><p className="text-2xl font-black">{analysisResult.confidence}%</p></div>
                             </div>
-
-                            {/* Detailed Stats */}
+                            <div className={`p-6 rounded-3xl border flex items-center justify-between bg-teal-500/10 border-teal-500/30 shadow-inner`}>
+                                <div><p className="text-[10px] font-black uppercase text-teal-400 mb-1">Horário Exato de Entrada</p><p className="text-4xl font-black text-white tracking-tighter">{analysisResult.entryTime}</p></div>
+                                <div className="text-right"><TargetIcon className="w-8 h-8 text-teal-400 opacity-50" /></div>
+                            </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800">
-                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-2">Suporte</p>
-                                    <p className="text-xs font-bold text-green-400">{analysisResult.supportLevel}</p>
-                                </div>
-                                <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800">
-                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-2">Resistência</p>
-                                    <p className="text-xs font-bold text-red-400">{analysisResult.resistanceLevel}</p>
-                                </div>
+                                <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800"><p className="text-[8px] font-black uppercase text-slate-500 mb-2">Ponto de Suporte</p><p className="text-xs font-bold text-green-400">{analysisResult.supportLevel}</p></div>
+                                <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800"><p className="text-[8px] font-black uppercase text-slate-500 mb-2">Ponto de Resistência</p><p className="text-xs font-bold text-red-400">{analysisResult.resistanceLevel}</p></div>
                             </div>
-
-                            {/* Patterns */}
-                            <div className="space-y-2">
-                                <p className="text-[9px] font-black uppercase opacity-40">Padrões Identificados</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {analysisResult.patterns.map((p, i) => (
-                                        <span key={i} className="px-2 py-1 rounded-lg bg-teal-500/10 text-teal-400 text-[9px] font-bold border border-teal-500/20">{p}</span>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Rationale */}
-                            <div className="space-y-4">
-                                <div className="p-4 rounded-2xl bg-slate-950/30 border border-slate-800/50">
-                                    <p className="text-[9px] font-black uppercase opacity-40 mb-2">Análise de Indicadores</p>
-                                    <p className="text-xs font-medium text-slate-300 leading-relaxed">{analysisResult.indicatorAnalysis}</p>
-                                </div>
-                                <div className="p-4 rounded-2xl bg-slate-950/30 border border-slate-800/50">
-                                    <p className="text-[9px] font-black uppercase opacity-40 mb-2">Raciocínio Técnico</p>
-                                    <p className="text-xs font-medium text-slate-300 leading-relaxed italic">"{analysisResult.reasoning}"</p>
-                                </div>
-                            </div>
-
-                            <p className="text-[8px] text-center opacity-30 font-bold uppercase tracking-widest pt-4">Aviso: Trade por conta e risco. IA é ferramenta de auxílio, não garantia.</p>
+                            <div className="space-y-2"><p className="text-[9px] font-black uppercase opacity-40">Padrões Detectados</p><div className="flex flex-wrap gap-2">{analysisResult.patterns.map((p, i) => (<span key={i} className="px-2 py-1 rounded-lg bg-teal-500/10 text-teal-400 text-[9px] font-bold border border-teal-500/20">{p}</span>))}</div></div>
+                            <div className="space-y-4"><div className="p-4 rounded-2xl bg-slate-950/30 border border-slate-800/50"><p className="text-[9px] font-black uppercase opacity-40 mb-2">Leitura Técnica</p><p className="text-xs font-medium text-slate-300 leading-relaxed italic">"{analysisResult.reasoning}"</p></div></div>
+                            <p className="text-[8px] text-center opacity-30 font-bold uppercase tracking-widest pt-4">Esta análise é baseada em probabilidade estatística. Use com gerenciamento de risco.</p>
                         </div>
                     ) : error ? (
-                        <div className="h-full flex flex-col items-center justify-center py-12 text-center">
+                        <div className="h-full flex flex-col items-center justify-center py-12 text-center px-4">
                             <InformationCircleIcon className="w-12 h-12 text-red-500/40 mb-4" />
                             <p className="text-sm font-bold text-red-400">{error}</p>
+                            <button onClick={runAIAnalysis} className="mt-4 text-[10px] font-black uppercase text-teal-400 hover:underline">Tentar Novamente</button>
                         </div>
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center py-12 opacity-30 text-center">
@@ -291,20 +244,15 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                 <div><h2 className={`text-2xl font-black ${theme.text}`}>Dashboard</h2><p className={theme.textMuted}>Gestão ativa de operações</p></div>
                 <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
             </div>
-
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                 {kpis.map((kpi, i) => (
                     <div key={i} className={`p-4 rounded-3xl border ${theme.card} flex flex-col justify-between`}>
-                        <div className="flex justify-between items-start mb-1">
-                            <p className="text-[9px] md:text-[10px] uppercase font-black text-slate-500 tracking-wider leading-none">{kpi.label}</p>
-                            <kpi.icon className={`w-4 h-4 ${kpi.color} opacity-80`} />
-                        </div>
+                        <div className="flex justify-between items-start mb-1"><p className="text-[9px] md:text-[10px] uppercase font-black text-slate-500 tracking-wider leading-none">{kpi.label}</p><kpi.icon className={`w-4 h-4 ${kpi.color} opacity-80`} /></div>
                         <p className={`text-base md:text-lg lg:text-xl font-black ${kpi.color} truncate`}>{kpi.val}</p>
                         {kpi.subVal && <p className="text-[8px] md:text-[9px] font-bold mt-1 text-slate-500 truncate leading-tight">{kpi.subVal}</p>}
                     </div>
                 ))}
             </div>
-
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div className={`p-6 rounded-3xl border ${theme.card}`}>
                     <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-green-500" /> Nova Ordem</h3>
@@ -318,14 +266,9 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                             <button onClick={() => handleQuickAdd('win')} disabled={stopWinReached || stopLossReached} className="h-14 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg shadow-green-500/20 active:scale-95 disabled:bg-slate-700 disabled:shadow-none disabled:cursor-not-allowed">WIN</button>
                             <button onClick={() => handleQuickAdd('loss')} disabled={stopWinReached || stopLossReached} className="h-14 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg shadow-red-500/20 active:scale-95 disabled:bg-slate-700 disabled:shadow-none disabled:cursor-not-allowed">LOSS</button>
                         </div>
-                         {stopMessage && (
-                            <div className="mt-4 text-center text-xs font-bold text-yellow-500 p-3 bg-yellow-500/10 rounded-xl border border-yellow-500/20">
-                                {stopMessage} Operações bloqueadas por hoje.
-                            </div>
-                        )}
+                        {stopMessage && <div className="mt-4 text-center text-xs font-bold text-yellow-500 p-3 bg-yellow-500/10 rounded-xl border border-yellow-500/20">{stopMessage} Operações bloqueadas.</div>}
                     </div>
                 </div>
-
                 <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
                     <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60 text-blue-400"><ListBulletIcon className="w-5 h-5" /> Últimas Operações</h3>
                     <div className="flex-1 overflow-y-auto max-h-[350px] pr-2 custom-scrollbar">
@@ -350,12 +293,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                                     );
                                 })}
                              </div>
-                        ) : (
-                            <div className="h-full flex flex-col items-center justify-center opacity-30 py-10">
-                                <InformationCircleIcon className="w-10 h-10 mb-2" />
-                                <p className="text-xs font-black uppercase">Sem registros hoje</p>
-                            </div>
-                        )}
+                        ) : (<div className="h-full flex flex-col items-center justify-center opacity-30 py-10"><InformationCircleIcon className="w-10 h-10 mb-2" /><p className="text-xs font-black uppercase">Sem registros hoje</p></div>)}
                     </div>
                 </div>
             </div>
@@ -367,61 +305,27 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
 const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
-
     const tableData = useMemo(() => {
         const rows = [];
-        const sortedRealRecords = records
-            .filter((r: any): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0)
-            .sort((a, b) => a.id.localeCompare(b.id));
-        
-        let startDate: Date;
-        if (sortedRealRecords.length > 0) {
-            startDate = new Date(sortedRealRecords[0].id + 'T12:00:00');
-        } else {
-            startDate = new Date();
-            startDate.setHours(12,0,0,0);
-        }
-
+        const sortedRealRecords = records.filter((r: any): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0).sort((a, b) => a.id.localeCompare(b.id));
+        let startDate = sortedRealRecords.length > 0 ? new Date(sortedRealRecords[0].id + 'T12:00:00') : new Date();
+        startDate.setHours(12,0,0,0);
         let runningBalance = activeBrokerage.initialBalance;
-
         for (let i = 0; i < 30; i++) {
             const currentDate = new Date(startDate);
             currentDate.setDate(startDate.getDate() + i);
             const dateId = currentDate.toISOString().split('T')[0];
-            
             const realRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateId && r.trades.length > 0);
-            
-            let initial = runningBalance;
-            let win, loss, profit, final, isProjection, operationValue;
-
+            let initial = runningBalance, win, loss, profit, final, isProjection, operationValue;
             if (realRecord) {
-                win = realRecord.winCount;
-                loss = realRecord.lossCount;
-                profit = realRecord.netProfitUSD;
-                final = realRecord.endBalanceUSD;
+                win = realRecord.winCount; loss = realRecord.lossCount; profit = realRecord.netProfitUSD; final = realRecord.endBalanceUSD;
                 operationValue = (realRecord.trades.length > 0) ? realRecord.trades[0].entryValue : (initial * 0.10);
                 isProjection = false;
             } else {
-                isProjection = true;
-                operationValue = initial * 0.10;
-                win = 3;
-                loss = 0;
-                profit = (operationValue * (activeBrokerage.payoutPercentage / 100)) * 3;
-                final = initial + profit;
+                isProjection = true; operationValue = initial * 0.10; win = 3; loss = 0;
+                profit = (operationValue * (activeBrokerage.payoutPercentage / 100)) * 3; final = initial + profit;
             }
-
-            rows.push({
-                diaTrade: i + 1,
-                dateId,
-                dateDisplay: currentDate.toLocaleDateString('pt-BR'),
-                initial,
-                win,
-                loss,
-                profit,
-                final,
-                operationValue,
-                isProjection
-            });
+            rows.push({ diaTrade: i + 1, dateId, dateDisplay: currentDate.toLocaleDateString('pt-BR'), initial, win, loss, profit, final, operationValue, isProjection });
             runningBalance = final;
         }
         return rows;
@@ -429,25 +333,11 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div>
-                <h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros (30 Dias)</h2>
-                <p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Dias em baixa opacidade são projeções automáticas de 3x0.</p>
-            </div>
+            <div><h2 className={`text-2xl font-black ${theme.text}`}>Planilha de Juros (30 Dias)</h2><p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Dias em baixa opacidade são projeções automáticas.</p></div>
             <div className={`rounded-3xl border overflow-hidden shadow-2xl ${theme.card}`}>
                 <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-center border-collapse min-w-[900px]">
-                        <thead>
-                            <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Dia</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Data</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Saldo Inicial</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Valor Operação</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20 text-green-500">Win</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20 text-red-500">Loss</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Lucro</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Saldo Final</th>
-                            </tr>
-                        </thead>
+                        <thead><tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}><th className="py-5 px-3 border-b border-slate-800/20">Dia</th><th className="py-5 px-3 border-b border-slate-800/20">Data</th><th className="py-5 px-3 border-b border-slate-800/20">Saldo Inicial</th><th className="py-5 px-3 border-b border-slate-800/20">Valor Operação</th><th className="py-5 px-3 border-b border-slate-800/20 text-green-500">Win</th><th className="py-5 px-3 border-b border-slate-800/20 text-red-500">Loss</th><th className="py-5 px-3 border-b border-slate-800/20">Lucro</th><th className="py-5 px-3 border-b border-slate-800/20">Saldo Final</th></tr></thead>
                         <tbody className="divide-y divide-slate-800/10">
                             {tableData.map((row) => (
                                 <tr key={row.diaTrade} className={`text-sm font-bold hover:bg-slate-800/5 transition-colors ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : ''}`}>
@@ -472,9 +362,8 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 // --- Report Panel ---
 const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, deleteTrade }) => {
     const theme = useThemeClasses(isDarkMode);
-    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+    const currencySymbol = activeBrokerage.currency === '$' ? '$' : 'R$';
     const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
-
     const reportData = useMemo(() => {
         const filteredDays = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.id.startsWith(selectedMonth));
         const allTrades = filteredDays.flatMap(day => day.trades.map(t => ({ ...t, date: day.date, dayId: day.id }))).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -507,12 +396,7 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
                                 const tradeDate = t.timestamp ? new Date(t.timestamp) : new Date(t.dayId + 'T12:00:00');
                                 return (
                                     <tr key={t.id} className="hover:bg-slate-800/5 transition-colors">
-                                        <td className="py-4 px-6 font-bold text-sm">
-                                            {tradeDate.toLocaleDateString('pt-BR')}
-                                            <span className="ml-2 text-[10px] opacity-40 font-mono">
-                                                {tradeDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
-                                        </td>
+                                        <td className="py-4 px-6 font-bold text-sm">{tradeDate.toLocaleDateString('pt-BR')}<span className="ml-2 text-[10px] opacity-40 font-mono">{tradeDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span></td>
                                         <td className="py-4 px-6"><span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg ${t.result === 'win' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>{t.result.toUpperCase()}</span></td>
                                         <td className="py-4 px-6 font-mono text-sm opacity-60">{currencySymbol} {formatMoney(t.entryValue)}</td>
                                         <td className={`py-4 px-6 font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{profit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(profit)}</td>
@@ -533,19 +417,12 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
     const [initialEntry, setInitialEntry] = useState('10');
     const [payout, setPayout] = useState(activeBrokerage?.payoutPercentage || '80');
     const [levels, setLevels] = useState('4');
-
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-
     const calculations = useMemo(() => {
-        const entry = parseFloat(initialEntry) || 0;
-        const p = (parseFloat(payout) || 0) / 100;
-        const lvls = parseInt(levels) || 1;
-        const results = [];
-        let currentEntry = entry;
-
+        const entry = parseFloat(initialEntry) || 0; const p = (parseFloat(payout) || 0) / 100; const lvls = parseInt(levels) || 1;
+        const results = []; let currentEntry = entry;
         for (let i = 1; i <= lvls; i++) {
-            const profit = currentEntry * p;
-            const total = currentEntry + profit;
+            const profit = currentEntry * p; const total = currentEntry + profit;
             results.push({ level: i, entry: currentEntry, profit, total });
             currentEntry = total;
         }
@@ -554,35 +431,18 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div>
-                <h2 className="text-2xl font-black">Calculadora de Soros</h2>
-                <p className={theme.textMuted}>Planeje seus ciclos de reinvestimento.</p>
-            </div>
+            <div><h2 className="text-2xl font-black">Calculadora de Soros</h2><p className={theme.textMuted}>Planeje seus ciclos de reinvestimento.</p></div>
             <div className={`p-6 rounded-3xl border ${theme.card} grid grid-cols-1 md:grid-cols-3 gap-6`}>
-                <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-500 uppercase">Entrada Inicial ({currencySymbol})</label>
-                    <input type="number" value={initialEntry} onChange={e => setInitialEntry(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
-                </div>
-                <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-500 uppercase">Payout %</label>
-                    <input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
-                </div>
-                <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-500 uppercase">Níveis</label>
-                    <input type="number" value={levels} onChange={e => setLevels(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
-                </div>
+                <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Entrada Inicial ({currencySymbol})</label><input type="number" value={initialEntry} onChange={e => setInitialEntry(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Payout %</label><input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Níveis</label><input type="number" value={levels} onChange={e => setLevels(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {calculations.map((res) => (
                     <div key={res.level} className={`p-6 rounded-3xl border ${theme.card} relative overflow-hidden group`}>
                         <div className="absolute top-0 right-0 p-4 opacity-10 font-black text-4xl group-hover:scale-110 transition-transform">L{res.level}</div>
                         <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Nível {res.level}</p>
-                        <div className="space-y-1">
-                            <p className="text-xs font-bold text-slate-400">Entrada: {currencySymbol} {formatMoney(res.entry)}</p>
-                            <p className="text-lg font-black text-green-500">Lucro: +{currencySymbol} {formatMoney(res.profit)}</p>
-                            <div className="h-px bg-slate-800/20 my-2" />
-                            <p className="text-xs font-bold opacity-60">Próxima: {currencySymbol} {formatMoney(res.total)}</p>
-                        </div>
+                        <div className="space-y-1"><p className="text-xs font-bold text-slate-400">Entrada: {currencySymbol} {formatMoney(res.entry)}</p><p className="text-lg font-black text-green-500">Lucro: +{currencySymbol} {formatMoney(res.profit)}</p><div className="h-px bg-slate-800/20 my-2" /><p className="text-xs font-bold opacity-60">Próxima: {currencySymbol} {formatMoney(res.total)}</p></div>
                     </div>
                 ))}
             </div>
@@ -595,68 +455,35 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
     const [name, setName] = useState('');
     const [target, setTarget] = useState('');
     const [type, setType] = useState<'daily' | 'weekly' | 'monthly' | 'annual'>('monthly');
-
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-
     const addGoal = () => {
         if (!name || !target) return;
-        const newGoal: Goal = {
-            id: crypto.randomUUID(),
-            name,
-            targetAmount: parseFloat(target),
-            type,
-            createdAt: Date.now()
-        };
+        const newGoal: Goal = { id: crypto.randomUUID(), name, targetAmount: parseFloat(target), type, createdAt: Date.now() };
         setGoals((prev: Goal[]) => [...prev, newGoal]);
         setName(''); setTarget('');
     };
-
-    const deleteGoal = (id: string) => {
-        setGoals((prev: Goal[]) => prev.filter(g => g.id !== id));
-    };
+    const deleteGoal = (id: string) => { setGoals((prev: Goal[]) => prev.filter(g => g.id !== id)); };
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h2 className="text-2xl font-black">Metas Financeiras</h2>
-                    <p className={theme.textMuted}>Defina e acompanhe seus objetivos.</p>
-                </div>
-            </div>
-
+            <div className="flex justify-between items-center"><div><h2 className="text-2xl font-black">Metas Financeiras</h2><p className={theme.textMuted}>Defina e acompanhe seus objetivos.</p></div></div>
             <div className={`p-6 rounded-3xl border ${theme.card}`}>
                 <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-6">Nova Meta</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Nome</label><input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Viagem 2024" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Valor Alvo ({currencySymbol})</label><input type="number" value={target} onChange={e => setTarget(e.target.value)} placeholder="5000" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Nome</label><input type="text" value={name} onChange={e => setName(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Alvo ({currencySymbol})</label><input type="number" value={target} onChange={e => setTarget(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                     <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Tipo</label><select value={type} onChange={e => setType(e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`}><option value="daily">Diária</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option><option value="annual">Anual</option></select></div>
-                    <div className="flex items-end"><button onClick={addGoal} className="w-full h-12 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-xl uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"><PlusIcon className="w-4 h-4" /> Adicionar</button></div>
+                    <div className="flex items-end"><button onClick={addGoal} className="w-full h-12 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-xl uppercase tracking-widest transition-all flex items-center justify-center gap-2"><PlusIcon className="w-4 h-4" /> Adicionar</button></div>
                 </div>
             </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {goals.map(goal => {
                     const currentProfit = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day').reduce((acc, r) => acc + r.netProfitUSD, 0);
                     const progress = Math.min(100, (currentProfit / goal.targetAmount) * 100);
                     return (
                         <div key={goal.id} className={`p-6 rounded-3xl border ${theme.card}`}>
-                            <div className="flex justify-between items-start mb-4">
-                                <div><p className="text-[10px] font-black uppercase text-slate-500">{goal.type}</p><h4 className="text-xl font-black">{goal.name}</h4></div>
-                                <button onClick={() => deleteGoal(goal.id)} className="text-red-500/50 hover:text-red-500 transition-colors"><TrashIcon className="w-5 h-5" /></button>
-                            </div>
-                            <div className="space-y-2">
-                                <div className="flex justify-between text-xs font-bold">
-                                    <span>Progresso Total</span>
-                                    <span>{progress.toFixed(1)}%</span>
-                                </div>
-                                <div className="h-2 w-full bg-slate-800/20 rounded-full overflow-hidden">
-                                    <div className="h-full bg-green-500 transition-all duration-1000" style={{ width: `${progress}%` }} />
-                                </div>
-                                <div className="flex justify-between items-baseline pt-2">
-                                    <p className="text-2xl font-black text-green-500">{currencySymbol} {formatMoney(currentProfit)}</p>
-                                    <p className="text-xs font-bold opacity-40">de {currencySymbol} {formatMoney(goal.targetAmount)}</p>
-                                </div>
-                            </div>
+                            <div className="flex justify-between items-start mb-4"><div><p className="text-[10px] font-black uppercase text-slate-500">{goal.type}</p><h4 className="text-xl font-black">{goal.name}</h4></div><button onClick={() => deleteGoal(goal.id)} className="text-red-500/50 hover:text-red-500 transition-colors"><TrashIcon className="w-5 h-5" /></button></div>
+                            <div className="space-y-2"><div className="flex justify-between text-xs font-bold"><span>Progresso</span><span>{progress.toFixed(1)}%</span></div><div className="h-2 w-full bg-slate-800/20 rounded-full overflow-hidden"><div className="h-full bg-green-500 transition-all duration-1000" style={{ width: `${progress}%` }} /></div><div className="flex justify-between items-baseline pt-2"><p className="text-2xl font-black text-green-500">{currencySymbol} {formatMoney(currentProfit)}</p><p className="text-xs font-bold opacity-40">de {currencySymbol} {formatMoney(goal.targetAmount)}</p></div></div>
                         </div>
                     );
                 })}
@@ -670,78 +497,27 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
     const updateBrokerage = (field: keyof Brokerage, value: any) => {
         setBrokerages((prev: Brokerage[]) => prev.map((b, i) => i === 0 ? { ...b, [field]: value } : b));
     };
-
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
-            <div>
-                <h2 className="text-2xl font-black">Configurações</h2>
-                <p className={theme.textMuted}>Ajuste os parâmetros da sua gestão.</p>
-            </div>
-
+            <div><h2 className="text-2xl font-black">Configurações</h2><p className={theme.textMuted}>Ajuste os parâmetros da sua gestão.</p></div>
             <div className={`p-8 rounded-3xl border ${theme.card} space-y-8`}>
                 <section className="space-y-6">
                     <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">Parametrização de Banca</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase">Nome da Banca</label>
-                            <input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase">Moeda Principal</label>
-                            <select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`}>
-                                <option value="USD">Dólar ($)</option>
-                                <option value="BRL">Real (R$)</option>
-                            </select>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase">Saldo Inicial</label>
-                            <input type="number" value={brokerage.initialBalance} onChange={e => updateBrokerage('initialBalance', parseFloat(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase">Payout Padrão %</label>
-                            <input type="number" value={brokerage.payoutPercentage} onChange={e => updateBrokerage('payoutPercentage', parseInt(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
-                        </div>
+                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Nome da Banca</label><input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
+                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Moeda</label><select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`}><option value="USD">Dólar ($)</option><option value="BRL">Real (R$)</option></select></div>
+                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Saldo Inicial</label><input type="number" value={brokerage.initialBalance} onChange={e => updateBrokerage('initialBalance', parseFloat(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
+                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Payout %</label><input type="number" value={brokerage.payoutPercentage} onChange={e => updateBrokerage('payoutPercentage', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
                     </div>
                 </section>
-
                 <section className="space-y-6 pt-8 border-t border-slate-800/10">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">Configuração de Entrada</h3>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">Gerenciamento de Risco</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase">Modo de Entrada</label>
-                            <div className="flex bg-slate-800/10 p-1 rounded-xl">
-                                <button onClick={() => updateBrokerage('entryMode', 'percentage')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${brokerage.entryMode === 'percentage' ? 'bg-green-500 text-slate-950' : 'text-slate-500 hover:text-slate-300'}`}>Porcentagem</button>
-                                <button onClick={() => updateBrokerage('entryMode', 'fixed')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${brokerage.entryMode === 'fixed' ? 'bg-green-500 text-slate-950' : 'text-slate-500 hover:text-slate-300'}`}>Valor Fixo</button>
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase">Valor da Entrada ({brokerage.entryMode === 'percentage' ? '%' : (brokerage.currency === 'USD' ? '$' : 'R$')})</label>
-                            <input type="number" value={brokerage.entryValue} onChange={e => updateBrokerage('entryValue', parseFloat(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
-                        </div>
+                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Gain (Wins)</label><input type="number" value={brokerage.stopGainTrades} onChange={e => updateBrokerage('stopGainTrades', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
+                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Loss (Losses)</label><input type="number" value={brokerage.stopLossTrades} onChange={e => updateBrokerage('stopLossTrades', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
                     </div>
                 </section>
-
-                <section className="space-y-6 pt-8 border-t border-slate-800/10">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">Gerenciamento de Risco (Stop)</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase">Stop Gain (Vitórias)</label>
-                            <input type="number" value={brokerage.stopGainTrades} onChange={e => updateBrokerage('stopGainTrades', parseInt(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase">Stop Loss (Derrotas)</label>
-                            <input type="number" value={brokerage.stopLossTrades} onChange={e => updateBrokerage('stopLossTrades', parseInt(e.target.value))} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
-                        </div>
-                    </div>
-                </section>
-
-                <section className="pt-12 space-y-4">
-                    <div className="p-6 rounded-3xl bg-red-500/5 border border-red-500/20">
-                        <h4 className="text-sm font-black text-red-500 uppercase mb-2">Zona de Perigo</h4>
-                        <p className="text-xs font-bold text-red-500/60 mb-6">Ao redefinir os dados, todo o seu histórico de operações será apagado permanentemente.</p>
-                        <button onClick={onReset} className="px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all active:scale-95">Apagar Todo Histórico</button>
-                    </div>
-                </section>
+                <button onClick={onReset} className="px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all">Apagar Todo Histórico</button>
             </div>
         </div>
     );
@@ -768,40 +544,29 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     useEffect(() => {
         if (!activeBrokerage) return;
-
         const dateKey = selectedDate.toISOString().split('T')[0];
         const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateKey).sort((a,b) => b.id.localeCompare(a.id));
         const startBal = sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
-
         const dailyRecordForSelectedDay = records.find((r): r is DailyRecord => r.id === dateKey && r.recordType === 'day');
-        
         const currentBalance = dailyRecordForSelectedDay?.endBalanceUSD ?? startBal;
-        
-        const suggestedValue = activeBrokerage.entryMode === 'fixed'
-            ? activeBrokerage.entryValue
-            : currentBalance * (activeBrokerage.entryValue / 100);
-        
+        const suggestedValue = activeBrokerage.entryMode === 'fixed' ? activeBrokerage.entryValue : currentBalance * (activeBrokerage.entryValue / 100);
         setCustomEntryValue(String(suggestedValue.toFixed(2)));
         setCustomPayout(String(activeBrokerage.payoutPercentage));
-
     }, [activeBrokerage, records, selectedDate]);
-
 
     const recalibrateHistory = useCallback((allRecords: AppRecord[], initialBal: number) => {
         let runningBalance = initialBal;
-        return allRecords
-            .sort((a, b) => a.id.localeCompare(b.id))
-            .map(r => {
-                if (r.recordType !== 'day') return r;
-                const daily = r as DailyRecord;
-                const winCount = daily.trades.filter(t => t.result === 'win').length;
-                const lossCount = daily.trades.filter(t => t.result === 'loss').length;
-                const netProfitUSD = daily.trades.reduce((acc, t) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0);
-                const endBalanceUSD = runningBalance + netProfitUSD;
-                const updated = { ...daily, startBalanceUSD: runningBalance, winCount, lossCount, netProfitUSD, endBalanceUSD };
-                runningBalance = endBalanceUSD;
-                return updated;
-            });
+        return allRecords.sort((a, b) => a.id.localeCompare(b.id)).map(r => {
+            if (r.recordType !== 'day') return r;
+            const daily = r as DailyRecord;
+            const winCount = daily.trades.filter(t => t.result === 'win').length;
+            const lossCount = daily.trades.filter(t => t.result === 'loss').length;
+            const netProfitUSD = daily.trades.reduce((acc, t) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0);
+            const endBalanceUSD = runningBalance + netProfitUSD;
+            const updated = { ...daily, startBalanceUSD: runningBalance, winCount, lossCount, netProfitUSD, endBalanceUSD };
+            runningBalance = endBalanceUSD;
+            return updated;
+        });
     }, []);
 
     const fetchData = useCallback(async () => {
@@ -829,26 +594,26 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     const debouncedSave = useDebouncedCallback(saveData, 2000);
 
+    // PERSISTÊNCIA: Salvamento automático ao detectar mudanças nas configurações ou metas
+    useEffect(() => {
+        if (!isLoading) {
+            debouncedSave();
+        }
+    }, [brokerages, records, goals, isLoading, debouncedSave]);
+
     const addRecord = (win: number, loss: number, customEntry?: number, customPayout?: number) => {
         setRecords(prev => {
             const dateKey = selectedDate.toISOString().split('T')[0];
             const sortedPrevious = prev.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateKey).sort((a,b) => b.id.localeCompare(a.id));
             const startBal = sortedPrevious.length > 0 ? sortedPrevious[0].endBalanceUSD : (brokerages[0]?.initialBalance || 0);
-
             const dailyRecordForSelectedDay = prev.find((r): r is DailyRecord => r.id === dateKey && r.recordType === 'day');
             const currentBalance = dailyRecordForSelectedDay?.endBalanceUSD ?? startBal;
-
-            const suggestedEntryValue = brokerages[0].entryMode === 'fixed' 
-                ? brokerages[0].entryValue 
-                : currentBalance * (brokerages[0].entryValue / 100);
-
+            const suggestedEntryValue = brokerages[0].entryMode === 'fixed' ? brokerages[0].entryValue : currentBalance * (brokerages[0].entryValue / 100);
             const entryValue = (customEntry && customEntry > 0) ? customEntry : suggestedEntryValue;
             const payout = (customPayout && customPayout > 0) ? customPayout : brokerages[0].payoutPercentage;
-            
             const newTrades: Trade[] = [];
             for(let i=0; i<win; i++) newTrades.push({ id: crypto.randomUUID(), result: 'win', entryValue, payoutPercentage: payout, timestamp: Date.now() });
             for(let i=0; i<loss; i++) newTrades.push({ id: crypto.randomUUID(), result: 'loss', entryValue, payoutPercentage: payout, timestamp: Date.now() });
-            
             const existingIdx = prev.findIndex(r => r.id === dateKey && r.recordType === 'day');
             let updatedRecords = [...prev];
             if (existingIdx >= 0) {
@@ -857,38 +622,30 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             } else {
                 updatedRecords.push({ recordType: 'day', brokerageId: brokerages[0].id, id: dateKey, date: dateKey, trades: newTrades, startBalanceUSD: 0, winCount: 0, lossCount: 0, netProfitUSD: 0, endBalanceUSD: 0 });
             }
-            const recalibrated = recalibrateHistory(updatedRecords, brokerages[0].initialBalance);
-            debouncedSave();
-            return recalibrated;
+            return recalibrateHistory(updatedRecords, brokerages[0].initialBalance);
         });
     };
 
     const deleteTrade = (id: string, dateId: string) => {
         setRecords(prev => {
             const updated = prev.map(r => (r.id === dateId && r.recordType === 'day') ? { ...r, trades: r.trades.filter(t => t.id !== id) } : r);
-            const recalibrated = recalibrateHistory(updated, brokerages[0].initialBalance);
-            debouncedSave();
-            return recalibrated;
+            return recalibrateHistory(updated, brokerages[0].initialBalance);
         });
     };
 
     const handleReset = () => {
-        if(confirm("Deseja realmente apagar todos os trades? Esta ação é irreversível.")) {
-            setRecords([]);
-            debouncedSave();
-        }
+        if(confirm("Deseja realmente apagar todos os trades?")) { setRecords([]); }
     };
+
+    const theme = useThemeClasses(isDarkMode);
+    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin" /></div>;
 
     const dateStr = selectedDate.toISOString().split('T')[0];
     const dailyRecord = records.find((r): r is DailyRecord => r.id === dateStr && r.recordType === 'day');
     const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateStr).sort((a,b) => b.id.localeCompare(a.id));
     const startBalDashboard = sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
-
     const monthlyGoal = goals.find(g => g.type === 'monthly');
     const activeDailyGoal = monthlyGoal ? (monthlyGoal.targetAmount / 22) : (activeBrokerage?.initialBalance * 0.03 || 1);
-
-    const theme = useThemeClasses(isDarkMode);
-    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin" /></div>;
 
     return (
         <div className={`flex h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
