@@ -31,12 +31,35 @@ const useThemeClasses = (isDarkMode: boolean) => {
     }), [isDarkMode]);
 };
 
-// --- AI Analysis Panel ---
+// --- AI Analysis Panel (ULTRA SPEED & PRECISION OPTIMIZED) ---
 const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // Função interna para comprimir imagem e acelerar o processamento
+    const compressImage = (dataUrl: string, maxWidth = 1024): Promise<string> => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.src = dataUrl;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                // Usar JPEG com 70% de qualidade para reduzir drasticamente o payload e acelerar a IA
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
+            };
+        });
+    };
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -57,25 +80,24 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         setError(null);
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            const mimeTypeMatch = selectedImage.match(/data:(.*?);base64,/);
-            const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/png';
-            const base64Data = selectedImage.split(',')[1];
+            
+            // Otimização 1: Comprimir a imagem antes do envio para economizar tempo de upload/processamento
+            const compressedImageDataUrl = await compressImage(selectedImage);
+            const mimeType = 'image/jpeg';
+            const base64Data = compressedImageDataUrl.split(',')[1];
 
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: {
                     parts: [
                         { inlineData: { mimeType: mimeType, data: base64Data } },
-                        { text: `ANALISE QUANTITATIVA M1: Identifique padrões de Price Action, Order Blocks e exaustão de volume. 
-                        1. Defina recomendação (CALL/PUT/WAIT).
-                        2. Identifique Suporte e Resistência imediatos.
-                        3. Determine HORÁRIO EXATO DE ENTRADA (HH:MM:SS) para a próxima vela.
-                        Responda apenas com o JSON estruturado.` },
+                        { text: `EXECUÇÃO M1 IMEDIATA: Analise Price Action e Volume.
+                        Retorne JSON: recomendacao(CALL/PUT/WAIT), confidence(%), patterns(array), reasoning(curto), entryTime(HH:MM:SS), supportLevel, resistanceLevel.` },
                     ],
                 },
                 config: {
-                    systemInstruction: "Você é um motor de execução algorítmica de alta precisão para Opções Binárias (M1). Sua análise deve ser puramente técnica, rápida e baseada em probabilidade matemática de fechamento de vela. Ignore ruídos e foque em zonas de reversão e continuidade.",
-                    temperature: 0.2,
+                    systemInstruction: "Você é um bot de trading de alta frequência para Opções Binárias (M1). Analise o gráfico anexado com precisão cirúrgica em menos de 10 segundos. Foque em Order Blocks, exaustão de tendência e zonas de liquidez. Suas respostas devem ser puramente técnicas e diretas, sem introduções.",
+                    temperature: 0, // Precisão absoluta, remove "criatividade" do modelo
                     responseMimeType: "application/json",
                     responseSchema: {
                         type: Type.OBJECT,
@@ -94,11 +116,11 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 }
             });
             const text = response.text;
-            if (!text) throw new Error("Falha na comunicação com o motor.");
+            if (!text) throw new Error("Motor fora de linha.");
             setAnalysisResult(JSON.parse(text));
         } catch (err: any) {
             console.error("Erro IA:", err);
-            setError("Erro de processamento. Tente um print mais nítido do gráfico.");
+            setError("Falha na análise rápida. Verifique a internet ou a nitidez do print.");
         } finally {
             setIsAnalyzing(false);
         }
@@ -108,8 +130,8 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div>
-                    <h2 className={`text-2xl font-black ${theme.text}`}>Análise de IA Especialista</h2>
-                    <p className={theme.textMuted}>Motor de alta precisão otimizado para operações em M1.</p>
+                    <h2 className={`text-2xl font-black ${theme.text}`}>Análise de IA Turbo</h2>
+                    <p className={theme.textMuted}>Motor de alta performance otimizado para respostas em menos de 40s.</p>
                 </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -128,36 +150,36 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                     <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
                                     {isAnalyzing && (
                                         <div className="absolute inset-0 bg-teal-500/20 backdrop-blur-[2px] flex items-center justify-center overflow-hidden">
-                                            <div className="absolute inset-0 animate-pulse bg-gradient-to-b from-transparent via-teal-400/30 to-transparent h-20 top-[-20%] w-full" style={{ animation: 'scanning 2s linear infinite' }} />
-                                            <p className="text-xs font-black uppercase tracking-widest text-white drop-shadow-lg z-10">Analisando Candlesticks...</p>
+                                            <div className="absolute inset-0 animate-pulse bg-gradient-to-b from-transparent via-teal-400/30 to-transparent h-20 top-[-20%] w-full" style={{ animation: 'scanning 1.5s linear infinite' }} />
+                                            <p className="text-xs font-black uppercase tracking-widest text-white drop-shadow-lg z-10">Processamento Turbo Ativo...</p>
                                         </div>
                                     )}
                                 </div>
                                 <div className="flex gap-4 w-full">
                                     <button onClick={() => setSelectedImage(null)} className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl border border-slate-800 hover:bg-slate-800/50 transition-all">Limpar</button>
-                                    <button disabled={isAnalyzing} onClick={runAIAnalysis} className="flex-[2] py-3 text-[10px] font-black uppercase rounded-xl bg-teal-500 text-slate-950 hover:bg-teal-400 disabled:opacity-50 transition-all shadow-lg shadow-teal-500/20">{isAnalyzing ? 'Processando...' : 'Análise Instantânea'}</button>
+                                    <button disabled={isAnalyzing} onClick={runAIAnalysis} className="flex-[2] py-3 text-[10px] font-black uppercase rounded-xl bg-teal-500 text-slate-950 hover:bg-teal-400 disabled:opacity-50 transition-all shadow-lg shadow-teal-500/20">{isAnalyzing ? 'Calculando Probabilidade...' : 'Gerar Entrada Agora'}</button>
                                 </div>
                             </div>
                         )}
                     </div>
                 </div>
                 <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CpuChipIcon className="w-5 h-5 text-purple-400" /> Relatório de Processamento</h3>
+                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CpuChipIcon className="w-5 h-5 text-purple-400" /> Relatório de Execução</h3>
                     {analysisResult ? (
                         <div className="space-y-6">
                             <div className={`p-5 rounded-3xl flex items-center justify-between border ${analysisResult.recommendation === 'CALL' ? 'bg-green-500/10 border-green-500/20' : analysisResult.recommendation === 'PUT' ? 'bg-red-500/10 border-red-500/20' : 'bg-slate-800/20 border-slate-700'}`}>
-                                <div><p className="text-[10px] font-black uppercase opacity-60 mb-1">Direção Sugerida</p><h4 className={`text-3xl font-black ${analysisResult.recommendation === 'CALL' ? 'text-green-500' : analysisResult.recommendation === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>{analysisResult.recommendation === 'CALL' ? '↑ CALL' : analysisResult.recommendation === 'PUT' ? '↓ PUT' : '∅ AGUARDAR'}</h4></div>
-                                <div className="text-right"><p className="text-[10px] font-black uppercase opacity-60 mb-1">Assertividade</p><p className="text-2xl font-black">{analysisResult.confidence}%</p></div>
+                                <div><p className="text-[10px] font-black uppercase opacity-60 mb-1">Decisão Técnica</p><h4 className={`text-3xl font-black ${analysisResult.recommendation === 'CALL' ? 'text-green-500' : analysisResult.recommendation === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>{analysisResult.recommendation === 'CALL' ? '↑ CALL' : analysisResult.recommendation === 'PUT' ? '↓ PUT' : '∅ AGUARDAR'}</h4></div>
+                                <div className="text-right"><p className="text-[10px] font-black uppercase opacity-60 mb-1">Confiança</p><p className="text-2xl font-black">{analysisResult.confidence}%</p></div>
                             </div>
                             <div className={`p-6 rounded-3xl border flex items-center justify-between bg-teal-500/10 border-teal-500/30 shadow-inner`}>
-                                <div><p className="text-[10px] font-black uppercase text-teal-400 mb-1">Horário de Entrada (Próxima Vela)</p><p className="text-4xl font-black text-white tracking-tighter">{analysisResult.entryTime}</p></div>
+                                <div><p className="text-[10px] font-black uppercase text-teal-400 mb-1">Hora de Entrada (Delay Zero)</p><p className="text-4xl font-black text-white tracking-tighter">{analysisResult.entryTime}</p></div>
                                 <div className="text-right"><TargetIcon className="w-8 h-8 text-teal-400 opacity-50" /></div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800"><p className="text-[8px] font-black uppercase text-slate-500 mb-2">Ponto de Suporte</p><p className="text-xs font-bold text-green-400">{analysisResult.supportLevel}</p></div>
-                                <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800"><p className="text-[8px] font-black uppercase text-slate-500 mb-2">Ponto de Resistência</p><p className="text-xs font-bold text-red-400">{analysisResult.resistanceLevel}</p></div>
+                                <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800"><p className="text-[8px] font-black uppercase text-slate-500 mb-2">Suporte</p><p className="text-xs font-bold text-green-400">{analysisResult.supportLevel}</p></div>
+                                <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800"><p className="text-[8px] font-black uppercase text-slate-500 mb-2">Resistência</p><p className="text-xs font-bold text-red-400">{analysisResult.resistanceLevel}</p></div>
                             </div>
-                            <div className="space-y-4"><div className="p-4 rounded-2xl bg-slate-950/30 border border-slate-800/50"><p className="text-[9px] font-black uppercase opacity-40 mb-2">Racional Estratégico</p><p className="text-xs font-medium text-slate-300 leading-relaxed italic">"{analysisResult.reasoning}"</p></div></div>
+                            <div className="space-y-4"><div className="p-4 rounded-2xl bg-slate-950/30 border border-slate-800/50"><p className="text-[9px] font-black uppercase opacity-40 mb-2">Resumo da Análise</p><p className="text-xs font-medium text-slate-300 leading-relaxed italic">"{analysisResult.reasoning}"</p></div></div>
                         </div>
                     ) : error ? (
                         <div className="h-full flex flex-col items-center justify-center py-12 text-center px-4">
@@ -165,7 +187,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         </div>
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center py-12 opacity-30 text-center">
-                            <CpuChipIcon className="w-12 h-12 mb-4" /><p className="text-xs font-black uppercase max-w-[200px]">Aguardando captura de tela...</p>
+                            <CpuChipIcon className="w-12 h-12 mb-4" /><p className="text-xs font-black uppercase max-w-[200px]">Aguardando gráfico M1 para processamento turbo...</p>
                         </div>
                     )}
                 </div>
@@ -587,7 +609,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const dateStr = selectedDate.toISOString().split('T')[0];
     const dailyRecord = records.find((r): r is DailyRecord => r.id === dateStr && r.recordType === 'day');
     
-    // Fix for Error: Cannot find name 'startBalDashboard'
     const sortedPreviousForDashboard = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.id < dateStr).sort((a,b) => b.id.localeCompare(a.id));
     const startBalDashboard = sortedPreviousForDashboard.length > 0 ? sortedPreviousForDashboard[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
 
