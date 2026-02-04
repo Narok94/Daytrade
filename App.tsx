@@ -31,15 +31,15 @@ const useThemeClasses = (isDarkMode: boolean) => {
     }), [isDarkMode]);
 };
 
-// --- AI Analysis Panel (ULTRA SPEED & PRECISION OPTIMIZED) ---
+// --- AI Analysis Panel (ULTRA-TURBO: < 15s latency target) ---
 const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    // Função interna para comprimir imagem e acelerar o processamento
-    const compressImage = (dataUrl: string, maxWidth = 1024): Promise<string> => {
+    // Compressão ainda mais agressiva para upload instantâneo (800px / 0.5 quality)
+    const compressImage = (dataUrl: string, maxWidth = 800): Promise<string> => {
         return new Promise((resolve) => {
             const img = new Image();
             img.src = dataUrl;
@@ -55,8 +55,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx?.drawImage(img, 0, 0, width, height);
-                // Usar JPEG com 70% de qualidade para reduzir drasticamente o payload e acelerar a IA
-                resolve(canvas.toDataURL('image/jpeg', 0.7));
+                resolve(canvas.toDataURL('image/jpeg', 0.5));
             };
         });
     };
@@ -80,24 +79,28 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         setError(null);
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const compressed = await compressImage(selectedImage);
+            const base64Data = compressed.split(',')[1];
             
-            // Otimização 1: Comprimir a imagem antes do envio para economizar tempo de upload/processamento
-            const compressedImageDataUrl = await compressImage(selectedImage);
-            const mimeType = 'image/jpeg';
-            const base64Data = compressedImageDataUrl.split(',')[1];
+            // Injeção de tempo real para evitar delay de entrada
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('pt-BR');
 
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: {
                     parts: [
-                        { inlineData: { mimeType: mimeType, data: base64Data } },
-                        { text: `EXECUÇÃO M1 IMEDIATA: Analise Price Action e Volume.
-                        Retorne JSON: recomendacao(CALL/PUT/WAIT), confidence(%), patterns(array), reasoning(curto), entryTime(HH:MM:SS), supportLevel, resistanceLevel.` },
+                        { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
+                        { text: `CONTEXTO ATUAL: O horário do sistema agora é ${timeString}. 
+                        Analise o gráfico M1. Determine se a próxima vela terá reversão ou continuidade. 
+                        REGRAS: 
+                        1. A 'entryTime' deve ser o início do PRÓXIMO MINUTO INTEIRO (ex: se agora é 12:40:20, retorne 12:41:00).
+                        2. Responda em JSON puro sem markdown.` },
                     ],
                 },
                 config: {
-                    systemInstruction: "Você é um bot de trading de alta frequência para Opções Binárias (M1). Analise o gráfico anexado com precisão cirúrgica em menos de 10 segundos. Foque em Order Blocks, exaustão de tendência e zonas de liquidez. Suas respostas devem ser puramente técnicas e diretas, sem introduções.",
-                    temperature: 0, // Precisão absoluta, remove "criatividade" do modelo
+                    systemInstruction: "Você é um executor algorítmico de OB (M1). Resposta ultrarrápida. Analise suportes/resistências e volume. Não explique, apenas decida. Foque no tempo de entrada sincronizado com o horário fornecido.",
+                    temperature: 0.1,
                     responseMimeType: "application/json",
                     responseSchema: {
                         type: Type.OBJECT,
@@ -105,22 +108,20 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             recommendation: { type: Type.STRING, enum: ['CALL', 'PUT', 'WAIT'] },
                             confidence: { type: Type.NUMBER },
                             patterns: { type: Type.ARRAY, items: { type: Type.STRING } },
-                            indicatorAnalysis: { type: Type.STRING },
                             reasoning: { type: Type.STRING },
                             supportLevel: { type: Type.STRING },
                             resistanceLevel: { type: Type.STRING },
-                            entryTime: { type: Type.STRING }
+                            entryTime: { type: Type.STRING, description: "HH:MM:SS da próxima entrada válida" }
                         },
-                        required: ['recommendation', 'confidence', 'patterns', 'indicatorAnalysis', 'reasoning', 'supportLevel', 'resistanceLevel', 'entryTime']
+                        required: ['recommendation', 'confidence', 'patterns', 'reasoning', 'supportLevel', 'resistanceLevel', 'entryTime']
                     }
                 }
             });
             const text = response.text;
-            if (!text) throw new Error("Motor fora de linha.");
+            if (!text) throw new Error("Vazio");
             setAnalysisResult(JSON.parse(text));
         } catch (err: any) {
-            console.error("Erro IA:", err);
-            setError("Falha na análise rápida. Verifique a internet ou a nitidez do print.");
+            setError("Falha no sincronismo. Tente novamente.");
         } finally {
             setIsAnalyzing(false);
         }
@@ -130,18 +131,18 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div>
-                    <h2 className={`text-2xl font-black ${theme.text}`}>Análise de IA Turbo</h2>
-                    <p className={theme.textMuted}>Motor de alta performance otimizado para respostas em menos de 40s.</p>
+                    <h2 className={`text-2xl font-black ${theme.text}`}>Análise Turbo v2</h2>
+                    <p className={theme.textMuted}>Foco em delay zero e cálculo de próxima vela sincronizado.</p>
                 </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><PlusIcon className="w-5 h-5 text-teal-400" /> Captura de Tela</h3>
+                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><PlusIcon className="w-5 h-5 text-teal-400" /> Upload Gráfico</h3>
                     <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl p-4 min-h-[300px] relative overflow-hidden">
                         {!selectedImage ? (
                             <label className="cursor-pointer flex flex-col items-center gap-4 text-center">
                                 <div className="w-16 h-16 rounded-full bg-slate-900 flex items-center justify-center text-teal-400"><PlusIcon className="w-8 h-8" /></div>
-                                <div className="space-y-1"><p className="font-bold text-sm text-white">Upload do Gráfico</p><p className="text-[10px] font-black uppercase opacity-40">PNG / JPG (M1 Recomendado)</p></div>
+                                <div className="space-y-1"><p className="font-bold text-sm text-white">Anexar Print M1</p><p className="text-[10px] font-black uppercase opacity-40">Otimizado para M1</p></div>
                                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                             </label>
                         ) : (
@@ -149,46 +150,41 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-slate-700 bg-black">
                                     <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
                                     {isAnalyzing && (
-                                        <div className="absolute inset-0 bg-teal-500/20 backdrop-blur-[2px] flex items-center justify-center overflow-hidden">
-                                            <div className="absolute inset-0 animate-pulse bg-gradient-to-b from-transparent via-teal-400/30 to-transparent h-20 top-[-20%] w-full" style={{ animation: 'scanning 1.5s linear infinite' }} />
-                                            <p className="text-xs font-black uppercase tracking-widest text-white drop-shadow-lg z-10">Processamento Turbo Ativo...</p>
+                                        <div className="absolute inset-0 bg-teal-500/20 backdrop-blur-[2px] flex items-center justify-center">
+                                            <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
                                         </div>
                                     )}
                                 </div>
                                 <div className="flex gap-4 w-full">
-                                    <button onClick={() => setSelectedImage(null)} className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl border border-slate-800 hover:bg-slate-800/50 transition-all">Limpar</button>
-                                    <button disabled={isAnalyzing} onClick={runAIAnalysis} className="flex-[2] py-3 text-[10px] font-black uppercase rounded-xl bg-teal-500 text-slate-950 hover:bg-teal-400 disabled:opacity-50 transition-all shadow-lg shadow-teal-500/20">{isAnalyzing ? 'Calculando Probabilidade...' : 'Gerar Entrada Agora'}</button>
+                                    <button onClick={() => setSelectedImage(null)} className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl border border-slate-800">Limpar</button>
+                                    <button disabled={isAnalyzing} onClick={runAIAnalysis} className="flex-[2] py-3 text-[10px] font-black uppercase rounded-xl bg-teal-500 text-slate-950 font-black shadow-lg shadow-teal-500/20">{isAnalyzing ? 'Calculando Tempo...' : 'Análise Instantânea'}</button>
                                 </div>
                             </div>
                         )}
                     </div>
                 </div>
                 <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CpuChipIcon className="w-5 h-5 text-purple-400" /> Relatório de Execução</h3>
+                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CpuChipIcon className="w-5 h-5 text-purple-400" /> Sinal de Operação</h3>
                     {analysisResult ? (
                         <div className="space-y-6">
                             <div className={`p-5 rounded-3xl flex items-center justify-between border ${analysisResult.recommendation === 'CALL' ? 'bg-green-500/10 border-green-500/20' : analysisResult.recommendation === 'PUT' ? 'bg-red-500/10 border-red-500/20' : 'bg-slate-800/20 border-slate-700'}`}>
-                                <div><p className="text-[10px] font-black uppercase opacity-60 mb-1">Decisão Técnica</p><h4 className={`text-3xl font-black ${analysisResult.recommendation === 'CALL' ? 'text-green-500' : analysisResult.recommendation === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>{analysisResult.recommendation === 'CALL' ? '↑ CALL' : analysisResult.recommendation === 'PUT' ? '↓ PUT' : '∅ AGUARDAR'}</h4></div>
+                                <div><p className="text-[10px] font-black uppercase opacity-60 mb-1">Ação Sugerida</p><h4 className={`text-3xl font-black ${analysisResult.recommendation === 'CALL' ? 'text-green-500' : analysisResult.recommendation === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>{analysisResult.recommendation === 'CALL' ? '↑ CALL' : analysisResult.recommendation === 'PUT' ? '↓ PUT' : '∅ AGUARDAR'}</h4></div>
                                 <div className="text-right"><p className="text-[10px] font-black uppercase opacity-60 mb-1">Confiança</p><p className="text-2xl font-black">{analysisResult.confidence}%</p></div>
                             </div>
-                            <div className={`p-6 rounded-3xl border flex items-center justify-between bg-teal-500/10 border-teal-500/30 shadow-inner`}>
-                                <div><p className="text-[10px] font-black uppercase text-teal-400 mb-1">Hora de Entrada (Delay Zero)</p><p className="text-4xl font-black text-white tracking-tighter">{analysisResult.entryTime}</p></div>
-                                <div className="text-right"><TargetIcon className="w-8 h-8 text-teal-400 opacity-50" /></div>
+                            <div className={`p-6 rounded-3xl border flex items-center justify-between bg-teal-500/10 border-teal-500/30 shadow-inner ring-1 ring-teal-500/50`}>
+                                <div><p className="text-[10px] font-black uppercase text-teal-400 mb-1">ENTRADA (Próxima Vela)</p><p className="text-5xl font-black text-white tracking-tighter tabular-nums">{analysisResult.entryTime}</p></div>
+                                <div className="text-right animate-pulse"><TargetIcon className="w-10 h-10 text-teal-400" /></div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800"><p className="text-[8px] font-black uppercase text-slate-500 mb-2">Suporte</p><p className="text-xs font-bold text-green-400">{analysisResult.supportLevel}</p></div>
                                 <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800"><p className="text-[8px] font-black uppercase text-slate-500 mb-2">Resistência</p><p className="text-xs font-bold text-red-400">{analysisResult.resistanceLevel}</p></div>
                             </div>
-                            <div className="space-y-4"><div className="p-4 rounded-2xl bg-slate-950/30 border border-slate-800/50"><p className="text-[9px] font-black uppercase opacity-40 mb-2">Resumo da Análise</p><p className="text-xs font-medium text-slate-300 leading-relaxed italic">"{analysisResult.reasoning}"</p></div></div>
+                            <div className="p-4 rounded-2xl bg-slate-950/30 border border-slate-800/50"><p className="text-[9px] font-black uppercase opacity-40 mb-2">Racional Estratégico</p><p className="text-xs font-medium text-slate-300 leading-relaxed italic">"{analysisResult.reasoning}"</p></div>
                         </div>
                     ) : error ? (
-                        <div className="h-full flex flex-col items-center justify-center py-12 text-center px-4">
-                            <InformationCircleIcon className="w-12 h-12 text-red-500/40 mb-4" /><p className="text-sm font-bold text-red-400">{error}</p>
-                        </div>
+                        <div className="h-full flex flex-col items-center justify-center py-12 text-center"><InformationCircleIcon className="w-12 h-12 text-red-500 mb-4" /><p className="text-sm font-bold text-red-400">{error}</p></div>
                     ) : (
-                        <div className="h-full flex flex-col items-center justify-center py-12 opacity-30 text-center">
-                            <CpuChipIcon className="w-12 h-12 mb-4" /><p className="text-xs font-black uppercase max-w-[200px]">Aguardando gráfico M1 para processamento turbo...</p>
-                        </div>
+                        <div className="h-full flex flex-col items-center justify-center py-12 opacity-30 text-center"><CpuChipIcon className="w-12 h-12 mb-4" /><p className="text-xs font-black uppercase">Pronto para análise ultra-rápida</p></div>
                     )}
                 </div>
             </div>
