@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
-import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal, AIAnalysisResult, AISignalFeedback } from './types';
+import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal, AIAnalysisResult } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
 import { 
     SettingsIcon, 
@@ -10,8 +10,7 @@ import {
     CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ArrowPathIcon, 
     InformationCircleIcon, TrophyIcon, 
     ChartBarIcon, CheckIcon, DocumentTextIcon,
-    PlusIcon, TrashIcon, CpuChipIcon, TrendingDownIcon,
-    XMarkIcon
+    PlusIcon, TrashIcon, CpuChipIcon, TrendingDownIcon
 } from './components/icons';
 
 // --- Helper Functions ---
@@ -32,22 +31,12 @@ const useThemeClasses = (isDarkMode: boolean) => {
     }), [isDarkMode]);
 };
 
-// --- AI Analysis Panel (Adaptive Feedback Engine) ---
+// --- AI Analysis Panel (Sniper Assertivo v5) ---
 const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult | null>(null);
     const [error, setError] = useState<string | null>(null);
-    
-    // Memória de Feedback (Persistida na sessão do navegador)
-    const [feedbackHistory, setFeedbackHistory] = useState<AISignalFeedback[]>(() => {
-        const saved = sessionStorage.getItem('ai_feedback_history');
-        return saved ? JSON.parse(saved) : [];
-    });
-
-    useEffect(() => {
-        sessionStorage.setItem('ai_feedback_history', JSON.stringify(feedbackHistory));
-    }, [feedbackHistory]);
 
     const compressImage = (dataUrl: string, maxWidth = 1200): Promise<string> => {
         return new Promise((resolve) => {
@@ -65,6 +54,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx?.drawImage(img, 0, 0, width, height);
+                // 0.8 de qualidade é o "sweet spot" para a IA ver os pavios sem demorar no upload
                 resolve(canvas.toDataURL('image/jpeg', 0.8));
             };
         });
@@ -83,21 +73,6 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         }
     };
 
-    const markFeedback = (result: 'win' | 'loss') => {
-        if (!analysisResult) return;
-        const newFeedback: AISignalFeedback = {
-            id: analysisResult.id,
-            recommendation: analysisResult.recommendation,
-            result: result,
-            patterns: analysisResult.patterns,
-            timestamp: Date.now()
-        };
-        // Mantém apenas os últimos 10 feedbacks para não poluir o contexto
-        setFeedbackHistory(prev => [newFeedback, ...prev].slice(0, 10));
-        setAnalysisResult(null);
-        setSelectedImage(null);
-    };
-
     const runAIAnalysis = async () => {
         if (!selectedImage) return;
         setIsAnalyzing(true);
@@ -110,37 +85,27 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const now = new Date();
             const timeString = now.toLocaleTimeString('pt-BR');
 
-            // Constrói a string de histórico para a IA "aprender"
-            const historyPrompt = feedbackHistory.length > 0 
-                ? `HISTÓRICO RECENTE DE FEEDBACK DO USUÁRIO:
-                  ${feedbackHistory.map(f => `- Sinal: ${f.recommendation} | Resultado: ${f.result.toUpperCase()} | Padrões: ${f.patterns.join(', ')}`).join('\n')}
-                  INSTRUÇÃO ADAPTATIVA: Se houver muitos erros (LOSS) em sinais específicos, ajuste sua sensibilidade para esses padrões no cenário atual.`
-                : "Sem histórico de feedback ainda.";
-
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: {
                     parts: [
                         { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
                         { text: `SISTEMA: ${timeString}. 
-                        ${historyPrompt}
-                        
-                        PROTOCOLO ADAPTATIVO V6 (M1):
-                        1. ANALISE: Fluxo de ordens e rejeição de pavios.
-                        2. GATILHOS: Pullbacks de rompimento ou exaustão em SNR.
-                        3. AJUSTE: Baseado no histórico acima, refine sua precisão para evitar os mesmos erros.
-                        4. TEMPO: Entrada no início da próxima vela M1 (:00).
+                        PROTOCOLO SNIPER V5 (M1):
+                        1. ANALISE: Tendência majoritária vs micro-tendência (últimas 10 velas).
+                        2. GATILHOS: Procure por exaustão de preço, rompimento de suporte/resistência ou reversão em SNR.
+                        3. AGRESSIVIDADE: Se houver um padrão claro de Price Action (Martelo, Engolfo, Pinbar), emita CALL ou PUT imediatamente. Não fique apenas no WAIT se o movimento for provável (> 65%).
+                        4. TEMPO: Determine o início da próxima vela M1. Se agora são ${now.getSeconds()} segundos, a entrada deve ser no minuto ${now.getMinutes() + 1}:00.
                         Retorne JSON puro.` },
                     ],
                 },
                 config: {
-                    systemInstruction: "Você é um Trader IA de Alta Frequência. Você recebe feedback do usuário sobre seus acertos e erros e deve usar isso para refinar sua lógica em tempo real. Se os últimos sinais de CALL foram LOSS, analise se o mercado está rompendo suportes com muita força. Responda apenas com o JSON estruturado.",
+                    systemInstruction: "Você é um trader profissional de opções binárias especializado em M1. Analise o fluxo das velas. Foque em rejeições de preço (pavios) e impulsão. Seu objetivo é encontrar a maior probabilidade para a PRÓXIMA VELA. Responda apenas com o JSON conforme o schema, sendo técnico e direto na justificativa.",
                     temperature: 0.1,
                     responseMimeType: "application/json",
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
-                            id: { type: Type.STRING },
                             recommendation: { type: Type.STRING, enum: ['CALL', 'PUT', 'WAIT'] },
                             confidence: { type: Type.NUMBER },
                             patterns: { type: Type.ARRAY, items: { type: Type.STRING } },
@@ -150,15 +115,16 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             resistanceLevel: { type: Type.STRING },
                             entryTime: { type: Type.STRING }
                         },
-                        required: ['id', 'recommendation', 'confidence', 'patterns', 'indicatorAnalysis', 'reasoning', 'supportLevel', 'resistanceLevel', 'entryTime']
+                        required: ['recommendation', 'confidence', 'patterns', 'indicatorAnalysis', 'reasoning', 'supportLevel', 'resistanceLevel', 'entryTime']
                     }
                 }
             });
             const text = response.text;
-            if (!text) throw new Error("Motor off.");
+            if (!text) throw new Error("Motor inativo.");
             setAnalysisResult(JSON.parse(text));
         } catch (err: any) {
-            setError("Erro ao processar aprendizado. Tente novamente.");
+            console.error(err);
+            setError("Ocorreu um erro na análise sniper. Tente novamente com uma imagem mais nítida.");
         } finally {
             setIsAnalyzing(false);
         }
@@ -172,29 +138,29 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         <CpuChipIcon className="w-8 h-8 text-teal-400" />
                     </div>
                     <div>
-                        <h2 className={`text-2xl font-black ${theme.text}`}>IA Adaptativa v6</h2>
-                        <p className={theme.textMuted}>Sistema que aprende com seus feedbacks de Win/Loss.</p>
+                        <h2 className={`text-2xl font-black ${theme.text}`}>Scanner Sniper v5</h2>
+                        <p className={theme.textMuted}>Análise agressiva e assertiva focada em Price Action M1.</p>
                     </div>
                 </div>
                 <div className="flex gap-2">
                     <div className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white/50">Memória:</span>
-                        <span className="text-[10px] font-black text-teal-400">{feedbackHistory.length}/10</span>
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white/70">IA Online</span>
                     </div>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Scanner Section */}
+                {/* Upload Section */}
                 <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><TargetIcon className="w-5 h-5 text-teal-400" /> Scanner de Entrada</h3>
+                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><TargetIcon className="w-5 h-5 text-teal-400" /> Captura do Gráfico</h3>
                     <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl p-6 min-h-[350px] relative overflow-hidden bg-slate-950/20">
                         {!selectedImage ? (
                             <label className="cursor-pointer flex flex-col items-center gap-4 text-center">
-                                <div className="w-20 h-20 rounded-full bg-teal-500/10 flex items-center justify-center text-teal-400 shadow-xl border border-teal-500/20"><PlusIcon className="w-10 h-10" /></div>
+                                <div className="w-20 h-20 rounded-full bg-teal-500/10 flex items-center justify-center text-teal-400 shadow-xl shadow-teal-500/10 border border-teal-500/20"><PlusIcon className="w-10 h-10" /></div>
                                 <div className="space-y-1">
-                                    <p className="font-black text-white uppercase tracking-tighter">Enviar Print M1</p>
-                                    <p className="text-[10px] font-bold text-white/40">A IA ajustará a lógica baseada nos seus resultados</p>
+                                    <p className="font-black text-white uppercase tracking-tighter">Clique para Analisar</p>
+                                    <p className="text-[10px] font-bold text-white/40 max-w-[180px]">M1 recomendado para máxima assertividade</p>
                                 </div>
                                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                             </label>
@@ -203,106 +169,90 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-black">
                                     <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
                                     {isAnalyzing && (
-                                        <div className="absolute inset-0 bg-teal-950/90 backdrop-blur-md flex flex-col items-center justify-center gap-4">
+                                        <div className="absolute inset-0 bg-teal-950/80 backdrop-blur-md flex flex-col items-center justify-center gap-4">
                                             <div className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-teal-400">Processando Feedbacks e Gráfico...</p>
+                                            <div className="text-center">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-teal-400">Escaneando Candles...</p>
+                                                <p className="text-[8px] font-bold text-white/50 mt-1">Lendo pavios e regiões de SNR</p>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
-                                {!analysisResult && (
-                                    <div className="flex gap-4 w-full">
-                                        <button onClick={() => setSelectedImage(null)} className="flex-1 py-4 text-[10px] font-black uppercase rounded-2xl border border-slate-800">Limpar</button>
-                                        <button disabled={isAnalyzing} onClick={runAIAnalysis} className="flex-[2] py-4 text-[10px] font-black uppercase rounded-2xl bg-teal-500 text-slate-950 font-black shadow-lg shadow-teal-500/20">{isAnalyzing ? 'Aprendendo...' : 'Analisar Gatilho'}</button>
-                                    </div>
-                                )}
+                                <div className="flex gap-4 w-full">
+                                    <button onClick={() => setSelectedImage(null)} className="flex-1 py-4 text-[10px] font-black uppercase rounded-2xl border border-slate-800 hover:bg-slate-800/50 transition-all">Limpar</button>
+                                    <button disabled={isAnalyzing} onClick={runAIAnalysis} className="flex-[2] py-4 text-[10px] font-black uppercase rounded-2xl bg-teal-500 text-slate-950 shadow-lg shadow-teal-500/20 hover:scale-[1.02] active:scale-95 transition-all">{isAnalyzing ? 'Calculando Probabilidade...' : 'Analisar Gatilho Agora'}</button>
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Analysis Result & Feedback UI */}
+                {/* Results Section */}
                 <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CpuChipIcon className="w-5 h-5 text-purple-400" /> Inteligência Adaptativa</h3>
+                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CpuChipIcon className="w-5 h-5 text-purple-400" /> Relatório Sniper</h3>
                     {analysisResult ? (
                         <div className="space-y-6">
+                            {/* Recommendation Card */}
                             <div className={`p-6 rounded-3xl border-2 flex items-center justify-between ${analysisResult.recommendation === 'CALL' ? 'bg-green-500/10 border-green-500/30' : analysisResult.recommendation === 'PUT' ? 'bg-red-500/10 border-red-500/30' : 'bg-slate-800/20 border-slate-700'}`}>
                                 <div>
-                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">RECOMENDAÇÃO</p>
+                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Decisão do Motor</p>
                                     <h4 className={`text-5xl font-black ${analysisResult.recommendation === 'CALL' ? 'text-green-500' : analysisResult.recommendation === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
-                                        {analysisResult.recommendation === 'CALL' ? '↑ CALL' : analysisResult.recommendation === 'PUT' ? '↓ PUT' : '∅ WAIT'}
+                                        {analysisResult.recommendation === 'CALL' ? '↑ CALL' : analysisResult.recommendation === 'PUT' ? '↓ PUT' : '∅ NEUTRO'}
                                     </h4>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">CONFIANÇA</p>
+                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Confiança</p>
                                     <p className="text-3xl font-black">{analysisResult.confidence}%</p>
                                 </div>
                             </div>
 
+                            {/* Time Card */}
                             <div className="p-6 rounded-3xl border border-teal-500/30 bg-slate-950/40 flex items-center justify-between">
                                 <div>
-                                    <p className="text-[10px] font-black uppercase text-teal-400 mb-1">HORÁRIO DA VELA</p>
+                                    <p className="text-[10px] font-black uppercase text-teal-400 mb-1">Horário de Entrada</p>
                                     <p className="text-5xl font-black text-white tracking-tighter tabular-nums">{analysisResult.entryTime}</p>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-2">Módulo Feedback</p>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => markFeedback('win')} className="w-12 h-12 rounded-xl bg-green-500 flex items-center justify-center text-slate-950 hover:scale-110 transition-all shadow-lg shadow-green-500/20"><CheckIcon className="w-6 h-6" /></button>
-                                        <button onClick={() => markFeedback('loss')} className="w-12 h-12 rounded-xl bg-red-600 flex items-center justify-center text-white hover:scale-110 transition-all shadow-lg shadow-red-500/20"><XMarkIcon className="w-6 h-6" /></button>
-                                    </div>
+                                <TargetIcon className="w-12 h-12 text-teal-400 opacity-50" />
+                            </div>
+
+                            {/* Levels Grid */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
+                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Suporte</p>
+                                    <p className="text-xs font-bold text-green-400">{analysisResult.supportLevel}</p>
+                                </div>
+                                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
+                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Resistência</p>
+                                    <p className="text-xs font-bold text-red-400">{analysisResult.resistanceLevel}</p>
                                 </div>
                             </div>
 
+                            {/* Reasoning */}
                             <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800">
-                                <p className="text-[9px] font-black uppercase text-slate-500 mb-3">Racional Técnico (Adaptado)</p>
+                                <p className="text-[9px] font-black uppercase text-slate-500 mb-3">Confluências Detectadas</p>
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    {analysisResult.patterns.map((p, i) => (
+                                        <span key={i} className="px-2 py-1 rounded bg-teal-500/10 border border-teal-500/20 text-[9px] font-black text-teal-400 uppercase">{p}</span>
+                                    ))}
+                                </div>
                                 <p className="text-xs font-medium text-slate-300 leading-relaxed italic border-l-2 border-teal-500 pl-4">
                                     "{analysisResult.reasoning}"
                                 </p>
                             </div>
-
-                            <div className="flex flex-wrap gap-2">
-                                {analysisResult.patterns.map((p, i) => (
-                                    <span key={i} className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-[9px] font-black text-slate-400 uppercase">{p}</span>
-                                ))}
-                            </div>
+                        </div>
+                    ) : error ? (
+                        <div className="h-full flex flex-col items-center justify-center py-20 text-center">
+                            <InformationCircleIcon className="w-16 h-16 text-red-500 mb-4" />
+                            <p className="text-sm font-bold text-red-400 max-w-[250px]">{error}</p>
                         </div>
                     ) : (
-                        <div className="h-full flex flex-col items-center justify-center py-20 text-center space-y-4">
-                            <div className="relative">
-                                <CpuChipIcon className="w-20 h-20 opacity-10" />
-                                {feedbackHistory.length > 0 && (
-                                    <div className="absolute -top-2 -right-2 bg-teal-500 text-slate-950 text-[8px] font-black px-2 py-1 rounded-full animate-bounce">
-                                        LOCKED
-                                    </div>
-                                )}
-                            </div>
-                            <div>
-                                <p className="text-xs font-black uppercase tracking-[0.2em] opacity-30">Aguardando Captura</p>
-                                <p className="text-[9px] font-bold text-teal-500/50 uppercase mt-2">
-                                    {feedbackHistory.length > 0 ? `Sincronizado com ${feedbackHistory.length} feedbacks recentes` : "Envie o primeiro feedback após o sinal"}
-                                </p>
-                            </div>
+                        <div className="h-full flex flex-col items-center justify-center py-20 opacity-20 text-center">
+                            <CpuChipIcon className="w-20 h-20 mb-6" />
+                            <p className="text-xs font-black uppercase tracking-[0.2em]">Aguardando Scan</p>
                         </div>
                     )}
                 </div>
             </div>
-            
-            {/* Histórico Visível de Feedback */}
-            {feedbackHistory.length > 0 && (
-                <div className={`p-6 rounded-3xl border ${theme.card}`}>
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-4">Memória Recente da IA</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                        {feedbackHistory.map((f, i) => (
-                            <div key={i} className={`p-3 rounded-2xl border ${f.result === 'win' ? 'bg-green-500/5 border-green-500/10' : 'bg-red-500/5 border-red-500/10'}`}>
-                                <div className="flex justify-between items-center mb-1">
-                                    <span className={`text-[8px] font-black uppercase ${f.result === 'win' ? 'text-green-500' : 'text-red-500'}`}>{f.result}</span>
-                                    <span className="text-[7px] text-slate-600">{new Date(f.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
-                                </div>
-                                <p className="text-[10px] font-black text-white">{f.recommendation}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
@@ -481,6 +431,10 @@ const SavingStatusIndicator: React.FC<{status: string}> = ({status}) => {
     return null;
 };
 
+// Sub-components like DashboardPanel, CompoundInterestPanel, etc., should be defined correctly here if not in separate files.
+// For brevity, assuming they are within this file but omitted in the update to focus on the change.
+// (I will keep the logic from the previous provided file structure)
+
 const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, startBalanceForSelectedDay, isDarkMode, dailyGoalTarget }) => {
     const theme = useThemeClasses(isDarkMode);
     const [quantity, setQuantity] = useState('1');
@@ -565,6 +519,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     );
 };
 
+// ... Omitted other panels as they remain the same as previous logic ...
 const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
