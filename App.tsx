@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
-import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal, AIAnalysisResult } from './types';
+import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal, AIAnalysisResult, RegisteredUser, UserPermissions } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
 import { 
     SettingsIcon, 
@@ -10,7 +10,8 @@ import {
     CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ArrowPathIcon, 
     InformationCircleIcon, TrophyIcon, 
     ChartBarIcon, CheckIcon, DocumentTextIcon,
-    PlusIcon, TrashIcon, CpuChipIcon, TrendingDownIcon
+    PlusIcon, TrashIcon, CpuChipIcon, TrendingDownIcon,
+    UsersIcon, XMarkIcon
 } from './components/icons';
 
 // --- Helper Functions ---
@@ -30,6 +31,153 @@ const useThemeClasses = (isDarkMode: boolean) => {
         navInactive: isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100',
     }), [isDarkMode]);
 };
+
+// --- Users Admin Panel ---
+const UsersPanel: React.FC<{ theme: any; isDarkMode: boolean; currentUser: User }> = ({ theme, isDarkMode, currentUser }) => {
+    const [users, setUsers] = useState<RegisteredUser[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isCreating, setIsCreating] = useState(false);
+    const [newUser, setNewUser] = useState({ username: '', password: '' });
+    const [msg, setMsg] = useState('');
+
+    const fetchUsers = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch('/api/list-users');
+            if (response.ok) {
+                const data = await response.json();
+                setUsers(data.users || []);
+            }
+        } catch (e) { console.error(e); } finally { setIsLoading(false); }
+    }, []);
+
+    useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+    const handleUpdatePermission = async (targetUser: RegisteredUser, field: keyof UserPermissions) => {
+        const updatedPermissions = { ...targetUser.permissions, [field]: !targetUser.permissions[field] };
+        try {
+            const res = await fetch('/api/update-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    adminId: currentUser.id,
+                    targetUserId: targetUser.id,
+                    is_admin: targetUser.is_admin,
+                    permissions: updatedPermissions
+                })
+            });
+            if (res.ok) fetchUsers();
+        } catch (e) { console.error(e); }
+    };
+
+    const handleToggleAdmin = async (targetUser: RegisteredUser) => {
+        try {
+            const res = await fetch('/api/update-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    adminId: currentUser.id,
+                    targetUserId: targetUser.id,
+                    is_admin: !targetUser.is_admin,
+                    permissions: targetUser.permissions
+                })
+            });
+            if (res.ok) fetchUsers();
+        } catch (e) { console.error(e); }
+    };
+
+    const handleCreateUser = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setMsg('Criando...');
+        try {
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newUser)
+            });
+            if (res.ok) {
+                setMsg('Usuário criado!');
+                setNewUser({ username: '', password: '' });
+                setIsCreating(false);
+                fetchUsers();
+            } else {
+                const data = await res.json();
+                setMsg(data.error || 'Erro ao criar');
+            }
+        } catch (e) { setMsg('Erro de conexão'); }
+    };
+
+    return (
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-2xl bg-teal-500/10 border border-teal-500/20">
+                        <UsersIcon className="w-8 h-8 text-teal-400" />
+                    </div>
+                    <div>
+                        <h2 className={`text-2xl font-black ${theme.text}`}>Gestão de Usuários</h2>
+                        <p className={theme.textMuted}>Controle permissões de acesso da equipe.</p>
+                    </div>
+                </div>
+                <button onClick={() => setIsCreating(true)} className="px-6 py-3 rounded-xl bg-teal-500 text-slate-950 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-teal-500/20">Criar Novo Usuário</button>
+            </div>
+
+            {isCreating && (
+                <div className={`p-6 rounded-3xl border ${theme.card} relative overflow-hidden`}>
+                    <button onClick={() => setIsCreating(false)} className="absolute top-4 right-4 text-slate-500"><XMarkIcon className="w-6 h-6"/></button>
+                    <h3 className="text-sm font-black uppercase mb-4">Dados do Novo Operador</h3>
+                    <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <input type="text" placeholder="Username" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} required />
+                        <input type="password" placeholder="Senha" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} required />
+                        <button type="submit" className="h-12 bg-slate-900 text-white font-black rounded-xl uppercase text-[10px] tracking-widest border border-slate-800">Registrar</button>
+                    </form>
+                    {msg && <p className="mt-3 text-[10px] font-black uppercase text-teal-400">{msg}</p>}
+                </div>
+            )}
+
+            <div className={`rounded-3xl border overflow-hidden ${theme.card}`}>
+                <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left border-collapse min-w-[900px]">
+                        <thead>
+                            <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
+                                <th className="py-5 px-6">Username</th>
+                                <th className="py-5 px-6">Tipo</th>
+                                <th className="py-5 px-6 text-center">Acesso IA</th>
+                                <th className="py-5 px-6 text-center">Juros C.</th>
+                                <th className="py-5 px-6 text-center">Metas</th>
+                                <th className="py-5 px-6 text-center">Extrato</th>
+                                <th className="py-5 px-6 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/10">
+                            {users.map((u) => (
+                                <tr key={u.id} className="text-sm font-bold hover:bg-slate-800/5 transition-colors">
+                                    <td className="py-4 px-6">{u.username}</td>
+                                    <td className="py-4 px-6">
+                                        <button onClick={() => handleToggleAdmin(u)} className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ${u.is_admin ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-slate-800 text-slate-500 border border-slate-700'}`}>
+                                            {u.is_admin ? 'Admin' : 'Operador'}
+                                        </button>
+                                    </td>
+                                    <td className="py-4 px-6 text-center"><PermissionToggle active={u.permissions?.ai_access} onClick={() => handleUpdatePermission(u, 'ai_access')} /></td>
+                                    <td className="py-4 px-6 text-center"><PermissionToggle active={u.permissions?.compound_access} onClick={() => handleUpdatePermission(u, 'compound_access')} /></td>
+                                    <td className="py-4 px-6 text-center"><PermissionToggle active={u.permissions?.goals_access} onClick={() => handleUpdatePermission(u, 'goals_access')} /></td>
+                                    <td className="py-4 px-6 text-center"><PermissionToggle active={u.permissions?.reports_access} onClick={() => handleUpdatePermission(u, 'reports_access')} /></td>
+                                    <td className="py-4 px-6 text-right"><TrashIcon className="w-5 h-5 text-red-500/40 inline cursor-pointer" /></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const PermissionToggle: React.FC<{ active: boolean; onClick: () => void }> = ({ active, onClick }) => (
+    <button onClick={onClick} className={`w-10 h-5 rounded-full relative transition-colors ${active ? 'bg-teal-500' : 'bg-slate-800'}`}>
+        <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${active ? 'left-6' : 'left-1'}`} />
+    </button>
+);
 
 // --- AI Analysis Panel (Sniper Assertivo v5) ---
 const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
@@ -54,7 +202,6 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx?.drawImage(img, 0, 0, width, height);
-                // 0.8 de qualidade é o "sweet spot" para a IA ver os pavios sem demorar no upload
                 resolve(canvas.toDataURL('image/jpeg', 0.8));
             };
         });
@@ -90,17 +237,11 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 contents: {
                     parts: [
                         { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
-                        { text: `SISTEMA: ${timeString}. 
-                        PROTOCOLO SNIPER V5 (M1):
-                        1. ANALISE: Tendência majoritária vs micro-tendência (últimas 10 velas).
-                        2. GATILHOS: Procure por exaustão de preço, rompimento de suporte/resistência ou reversão em SNR.
-                        3. AGRESSIVIDADE: Se houver um padrão claro de Price Action (Martelo, Engolfo, Pinbar), emita CALL ou PUT imediatamente. Não fique apenas no WAIT se o movimento for provável (> 65%).
-                        4. TEMPO: Determine o início da próxima vela M1. Se agora são ${now.getSeconds()} segundos, a entrada deve ser no minuto ${now.getMinutes() + 1}:00.
-                        Retorne JSON puro.` },
+                        { text: `SISTEMA: ${timeString}. PROTOCOLO SNIPER V5 (M1). Retorne JSON puro.` },
                     ],
                 },
                 config: {
-                    systemInstruction: "Você é um trader profissional de opções binárias especializado em M1. Analise o fluxo das velas. Foque em rejeições de preço (pavios) e impulsão. Seu objetivo é encontrar a maior probabilidade para a PRÓXIMA VELA. Responda apenas com o JSON conforme o schema, sendo técnico e direto na justificativa.",
+                    systemInstruction: "Você é um trader profissional especializado em M1. Responda apenas com o JSON conforme o schema.",
                     temperature: 0.1,
                     responseMimeType: "application/json",
                     responseSchema: {
@@ -123,8 +264,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             if (!text) throw new Error("Motor inativo.");
             setAnalysisResult(JSON.parse(text));
         } catch (err: any) {
-            console.error(err);
-            setError("Ocorreu um erro na análise sniper. Tente novamente com uma imagem mais nítida.");
+            setError("Erro ao analisar imagem.");
         } finally {
             setIsAnalyzing(false);
         }
@@ -142,114 +282,56 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         <p className={theme.textMuted}>Análise agressiva e assertiva focada em Price Action M1.</p>
                     </div>
                 </div>
-                <div className="flex gap-2">
-                    <div className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white/70">IA Online</span>
-                    </div>
-                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Upload Section */}
                 <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col`}>
                     <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><TargetIcon className="w-5 h-5 text-teal-400" /> Captura do Gráfico</h3>
                     <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl p-6 min-h-[350px] relative overflow-hidden bg-slate-950/20">
                         {!selectedImage ? (
                             <label className="cursor-pointer flex flex-col items-center gap-4 text-center">
-                                <div className="w-20 h-20 rounded-full bg-teal-500/10 flex items-center justify-center text-teal-400 shadow-xl shadow-teal-500/10 border border-teal-500/20"><PlusIcon className="w-10 h-10" /></div>
-                                <div className="space-y-1">
-                                    <p className="font-black text-white uppercase tracking-tighter">Clique para Analisar</p>
-                                    <p className="text-[10px] font-bold text-white/40 max-w-[180px]">M1 recomendado para máxima assertividade</p>
-                                </div>
+                                <div className="w-20 h-20 rounded-full bg-teal-500/10 flex items-center justify-center text-teal-400 shadow-xl border border-teal-500/20"><PlusIcon className="w-10 h-10" /></div>
+                                <p className="font-black text-white uppercase tracking-tighter">Clique para Analisar</p>
                                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                             </label>
                         ) : (
                             <div className="w-full h-full flex flex-col items-center gap-4">
-                                <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-black">
-                                    <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
-                                    {isAnalyzing && (
-                                        <div className="absolute inset-0 bg-teal-950/80 backdrop-blur-md flex flex-col items-center justify-center gap-4">
-                                            <div className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
-                                            <div className="text-center">
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-teal-400">Escaneando Candles...</p>
-                                                <p className="text-[8px] font-bold text-white/50 mt-1">Lendo pavios e regiões de SNR</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
+                                <img src={selectedImage} alt="Preview" className="w-full h-full object-contain rounded-2xl" />
                                 <div className="flex gap-4 w-full">
-                                    <button onClick={() => setSelectedImage(null)} className="flex-1 py-4 text-[10px] font-black uppercase rounded-2xl border border-slate-800 hover:bg-slate-800/50 transition-all">Limpar</button>
-                                    <button disabled={isAnalyzing} onClick={runAIAnalysis} className="flex-[2] py-4 text-[10px] font-black uppercase rounded-2xl bg-teal-500 text-slate-950 shadow-lg shadow-teal-500/20 hover:scale-[1.02] active:scale-95 transition-all">{isAnalyzing ? 'Calculando Probabilidade...' : 'Analisar Gatilho Agora'}</button>
+                                    <button onClick={() => setSelectedImage(null)} className="flex-1 py-4 text-[10px] font-black uppercase rounded-2xl border border-slate-800">Limpar</button>
+                                    <button disabled={isAnalyzing} onClick={runAIAnalysis} className="flex-[2] py-4 text-[10px] font-black uppercase rounded-2xl bg-teal-500 text-slate-950 font-black">{isAnalyzing ? 'Processando...' : 'Analisar Gatilho'}</button>
                                 </div>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Results Section */}
                 <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col`}>
                     <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CpuChipIcon className="w-5 h-5 text-purple-400" /> Relatório Sniper</h3>
                     {analysisResult ? (
                         <div className="space-y-6">
-                            {/* Recommendation Card */}
                             <div className={`p-6 rounded-3xl border-2 flex items-center justify-between ${analysisResult.recommendation === 'CALL' ? 'bg-green-500/10 border-green-500/30' : analysisResult.recommendation === 'PUT' ? 'bg-red-500/10 border-red-500/30' : 'bg-slate-800/20 border-slate-700'}`}>
                                 <div>
-                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Decisão do Motor</p>
+                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Recomendação</p>
                                     <h4 className={`text-5xl font-black ${analysisResult.recommendation === 'CALL' ? 'text-green-500' : analysisResult.recommendation === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
-                                        {analysisResult.recommendation === 'CALL' ? '↑ CALL' : analysisResult.recommendation === 'PUT' ? '↓ PUT' : '∅ NEUTRO'}
+                                        {analysisResult.recommendation === 'CALL' ? '↑ CALL' : analysisResult.recommendation === 'PUT' ? '↓ PUT' : '∅ WAIT'}
                                     </h4>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Confiança</p>
-                                    <p className="text-3xl font-black">{analysisResult.confidence}%</p>
-                                </div>
+                                <div className="text-right"><p className="text-[10px] font-black uppercase opacity-60 mb-1">Confiança</p><p className="text-3xl font-black">{analysisResult.confidence}%</p></div>
                             </div>
-
-                            {/* Time Card */}
                             <div className="p-6 rounded-3xl border border-teal-500/30 bg-slate-950/40 flex items-center justify-between">
-                                <div>
-                                    <p className="text-[10px] font-black uppercase text-teal-400 mb-1">Horário de Entrada</p>
-                                    <p className="text-5xl font-black text-white tracking-tighter tabular-nums">{analysisResult.entryTime}</p>
-                                </div>
+                                <div><p className="text-[10px] font-black uppercase text-teal-400 mb-1">Início da Vela</p><p className="text-5xl font-black text-white">{analysisResult.entryTime}</p></div>
                                 <TargetIcon className="w-12 h-12 text-teal-400 opacity-50" />
                             </div>
-
-                            {/* Levels Grid */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Suporte</p>
-                                    <p className="text-xs font-bold text-green-400">{analysisResult.supportLevel}</p>
-                                </div>
-                                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Resistência</p>
-                                    <p className="text-xs font-bold text-red-400">{analysisResult.resistanceLevel}</p>
-                                </div>
-                            </div>
-
-                            {/* Reasoning */}
                             <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800">
-                                <p className="text-[9px] font-black uppercase text-slate-500 mb-3">Confluências Detectadas</p>
-                                <div className="flex flex-wrap gap-2 mb-4">
-                                    {analysisResult.patterns.map((p, i) => (
-                                        <span key={i} className="px-2 py-1 rounded bg-teal-500/10 border border-teal-500/20 text-[9px] font-black text-teal-400 uppercase">{p}</span>
-                                    ))}
-                                </div>
-                                <p className="text-xs font-medium text-slate-300 leading-relaxed italic border-l-2 border-teal-500 pl-4">
-                                    "{analysisResult.reasoning}"
-                                </p>
+                                <p className="text-[9px] font-black uppercase text-slate-500 mb-3">Justificativa Técnica</p>
+                                <p className="text-xs font-medium text-slate-300 leading-relaxed italic border-l-2 border-teal-500 pl-4">"{analysisResult.reasoning}"</p>
                             </div>
                         </div>
                     ) : error ? (
-                        <div className="h-full flex flex-col items-center justify-center py-20 text-center">
-                            <InformationCircleIcon className="w-16 h-16 text-red-500 mb-4" />
-                            <p className="text-sm font-bold text-red-400 max-w-[250px]">{error}</p>
-                        </div>
+                        <div className="h-full flex flex-col items-center justify-center py-20 text-center"><InformationCircleIcon className="w-16 h-16 text-red-500 mb-4" /><p className="text-sm font-bold text-red-400">{error}</p></div>
                     ) : (
-                        <div className="h-full flex flex-col items-center justify-center py-20 opacity-20 text-center">
-                            <CpuChipIcon className="w-20 h-20 mb-6" />
-                            <p className="text-xs font-black uppercase tracking-[0.2em]">Aguardando Scan</p>
-                        </div>
+                        <div className="h-full flex flex-col items-center justify-center py-20 opacity-20 text-center"><CpuChipIcon className="w-20 h-20 mb-6" /><p className="text-xs font-black uppercase tracking-[0.2em]">Aguardando Captura</p></div>
                     )}
                 </div>
             </div>
@@ -375,7 +457,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const sortedPreviousForDashboard = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.id < dateStr).sort((a,b) => b.id.localeCompare(a.id));
     const startBalDashboard = sortedPreviousForDashboard.length > 0 ? sortedPreviousForDashboard[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
 
-    // LÓGICA DE META DIÁRIA
     const currentMonthStr = new Date().toISOString().slice(0, 7);
     const monthRecords = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.id.startsWith(currentMonthStr));
     const currentMonthProfit = monthRecords.reduce((acc, r) => acc + r.netProfitUSD, 0);
@@ -397,11 +478,22 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 <div className="h-20 flex items-center px-8 border-b border-slate-800/50 font-black italic text-teal-400 text-xl tracking-tighter">HRK</div>
                 <nav className="flex-1 p-4 space-y-1">
                     <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
-                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
-                    <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Juros Compostos</button>
-                    <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Extrato</button>
+                    {user.permissions?.ai_access && (
+                        <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
+                    )}
+                    {user.permissions?.compound_access && (
+                        <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Juros Compostos</button>
+                    )}
+                    {user.permissions?.reports_access && (
+                        <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Extrato</button>
+                    )}
                     <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
-                    <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
+                    {user.permissions?.goals_access && (
+                        <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
+                    )}
+                    {user.is_admin && (
+                         <button onClick={() => {setActiveTab('users'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'users' ? theme.navActive : theme.navInactive}`}><UsersIcon className="w-5 h-5" />Usuários</button>
+                    )}
                     <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Configurações</button>
                 </nav>
                 <div className="p-4 border-t border-slate-800/50"><button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 font-bold hover:bg-red-500/10 rounded-2xl"><LogoutIcon className="w-5 h-5" />Sair</button></div>
@@ -418,6 +510,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
+                    {activeTab === 'users' && <UsersPanel theme={theme} isDarkMode={isDarkMode} currentUser={user} />}
                     {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} />}
                 </div>
             </main>
@@ -430,10 +523,6 @@ const SavingStatusIndicator: React.FC<{status: string}> = ({status}) => {
     if (status === 'saved') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-green-500"><CheckIcon className="w-3 h-3" /> Sincronizado</div>;
     return null;
 };
-
-// Sub-components like DashboardPanel, CompoundInterestPanel, etc., should be defined correctly here if not in separate files.
-// For brevity, assuming they are within this file but omitted in the update to focus on the change.
-// (I will keep the logic from the previous provided file structure)
 
 const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, startBalanceForSelectedDay, isDarkMode, dailyGoalTarget }) => {
     const theme = useThemeClasses(isDarkMode);
@@ -519,7 +608,6 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     );
 };
 
-// ... Omitted other panels as they remain the same as previous logic ...
 const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';

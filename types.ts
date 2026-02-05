@@ -51,6 +51,21 @@ export interface Goal {
   createdAt: number;
 }
 
+export interface UserPermissions {
+    ai_access: boolean;
+    compound_access: boolean;
+    goals_access: boolean;
+    reports_access: boolean;
+}
+
+export interface RegisteredUser {
+    id: number;
+    username: string;
+    is_admin: boolean;
+    permissions: UserPermissions;
+    created_at: string;
+}
+
 export interface AIAnalysisResult {
     recommendation: 'CALL' | 'PUT' | 'WAIT';
     confidence: number;
@@ -67,4 +82,6 @@ export type AppRecord = DailyRecord | TransactionRecord;
 export interface User {
   id: number;
   username: string;
+  is_admin: boolean;
+  permissions: UserPermissions;
 }
