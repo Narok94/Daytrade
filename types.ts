@@ -51,7 +51,16 @@ export interface Goal {
   createdAt: number;
 }
 
+export interface AISignalFeedback {
+    id: string;
+    recommendation: string;
+    result: 'win' | 'loss' | 'pending';
+    patterns: string[];
+    timestamp: number;
+}
+
 export interface AIAnalysisResult {
+    id: string;
     recommendation: 'CALL' | 'PUT' | 'WAIT';
     confidence: number;
     patterns: string[];
@@ -59,7 +68,7 @@ export interface AIAnalysisResult {
     reasoning: string;
     supportLevel: string;
     resistanceLevel: string;
-    entryTime: string; // Adicionado para persistência da funcionalidade de IA
+    entryTime: string;
 }
 
 export type AppRecord = DailyRecord | TransactionRecord;
