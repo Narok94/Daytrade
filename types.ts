@@ -51,7 +51,16 @@ export interface Goal {
   createdAt: number;
 }
 
+export interface AISignalFeedback {
+    id: string;
+    recommendation: string;
+    result: 'win' | 'loss' | 'pending';
+    patterns: string[];
+    timestamp: number;
+}
+
 export interface AIAnalysisResult {
+    id: string;
     recommendation: 'CALL' | 'PUT' | 'WAIT';
     confidence: number;
     patterns: string[];
@@ -59,7 +68,22 @@ export interface AIAnalysisResult {
     reasoning: string;
     supportLevel: string;
     resistanceLevel: string;
-    entryTime: string; // Adicionado para persistência da funcionalidade de IA
+    entryTime: string;
+}
+
+export interface UserPermissions {
+    ai_access: boolean;
+    compound_access: boolean;
+    goals_access: boolean;
+    reports_access: boolean;
+}
+
+export interface RegisteredUser {
+    id: number;
+    username: string;
+    is_admin: boolean;
+    permissions: UserPermissions;
+    created_at: string;
 }
 
 export type AppRecord = DailyRecord | TransactionRecord;
@@ -67,4 +91,6 @@ export type AppRecord = DailyRecord | TransactionRecord;
 export interface User {
   id: number;
   username: string;
+  is_admin: boolean;
+  permissions: UserPermissions;
 }
