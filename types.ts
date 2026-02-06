@@ -53,13 +53,13 @@ export interface Goal {
 
 export interface AIAnalysisResult {
     recommendation: 'CALL' | 'PUT' | 'WAIT';
-    confidence: number;
+    confidence: number; // Inteiro de 0 a 100
     patterns: string[];
     indicatorAnalysis: string;
     reasoning: string;
     supportLevel: string;
     resistanceLevel: string;
-    entryTime: string; // Adicionado para persistência da funcionalidade de IA
+    entryTime: string;
 }
 
 export type AppRecord = DailyRecord | TransactionRecord;
