@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { Brokerage, DailyRecord, AppRecord, Trade, User, Goal, AIAnalysisResult } from './types';
@@ -431,13 +430,10 @@ const SavingStatusIndicator: React.FC<{status: string}> = ({status}) => {
     return null;
 };
 
-// Sub-components like DashboardPanel, CompoundInterestPanel, etc., should be defined correctly here if not in separate files.
-// For brevity, assuming they are within this file but omitted in the update to focus on the change.
-// (I will keep the logic from the previous provided file structure)
-
 const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, startBalanceForSelectedDay, isDarkMode, dailyGoalTarget }) => {
     const theme = useThemeClasses(isDarkMode);
     const [quantity, setQuantity] = useState('1');
+    const [isIgnoringStop, setIsIgnoringStop] = useState(false);
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     
     const handleQuickAdd = (type: 'win' | 'loss') => {
@@ -458,6 +454,16 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
 
     const stopWinReached = activeBrokerage.stopGainTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.winCount >= activeBrokerage.stopGainTrades;
     const stopLossReached = activeBrokerage.stopLossTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.lossCount >= activeBrokerage.stopLossTrades;
+
+    // Reset ignore if date changes
+    useEffect(() => {
+        setIsIgnoringStop(false);
+    }, [selectedDateString]);
+
+    // Reset ignore if they delete a trade and are no longer at stop
+    useEffect(() => {
+        if (!stopWinReached && !stopLossReached) setIsIgnoringStop(false);
+    }, [stopWinReached, stopLossReached]);
 
     const kpis = [
         { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-green-500' },
@@ -491,9 +497,27 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                             <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                         </div>
                         <div className="grid grid-cols-2 gap-4 pt-2">
-                            <button onClick={() => handleQuickAdd('win')} disabled={stopWinReached || stopLossReached} className="h-14 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">WIN</button>
-                            <button onClick={() => handleQuickAdd('loss')} disabled={stopWinReached || stopLossReached} className="h-14 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">LOSS</button>
+                            <button onClick={() => handleQuickAdd('win')} disabled={(stopWinReached || stopLossReached) && !isIgnoringStop} className="h-14 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">WIN</button>
+                            <button onClick={() => handleQuickAdd('loss')} disabled={(stopWinReached || stopLossReached) && !isIgnoringStop} className="h-14 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">LOSS</button>
                         </div>
+                        {(stopWinReached || stopLossReached) && !isIgnoringStop && (
+                            <div className={`p-4 mt-4 rounded-2xl border text-center animate-bounce ${stopWinReached ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+                                <p className="text-[10px] font-black uppercase tracking-widest mb-2">
+                                    {stopWinReached ? 'META ATINGIDA!' : 'STOP LOSS ATINGIDO!'}
+                                </p>
+                                <button 
+                                    onClick={() => { if(confirm("Deseja continuar a operar mesmo tendo batido o stop?")) setIsIgnoringStop(true); }}
+                                    className="text-[9px] font-black underline uppercase"
+                                >
+                                    Deseja continuar a operar?
+                                </button>
+                            </div>
+                        )}
+                        {isIgnoringStop && (stopWinReached || stopLossReached) && (
+                            <div className="p-3 text-center opacity-60">
+                                <p className="text-[8px] font-black uppercase tracking-widest text-orange-400 italic">Operando fora da gestão</p>
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
@@ -519,13 +543,12 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     );
 };
 
-// ... Omitted other panels as they remain the same as previous logic ...
 const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     const tableData = useMemo(() => {
         const rows = [];
-        const sortedRealRecords = records.filter((r: any): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0).sort((a, b) => a.id.localeCompare(b.id));
+        const sortedRealRecords = records.filter((r: any): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0).sort((a: any, b: any) => a.id.localeCompare(b.id));
         let startDate = sortedRealRecords.length > 0 ? new Date(sortedRealRecords[0].id + 'T12:00:00') : new Date();
         startDate.setHours(12,0,0,0);
         let runningBalance = activeBrokerage.initialBalance;
@@ -564,7 +587,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                     <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
                                     <td className="py-4 px-3 font-mono text-sm text-blue-400">{currencySymbol} {formatMoney(row.operationValue)}</td>
                                     <td className="py-4 px-3"><span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-xl">{row.win}</span></td>
-                                    <td className="py-4 px-3"><span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-xl">{row.loss}</span></td>
+                                    <td className="py-4 px-3"><span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-xl">{row.win}</span></td>
                                     <td className={`py-4 px-3 font-black ${row.profit > 0 ? 'text-green-500' : row.profit < 0 ? 'text-red-500' : 'opacity-30'}`}>{row.profit > 0 ? '+' : ''}{currencySymbol} {formatMoney(row.profit)}</td>
                                     <td className="py-4 px-3 font-black opacity-90">{currencySymbol} {formatMoney(row.final)}</td>
                                 </tr>
