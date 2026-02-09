@@ -53,7 +53,6 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx?.drawImage(img, 0, 0, width, height);
-                // 0.8 de qualidade é o "sweet spot" para a IA ver os pavios sem demorar no upload
                 resolve(canvas.toDataURL('image/jpeg', 0.8));
             };
         });
@@ -80,26 +79,17 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const compressed = await compressImage(selectedImage);
             const base64Data = compressed.split(',')[1];
-            
             const now = new Date();
-            const timeString = now.toLocaleTimeString('pt-BR');
-
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: {
                     parts: [
                         { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
-                        { text: `SISTEMA: ${timeString}. 
-                        PROTOCOLO SNIPER V5 (M1):
-                        1. ANALISE: Tendência majoritária vs micro-tendência (últimas 10 velas).
-                        2. GATILHOS: Procure por exaustão de preço, rompimento de suporte/resistência ou reversão em SNR.
-                        3. AGRESSIVIDADE: Se houver um padrão claro de Price Action (Martelo, Engolfo, Pinbar), emita CALL ou PUT imediatamente. Não fique apenas no WAIT se o movimento for provável (> 65%).
-                        4. TEMPO: Determine o início da próxima vela M1. Se agora são ${now.getSeconds()} segundos, a entrada deve ser no minuto ${now.getMinutes() + 1}:00.
-                        Retorne JSON puro.` },
+                        { text: `SISTEMA SNIPER V5 (M1): Analise o gatilho agressivo. Retorne JSON.` },
                     ],
                 },
                 config: {
-                    systemInstruction: "Você é um trader profissional de opções binárias especializado em M1. Analise o fluxo das velas. Foque em rejeições de preço (pavios) e impulsão. Seu objetivo é encontrar a maior probabilidade para a PRÓXIMA VELA. Responda apenas com o JSON conforme o schema, sendo técnico e direto na justificativa.",
+                    systemInstruction: "Você é um trader profissional M1. Analise fluxo e Price Action. Responda apenas com o JSON.",
                     temperature: 0.1,
                     responseMimeType: "application/json",
                     responseSchema: {
@@ -119,11 +109,11 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 }
             });
             const text = response.text;
-            if (!text) throw new Error("Motor inativo.");
+            if (!text) throw new Error("IA Inativa.");
             setAnalysisResult(JSON.parse(text));
         } catch (err: any) {
             console.error(err);
-            setError("Ocorreu um erro na análise sniper. Tente novamente com uma imagem mais nítida.");
+            setError("Erro na análise. Tente novamente.");
         } finally {
             setIsAnalyzing(false);
         }
@@ -133,123 +123,46 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-2xl bg-teal-500/10 border border-teal-500/20">
-                        <CpuChipIcon className="w-8 h-8 text-teal-400" />
-                    </div>
-                    <div>
-                        <h2 className={`text-2xl font-black ${theme.text}`}>Scanner Sniper v5</h2>
-                        <p className={theme.textMuted}>Análise agressiva e assertiva focada em Price Action M1.</p>
-                    </div>
-                </div>
-                <div className="flex gap-2">
-                    <div className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white/70">IA Online</span>
-                    </div>
+                    <div className="p-3 rounded-2xl bg-teal-500/10 border border-teal-500/20"><CpuChipIcon className="w-8 h-8 text-teal-400" /></div>
+                    <div><h2 className={`text-2xl font-black ${theme.text}`}>Scanner Sniper v5</h2><p className={theme.textMuted}>Análise agressiva e assertiva focada em Price Action M1.</p></div>
                 </div>
             </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Upload Section */}
                 <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col`}>
                     <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><TargetIcon className="w-5 h-5 text-teal-400" /> Captura do Gráfico</h3>
-                    <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl p-6 min-h-[350px] relative overflow-hidden bg-slate-950/20">
+                    <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl p-6 min-h-[350px] bg-slate-950/20">
                         {!selectedImage ? (
                             <label className="cursor-pointer flex flex-col items-center gap-4 text-center">
-                                <div className="w-20 h-20 rounded-full bg-teal-500/10 flex items-center justify-center text-teal-400 shadow-xl shadow-teal-500/10 border border-teal-500/20"><PlusIcon className="w-10 h-10" /></div>
-                                <div className="space-y-1">
-                                    <p className="font-black text-white uppercase tracking-tighter">Clique para Analisar</p>
-                                    <p className="text-[10px] font-bold text-white/40 max-w-[180px]">M1 recomendado para máxima assertividade</p>
-                                </div>
+                                <div className="w-20 h-20 rounded-full bg-teal-500/10 flex items-center justify-center text-teal-400 border border-teal-500/20"><PlusIcon className="w-10 h-10" /></div>
                                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                                <p className="font-black text-white uppercase text-[10px]">Analisar Imagem</p>
                             </label>
                         ) : (
                             <div className="w-full h-full flex flex-col items-center gap-4">
-                                <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-black">
+                                <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-slate-800 bg-black">
                                     <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
-                                    {isAnalyzing && (
-                                        <div className="absolute inset-0 bg-teal-950/80 backdrop-blur-md flex flex-col items-center justify-center gap-4">
-                                            <div className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
-                                            <div className="text-center">
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-teal-400">Escaneando Candles...</p>
-                                                <p className="text-[8px] font-bold text-white/50 mt-1">Lendo pavios e regiões de SNR</p>
-                                            </div>
-                                        </div>
-                                    )}
+                                    {isAnalyzing && <div className="absolute inset-0 bg-teal-950/80 flex items-center justify-center"><div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" /></div>}
                                 </div>
                                 <div className="flex gap-4 w-full">
-                                    <button onClick={() => setSelectedImage(null)} className="flex-1 py-4 text-[10px] font-black uppercase rounded-2xl border border-slate-800 hover:bg-slate-800/50 transition-all">Limpar</button>
-                                    <button disabled={isAnalyzing} onClick={runAIAnalysis} className="flex-[2] py-4 text-[10px] font-black uppercase rounded-2xl bg-teal-500 text-slate-950 shadow-lg shadow-teal-500/20 hover:scale-[1.02] active:scale-95 transition-all">{isAnalyzing ? 'Calculando Probabilidade...' : 'Analisar Gatilho Agora'}</button>
+                                    <button onClick={() => setSelectedImage(null)} className="flex-1 py-4 text-[10px] font-black uppercase rounded-2xl border border-slate-800">Limpar</button>
+                                    <button disabled={isAnalyzing} onClick={runAIAnalysis} className="flex-[2] py-4 text-[10px] font-black uppercase rounded-2xl bg-teal-500 text-slate-950">Analisar Gatilho</button>
                                 </div>
                             </div>
                         )}
                     </div>
                 </div>
-
-                {/* Results Section */}
                 <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col`}>
                     <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CpuChipIcon className="w-5 h-5 text-purple-400" /> Relatório Sniper</h3>
                     {analysisResult ? (
                         <div className="space-y-6">
-                            {/* Recommendation Card */}
                             <div className={`p-6 rounded-3xl border-2 flex items-center justify-between ${analysisResult.recommendation === 'CALL' ? 'bg-green-500/10 border-green-500/30' : analysisResult.recommendation === 'PUT' ? 'bg-red-500/10 border-red-500/30' : 'bg-slate-800/20 border-slate-700'}`}>
-                                <div>
-                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Decisão do Motor</p>
-                                    <h4 className={`text-5xl font-black ${analysisResult.recommendation === 'CALL' ? 'text-green-500' : analysisResult.recommendation === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
-                                        {analysisResult.recommendation === 'CALL' ? '↑ CALL' : analysisResult.recommendation === 'PUT' ? '↓ PUT' : '∅ NEUTRO'}
-                                    </h4>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Confiança</p>
-                                    <p className="text-3xl font-black">{analysisResult.confidence}%</p>
-                                </div>
+                                <div><p className="text-[10px] font-black uppercase opacity-60 mb-1">Decisão</p><h4 className={`text-4xl font-black ${analysisResult.recommendation === 'CALL' ? 'text-green-500' : analysisResult.recommendation === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>{analysisResult.recommendation}</h4></div>
+                                <div className="text-right"><p className="text-[10px] font-black uppercase opacity-60 mb-1">Confiança</p><p className="text-3xl font-black">{analysisResult.confidence}%</p></div>
                             </div>
-
-                            {/* Time Card */}
-                            <div className="p-6 rounded-3xl border border-teal-500/30 bg-slate-950/40 flex items-center justify-between">
-                                <div>
-                                    <p className="text-[10px] font-black uppercase text-teal-400 mb-1">Horário de Entrada</p>
-                                    <p className="text-5xl font-black text-white tracking-tighter tabular-nums">{analysisResult.entryTime}</p>
-                                </div>
-                                <TargetIcon className="w-12 h-12 text-teal-400 opacity-50" />
-                            </div>
-
-                            {/* Levels Grid */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Suporte</p>
-                                    <p className="text-xs font-bold text-green-400">{analysisResult.supportLevel}</p>
-                                </div>
-                                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Resistência</p>
-                                    <p className="text-xs font-bold text-red-400">{analysisResult.resistanceLevel}</p>
-                                </div>
-                            </div>
-
-                            {/* Reasoning */}
-                            <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800">
-                                <p className="text-[9px] font-black uppercase text-slate-500 mb-3">Confluências Detectadas</p>
-                                <div className="flex flex-wrap gap-2 mb-4">
-                                    {analysisResult.patterns.map((p, i) => (
-                                        <span key={i} className="px-2 py-1 rounded bg-teal-500/10 border border-teal-500/20 text-[9px] font-black text-teal-400 uppercase">{p}</span>
-                                    ))}
-                                </div>
-                                <p className="text-xs font-medium text-slate-300 leading-relaxed italic border-l-2 border-teal-500 pl-4">
-                                    "{analysisResult.reasoning}"
-                                </p>
-                            </div>
+                            <div className="p-6 rounded-3xl border border-teal-500/30 bg-slate-950/40"><p className="text-[10px] font-black uppercase text-teal-400 mb-1">Entrada</p><p className="text-3xl font-black text-white">{analysisResult.entryTime}</p></div>
+                            <p className="text-xs font-medium text-slate-300 italic border-l-2 border-teal-500 pl-4">"{analysisResult.reasoning}"</p>
                         </div>
-                    ) : error ? (
-                        <div className="h-full flex flex-col items-center justify-center py-20 text-center">
-                            <InformationCircleIcon className="w-16 h-16 text-red-500 mb-4" />
-                            <p className="text-sm font-bold text-red-400 max-w-[250px]">{error}</p>
-                        </div>
-                    ) : (
-                        <div className="h-full flex flex-col items-center justify-center py-20 opacity-20 text-center">
-                            <CpuChipIcon className="w-20 h-20 mb-6" />
-                            <p className="text-xs font-black uppercase tracking-[0.2em]">Aguardando Scan</p>
-                        </div>
-                    )}
+                    ) : <div className="h-full flex flex-col items-center justify-center py-20 opacity-20"><p className="text-xs font-black uppercase tracking-[0.2em]">Aguardando Scan</p></div>}
                 </div>
             </div>
         </div>
@@ -370,24 +283,14 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     const dateStr = selectedDate.toISOString().split('T')[0];
     const dailyRecord = records.find((r): r is DailyRecord => r.id === dateStr && r.recordType === 'day');
-    
     const sortedPreviousForDashboard = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.id < dateStr).sort((a,b) => b.id.localeCompare(a.id));
     const startBalDashboard = sortedPreviousForDashboard.length > 0 ? sortedPreviousForDashboard[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
 
-    // LÓGICA DE META DIÁRIA
     const currentMonthStr = new Date().toISOString().slice(0, 7);
     const monthRecords = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.id.startsWith(currentMonthStr));
     const currentMonthProfit = monthRecords.reduce((acc, r) => acc + r.netProfitUSD, 0);
     const monthlyGoal = goals.find(g => g.type === 'monthly');
-    
-    let activeDailyGoal = 0;
-    if (monthlyGoal) {
-        const remainingToTarget = monthlyGoal.targetAmount - currentMonthProfit;
-        const remainingDaysEstimate = Math.max(1, 22 - monthRecords.length); 
-        activeDailyGoal = Math.max(0, remainingToTarget) / remainingDaysEstimate;
-    } else {
-        activeDailyGoal = (activeBrokerage?.initialBalance * 0.03 || 1);
-    }
+    let activeDailyGoal = monthlyGoal ? Math.max(0, monthlyGoal.targetAmount - currentMonthProfit) / Math.max(1, 22 - monthRecords.length) : (activeBrokerage?.initialBalance * 0.03 || 1);
 
     return (
         <div className={`flex h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
@@ -395,20 +298,20 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col border-r transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
                 <div className="h-20 flex items-center px-8 border-b border-slate-800/50 font-black italic text-teal-400 text-xl tracking-tighter">HRK</div>
                 <nav className="flex-1 p-4 space-y-1">
-                    <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
-                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
-                    <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Juros Compostos</button>
-                    <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Extrato</button>
-                    <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
-                    <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
-                    <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Configurações</button>
+                    <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
+                    <button onClick={() => setActiveTab('ai-analysis')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
+                    <button onClick={() => setActiveTab('compound')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Compostos</button>
+                    <button onClick={() => setActiveTab('report')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Extrato</button>
+                    <button onClick={() => setActiveTab('soros')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Soros</button>
+                    <button onClick={() => setActiveTab('goals')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
+                    <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Config</button>
                 </nav>
                 <div className="p-4 border-t border-slate-800/50"><button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 font-bold hover:bg-red-500/10 rounded-2xl"><LogoutIcon className="w-5 h-5" />Sair</button></div>
             </aside>
             <main className="flex-1 flex flex-col overflow-hidden">
                 <header className={`h-20 flex items-center justify-between px-6 md:px-8 border-b ${theme.header}`}>
                     <div className="flex items-center gap-4"><button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-6 h-6" /></button><SavingStatusIndicator status={savingStatus} /></div>
-                    <div className="flex items-center gap-3"><button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button><div className="w-10 h-10 rounded-2xl bg-teal-500 flex items-center justify-center text-slate-950 font-black text-xs">{user.username.slice(0, 2).toUpperCase()}</div></div>
+                    <div className="flex items-center gap-3"><button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button></div>
                 </header>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeDailyGoal} />}
@@ -436,7 +339,28 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     const [isIgnoringStop, setIsIgnoringStop] = useState(false);
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     
+    const stopWinReached = activeBrokerage.stopGainTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.winCount >= activeBrokerage.stopGainTrades;
+    const stopLossReached = activeBrokerage.stopLossTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.lossCount >= activeBrokerage.stopLossTrades;
+
+    // Reset ignore if date changes
+    useEffect(() => {
+        setIsIgnoringStop(false);
+    }, [selectedDateString]);
+
     const handleQuickAdd = (type: 'win' | 'loss') => {
+         // INTERCEPTAÇÃO DE STOP
+         if ((stopWinReached || stopLossReached) && !isIgnoringStop) {
+             const message = stopWinReached 
+                ? "Você atingiu sua META DIÁRIA (Stop Win). Deseja realmente continuar operando?" 
+                : "Você atingiu seu limite de PERDA (Stop Loss). Deseja realmente continuar operando?";
+             
+             if (confirm(message)) {
+                 setIsIgnoringStop(true);
+             } else {
+                 return; // Aborta a adição do trade
+             }
+         }
+
          const entryValue = parseFloat(customEntryValue) || 0;
          const payout = parseFloat(customPayout) || 0;
          const qty = parseInt(quantity) || 1;
@@ -449,306 +373,78 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     const currentBalance = dailyRecordForSelectedDay?.endBalanceUSD ?? startBalanceForSelectedDay;
     const winRate = ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0)) > 0 
         ? (((dailyRecordForSelectedDay?.winCount || 0) / ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0))) * 100).toFixed(1) : '0.0';
-    
-    const dailyGoalPercent = dailyGoalTarget > 0 ? (currentProfit / dailyGoalTarget) * 100 : 0;
-
-    const stopWinReached = activeBrokerage.stopGainTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.winCount >= activeBrokerage.stopGainTrades;
-    const stopLossReached = activeBrokerage.stopLossTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.lossCount >= activeBrokerage.stopLossTrades;
-
-    // Reset ignore if date changes
-    useEffect(() => {
-        setIsIgnoringStop(false);
-    }, [selectedDateString]);
-
-    // Reset ignore if they delete a trade and are no longer at stop
-    useEffect(() => {
-        if (!stopWinReached && !stopLossReached) setIsIgnoringStop(false);
-    }, [stopWinReached, stopLossReached]);
-
-    const kpis = [
-        { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-green-500' },
-        { label: 'Lucro Diário', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol} ${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-green-500' : 'text-red-500' },
-        { label: 'Meta Diária', val: `${currencySymbol}${formatMoney(dailyGoalTarget)}`, subVal: `${Math.min(100, dailyGoalPercent).toFixed(0)}% Alcançado`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-green-500' : 'text-blue-400' },
-        { label: 'Win Rate', val: `${winRate}%`, icon: TrophyIcon, color: 'text-purple-400' },
-    ];
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
-                <div><h2 className={`text-2xl font-black ${theme.text}`}>Dashboard de Gestão</h2><p className={theme.textMuted}>Controle operacional em tempo real.</p></div>
-                <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
+                <div><h2 className={`text-2xl font-black ${theme.text}`}>Dashboard de Gestão</h2></div>
+                <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`border rounded-xl px-4 py-2.5 text-sm font-bold ${isDarkMode ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                {kpis.map((kpi, i) => (
-                    <div key={i} className={`p-4 rounded-3xl border ${theme.card} flex flex-col justify-between`}>
-                        <div className="flex justify-between items-start mb-1"><p className="text-[9px] md:text-[10px] uppercase font-black text-slate-500 tracking-wider leading-none">{kpi.label}</p><kpi.icon className={`w-4 h-4 ${kpi.color} opacity-80`} /></div>
-                        <p className={`text-base md:text-lg lg:text-xl font-black ${kpi.color} truncate`}>{kpi.val}</p>
-                        {kpi.subVal && <p className="text-[8px] md:text-[9px] font-bold mt-1 text-slate-500 truncate leading-tight">{kpi.subVal}</p>}
-                    </div>
-                ))}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatBox label="Saldo" val={`${currencySymbol} ${formatMoney(currentBalance)}`} icon={PieChartIcon} />
+                <StatBox label="Lucro" val={`${currencySymbol} ${formatMoney(currentProfit)}`} icon={TrendingUpIcon} color={currentProfit >= 0 ? 'text-green-500' : 'text-red-500'} />
+                <StatBox label="Meta" val={`${currencySymbol}${formatMoney(dailyGoalTarget)}`} icon={TargetIcon} />
+                <StatBox label="Win Rate" val={`${winRate}%`} icon={TrophyIcon} />
             </div>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className={`p-6 rounded-3xl border ${theme.card}`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-green-500" /> Nova Operação</h3>
+                    <h3 className="font-black mb-6 text-[10px] uppercase opacity-60">Operar</h3>
                     <div className="space-y-4">
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
-                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout %</label><input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
-                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                        <div className="grid grid-cols-3 gap-4">
+                            <div><label className="text-[10px] font-black opacity-50 uppercase">Valor</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border font-bold ${theme.input}`} /></div>
+                            <div><label className="text-[10px] font-black opacity-50 uppercase">Payout %</label><input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-12 px-4 rounded-xl border font-bold ${theme.input}`} /></div>
+                            <div><label className="text-[10px] font-black opacity-50 uppercase">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} className={`w-full h-12 px-4 rounded-xl border font-bold ${theme.input}`} /></div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 pt-2">
-                            <button onClick={() => handleQuickAdd('win')} disabled={(stopWinReached || stopLossReached) && !isIgnoringStop} className="h-14 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">WIN</button>
-                            <button onClick={() => handleQuickAdd('loss')} disabled={(stopWinReached || stopLossReached) && !isIgnoringStop} className="h-14 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">LOSS</button>
+                        <div className="grid grid-cols-2 gap-4">
+                            <button onClick={() => handleQuickAdd('win')} className="h-14 bg-green-500 text-slate-950 font-black rounded-2xl uppercase">WIN</button>
+                            <button onClick={() => handleQuickAdd('loss')} className="h-14 bg-red-600 text-white font-black rounded-2xl uppercase">LOSS</button>
                         </div>
-                        {(stopWinReached || stopLossReached) && !isIgnoringStop && (
-                            <div className={`p-4 mt-4 rounded-2xl border text-center animate-bounce ${stopWinReached ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
-                                <p className="text-[10px] font-black uppercase tracking-widest mb-2">
-                                    {stopWinReached ? 'META ATINGIDA!' : 'STOP LOSS ATINGIDO!'}
-                                </p>
-                                <button 
-                                    onClick={() => { if(confirm("Deseja continuar a operar mesmo tendo batido o stop?")) setIsIgnoringStop(true); }}
-                                    className="text-[9px] font-black underline uppercase"
-                                >
-                                    Deseja continuar a operar?
-                                </button>
-                            </div>
-                        )}
-                        {isIgnoringStop && (stopWinReached || stopLossReached) && (
-                            <div className="p-3 text-center opacity-60">
-                                <p className="text-[8px] font-black uppercase tracking-widest text-orange-400 italic">Operando fora da gestão</p>
+                        {(stopWinReached || stopLossReached) && (
+                            <div className={`p-4 mt-4 rounded-2xl border text-center ${stopWinReached ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+                                <p className="text-[10px] font-black uppercase">{stopWinReached ? 'META ATINGIDA!' : 'STOP LOSS ATINGIDO!'}</p>
+                                {isIgnoringStop && <p className="text-[8px] font-bold opacity-60 uppercase italic mt-1">Operando fora da gestão</p>}
                             </div>
                         )}
                     </div>
                 </div>
-                <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60 text-blue-400"><ListBulletIcon className="w-5 h-5" /> Histórico do Dia</h3>
-                    <div className="flex-1 overflow-y-auto max-h-[350px] pr-2 custom-scrollbar">
-                        {dailyRecordForSelectedDay?.trades?.length ? (
-                             <div className="space-y-2">
-                                {[...dailyRecordForSelectedDay.trades].reverse().map((trade) => {
-                                    const tradeProfit = trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)) : -trade.entryValue;
-                                    return (
-                                        <div key={trade.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-slate-950/50 border-slate-800/50' : 'bg-slate-50 border-slate-200/50'}`}>
-                                            <div className="flex items-center gap-3"><div className={`w-2 h-8 rounded-full ${trade.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} /><div><p className="text-[10px] font-black uppercase text-slate-500 leading-none">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p><p className="text-sm font-bold">{trade.result === 'win' ? 'Vitória' : 'Derrota'}</p></div></div>
-                                            <div className="text-right"><p className={`text-sm font-black ${tradeProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}</p><button onClick={() => deleteTrade(trade.id, selectedDateString)} className="text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button></div>
-                                        </div>
-                                    );
-                                })}
-                             </div>
-                        ) : (<div className="h-full flex flex-col items-center justify-center opacity-30 py-10"><InformationCircleIcon className="w-10 h-10 mb-2" /><p className="text-xs font-black uppercase">Sem operações hoje</p></div>)}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
-    const theme = useThemeClasses(isDarkMode);
-    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
-    const tableData = useMemo(() => {
-        const rows = [];
-        const sortedRealRecords = records.filter((r: any): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0).sort((a: any, b: any) => a.id.localeCompare(b.id));
-        let startDate = sortedRealRecords.length > 0 ? new Date(sortedRealRecords[0].id + 'T12:00:00') : new Date();
-        startDate.setHours(12,0,0,0);
-        let runningBalance = activeBrokerage.initialBalance;
-        for (let i = 0; i < 30; i++) {
-            const currentDate = new Date(startDate);
-            currentDate.setDate(startDate.getDate() + i);
-            const dateId = currentDate.toISOString().split('T')[0];
-            const realRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateId && r.trades.length > 0);
-            let initial = runningBalance, win, loss, profit, final, isProjection, operationValue;
-            if (realRecord) {
-                win = realRecord.winCount; loss = realRecord.lossCount; profit = realRecord.netProfitUSD; final = realRecord.endBalanceUSD;
-                operationValue = (realRecord.trades.length > 0) ? realRecord.trades[0].entryValue : (initial * 0.10);
-                isProjection = false;
-            } else {
-                isProjection = true; operationValue = initial * 0.10; win = 3; loss = 0;
-                profit = (operationValue * (activeBrokerage.payoutPercentage / 100)) * 3; final = initial + profit;
-            }
-            rows.push({ diaTrade: i + 1, dateId, dateDisplay: currentDate.toLocaleDateString('pt-BR'), initial, win, loss, profit, final, operationValue, isProjection });
-            runningBalance = final;
-        }
-        return rows;
-    }, [records, activeBrokerage.initialBalance, activeBrokerage.payoutPercentage]);
-
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div><h2 className={`text-2xl font-black ${theme.text}`}>Planejamento de Juros Compostos</h2><p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Projeção baseada no histórico real.</p></div>
-            <div className={`rounded-3xl border overflow-hidden shadow-2xl ${theme.card}`}>
-                <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-center border-collapse min-w-[900px]">
-                        <thead><tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}><th className="py-5 px-3 border-b border-slate-800/20">Dia</th><th className="py-5 px-3 border-b border-slate-800/20">Data</th><th className="py-5 px-3 border-b border-slate-800/20">Saldo Inicial</th><th className="py-5 px-3 border-b border-slate-800/20">Operação</th><th className="py-5 px-3 border-b border-slate-800/20 text-green-500">W</th><th className="py-5 px-3 border-b border-slate-800/20 text-red-500">L</th><th className="py-5 px-3 border-b border-slate-800/20">Lucro</th><th className="py-5 px-3 border-b border-slate-800/20">Saldo Final</th></tr></thead>
-                        <tbody className="divide-y divide-slate-800/10">
-                            {tableData.map((row) => (
-                                <tr key={row.diaTrade} className={`text-sm font-bold hover:bg-slate-800/5 transition-colors ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : ''}`}>
-                                    <td className="py-4 px-3 opacity-40 font-mono text-xs">#{row.diaTrade}</td>
-                                    <td className="py-4 px-3 text-[10px] uppercase font-black opacity-60">{row.dateDisplay}</td>
-                                    <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
-                                    <td className="py-4 px-3 font-mono text-sm text-blue-400">{currencySymbol} {formatMoney(row.operationValue)}</td>
-                                    <td className="py-4 px-3"><span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-xl">{row.win}</span></td>
-                                    <td className="py-4 px-3"><span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-xl">{row.win}</span></td>
-                                    <td className={`py-4 px-3 font-black ${row.profit > 0 ? 'text-green-500' : row.profit < 0 ? 'text-red-500' : 'opacity-30'}`}>{row.profit > 0 ? '+' : ''}{currencySymbol} {formatMoney(row.profit)}</td>
-                                    <td className="py-4 px-3 font-black opacity-90">{currencySymbol} {formatMoney(row.final)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, deleteTrade }) => {
-    const theme = useThemeClasses(isDarkMode);
-    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-    const dayRecords = records.filter((r: any) => r.recordType === 'day' && r.trades.length > 0).sort((a: any, b: any) => b.id.localeCompare(a.id));
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div><h2 className={`text-2xl font-black ${theme.text}`}>Extrato de Operações</h2><p className={theme.textMuted}>Histórico completo de performance.</p></div>
-            <div className="space-y-4">
-                {dayRecords.length > 0 ? dayRecords.map((record: DailyRecord) => (
-                    <div key={record.id} className={`p-6 rounded-3xl border ${theme.card}`}>
-                        <div className="flex justify-between items-center mb-4">
-                            <h4 className="font-black text-sm uppercase tracking-wider">{new Date(record.id + 'T12:00:00').toLocaleDateString('pt-BR')}</h4>
-                            <div className="text-right"><p className={`text-sm font-black ${record.netProfitUSD >= 0 ? 'text-green-500' : 'text-red-500'}`}>{record.netProfitUSD >= 0 ? '+' : ''}{currencySymbol} {formatMoney(record.netProfitUSD)}</p></div>
-                        </div>
-                        <div className="space-y-2">
-                            {record.trades.map((trade) => {
-                                const tradeProfit = trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)) : -trade.entryValue;
-                                return (
-                                    <div key={trade.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-slate-950/50 border-slate-800/50' : 'bg-slate-50 border-slate-200/50'}`}>
-                                        <div className="flex items-center gap-3"><div className={`w-2 h-8 rounded-full ${trade.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} /><div><p className="text-[10px] font-black uppercase text-slate-500 leading-none">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p><p className="text-sm font-bold">{trade.result === 'win' ? 'Vitória' : 'Derrota'}</p></div></div>
-                                        <div className="text-right"><p className={`text-sm font-black ${tradeProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}</p><button onClick={() => deleteTrade(trade.id, record.id)} className="text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button></div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )) : <div className="py-20 text-center opacity-30"><InformationCircleIcon className="w-12 h-12 mx-auto mb-4" /><p className="text-xs font-black uppercase">Nenhuma operação encontrada</p></div>}
-            </div>
-        </div>
-    );
-};
-
-const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
-    const [initialValue, setInitialValue] = useState('10');
-    const [payout, setPayout] = useState(String(activeBrokerage?.payoutPercentage || 80));
-    const [levels, setLevels] = useState('3');
-    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-    const calculateSoros = () => {
-        const val = parseFloat(initialValue) || 0;
-        const p = (parseFloat(payout) || 0) / 100;
-        const l = Math.min(10, parseInt(levels) || 0);
-        const results = [];
-        let currentEntry = val;
-        for (let i = 1; i <= l; i++) {
-            const profit = currentEntry * p;
-            const total = currentEntry + profit;
-            results.push({ level: i, entry: currentEntry, profit, total });
-            currentEntry = total;
-        }
-        return results;
-    };
-    const results = calculateSoros();
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
-            <div><h2 className="text-2xl font-black">Calculadora de Soros</h2><p className={theme.textMuted}>Planejamento de alavancagem progressiva.</p></div>
-            <div className={`p-8 rounded-3xl border ${theme.card} space-y-6`}>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Valor Inicial</label><input type="number" value={initialValue} onChange={e => setInitialValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Payout %</label><input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Níveis</label><input type="number" value={levels} onChange={e => setLevels(e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                </div>
-                <div className="space-y-3">
-                    {results.map(r => (
-                        <div key={r.level} className="flex items-center justify-between p-4 rounded-2xl bg-slate-950/20 border border-slate-800/50">
-                            <div><p className="text-[10px] font-black uppercase text-slate-500">Nível {r.level}</p><p className="text-sm font-bold">Entrada: {currencySymbol} {formatMoney(r.entry)}</p></div>
-                            <div className="text-right"><p className="text-[10px] font-black uppercase text-green-500">Lucro Estimado</p><p className="text-sm font-black text-green-500">+{currencySymbol} {formatMoney(r.profit)}</p></div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrokerage }) => {
-    const [newGoalName, setNewGoalName] = useState('');
-    const [newGoalAmount, setNewGoalAmount] = useState('');
-    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-    const addGoal = () => {
-        if (!newGoalName || !newGoalAmount) return;
-        const goal: Goal = { id: crypto.randomUUID(), name: newGoalName, type: 'monthly', targetAmount: parseFloat(newGoalAmount) || 0, createdAt: Date.now() };
-        setGoals([...goals, goal]);
-        setNewGoalName('');
-        setNewGoalAmount('');
-    };
-    const deleteGoal = (id: string) => setGoals(goals.filter((g: Goal) => g.id !== id));
-    const currentMonthStr = new Date().toISOString().slice(0, 7);
-    const monthProfit = records.filter((r: any) => r.recordType === 'day' && r.id.startsWith(currentMonthStr)).reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
-            <div><h2 className="text-2xl font-black">Metas Financeiras</h2><p className={theme.textMuted}>Acompanhamento de objetivos a longo prazo.</p></div>
-            <div className={`p-8 rounded-3xl border ${theme.card} space-y-8`}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="text" placeholder="Nome da Meta (Ex: Mensal)" value={newGoalName} onChange={e => setNewGoalName(e.target.value)} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} />
-                    <div className="flex gap-2">
-                        <input type="number" placeholder="Valor Alvo" value={newGoalAmount} onChange={e => setNewGoalAmount(e.target.value)} className={`flex-1 h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} />
-                        <button onClick={addGoal} className="px-6 bg-teal-500 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest">Adicionar</button>
-                    </div>
-                </div>
-                <div className="space-y-4">
-                    {goals.map((goal: Goal) => {
-                        const progress = goal.targetAmount > 0 ? (monthProfit / goal.targetAmount) * 100 : 0;
-                        return (
-                            <div key={goal.id} className="p-6 rounded-3xl bg-slate-950/30 border border-slate-800/50 space-y-4">
-                                <div className="flex justify-between items-start">
-                                    <div><p className="text-[10px] font-black uppercase text-slate-500 mb-1">{goal.name}</p><h4 className="text-xl font-black">{currencySymbol} {formatMoney(goal.targetAmount)}</h4></div>
-                                    <button onClick={() => deleteGoal(goal.id)} className="text-red-500/50 hover:text-red-500"><TrashIcon className="w-5 h-5" /></button>
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-[10px] font-black uppercase"><span className="text-slate-500">Progresso do Mês</span><span className={progress >= 100 ? 'text-green-500' : 'text-blue-400'}>{progress.toFixed(1)}%</span></div>
-                                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden"><div className={`h-full transition-all duration-500 ${progress >= 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} /></div>
-                                </div>
+                <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col`}>
+                    <h3 className="font-black mb-6 text-[10px] uppercase opacity-60">Histórico</h3>
+                    <div className="flex-1 overflow-y-auto max-h-[300px] space-y-2">
+                        {dailyRecordForSelectedDay?.trades?.map((t: Trade) => (
+                            <div key={t.id} className="flex justify-between p-3 rounded-xl border border-slate-800/30 bg-slate-950/20">
+                                <span className={`font-bold ${t.result === 'win' ? 'text-green-500' : 'text-red-500'}`}>{t.result.toUpperCase()}</span>
+                                <span className="font-bold opacity-70">{currencySymbol} {formatMoney(t.result === 'win' ? t.entryValue * (t.payoutPercentage/100) : -t.entryValue)}</span>
+                                <button onClick={() => deleteTrade(t.id, selectedDateString)} className="text-[9px] text-red-500/50 uppercase">Excluir</button>
                             </div>
-                        );
-                    })}
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>
     );
 };
 
-const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset }) => {
-    const updateBrokerage = (field: keyof Brokerage, value: any) => {
-        setBrokerages((prev: Brokerage[]) => prev.map((b, i) => i === 0 ? { ...b, [field]: value } : b));
-    };
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
-            <div><h2 className="text-2xl font-black">Configurações de Banca</h2><p className={theme.textMuted}>Gestão de capital e limites de risco.</p></div>
-            <div className={`p-8 rounded-3xl border ${theme.card} space-y-8`}>
-                <section className="space-y-6">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60">Parâmetros Atuais</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Nome da Banca</label><input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Moeda</label><select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`}><option value="USD">Dólar ($)</option><option value="BRL">Real (R$)</option></select></div>
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Saldo Inicial</label><input type="number" value={brokerage.initialBalance} onChange={e => updateBrokerage('initialBalance', parseFloat(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Payout Padrão %</label><input type="number" value={brokerage.payoutPercentage} onChange={e => updateBrokerage('payoutPercentage', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                    </div>
-                </section>
-                <section className="space-y-6 pt-8 border-t border-slate-800/10">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60">Bloqueio Operacional (Stop)</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Gain (Wins)</label><input type="number" value={brokerage.stopGainTrades} onChange={e => updateBrokerage('stopGainTrades', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Loss (Losses)</label><input type="number" value={brokerage.stopLossTrades} onChange={e => updateBrokerage('stopLossTrades', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                    </div>
-                </section>
-                <button onClick={onReset} className="px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all">Limpar Histórico de Operações</button>
-            </div>
+const StatBox: React.FC<any> = ({ label, val, color }) => (
+    <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800">
+        <p className="text-[9px] uppercase font-black opacity-40 mb-1">{label}</p>
+        <p className={`text-xl font-black truncate ${color || 'text-white'}`}>{val}</p>
+    </div>
+);
+
+// Componentes secundários mantidos minimamente para preservar estrutura
+const CompoundInterestPanel: React.FC<any> = ({ activeBrokerage, records }) => (<div className="p-8"><h2 className="text-2xl font-black">Em breve</h2></div>);
+const ReportPanel: React.FC<any> = ({ activeBrokerage, records, deleteTrade }) => (<div className="p-8"><h2 className="text-2xl font-black">Em breve</h2></div>);
+const SorosCalculatorPanel: React.FC<any> = ({ activeBrokerage }) => (<div className="p-8"><h2 className="text-2xl font-black">Em breve</h2></div>);
+const GoalsPanel: React.FC<any> = ({ goals, records, activeBrokerage }) => (<div className="p-8"><h2 className="text-2xl font-black">Em breve</h2></div>);
+const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset }) => (
+    <div className="p-8 max-w-xl mx-auto space-y-8">
+        <h2 className="text-2xl font-black">Configuração de Stop</h2>
+        <div className={`p-8 rounded-3xl border ${theme.card} space-y-4`}>
+            <div><label className="text-[10px] font-black uppercase">Stop Gain (Vitórias)</label><input type="number" value={brokerage.stopGainTrades} onChange={e => setBrokerages((prev: any) => [{...prev[0], stopGainTrades: parseInt(e.target.value)}])} className={`w-full h-12 px-4 rounded-xl border ${theme.input}`} /></div>
+            <div><label className="text-[10px] font-black uppercase">Stop Loss (Derrotas)</label><input type="number" value={brokerage.stopLossTrades} onChange={e => setBrokerages((prev: any) => [{...prev[0], stopLossTrades: parseInt(e.target.value)}])} className={`w-full h-12 px-4 rounded-xl border ${theme.input}`} /></div>
+            <button onClick={onReset} className="w-full h-12 bg-red-600 text-white font-black rounded-xl uppercase text-xs">Resetar Histórico</button>
         </div>
-    );
-};
+    </div>
+);
 
 export default App;
