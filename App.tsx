@@ -558,7 +558,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     
-    const [projWins, setProjWins] = useState(3);
+    const [projWins, setProjWins] = useState(2);
     const [projLosses, setProjLosses] = useState(0);
     const [projEntryPercent, setProjEntryPercent] = useState(10);
     const [projPayout, setProjPayout] = useState(activeBrokerage.payoutPercentage || 80);
