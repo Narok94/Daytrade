@@ -576,37 +576,60 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                     <h2 className={`text-2xl font-black ${theme.text}`}>Planejamento de Juros Compostos</h2>
                     <p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Projeção baseada no histórico real e metas futuras.</p>
                 </div>
-                
-                <div className={`p-4 rounded-2xl border ${theme.card} grid grid-cols-2 md:grid-cols-4 gap-4 w-full md:w-auto`}>
-                    <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase text-slate-500">Wins Meta</label>
-                        <input type="number" value={projWins} onChange={e => setProjWins(parseInt(e.target.value) || 0)} className={`w-full h-8 px-2 rounded-lg border text-xs font-bold outline-none ${theme.input}`} />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase text-slate-500">Loss Meta</label>
-                        <input type="number" value={projLosses} onChange={e => setProjLosses(parseInt(e.target.value) || 0)} className={`w-full h-8 px-2 rounded-lg border text-xs font-bold outline-none ${theme.input}`} />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase text-slate-500">Entrada %</label>
-                        <input type="number" value={projEntryPercent} onChange={e => setProjEntryPercent(parseFloat(e.target.value) || 0)} className={`w-full h-8 px-2 rounded-lg border text-xs font-bold outline-none ${theme.input}`} />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase text-slate-500">Payout %</label>
-                        <input type="number" value={projPayout} onChange={e => setProjPayout(parseInt(e.target.value) || 0)} className={`w-full h-8 px-2 rounded-lg border text-xs font-bold outline-none ${theme.input}`} />
-                    </div>
-                </div>
             </div>
 
             <div className={`rounded-3xl border overflow-hidden shadow-2xl ${theme.card}`}>
                 <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-center border-collapse min-w-[900px]">
-                        <thead><tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}><th className="py-5 px-3 border-b border-slate-800/20">Dia</th><th className="py-5 px-3 border-b border-slate-800/20">Data</th><th className="py-5 px-3 border-b border-slate-800/20">Saldo Inicial</th><th className="py-5 px-3 border-b border-slate-800/20">Operação</th><th className="py-5 px-3 border-b border-slate-800/20 text-green-500">W</th><th className="py-5 px-3 border-b border-slate-800/20 text-red-500">L</th><th className="py-5 px-3 border-b border-slate-800/20">Lucro</th><th className="py-5 px-3 border-b border-slate-800/20">Saldo Final</th></tr></thead>
+                    <table className="w-full text-center border-collapse min-w-[1000px]">
+                        <thead>
+                            <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Dia</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Data</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Saldo Inicial</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">
+                                    <div className="flex flex-col items-center gap-1">
+                                        <span>Meta (W/L)</span>
+                                        <div className="flex items-center gap-1">
+                                            <input type="number" value={projWins} onChange={e => setProjWins(parseInt(e.target.value) || 0)} className={`w-10 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
+                                            <span className="opacity-30">x</span>
+                                            <input type="number" value={projLosses} onChange={e => setProjLosses(parseInt(e.target.value) || 0)} className={`w-10 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
+                                        </div>
+                                    </div>
+                                </th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">
+                                    <div className="flex flex-col items-center gap-1">
+                                        <span>Operação</span>
+                                        <div className="flex items-center gap-1">
+                                            <input type="number" value={projEntryPercent} onChange={e => setProjEntryPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
+                                            <span className="opacity-30">%</span>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th className="py-5 px-3 border-b border-slate-800/20 text-green-500">W</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20 text-red-500">L</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">
+                                    <div className="flex flex-col items-center gap-1">
+                                        <span>Lucro</span>
+                                        <div className="flex items-center gap-1">
+                                            <input type="number" value={projPayout} onChange={e => setProjPayout(parseInt(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
+                                            <span className="opacity-30">%</span>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Saldo Final</th>
+                            </tr>
+                        </thead>
                         <tbody className="divide-y divide-slate-800/10">
                             {tableData.map((row) => (
                                 <tr key={row.diaTrade} className={`text-sm font-bold hover:bg-slate-800/5 transition-colors ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : ''}`}>
                                     <td className="py-4 px-3 opacity-40 font-mono text-xs">#{row.diaTrade}</td>
                                     <td className="py-4 px-3 text-[10px] uppercase font-black opacity-60">{row.dateDisplay}</td>
                                     <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
+                                    <td className="py-4 px-3">
+                                        <span className={`px-3 py-1 rounded-xl text-[10px] font-black ${row.isProjection ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-500/10 text-slate-400'}`}>
+                                            {row.isProjection ? `${projWins}x${projLosses}` : 'REAL'}
+                                        </span>
+                                    </td>
                                     <td className="py-4 px-3 font-mono text-sm text-blue-400">{currencySymbol} {formatMoney(row.operationValue)}</td>
                                     <td className="py-4 px-3"><span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-xl">{row.win}</span></td>
                                     <td className="py-4 px-3"><span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-xl">{row.loss}</span></td>
