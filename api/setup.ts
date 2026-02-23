@@ -1,6 +1,6 @@
 import { db } from '@vercel/postgres';
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { Brokerage } from '../../types';
+import { Brokerage } from '../types';
 import { randomUUID } from 'crypto';
 
 async function ensureTablesAndMigrate(client: any, userId?: number) {

@@ -101,8 +101,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                 this.x = x; this.y = y; this.size = size; this.speedX = speedX; this.speedY = speedY;
             }
             update() {
-                if (this.x > canvas.width || this.x < 0) this.speedX = -this.speedX;
-                if (this.y > canvas.height || this.y < 0) this.speedY = -this.speedY;
+                if (canvas) {
+                    if (this.x > canvas.width || this.x < 0) this.speedX = -this.speedX;
+                    if (this.y > canvas.height || this.y < 0) this.speedY = -this.speedY;
+                }
                 this.x += this.speedX;
                 this.y += this.speedY;
             }

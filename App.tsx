@@ -400,6 +400,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
                     <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Juros Compostos</button>
                     <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Extrato</button>
+                    <button onClick={() => {setActiveTab('history'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'history' ? theme.navActive : theme.navInactive}`}><ListBulletIcon className="w-5 h-5" />Histórico</button>
                     <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
                     <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
                     <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Configurações</button>
@@ -416,6 +417,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {activeTab === 'ai-analysis' && <AIAnalysisPanel theme={theme} isDarkMode={isDarkMode} />}
                     {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
                     {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
+                    {activeTab === 'history' && <HistoryPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} />}
@@ -525,7 +527,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     const tableData = useMemo(() => {
         const rows = [];
-        const sortedRealRecords = records.filter((r: any): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0).sort((a, b) => a.id.localeCompare(b.id));
+        const sortedRealRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0).sort((a: DailyRecord, b: DailyRecord) => a.id.localeCompare(b.id));
         let startDate = sortedRealRecords.length > 0 ? new Date(sortedRealRecords[0].id + 'T12:00:00') : new Date();
         startDate.setHours(12,0,0,0);
         let runningBalance = activeBrokerage.initialBalance;
@@ -604,6 +606,148 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
                         </div>
                     </div>
                 )) : <div className="py-20 text-center opacity-30"><InformationCircleIcon className="w-12 h-12 mx-auto mb-4" /><p className="text-xs font-black uppercase">Nenhuma operação encontrada</p></div>}
+            </div>
+        </div>
+    );
+};
+
+const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
+    const theme = useThemeClasses(isDarkMode);
+    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
+    const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+
+    const stats = useMemo(() => {
+        const dayRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0);
+        
+        if (viewMode === 'daily') {
+            return dayRecords.sort((a: DailyRecord, b: DailyRecord) => b.id.localeCompare(a.id)).map((r: DailyRecord) => ({
+                id: r.id,
+                label: new Date(r.id + 'T12:00:00').toLocaleDateString('pt-BR'),
+                profit: r.netProfitUSD,
+                wins: r.winCount,
+                losses: r.lossCount,
+                total: r.winCount + r.lossCount,
+                winRate: (r.winCount + r.lossCount) > 0 ? (r.winCount / (r.winCount + r.lossCount)) * 100 : 0
+            }));
+        }
+
+        if (viewMode === 'weekly') {
+            const weeks: Record<string, any> = {};
+            dayRecords.forEach((r: DailyRecord) => {
+                const date = new Date(r.id + 'T12:00:00');
+                const day = date.getDay();
+                const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+                const monday = new Date(date.setDate(diff));
+                const weekId = monday.toISOString().split('T')[0];
+                
+                if (!weeks[weekId]) {
+                    weeks[weekId] = { id: weekId, label: `Semana de ${monday.toLocaleDateString('pt-BR')}`, profit: 0, wins: 0, losses: 0, total: 0 };
+                }
+                weeks[weekId].profit += r.netProfitUSD;
+                weeks[weekId].wins += r.winCount;
+                weeks[weekId].losses += r.lossCount;
+                weeks[weekId].total += (r.winCount + r.lossCount);
+            });
+            return Object.values(weeks).sort((a, b) => b.id.localeCompare(a.id)).map(w => ({
+                ...w,
+                winRate: w.total > 0 ? (w.wins / w.total) * 100 : 0
+            }));
+        }
+
+        if (viewMode === 'monthly') {
+            const months: Record<string, any> = {};
+            dayRecords.forEach((r: DailyRecord) => {
+                const monthId = r.id.slice(0, 7); // YYYY-MM
+                if (!months[monthId]) {
+                    const [year, month] = monthId.split('-');
+                    const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+                    const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                    months[monthId] = { id: monthId, label: label.charAt(0).toUpperCase() + label.slice(1), profit: 0, wins: 0, losses: 0, total: 0 };
+                }
+                months[monthId].profit += r.netProfitUSD;
+                months[monthId].wins += r.winCount;
+                months[monthId].losses += r.lossCount;
+                months[monthId].total += (r.winCount + r.lossCount);
+            });
+            return Object.values(months).sort((a, b) => b.id.localeCompare(a.id)).map(m => ({
+                ...m,
+                winRate: m.total > 0 ? (m.wins / m.total) * 100 : 0
+            }));
+        }
+
+        return [];
+    }, [records, viewMode]);
+
+    return (
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
+                <div>
+                    <h2 className={`text-2xl font-black ${theme.text}`}>Histórico de Performance</h2>
+                    <p className={theme.textMuted}>Análise detalhada por períodos.</p>
+                </div>
+                <div className="flex p-1 rounded-2xl bg-slate-900 border border-slate-800">
+                    {(['daily', 'weekly', 'monthly'] as const).map((mode) => (
+                        <button
+                            key={mode}
+                            onClick={() => setViewMode(mode)}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === mode ? 'bg-teal-500 text-slate-950 shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            {mode === 'daily' ? 'Diário' : mode === 'weekly' ? 'Semanal' : 'Mensal'}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+                {stats.length > 0 ? stats.map((item: any) => (
+                    <div key={item.id} className={`p-6 rounded-3xl border ${theme.card} flex flex-col md:flex-row md:items-center justify-between gap-6`}>
+                        <div className="flex items-center gap-4">
+                            <div className={`p-3 rounded-2xl ${item.profit >= 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                                {item.profit >= 0 ? <TrendingUpIcon className="w-6 h-6" /> : <TrendingDownIcon className="w-6 h-6" />}
+                            </div>
+                            <div>
+                                <h4 className="font-black text-lg leading-none mb-1">{item.label}</h4>
+                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">{item.total} Operações Realizadas</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+                            <div>
+                                <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Resultado</p>
+                                <p className={`text-lg font-black ${item.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {item.profit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(item.profit)}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Win / Loss %</p>
+                                <p className="text-lg font-black">
+                                    <span className="text-green-500">{item.winRate.toFixed(0)}%</span>
+                                    <span className="mx-1 opacity-20">/</span>
+                                    <span className="text-red-500">{(100 - item.winRate).toFixed(0)}%</span>
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Wins / Losses</p>
+                                <p className="text-lg font-black">
+                                    <span className="text-green-500">{item.wins}</span>
+                                    <span className="mx-1 opacity-20">/</span>
+                                    <span className="text-red-500">{item.losses}</span>
+                                </p>
+                            </div>
+                            <div className="hidden md:block">
+                                <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Performance</p>
+                                <div className="w-24 h-2 bg-slate-800 rounded-full overflow-hidden mt-2">
+                                    <div className="h-full bg-green-500" style={{ width: `${item.winRate}%` }} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )) : (
+                    <div className="py-20 text-center opacity-30">
+                        <InformationCircleIcon className="w-12 h-12 mx-auto mb-4" />
+                        <p className="text-xs font-black uppercase">Nenhum dado para este período</p>
+                    </div>
+                )}
             </div>
         </div>
     );

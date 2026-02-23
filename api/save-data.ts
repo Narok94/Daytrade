@@ -1,7 +1,7 @@
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { db } from '@vercel/postgres';
-import { Brokerage, DailyRecord, Goal } from '../../types';
+import { Brokerage, DailyRecord, Goal } from '../types';
 import { randomUUID } from 'crypto';
 
 async function ensureTablesAndMigrate(client: any, userId?: number) {
@@ -149,7 +149,7 @@ export default async function handler(
 
         const allTrades = records
             .filter(r => r.recordType === 'day' && r.trades && r.trades.length > 0)
-            .flatMap(r => r.trades.map(t => ({
+            .flatMap((r: any) => r.trades.map((t: any) => ({
                 id: t.id,
                 record_id: r.id,
                 brokerage_id: r.brokerageId,

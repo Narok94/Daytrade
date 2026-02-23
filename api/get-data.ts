@@ -1,7 +1,7 @@
 
 import { db } from '@vercel/postgres';
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { Brokerage, DailyRecord, Goal, Trade } from '../../types';
+import { Brokerage, DailyRecord, Goal, Trade } from '../types';
 import { randomUUID } from 'crypto';
 
 async function ensureTablesAndMigrate(client: any, userId?: number) {
@@ -142,9 +142,9 @@ export default async function handler(
         let previousDayEndBalance = brokerages[0]?.initialBalance || 0;
         for (const record of records) {
             record.startBalanceUSD = previousDayEndBalance;
-            record.winCount = record.trades.filter(t => t.result === 'win').length;
-            record.lossCount = record.trades.filter(t => t.result === 'loss').length;
-            record.netProfitUSD = record.trades.reduce((acc, t) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0);
+            record.winCount = record.trades.filter((t: any) => t.result === 'win').length;
+            record.lossCount = record.trades.filter((t: any) => t.result === 'loss').length;
+            record.netProfitUSD = record.trades.reduce((acc: number, t: any) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0);
             record.endBalanceUSD = record.startBalanceUSD + record.netProfitUSD;
             previousDayEndBalance = record.endBalanceUSD;
         }
