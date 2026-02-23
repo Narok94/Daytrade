@@ -525,35 +525,78 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
 const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+    
+    const [projWins, setProjWins] = useState(3);
+    const [projLosses, setProjLosses] = useState(0);
+    const [projEntryPercent, setProjEntryPercent] = useState(10);
+    const [projPayout, setProjPayout] = useState(activeBrokerage.payoutPercentage || 80);
+
     const tableData = useMemo(() => {
         const rows = [];
         const sortedRealRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0).sort((a: DailyRecord, b: DailyRecord) => a.id.localeCompare(b.id));
         let startDate = sortedRealRecords.length > 0 ? new Date(sortedRealRecords[0].id + 'T12:00:00') : new Date();
         startDate.setHours(12,0,0,0);
         let runningBalance = activeBrokerage.initialBalance;
+        
         for (let i = 0; i < 30; i++) {
             const currentDate = new Date(startDate);
             currentDate.setDate(startDate.getDate() + i);
             const dateId = currentDate.toISOString().split('T')[0];
             const realRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateId && r.trades.length > 0);
+            
             let initial = runningBalance, win, loss, profit, final, isProjection, operationValue;
+            
             if (realRecord) {
-                win = realRecord.winCount; loss = realRecord.lossCount; profit = realRecord.netProfitUSD; final = realRecord.endBalanceUSD;
-                operationValue = (realRecord.trades.length > 0) ? realRecord.trades[0].entryValue : (initial * 0.10);
+                win = realRecord.winCount; 
+                loss = realRecord.lossCount; 
+                profit = realRecord.netProfitUSD; 
+                final = realRecord.endBalanceUSD;
+                operationValue = (realRecord.trades.length > 0) ? realRecord.trades[0].entryValue : (initial * (projEntryPercent / 100));
                 isProjection = false;
             } else {
-                isProjection = true; operationValue = initial * 0.10; win = 3; loss = 0;
-                profit = (operationValue * (activeBrokerage.payoutPercentage / 100)) * 3; final = initial + profit;
+                isProjection = true; 
+                operationValue = initial * (projEntryPercent / 100); 
+                win = projWins; 
+                loss = projLosses;
+                const winProfit = (operationValue * (projPayout / 100)) * win;
+                const lossCost = operationValue * loss;
+                profit = winProfit - lossCost;
+                final = initial + profit;
             }
             rows.push({ diaTrade: i + 1, dateId, dateDisplay: currentDate.toLocaleDateString('pt-BR'), initial, win, loss, profit, final, operationValue, isProjection });
             runningBalance = final;
         }
         return rows;
-    }, [records, activeBrokerage.initialBalance, activeBrokerage.payoutPercentage]);
+    }, [records, activeBrokerage.initialBalance, projWins, projLosses, projEntryPercent, projPayout]);
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div><h2 className={`text-2xl font-black ${theme.text}`}>Planejamento de Juros Compostos</h2><p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Projeção baseada no histórico real.</p></div>
+            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
+                <div>
+                    <h2 className={`text-2xl font-black ${theme.text}`}>Planejamento de Juros Compostos</h2>
+                    <p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Projeção baseada no histórico real e metas futuras.</p>
+                </div>
+                
+                <div className={`p-4 rounded-2xl border ${theme.card} grid grid-cols-2 md:grid-cols-4 gap-4 w-full md:w-auto`}>
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-black uppercase text-slate-500">Wins Meta</label>
+                        <input type="number" value={projWins} onChange={e => setProjWins(parseInt(e.target.value) || 0)} className={`w-full h-8 px-2 rounded-lg border text-xs font-bold outline-none ${theme.input}`} />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-black uppercase text-slate-500">Loss Meta</label>
+                        <input type="number" value={projLosses} onChange={e => setProjLosses(parseInt(e.target.value) || 0)} className={`w-full h-8 px-2 rounded-lg border text-xs font-bold outline-none ${theme.input}`} />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-black uppercase text-slate-500">Entrada %</label>
+                        <input type="number" value={projEntryPercent} onChange={e => setProjEntryPercent(parseFloat(e.target.value) || 0)} className={`w-full h-8 px-2 rounded-lg border text-xs font-bold outline-none ${theme.input}`} />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-black uppercase text-slate-500">Payout %</label>
+                        <input type="number" value={projPayout} onChange={e => setProjPayout(parseInt(e.target.value) || 0)} className={`w-full h-8 px-2 rounded-lg border text-xs font-bold outline-none ${theme.input}`} />
+                    </div>
+                </div>
+            </div>
+
             <div className={`rounded-3xl border overflow-hidden shadow-2xl ${theme.card}`}>
                 <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-center border-collapse min-w-[900px]">
