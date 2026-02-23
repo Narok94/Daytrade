@@ -544,7 +544,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             const dateId = currentDate.toISOString().split('T')[0];
             const realRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateId && r.trades.length > 0);
             
-            let initial = runningBalance, win, loss, profit, final, isProjection, operationValue;
+            let initial = runningBalance, win, loss, profit, final, isProjection, operationValue, goalMet = false;
             
             if (realRecord) {
                 win = realRecord.winCount; 
@@ -553,6 +553,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                 final = realRecord.endBalanceUSD;
                 operationValue = (realRecord.trades.length > 0) ? realRecord.trades[0].entryValue : (initial * (projEntryPercent / 100));
                 isProjection = false;
+                goalMet = win >= projWins;
             } else {
                 isProjection = true; 
                 operationValue = initial * (projEntryPercent / 100); 
@@ -562,8 +563,9 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                 const lossCost = operationValue * loss;
                 profit = winProfit - lossCost;
                 final = initial + profit;
+                goalMet = true;
             }
-            rows.push({ diaTrade: i + 1, dateId, dateDisplay: currentDate.toLocaleDateString('pt-BR'), initial, win, loss, profit, final, operationValue, isProjection });
+            rows.push({ diaTrade: i + 1, dateId, dateDisplay: currentDate.toLocaleDateString('pt-BR'), initial, win, loss, profit, final, operationValue, isProjection, goalMet });
             runningBalance = final;
         }
         return rows;
@@ -621,13 +623,13 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                         </thead>
                         <tbody className="divide-y divide-slate-800/10">
                             {tableData.map((row) => (
-                                <tr key={row.diaTrade} className={`text-sm font-bold hover:bg-slate-800/5 transition-colors ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : ''}`}>
+                                <tr key={row.diaTrade} className={`text-sm font-bold hover:bg-slate-800/5 transition-colors ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : !row.goalMet ? 'bg-red-500/5' : ''}`}>
                                     <td className="py-4 px-3 opacity-40 font-mono text-xs">#{row.diaTrade}</td>
                                     <td className="py-4 px-3 text-[10px] uppercase font-black opacity-60">{row.dateDisplay}</td>
                                     <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
                                     <td className="py-4 px-3">
-                                        <span className={`px-3 py-1 rounded-xl text-[10px] font-black ${row.isProjection ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-500/10 text-slate-400'}`}>
-                                            {row.isProjection ? `${projWins}x${projLosses}` : 'REAL'}
+                                        <span className={`px-3 py-1 rounded-xl text-[10px] font-black ${row.isProjection ? 'bg-blue-500/10 text-blue-400' : row.goalMet ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                                            {row.isProjection ? `${projWins}x${projLosses}` : row.goalMet ? 'META BATIDA' : 'META NÃO ATINGIDA'}
                                         </span>
                                     </td>
                                     <td className="py-4 px-3 font-mono text-sm text-blue-400">{currencySymbol} {formatMoney(row.operationValue)}</td>
