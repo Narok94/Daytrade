@@ -264,6 +264,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [brokerages, setBrokerages] = useState<Brokerage[]>([]);
+    const [activeBrokerageId, setActiveBrokerageId] = useState<string | null>(null);
     const [records, setRecords] = useState<AppRecord[]>([]);
     const [goals, setGoals] = useState<Goal[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -274,7 +275,15 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const latestDataRef = useRef({ userId: user.id, brokerages, records, goals });
     useEffect(() => { latestDataRef.current = { userId: user.id, brokerages, records, goals }; }, [user.id, brokerages, records, goals]);
     
-    const activeBrokerage = brokerages[0];
+    const activeBrokerage = useMemo(() => {
+        return brokerages.find(b => b.id === activeBrokerageId) || brokerages[0];
+    }, [brokerages, activeBrokerageId]);
+
+    useEffect(() => {
+        if (activeBrokerage && !activeBrokerageId) {
+            setActiveBrokerageId(activeBrokerage.id);
+        }
+    }, [activeBrokerage, activeBrokerageId]);
 
     useEffect(() => {
         if (!activeBrokerage) return;
@@ -288,19 +297,23 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         setCustomPayout(String(activeBrokerage.payoutPercentage));
     }, [activeBrokerage, records, selectedDate]);
 
-    const recalibrateHistory = useCallback((allRecords: AppRecord[], initialBal: number) => {
+    const recalibrateHistory = useCallback((allRecords: AppRecord[], initialBal: number, brokerageId: string) => {
         let runningBalance = initialBal;
-        return allRecords.sort((a, b) => a.id.localeCompare(b.id)).map(r => {
-            if (r.recordType !== 'day') return r;
-            const daily = r as DailyRecord;
-            const winCount = daily.trades.filter(t => t.result === 'win').length;
-            const lossCount = daily.trades.filter(t => t.result === 'loss').length;
-            const netProfitUSD = daily.trades.reduce((acc, t) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0);
+        const otherRecords = allRecords.filter(r => r.recordType !== 'day' || r.brokerageId !== brokerageId);
+        const brokerageRecords = (allRecords.filter(r => r.recordType === 'day' && r.brokerageId === brokerageId) as DailyRecord[])
+            .sort((a, b) => a.id.localeCompare(b.id));
+        
+        const updatedBrokerageRecords = brokerageRecords.map(r => {
+            const winCount = r.trades.filter(t => t.result === 'win').length;
+            const lossCount = r.trades.filter(t => t.result === 'loss').length;
+            const netProfitUSD = r.trades.reduce((acc, t) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0);
             const endBalanceUSD = runningBalance + netProfitUSD;
-            const updated = { ...daily, startBalanceUSD: runningBalance, winCount, lossCount, netProfitUSD, endBalanceUSD };
+            const updated = { ...r, startBalanceUSD: runningBalance, winCount, lossCount, netProfitUSD, endBalanceUSD };
             runningBalance = endBalanceUSD;
             return updated;
         });
+
+        return [...otherRecords, ...updatedBrokerageRecords];
     }, []);
 
     const fetchData = useCallback(async () => {
@@ -333,34 +346,36 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     }, [brokerages, records, goals, isLoading, debouncedSave]);
 
     const addRecord = (win: number, loss: number, customEntry?: number, customPayout?: number) => {
+        if (!activeBrokerage) return;
         setRecords(prev => {
             const dateKey = selectedDate.toISOString().split('T')[0];
-            const sortedPrevious = prev.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateKey).sort((a,b) => b.id.localeCompare(a.id));
-            const startBal = sortedPrevious.length > 0 ? sortedPrevious[0].endBalanceUSD : (brokerages[0]?.initialBalance || 0);
-            const dailyRecordForSelectedDay = prev.find((r): r is DailyRecord => r.id === dateKey && r.recordType === 'day');
+            const sortedPrevious = prev.filter((r): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage.id && r.date < dateKey).sort((a,b) => b.id.localeCompare(a.id));
+            const startBal = sortedPrevious.length > 0 ? sortedPrevious[0].endBalanceUSD : (activeBrokerage.initialBalance || 0);
+            const dailyRecordForSelectedDay = prev.find((r): r is DailyRecord => r.id === dateKey && r.recordType === 'day' && r.brokerageId === activeBrokerage.id);
             const currentBalance = dailyRecordForSelectedDay?.endBalanceUSD ?? startBal;
-            const suggestedEntryValue = brokerages[0].entryMode === 'fixed' ? brokerages[0].entryValue : currentBalance * (brokerages[0].entryValue / 100);
+            const suggestedEntryValue = activeBrokerage.entryMode === 'fixed' ? activeBrokerage.entryValue : currentBalance * (activeBrokerage.entryValue / 100);
             const entryValue = (customEntry && customEntry > 0) ? customEntry : suggestedEntryValue;
-            const payout = (customPayout && customPayout > 0) ? customPayout : brokerages[0].payoutPercentage;
+            const payout = (customPayout && customPayout > 0) ? customPayout : activeBrokerage.payoutPercentage;
             const newTrades: Trade[] = [];
             for(let i=0; i<win; i++) newTrades.push({ id: crypto.randomUUID(), result: 'win', entryValue, payoutPercentage: payout, timestamp: Date.now() });
             for(let i=0; i<loss; i++) newTrades.push({ id: crypto.randomUUID(), result: 'loss', entryValue, payoutPercentage: payout, timestamp: Date.now() });
-            const existingIdx = prev.findIndex(r => r.id === dateKey && r.recordType === 'day');
+            const existingIdx = prev.findIndex(r => r.id === dateKey && r.recordType === 'day' && r.brokerageId === activeBrokerage.id);
             let updatedRecords = [...prev];
             if (existingIdx >= 0) {
                 const rec = updatedRecords[existingIdx] as DailyRecord;
                 updatedRecords[existingIdx] = { ...rec, trades: [...rec.trades, ...newTrades] };
             } else {
-                updatedRecords.push({ recordType: 'day', brokerageId: brokerages[0].id, id: dateKey, date: dateKey, trades: newTrades, startBalanceUSD: 0, winCount: 0, lossCount: 0, netProfitUSD: 0, endBalanceUSD: 0 });
+                updatedRecords.push({ recordType: 'day', brokerageId: activeBrokerage.id, id: dateKey, date: dateKey, trades: newTrades, startBalanceUSD: 0, winCount: 0, lossCount: 0, netProfitUSD: 0, endBalanceUSD: 0 });
             }
-            return recalibrateHistory(updatedRecords, brokerages[0].initialBalance);
+            return recalibrateHistory(updatedRecords, activeBrokerage.initialBalance, activeBrokerage.id);
         });
     };
 
     const deleteTrade = (id: string, dateId: string) => {
+        if (!activeBrokerage) return;
         setRecords(prev => {
-            const updated = prev.map(r => (r.id === dateId && r.recordType === 'day') ? { ...r, trades: r.trades.filter(t => t.id !== id) } : r);
-            return recalibrateHistory(updated, brokerages[0].initialBalance);
+            const updated = prev.map(r => (r.id === dateId && r.recordType === 'day' && r.brokerageId === activeBrokerage.id) ? { ...r, trades: r.trades.filter(t => t.id !== id) } : r);
+            return recalibrateHistory(updated, activeBrokerage.initialBalance, activeBrokerage.id);
         });
     };
 
@@ -370,14 +385,14 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" /></div>;
 
     const dateStr = selectedDate.toISOString().split('T')[0];
-    const dailyRecord = records.find((r): r is DailyRecord => r.id === dateStr && r.recordType === 'day');
+    const dailyRecord = records.find((r): r is DailyRecord => r.id === dateStr && r.recordType === 'day' && r.brokerageId === activeBrokerage?.id);
     
-    const sortedPreviousForDashboard = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.id < dateStr).sort((a,b) => b.id.localeCompare(a.id));
+    const sortedPreviousForDashboard = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.id < dateStr && r.brokerageId === activeBrokerage?.id).sort((a: DailyRecord, b: DailyRecord) => b.id.localeCompare(a.id));
     const startBalDashboard = sortedPreviousForDashboard.length > 0 ? sortedPreviousForDashboard[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
 
     // LÓGICA DE META DIÁRIA
     const currentMonthStr = new Date().toISOString().slice(0, 7);
-    const monthRecords = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.id.startsWith(currentMonthStr));
+    const monthRecords = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.id.startsWith(currentMonthStr) && r.brokerageId === activeBrokerage?.id);
     const currentMonthProfit = monthRecords.reduce((acc, r) => acc + r.netProfitUSD, 0);
     const monthlyGoal = goals.find(g => g.type === 'monthly');
     
@@ -409,8 +424,25 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             </aside>
             <main className="flex-1 flex flex-col overflow-hidden">
                 <header className={`h-20 flex items-center justify-between px-6 md:px-8 border-b ${theme.header}`}>
-                    <div className="flex items-center gap-4"><button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-6 h-6" /></button><SavingStatusIndicator status={savingStatus} /></div>
-                    <div className="flex items-center gap-3"><button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button><div className="w-10 h-10 rounded-2xl bg-teal-500 flex items-center justify-center text-slate-950 font-black text-xs">{user.username.slice(0, 2).toUpperCase()}</div></div>
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-6 h-6" /></button>
+                        <SavingStatusIndicator status={savingStatus} />
+                        <div className="hidden md:flex items-center gap-2 ml-4">
+                            <select 
+                                value={activeBrokerageId || ''} 
+                                onChange={(e) => setActiveBrokerageId(e.target.value)}
+                                className={`text-xs font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 cursor-pointer ${theme.text}`}
+                            >
+                                {brokerages.map(b => (
+                                    <option key={b.id} value={b.id} className={isDarkMode ? 'bg-slate-900' : 'bg-white'}>{b.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button>
+                        <div className="w-10 h-10 rounded-2xl bg-teal-500 flex items-center justify-center text-slate-950 font-black text-xs">{user.username.slice(0, 2).toUpperCase()}</div>
+                    </div>
                 </header>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     {activeTab === 'dashboard' && <DashboardPanel activeBrokerage={activeBrokerage} customEntryValue={customEntryValue} setCustomEntryValue={setCustomEntryValue} customPayout={customPayout} setCustomPayout={setCustomPayout} addRecord={addRecord} deleteTrade={deleteTrade} selectedDateString={dateStr} setSelectedDate={setSelectedDate} dailyRecordForSelectedDay={dailyRecord} startBalanceForSelectedDay={startBalDashboard} isDarkMode={isDarkMode} dailyGoalTarget={activeDailyGoal} />}
@@ -533,16 +565,16 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 
     const tableData = useMemo(() => {
         const rows = [];
-        const sortedRealRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0).sort((a: DailyRecord, b: DailyRecord) => a.id.localeCompare(b.id));
+        const sortedRealRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0).sort((a: DailyRecord, b: DailyRecord) => a.id.localeCompare(b.id));
         let startDate = sortedRealRecords.length > 0 ? new Date(sortedRealRecords[0].id + 'T12:00:00') : new Date();
         startDate.setHours(12,0,0,0);
-        let runningBalance = activeBrokerage.initialBalance;
+        let runningBalance = activeBrokerage?.initialBalance || 0;
         
         for (let i = 0; i < 30; i++) {
             const currentDate = new Date(startDate);
             currentDate.setDate(startDate.getDate() + i);
             const dateId = currentDate.toISOString().split('T')[0];
-            const realRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateId && r.trades.length > 0);
+            const realRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateId && r.brokerageId === activeBrokerage?.id && r.trades.length > 0);
             
             let initial = runningBalance, win, loss, profit, final, isProjection, operationValue, goalMet = false;
             
@@ -650,7 +682,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, deleteTrade }) => {
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-    const dayRecords = records.filter((r: any) => r.recordType === 'day' && r.trades.length > 0).sort((a: any, b: any) => b.id.localeCompare(a.id));
+    const dayRecords = records.filter((r: any) => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0).sort((a: any, b: any) => b.id.localeCompare(a.id));
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div><h2 className={`text-2xl font-black ${theme.text}`}>Extrato de Operações</h2><p className={theme.textMuted}>Histórico completo de performance.</p></div>
@@ -685,7 +717,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) =
     const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
     const stats = useMemo(() => {
-        const dayRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.trades.length > 0);
+        const dayRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0);
         
         if (viewMode === 'daily') {
             return dayRecords.sort((a: DailyRecord, b: DailyRecord) => b.id.localeCompare(a.id)).map((r: DailyRecord) => ({
@@ -876,7 +908,7 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
     };
     const deleteGoal = (id: string) => setGoals(goals.filter((g: Goal) => g.id !== id));
     const currentMonthStr = new Date().toISOString().slice(0, 7);
-    const monthProfit = records.filter((r: any) => r.recordType === 'day' && r.id.startsWith(currentMonthStr)).reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
+    const monthProfit = records.filter((r: any) => r.recordType === 'day' && r.id.startsWith(currentMonthStr) && r.brokerageId === activeBrokerage?.id).reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
             <div><h2 className="text-2xl font-black">Metas Financeiras</h2><p className={theme.textMuted}>Acompanhamento de objetivos a longo prazo.</p></div>
@@ -911,15 +943,55 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
 };
 
 const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset }) => {
+    const [newBrokerageName, setNewBrokerageName] = useState('');
+    
     const updateBrokerage = (field: keyof Brokerage, value: any) => {
-        setBrokerages((prev: Brokerage[]) => prev.map((b, i) => i === 0 ? { ...b, [field]: value } : b));
+        setBrokerages((prev: Brokerage[]) => prev.map((b) => b.id === brokerage.id ? { ...b, [field]: value } : b));
     };
+
+    const addNewBrokerage = () => {
+        if (!newBrokerageName) return;
+        const newB: Brokerage = {
+            id: crypto.randomUUID(),
+            name: newBrokerageName,
+            initialBalance: 10,
+            entryMode: 'percentage',
+            entryValue: 10,
+            payoutPercentage: 80,
+            stopGainTrades: 3,
+            stopLossTrades: 2,
+            currency: 'USD'
+        };
+        setBrokerages((prev: Brokerage[]) => [...prev, newB]);
+        setNewBrokerageName('');
+    };
+
+    const deleteBrokerage = (id: string) => {
+        setBrokerages((prev: Brokerage[]) => prev.filter(b => b.id !== id));
+    };
+
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
-            <div><h2 className="text-2xl font-black">Configurações de Banca</h2><p className={theme.textMuted}>Gestão de capital e limites de risco.</p></div>
+            <div className="flex justify-between items-center">
+                <div><h2 className="text-2xl font-black">Configurações de Banca</h2><p className={theme.textMuted}>Gestão de capital e limites de risco.</p></div>
+                <div className="flex gap-2">
+                    <input 
+                        type="text" 
+                        placeholder="Nome da Nova Corretora" 
+                        value={newBrokerageName}
+                        onChange={e => setNewBrokerageName(e.target.value)}
+                        className={`h-10 px-4 rounded-xl border text-xs font-bold outline-none ${theme.input}`}
+                    />
+                    <button onClick={addNewBrokerage} className="h-10 px-4 bg-teal-500 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest">Nova</button>
+                </div>
+            </div>
+            
             <div className={`p-8 rounded-3xl border ${theme.card} space-y-8`}>
                 <section className="space-y-6">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60">Parâmetros Atuais</h3>
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60">Parâmetros de {brokerage.name}</h3>
+                        <button onClick={() => deleteBrokerage(brokerage.id)} className="text-red-500 text-[10px] font-black uppercase tracking-widest hover:underline">Excluir Corretora</button>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Nome da Banca</label><input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
                         <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Moeda</label><select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`}><option value="USD">Dólar ($)</option><option value="BRL">Real (R$)</option></select></div>
