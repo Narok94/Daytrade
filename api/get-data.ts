@@ -56,6 +56,17 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
         );
     `);
 
+    // 2. Ensure brokerage_id column exists and is UUID
+    const { rows: columnsResult } = await client.query(`
+        SELECT column_name, data_type FROM information_schema.columns
+        WHERE table_name = 'operacoes_daytrade' AND column_name = 'brokerage_id';
+    `);
+    if (columnsResult.length === 0) {
+        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN brokerage_id UUID;`);
+    } else if (columnsResult[0].data_type !== 'uuid') {
+        await client.query(`ALTER TABLE operacoes_daytrade ALTER COLUMN brokerage_id TYPE UUID USING brokerage_id::uuid;`);
+    }
+
     if (userId) {
         const { rows: settingsExist } = await client.query(`SELECT 1 FROM user_settings WHERE user_id = $1`, [userId]);
         if (settingsExist.length === 0) {
@@ -118,12 +129,15 @@ export default async function handler(
             };
 
             const recordId = op.record_id;
-            if (!recordsMap.has(recordId)) {
-                recordsMap.set(recordId, {
+            const brokerageId = op.brokerage_id;
+            const compositeKey = `${recordId}-${brokerageId}`;
+
+            if (!recordsMap.has(compositeKey)) {
+                recordsMap.set(compositeKey, {
                     recordType: 'day',
                     id: recordId,
                     date: recordId,
-                    brokerageId: op.brokerage_id,
+                    brokerageId: brokerageId,
                     trades: [],
                     startBalanceUSD: 0, 
                     winCount: 0,
@@ -133,23 +147,32 @@ export default async function handler(
                 });
             }
 
-            const record = recordsMap.get(recordId)!;
+            const record = recordsMap.get(compositeKey)!;
             record.trades.push(trade);
         }
 
-        const records = Array.from(recordsMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+        const allRecords = Array.from(recordsMap.values());
+        const finalRecords: DailyRecord[] = [];
 
-        let previousDayEndBalance = brokerages[0]?.initialBalance || 0;
-        for (const record of records) {
-            record.startBalanceUSD = previousDayEndBalance;
-            record.winCount = record.trades.filter((t: any) => t.result === 'win').length;
-            record.lossCount = record.trades.filter((t: any) => t.result === 'loss').length;
-            record.netProfitUSD = record.trades.reduce((acc: number, t: any) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0);
-            record.endBalanceUSD = record.startBalanceUSD + record.netProfitUSD;
-            previousDayEndBalance = record.endBalanceUSD;
+        // Recalibrate history for EACH brokerage independently
+        for (const brokerage of brokerages) {
+            const brokerageRecords = allRecords
+                .filter(r => r.brokerageId === brokerage.id)
+                .sort((a, b) => a.id.localeCompare(b.id));
+
+            let previousDayEndBalance = brokerage.initialBalance || 0;
+            for (const record of brokerageRecords) {
+                record.startBalanceUSD = previousDayEndBalance;
+                record.winCount = record.trades.filter((t: any) => t.result === 'win').length;
+                record.lossCount = record.trades.filter((t: any) => t.result === 'loss').length;
+                record.netProfitUSD = record.trades.reduce((acc: number, t: any) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0);
+                record.endBalanceUSD = record.startBalanceUSD + record.netProfitUSD;
+                previousDayEndBalance = record.endBalanceUSD;
+                finalRecords.push(record);
+            }
         }
 
-        return res.status(200).json({ brokerages, records, goals });
+        return res.status(200).json({ brokerages, records: finalRecords, goals });
     } catch (error) {
         console.error('Error in get-data:', error);
         return res.status(500).json({ error: (error as Error).message });

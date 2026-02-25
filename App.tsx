@@ -339,7 +339,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         } catch (error: any) { setSavingStatus('error'); }
     }, []);
 
-    const debouncedSave = useDebouncedCallback(saveData, 2000);
+    const debouncedSave = useDebouncedCallback(saveData, 1000);
 
     useEffect(() => {
         if (!isLoading) debouncedSave();

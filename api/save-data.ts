@@ -5,32 +5,7 @@ import { Brokerage, DailyRecord, Goal } from '../types';
 import { randomUUID } from 'crypto';
 
 async function ensureTablesAndMigrate(client: any, userId?: number) {
-    // 1. Check Schema Integrity for 'operacoes_daytrade'
-    const { rows: tableCheck } = await client.query(`
-        SELECT column_name, data_type 
-        FROM information_schema.columns 
-        WHERE table_name = 'operacoes_daytrade';
-    `);
-
-    if (tableCheck.length > 0) {
-        const userIdCol = tableCheck.find((c: any) => c.column_name === 'user_id');
-        const brokerageIdCol = tableCheck.find((c: any) => c.column_name === 'brokerage_id');
-        const idCol = tableCheck.find((c: any) => c.column_name === 'id');
-
-        // Critical Check: If column types are wrong, we must nuke and recreate
-        // This solves the "invalid input syntax for type integer" if a UUID was previously stored in an integer col or vice versa
-        const needsNuke = 
-            (userIdCol && userIdCol.data_type !== 'integer') || 
-            (brokerageIdCol && brokerageIdCol.data_type !== 'uuid') ||
-            (idCol && idCol.data_type !== 'uuid');
-
-        if (needsNuke) {
-            console.warn("Schema mismatch detected. Nuking 'operacoes_daytrade' for reconstruction.");
-            await client.query(`DROP TABLE IF EXISTS operacoes_daytrade CASCADE;`);
-        }
-    }
-
-    // 2. CREATE TABLES (idempotent)
+    // 1. CREATE TABLES (idempotent)
     await client.query(`
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
@@ -40,23 +15,6 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
         );
     `);
     
-    // Ensure users.id is indeed SERIAL/INTEGER
-    const { rows: userTableCheck } = await client.query(`
-        SELECT data_type FROM information_schema.columns 
-        WHERE table_name = 'users' AND column_name = 'id';
-    `);
-    if (userTableCheck.length > 0 && userTableCheck[0].data_type !== 'integer') {
-         await client.query(`DROP TABLE IF EXISTS users CASCADE;`);
-         await client.query(`
-            CREATE TABLE users (
-                id SERIAL PRIMARY KEY,
-                username VARCHAR(50) UNIQUE NOT NULL,
-                password_hash VARCHAR(255) NOT NULL,
-                created_at TIMESTAMPTZ DEFAULT NOW()
-            );
-         `);
-    }
-
     await client.query(`
         CREATE TABLE IF NOT EXISTS operacoes_daytrade (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -78,9 +36,20 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
         );
     `);
 
-    // 3. POPULATE DATA FOR MIGRATED COLUMNS (if user context is available)
+    // 2. Ensure brokerage_id column exists and is UUID
+    const { rows: columnsResult } = await client.query(`
+        SELECT column_name, data_type FROM information_schema.columns
+        WHERE table_name = 'operacoes_daytrade' AND column_name = 'brokerage_id';
+    `);
+    if (columnsResult.length === 0) {
+        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN brokerage_id UUID;`);
+    } else if (columnsResult[0].data_type !== 'uuid') {
+        // If it exists but is not UUID, we need to convert it. 
+        // This might fail if data is not valid UUID, so we use a cast.
+        await client.query(`ALTER TABLE operacoes_daytrade ALTER COLUMN brokerage_id TYPE UUID USING brokerage_id::uuid;`);
+    }
+
     if (userId) {
-        // Double check settings exist
         const { rows: settingsExist } = await client.query(`SELECT 1 FROM user_settings WHERE user_id = $1`, [userId]);
         if (settingsExist.length === 0) {
              const defaultBrokerage: Brokerage = { id: randomUUID(), name: 'Gestão Principal', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' };
@@ -152,13 +121,15 @@ export default async function handler(
             .flatMap((r: any) => r.trades.map((t: any) => ({
                 id: t.id,
                 record_id: r.id,
-                brokerage_id: r.brokerageId,
+                brokerage_id: r.brokerageId || brokerages[0]?.id, // Fallback to first brokerage if missing
                 tipo: t.result,
                 entrada: parseFloat(String(t.entryValue)) || 0,
                 payout: parseInt(String(t.payoutPercentage)) || 0,
                 resultado: t.result === 'win' ? (parseFloat(String(t.entryValue)) * (parseInt(String(t.payoutPercentage)) / 100)) : -parseFloat(String(t.entryValue)),
                 data: new Date(t.timestamp || Date.now()).toISOString()
             })));
+
+        console.log(`Saving ${allTrades.length} trades for user ${userId}`);
 
         if (allTrades.length > 0) {
             const values: any[] = [];
