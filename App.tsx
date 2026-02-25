@@ -392,12 +392,35 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     // LÓGICA DE META DIÁRIA
     const currentMonthStr = new Date().toISOString().slice(0, 7);
-    const monthRecords = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.id.startsWith(currentMonthStr) && r.brokerageId === activeBrokerage?.id);
-    const currentMonthProfit = monthRecords.reduce((acc, r) => acc + r.netProfitUSD, 0);
+    const brokerageRecords = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id);
+    
+    const customGoal = goals.find(g => g.type === 'custom' && g.deadline);
     const monthlyGoal = goals.find(g => g.type === 'monthly');
     
     let activeDailyGoal = 0;
-    if (monthlyGoal) {
+
+    if (customGoal && customGoal.deadline) {
+        const startStr = new Date(customGoal.createdAt).toISOString().split('T')[0];
+        const currentProfit = brokerageRecords
+            .filter((r: any) => r.id >= startStr && r.id <= customGoal.deadline!)
+            .reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
+        
+        const remainingToTarget = customGoal.targetAmount - currentProfit;
+        
+        // Calculate remaining days
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const deadlineDate = new Date(customGoal.deadline + 'T12:00:00');
+        deadlineDate.setHours(0,0,0,0);
+        
+        const diffTime = deadlineDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include today
+        
+        const remainingDays = Math.max(1, diffDays);
+        activeDailyGoal = Math.max(0, remainingToTarget) / remainingDays;
+    } else if (monthlyGoal) {
+        const monthRecords = brokerageRecords.filter((r: any) => r.id.startsWith(currentMonthStr));
+        const currentMonthProfit = monthRecords.reduce((acc, r) => acc + r.netProfitUSD, 0);
         const remainingToTarget = monthlyGoal.targetAmount - currentMonthProfit;
         const remainingDaysEstimate = Math.max(1, 22 - monthRecords.length); 
         activeDailyGoal = Math.max(0, remainingToTarget) / remainingDaysEstimate;
