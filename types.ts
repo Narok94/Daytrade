@@ -46,8 +46,9 @@ export interface TransactionRecord {
 export interface Goal {
   id: string;
   name: string;
-  type: 'daily' | 'weekly' | 'monthly' | 'annual';
+  type: 'daily' | 'weekly' | 'monthly' | 'annual' | 'custom';
   targetAmount: number;
+  deadline?: string; // YYYY-MM-DD
   createdAt: number;
 }
 

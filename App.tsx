@@ -898,40 +898,106 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
 const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrokerage }) => {
     const [newGoalName, setNewGoalName] = useState('');
     const [newGoalAmount, setNewGoalAmount] = useState('');
+    const [newGoalType, setNewGoalType] = useState<'weekly' | 'monthly' | 'custom'>('monthly');
+    const [newGoalDeadline, setNewGoalDeadline] = useState('');
+    
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
+    
     const addGoal = () => {
         if (!newGoalName || !newGoalAmount) return;
-        const goal: Goal = { id: crypto.randomUUID(), name: newGoalName, type: 'monthly', targetAmount: parseFloat(newGoalAmount) || 0, createdAt: Date.now() };
+        if (newGoalType === 'custom' && !newGoalDeadline) return;
+        
+        const goal: Goal = { 
+            id: crypto.randomUUID(), 
+            name: newGoalName, 
+            type: newGoalType, 
+            targetAmount: parseFloat(newGoalAmount) || 0, 
+            deadline: newGoalType === 'custom' ? newGoalDeadline : undefined,
+            createdAt: Date.now() 
+        };
         setGoals([...goals, goal]);
         setNewGoalName('');
         setNewGoalAmount('');
+        setNewGoalDeadline('');
     };
+    
     const deleteGoal = (id: string) => setGoals(goals.filter((g: Goal) => g.id !== id));
-    const currentMonthStr = new Date().toISOString().slice(0, 7);
-    const monthProfit = records.filter((r: any) => r.recordType === 'day' && r.id.startsWith(currentMonthStr) && r.brokerageId === activeBrokerage?.id).reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
+    
+    const calculateProgress = (goal: Goal) => {
+        const brokerageRecords = records.filter((r: any) => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id);
+        let relevantProfit = 0;
+        let label = "Progresso";
+
+        if (goal.type === 'monthly') {
+            const currentMonthStr = new Date().toISOString().slice(0, 7);
+            relevantProfit = brokerageRecords
+                .filter((r: any) => r.id.startsWith(currentMonthStr))
+                .reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
+            label = "Progresso do Mês";
+        } else if (goal.type === 'weekly') {
+            const now = new Date();
+            const day = now.getDay();
+            const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+            const monday = new Date(now.setDate(diff));
+            monday.setHours(0,0,0,0);
+            const mondayStr = monday.toISOString().split('T')[0];
+            
+            relevantProfit = brokerageRecords
+                .filter((r: any) => r.id >= mondayStr)
+                .reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
+            label = "Progresso da Semana";
+        } else if (goal.type === 'custom' && goal.deadline) {
+            const startStr = new Date(goal.createdAt).toISOString().split('T')[0];
+            relevantProfit = brokerageRecords
+                .filter((r: any) => r.id >= startStr && r.id <= goal.deadline!)
+                .reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
+            label = `Até ${new Date(goal.deadline + 'T12:00:00').toLocaleDateString('pt-BR')}`;
+        }
+
+        const percentage = goal.targetAmount > 0 ? (relevantProfit / goal.targetAmount) * 100 : 0;
+        return { percentage, label, current: relevantProfit };
+    };
+
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
             <div><h2 className="text-2xl font-black">Metas Financeiras</h2><p className={theme.textMuted}>Acompanhamento de objetivos a longo prazo.</p></div>
             <div className={`p-8 rounded-3xl border ${theme.card} space-y-8`}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="text" placeholder="Nome da Meta (Ex: Mensal)" value={newGoalName} onChange={e => setNewGoalName(e.target.value)} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} />
-                    <div className="flex gap-2">
-                        <input type="number" placeholder="Valor Alvo" value={newGoalAmount} onChange={e => setNewGoalAmount(e.target.value)} className={`flex-1 h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} />
-                        <button onClick={addGoal} className="px-6 bg-teal-500 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest">Adicionar</button>
+                <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="text" placeholder="Nome da Meta" value={newGoalName} onChange={e => setNewGoalName(e.target.value)} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} />
+                        <select value={newGoalType} onChange={e => setNewGoalType(e.target.value as any)} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`}>
+                            <option value="weekly">Semanal</option>
+                            <option value="monthly">Mensal</option>
+                            <option value="custom">Até certa data</option>
+                        </select>
                     </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="number" placeholder="Valor Alvo" value={newGoalAmount} onChange={e => setNewGoalAmount(e.target.value)} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} />
+                        {newGoalType === 'custom' ? (
+                            <input type="date" value={newGoalDeadline} onChange={e => setNewGoalDeadline(e.target.value)} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} />
+                        ) : (
+                            <div className="h-12" />
+                        )}
+                    </div>
+                    <button onClick={addGoal} className="w-full h-12 bg-teal-500 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest">Adicionar Meta</button>
                 </div>
+                
                 <div className="space-y-4">
                     {goals.map((goal: Goal) => {
-                        const progress = goal.targetAmount > 0 ? (monthProfit / goal.targetAmount) * 100 : 0;
+                        const { percentage, label, current } = calculateProgress(goal);
                         return (
                             <div key={goal.id} className="p-6 rounded-3xl bg-slate-950/30 border border-slate-800/50 space-y-4">
                                 <div className="flex justify-between items-start">
-                                    <div><p className="text-[10px] font-black uppercase text-slate-500 mb-1">{goal.name}</p><h4 className="text-xl font-black">{currencySymbol} {formatMoney(goal.targetAmount)}</h4></div>
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase text-slate-500 mb-1">{goal.name}</p>
+                                        <h4 className="text-xl font-black">{currencySymbol} {formatMoney(goal.targetAmount)}</h4>
+                                        <p className="text-[10px] font-bold text-slate-400 mt-1">Atual: {currencySymbol} {formatMoney(current)}</p>
+                                    </div>
                                     <button onClick={() => deleteGoal(goal.id)} className="text-red-500/50 hover:text-red-500"><TrashIcon className="w-5 h-5" /></button>
                                 </div>
                                 <div className="space-y-2">
-                                    <div className="flex justify-between text-[10px] font-black uppercase"><span className="text-slate-500">Progresso do Mês</span><span className={progress >= 100 ? 'text-green-500' : 'text-blue-400'}>{progress.toFixed(1)}%</span></div>
-                                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden"><div className={`h-full transition-all duration-500 ${progress >= 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} /></div>
+                                    <div className="flex justify-between text-[10px] font-black uppercase"><span className="text-slate-500">{label}</span><span className={percentage >= 100 ? 'text-green-500' : 'text-blue-400'}>{percentage.toFixed(1)}%</span></div>
+                                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden"><div className={`h-full transition-all duration-500 ${percentage >= 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }} /></div>
                                 </div>
                             </div>
                         );
