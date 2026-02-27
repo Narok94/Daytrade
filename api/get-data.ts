@@ -175,7 +175,7 @@ export default async function handler(
                 .sort((a, b) => {
                     const dateA = a.recordType === 'day' ? a.id : a.date;
                     const dateB = b.recordType === 'day' ? b.id : b.date;
-                    if (dateA && dateB && dateA !== dateB) return dateA.localeCompare(dateB);
+                    if (dateA !== dateB) return dateA.localeCompare(dateB);
                     return (a.timestamp || 0) - (b.timestamp || 0);
                 });
 

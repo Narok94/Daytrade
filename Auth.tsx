@@ -6,7 +6,7 @@ import { User } from './types';
 const Auth: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(() => {
         try {
-            const savedUserJSON = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
+            const savedUserJSON = sessionStorage.getItem('currentUser');
             if (!savedUserJSON) return null;
 
             const savedUser = JSON.parse(savedUserJSON);
@@ -17,22 +17,20 @@ const Auth: React.FC = () => {
             if (savedUser && (typeof savedUser.id !== 'number' || !Number.isInteger(savedUser.id))) {
                 console.warn('Corrupt user session found. Clearing session to force re-authentication.');
                 sessionStorage.removeItem('currentUser');
-                localStorage.removeItem('currentUser');
                 return null; 
             }
             
             return savedUser;
         } catch (error) {
-            console.error("Failed to parse user from storage. Clearing...", error);
+            console.error("Failed to parse user from sessionStorage. Clearing...", error);
             // Also clear corrupt data if JSON parsing fails
             sessionStorage.removeItem('currentUser');
-            localStorage.removeItem('currentUser');
             return null;
         }
     });
     const [authError, setAuthError] = useState('');
 
-    const handleLogin = useCallback(async (username: string, password: string, rememberMe: boolean = false): Promise<boolean> => {
+    const handleLogin = useCallback(async (username: string, password: string): Promise<boolean> => {
         setAuthError('');
         try {
             const response = await fetch('/api/login', {
@@ -46,11 +44,7 @@ const Auth: React.FC = () => {
             if (response.ok) {
                 const user: User = data.user;
                 setCurrentUser(user);
-                if (rememberMe) {
-                    localStorage.setItem('currentUser', JSON.stringify(user));
-                } else {
-                    sessionStorage.setItem('currentUser', JSON.stringify(user));
-                }
+                sessionStorage.setItem('currentUser', JSON.stringify(user));
                 return true;
             } else {
                 // Se houver detalhes do erro (como erro do banco), exibe eles
@@ -92,7 +86,6 @@ const Auth: React.FC = () => {
     const handleLogout = useCallback(() => {
         setCurrentUser(null);
         sessionStorage.removeItem('currentUser');
-        localStorage.removeItem('currentUser');
     }, []);
 
     if (!currentUser) {
