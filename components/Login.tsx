@@ -266,15 +266,23 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
 
                         {!isRegistering && (
                             <div className="flex items-center gap-2 px-2">
-                                <input
-                                    type="checkbox"
-                                    id="rememberMe"
-                                    checked={rememberMe}
-                                    onChange={(e) => setRememberMe(e.target.checked)}
-                                    className="w-4 h-4 rounded border-slate-800 bg-slate-950/50 text-emerald-500 focus:ring-emerald-500/50 cursor-pointer"
-                                />
-                                <label htmlFor="rememberMe" className="text-[9px] font-black text-white/60 uppercase tracking-widest cursor-pointer hover:text-white/80 transition-colors">
-                                    Lembrar-me
+                                <label className="flex items-center cursor-pointer group">
+                                    <div className="relative">
+                                        <input
+                                            type="checkbox"
+                                            checked={rememberMe}
+                                            onChange={(e) => setRememberMe(e.target.checked)}
+                                            className="sr-only"
+                                        />
+                                        <div className={`w-4 h-4 rounded border transition-all ${rememberMe ? 'bg-emerald-500 border-emerald-500' : 'bg-white/5 border-white/20 group-hover:border-emerald-500/50'}`}>
+                                            {rememberMe && (
+                                                <svg className="w-3 h-3 text-white mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <span className="text-[9px] font-black text-white/50 uppercase tracking-widest ml-2 group-hover:text-emerald-400/70 transition-colors">Lembrar-me</span>
                                 </label>
                             </div>
                         )}

@@ -6,14 +6,19 @@ import { User } from './types';
 const Auth: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(() => {
         try {
-            const savedUserJSON = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
+            // Check sessionStorage first (current tab session)
+            let savedUserJSON = sessionStorage.getItem('currentUser');
+            
+            // If not in sessionStorage, check localStorage (persistent session)
+            if (!savedUserJSON) {
+                savedUserJSON = localStorage.getItem('currentUser');
+            }
+
             if (!savedUserJSON) return null;
 
             const savedUser = JSON.parse(savedUserJSON);
 
-            // FIX: Validate the user object from sessionStorage.
-            // If the ID is not an integer, the data is corrupt/stale from a previous version.
-            // Clear the session and force re-login to get fresh, valid data.
+            // FIX: Validate the user object.
             if (savedUser && (typeof savedUser.id !== 'number' || !Number.isInteger(savedUser.id))) {
                 console.warn('Corrupt user session found. Clearing session to force re-authentication.');
                 sessionStorage.removeItem('currentUser');
@@ -24,7 +29,6 @@ const Auth: React.FC = () => {
             return savedUser;
         } catch (error) {
             console.error("Failed to parse user from storage. Clearing...", error);
-            // Also clear corrupt data if JSON parsing fails
             sessionStorage.removeItem('currentUser');
             localStorage.removeItem('currentUser');
             return null;
@@ -46,14 +50,19 @@ const Auth: React.FC = () => {
             if (response.ok) {
                 const user: User = data.user;
                 setCurrentUser(user);
+                
+                // Always set sessionStorage for the current session
+                sessionStorage.setItem('currentUser', JSON.stringify(user));
+                
+                // If rememberMe is checked, also set localStorage
                 if (rememberMe) {
                     localStorage.setItem('currentUser', JSON.stringify(user));
                 } else {
-                    sessionStorage.setItem('currentUser', JSON.stringify(user));
+                    localStorage.removeItem('currentUser');
                 }
+                
                 return true;
             } else {
-                // Se houver detalhes do erro (como erro do banco), exibe eles
                 const errorMessage = data.details ? `${data.error}: ${data.details}` : (data.error || 'Falha ao fazer login.');
                 setAuthError(errorMessage);
                 return false;
