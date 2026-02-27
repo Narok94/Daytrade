@@ -488,6 +488,24 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         activeDailyGoal = (activeBrokerage?.initialBalance * 0.03 || 1);
     }
 
+    const brokerageBalances = useMemo(() => {
+        return brokerages.map(b => {
+            const bRecords = records.filter(r => r.brokerageId === b.id);
+            if (bRecords.length === 0) return { name: b.name, balance: b.initialBalance, currency: b.currency };
+            
+            const sorted = bRecords.sort((r1, r2) => {
+                const d1 = r1.recordType === 'day' ? r1.id : r1.date;
+                const d2 = r2.recordType === 'day' ? r2.id : r2.date;
+                if (d1 !== d2) return d1.localeCompare(d2);
+                return ((r1 as any).timestamp || 0) - ((r2 as any).timestamp || 0);
+            });
+            
+            const last = sorted[sorted.length - 1];
+            const balance = last.recordType === 'day' ? last.endBalanceUSD : (last as TransactionRecord).runningBalanceUSD || 0;
+            return { name: b.name, balance, currency: b.currency };
+        });
+    }, [brokerages, records]);
+
     return (
         <div className={`flex h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
             {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
@@ -522,9 +540,21 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             </select>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button>
-                        <div className="w-10 h-10 rounded-2xl bg-teal-500 flex items-center justify-center text-slate-950 font-black text-xs">{user.username.slice(0, 2).toUpperCase()}</div>
+                    <div className="flex items-center gap-4">
+                        <div className="hidden lg:flex items-center gap-4 mr-4">
+                            {brokerageBalances.map((bb, idx) => (
+                                <div key={idx} className="flex flex-col items-end">
+                                    <span className="text-[8px] font-black uppercase text-slate-500 leading-none">{bb.name}</span>
+                                    <span className={`text-xs font-black ${theme.text}`}>
+                                        {bb.currency === 'USD' ? '$' : 'R$'} {formatMoney(bb.balance)}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button>
+                            <div className="w-10 h-10 rounded-2xl bg-teal-500 flex items-center justify-center text-slate-950 font-black text-xs">{user.username.slice(0, 2).toUpperCase()}</div>
+                        </div>
                     </div>
                 </header>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">

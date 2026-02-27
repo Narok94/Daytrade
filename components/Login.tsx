@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UserIcon, LockClosedIcon } from './icons';
 
 interface LoginProps {
-    onLogin: (username: string, password: string) => Promise<boolean>;
+    onLogin: (username: string, password: string, rememberMe: boolean) => Promise<boolean>;
     onRegister: (username: string, password: string) => Promise<void>;
     error: string;
     setError: (error: string) => void;
@@ -12,6 +12,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
     const [isRegistering, setIsRegistering] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [currentTime, setCurrentTime] = useState('');
@@ -172,7 +173,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                 }
                 await onRegister(username, password);
             } else {
-                await onLogin(username, password);
+                await onLogin(username, password, rememberMe);
             }
         } finally {
             setIsLoading(false);
@@ -260,6 +261,21 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                                     placeholder="CONFIRM PASSWORD"
                                     required
                                 />
+                            </div>
+                        )}
+
+                        {!isRegistering && (
+                            <div className="flex items-center gap-2 px-2">
+                                <input
+                                    type="checkbox"
+                                    id="rememberMe"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    className="w-4 h-4 rounded border-slate-800 bg-slate-950/50 text-emerald-500 focus:ring-emerald-500/50 cursor-pointer"
+                                />
+                                <label htmlFor="rememberMe" className="text-[9px] font-black text-white/60 uppercase tracking-widest cursor-pointer hover:text-white/80 transition-colors">
+                                    Lembrar-me
+                                </label>
                             </div>
                         )}
                     </fieldset>
