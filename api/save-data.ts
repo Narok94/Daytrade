@@ -1,7 +1,7 @@
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { db } from '@vercel/postgres';
-import { Brokerage, DailyRecord, Goal } from '../types';
+import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Goal } from '../types';
 import { randomUUID } from 'crypto';
 
 async function ensureTablesAndMigrate(client: any, userId?: number) {
@@ -77,7 +77,7 @@ export default async function handler(
     try {
         const { brokerages, records, goals } = req.body as {
             brokerages: Brokerage[];
-            records: DailyRecord[];
+            records: AppRecord[];
             goals: Goal[];
         };
         
@@ -121,7 +121,7 @@ export default async function handler(
             .flatMap((r: any) => r.trades.map((t: any) => ({
                 id: t.id,
                 record_id: r.id,
-                brokerage_id: r.brokerageId || brokerages[0]?.id, // Fallback to first brokerage if missing
+                brokerage_id: r.brokerageId || brokerages[0]?.id,
                 tipo: t.result,
                 entrada: parseFloat(String(t.entryValue)) || 0,
                 payout: parseInt(String(t.payoutPercentage)) || 0,
@@ -129,11 +129,26 @@ export default async function handler(
                 data: new Date(t.timestamp || Date.now()).toISOString()
             })));
 
-        console.log(`Saving ${allTrades.length} trades for user ${userId}`);
+        const allTransactions = records
+            .filter(r => r.recordType === 'deposit' || r.recordType === 'withdrawal')
+            .map((r: any) => ({
+                id: r.id,
+                record_id: r.date,
+                brokerage_id: r.brokerageId || brokerages[0]?.id,
+                tipo: r.recordType,
+                entrada: parseFloat(String(r.amountUSD)) || 0,
+                payout: 0,
+                resultado: r.recordType === 'deposit' ? parseFloat(String(r.amountUSD)) : -parseFloat(String(r.amountUSD)),
+                data: new Date(r.timestamp || Date.now()).toISOString()
+            }));
 
-        if (allTrades.length > 0) {
+        const allEntries = [...allTrades, ...allTransactions];
+
+        console.log(`Saving ${allEntries.length} entries (${allTrades.length} trades, ${allTransactions.length} transactions) for user ${userId}`);
+
+        if (allEntries.length > 0) {
             const values: any[] = [];
-            const placeholders = allTrades.map((t, i) => {
+            const placeholders = allEntries.map((t, i) => {
                 const offset = i * 9;
                 values.push(t.id, userId, t.record_id, t.brokerage_id, t.tipo, t.entrada, t.payout, t.resultado, t.data);
                 return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9})`;

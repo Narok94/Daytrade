@@ -117,57 +117,82 @@ export default async function handler(
             [userId]
         );
         
-        const recordsMap = new Map<string, DailyRecord>();
+        const dailyRecordsMap = new Map<string, DailyRecord>();
+        const transactionRecords: any[] = [];
 
         for (const op of operationsResult) {
-            const trade: Trade = {
-                id: op.id,
-                result: op.tipo_operacao === 'win' ? 'win' : 'loss',
-                entryValue: parseFloat(op.valor_entrada),
-                payoutPercentage: op.payout_percentage,
-                timestamp: new Date(op.data_operacao).getTime(),
-            };
-
             const recordId = op.record_id;
             const brokerageId = op.brokerage_id;
             const compositeKey = `${recordId}-${brokerageId}`;
 
-            if (!recordsMap.has(compositeKey)) {
-                recordsMap.set(compositeKey, {
-                    recordType: 'day',
-                    id: recordId,
-                    date: recordId,
+            if (op.tipo_operacao === 'win' || op.tipo_operacao === 'loss') {
+                const trade: Trade = {
+                    id: op.id,
+                    result: op.tipo_operacao === 'win' ? 'win' : 'loss',
+                    entryValue: parseFloat(op.valor_entrada),
+                    payoutPercentage: op.payout_percentage,
+                    timestamp: new Date(op.data_operacao).getTime(),
+                };
+
+                if (!dailyRecordsMap.has(compositeKey)) {
+                    dailyRecordsMap.set(compositeKey, {
+                        recordType: 'day',
+                        id: recordId,
+                        date: recordId,
+                        brokerageId: brokerageId,
+                        trades: [],
+                        startBalanceUSD: 0, 
+                        winCount: 0,
+                        lossCount: 0,
+                        netProfitUSD: 0,
+                        endBalanceUSD: 0,
+                    });
+                }
+
+                const record = dailyRecordsMap.get(compositeKey)!;
+                record.trades.push(trade);
+            } else if (op.tipo_operacao === 'deposit' || op.tipo_operacao === 'withdrawal') {
+                transactionRecords.push({
+                    recordType: op.tipo_operacao,
                     brokerageId: brokerageId,
-                    trades: [],
-                    startBalanceUSD: 0, 
-                    winCount: 0,
-                    lossCount: 0,
-                    netProfitUSD: 0,
-                    endBalanceUSD: 0,
+                    id: op.id,
+                    date: recordId,
+                    displayDate: new Date(recordId + 'T12:00:00').toLocaleDateString('pt-BR'),
+                    amountUSD: parseFloat(op.valor_entrada),
+                    notes: '',
+                    timestamp: new Date(op.data_operacao).getTime()
                 });
             }
-
-            const record = recordsMap.get(compositeKey)!;
-            record.trades.push(trade);
         }
 
-        const allRecords = Array.from(recordsMap.values());
-        const finalRecords: DailyRecord[] = [];
+        const allParsedRecords = [...Array.from(dailyRecordsMap.values()), ...transactionRecords];
+        const finalRecords: any[] = [];
 
         // Recalibrate history for EACH brokerage independently
         for (const brokerage of brokerages) {
-            const brokerageRecords = allRecords
+            const brokerageRecords = allParsedRecords
                 .filter(r => r.brokerageId === brokerage.id)
-                .sort((a, b) => a.id.localeCompare(b.id));
+                .sort((a, b) => {
+                    const dateA = a.recordType === 'day' ? a.id : a.date;
+                    const dateB = b.recordType === 'day' ? b.id : b.date;
+                    if (dateA !== dateB) return dateA.localeCompare(dateB);
+                    return (a.timestamp || 0) - (b.timestamp || 0);
+                });
 
             let previousDayEndBalance = brokerage.initialBalance || 0;
             for (const record of brokerageRecords) {
-                record.startBalanceUSD = previousDayEndBalance;
-                record.winCount = record.trades.filter((t: any) => t.result === 'win').length;
-                record.lossCount = record.trades.filter((t: any) => t.result === 'loss').length;
-                record.netProfitUSD = record.trades.reduce((acc: number, t: any) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0);
-                record.endBalanceUSD = record.startBalanceUSD + record.netProfitUSD;
-                previousDayEndBalance = record.endBalanceUSD;
+                if (record.recordType === 'day') {
+                    record.startBalanceUSD = previousDayEndBalance;
+                    record.winCount = record.trades.filter((t: any) => t.result === 'win').length;
+                    record.lossCount = record.trades.filter((t: any) => t.result === 'loss').length;
+                    record.netProfitUSD = record.trades.reduce((acc: number, t: any) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0);
+                    record.endBalanceUSD = record.startBalanceUSD + record.netProfitUSD;
+                    previousDayEndBalance = record.endBalanceUSD;
+                } else {
+                    // Transaction
+                    const amount = record.recordType === 'deposit' ? record.amountUSD : -record.amountUSD;
+                    previousDayEndBalance += amount;
+                }
                 finalRecords.push(record);
             }
         }
