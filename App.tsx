@@ -422,6 +422,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     const theme = useThemeClasses(isDarkMode);
     if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" /></div>;
+    if (!activeBrokerage) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="text-teal-500 font-black uppercase tracking-widest">Carregando Corretora...</div></div>;
 
     const dateStr = selectedDate.toISOString().split('T')[0];
     const brokerageRecords = records.filter(r => r.brokerageId === activeBrokerage?.id);
@@ -826,7 +827,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             runningBalance = final;
         }
         return rows;
-    }, [records, activeBrokerage.initialBalance, projWins, projLosses, projEntryPercent, projPayout]);
+    }, [records, activeBrokerage?.initialBalance, projWins, projLosses, projEntryPercent, projPayout]);
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
