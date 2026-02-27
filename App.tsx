@@ -298,7 +298,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     }, [activeBrokerage, records, selectedDate]);
 
     const recalibrateHistory = useCallback((allRecords: AppRecord[], initialBal: number, brokerageId: string) => {
-        let runningBalance = initialBal;
         const otherRecords = allRecords.filter(r => r.brokerageId !== brokerageId);
         const brokerageRecords = allRecords.filter(r => r.brokerageId === brokerageId)
             .sort((a, b) => {
@@ -310,6 +309,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 return timeA - timeB;
             });
         
+        let runningBalance = initialBal;
         const updatedBrokerageRecords = brokerageRecords.map(r => {
             if (r.recordType === 'day') {
                 const winCount = r.trades.filter(t => t.result === 'win').length;
@@ -329,6 +329,14 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         return [...otherRecords, ...updatedBrokerageRecords];
     }, []);
 
+    const recalibrateAll = useCallback((allRecords: AppRecord[], allBrokerages: Brokerage[]) => {
+        let currentRecords = [...allRecords];
+        for (const b of allBrokerages) {
+            currentRecords = recalibrateHistory(currentRecords, b.initialBalance, b.id);
+        }
+        return currentRecords;
+    }, [recalibrateHistory]);
+
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -336,10 +344,13 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             if (response.ok) {
                 const data = await response.json();
                 const loadedBrokerages = data.brokerages?.length ? data.brokerages : [{ id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' }];
-                setBrokerages(loadedBrokerages); setRecords(data.records || []); setGoals(data.goals || []);
+                const recalibratedRecords = recalibrateAll(data.records || [], loadedBrokerages);
+                setBrokerages(loadedBrokerages); 
+                setRecords(recalibratedRecords); 
+                setGoals(data.goals || []);
             }
         } catch (e) { console.error(e); } finally { setIsLoading(false); }
-    }, [user.id]);
+    }, [user.id, recalibrateAll]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -419,6 +430,24 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     };
 
     const handleReset = () => { if(confirm("Apagar todo histórico?")) { setRecords([]); } };
+
+    const brokerageBalances = useMemo(() => {
+        return brokerages.map(b => {
+            const bRecords = records.filter(r => r.brokerageId === b.id)
+                .sort((a, b) => {
+                    const dateA = a.recordType === 'day' ? a.id : a.date;
+                    const dateB = b.recordType === 'day' ? b.id : b.date;
+                    if (dateA !== dateB) return dateA.localeCompare(dateB);
+                    return ((a as any).timestamp || 0) - ((b as any).timestamp || 0);
+                });
+            
+            if (bRecords.length === 0) return { name: b.name, balance: b.initialBalance, currency: b.currency };
+            
+            const last = bRecords[bRecords.length - 1];
+            const balance = last.recordType === 'day' ? last.endBalanceUSD : (last as TransactionRecord).runningBalanceUSD || 0;
+            return { name: b.name, balance, currency: b.currency };
+        });
+    }, [brokerages, records]);
 
     const theme = useThemeClasses(isDarkMode);
     if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" /></div>;
@@ -523,6 +552,16 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
+                        <div className="hidden lg:flex items-center gap-4 mr-4">
+                            {brokerageBalances.map((b, i) => (
+                                <div key={i} className={`flex flex-col items-end px-3 py-1 rounded-xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                                    <span className="text-[8px] font-black uppercase opacity-50 leading-none">{b.name}</span>
+                                    <span className={`text-xs font-black ${b.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                        {b.currency === 'USD' ? '$' : 'R$'} {formatMoney(b.balance)}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
                         <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button>
                         <div className="w-10 h-10 rounded-2xl bg-teal-500 flex items-center justify-center text-slate-950 font-black text-xs">{user.username.slice(0, 2).toUpperCase()}</div>
                     </div>

@@ -192,6 +192,7 @@ export default async function handler(
                     // Transaction
                     const amount = record.recordType === 'deposit' ? record.amountUSD : -record.amountUSD;
                     previousDayEndBalance += amount;
+                    record.runningBalanceUSD = previousDayEndBalance;
                 }
                 finalRecords.push(record);
             }
