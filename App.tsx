@@ -288,7 +288,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     useEffect(() => {
         if (!activeBrokerage) return;
         const dateKey = selectedDate.toISOString().split('T')[0];
-        const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateKey).sort((a,b) => b.id.localeCompare(a.id));
+        const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateKey).sort((a,b) => (b.id && a.id) ? b.id.localeCompare(a.id) : 0);
         const startBal = sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
         const dailyRecordForSelectedDay = records.find((r): r is DailyRecord => r.id === dateKey && r.recordType === 'day');
         const currentBalance = dailyRecordForSelectedDay?.endBalanceUSD ?? startBal;
@@ -300,11 +300,11 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const recalibrateHistory = useCallback((allRecords: AppRecord[], initialBal: number, brokerageId: string) => {
         let runningBalance = initialBal;
         const otherRecords = allRecords.filter(r => r.brokerageId !== brokerageId);
-        const brokerageRecords = allRecords.filter(r => r.brokerageId === brokerageId)
+        const brokerageRecords = allRecords.filter(r => r && r.brokerageId === brokerageId)
             .sort((a, b) => {
                 const dateA = a.recordType === 'day' ? a.id : a.date;
                 const dateB = b.recordType === 'day' ? b.id : b.date;
-                if (dateA !== dateB) return dateA.localeCompare(dateB);
+                if (dateA && dateB && dateA !== dateB) return dateA.localeCompare(dateB);
                 const timeA = (a as any).timestamp || 0;
                 const timeB = (b as any).timestamp || 0;
                 return timeA - timeB;
@@ -362,7 +362,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         if (!activeBrokerage) return;
         setRecords(prev => {
             const dateKey = selectedDate.toISOString().split('T')[0];
-            const sortedPrevious = prev.filter((r): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage.id && r.date < dateKey).sort((a,b) => b.id.localeCompare(a.id));
+            const sortedPrevious = prev.filter((r): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage.id && r.date < dateKey).sort((a,b) => (b.id && a.id) ? b.id.localeCompare(a.id) : 0);
             const startBal = sortedPrevious.length > 0 ? sortedPrevious[0].endBalanceUSD : (activeBrokerage.initialBalance || 0);
             const dailyRecordForSelectedDay = prev.find((r): r is DailyRecord => r.id === dateKey && r.recordType === 'day' && r.brokerageId === activeBrokerage.id);
             const currentBalance = dailyRecordForSelectedDay?.endBalanceUSD ?? startBal;
@@ -421,8 +421,25 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const handleReset = () => { if(confirm("Apagar todo histórico?")) { setRecords([]); } };
 
     const theme = useThemeClasses(isDarkMode);
-    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" /></div>;
-    if (!activeBrokerage) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="text-teal-500 font-black uppercase tracking-widest">Carregando Corretora...</div></div>;
+    
+    if (isLoading) {
+        return (
+            <div className={`h-screen w-full flex flex-col items-center justify-center bg-slate-950 text-teal-500`}>
+                <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">Sincronizando Dados...</p>
+            </div>
+        );
+    }
+
+    if (!activeBrokerage) {
+        return (
+            <div className={`h-screen w-full flex flex-col items-center justify-center bg-slate-950 text-teal-500 p-10 text-center`}>
+                <InformationCircleIcon className="w-12 h-12 mb-4 opacity-50" />
+                <p className="text-[10px] font-black uppercase tracking-[0.3em]">Nenhuma Corretora Encontrada</p>
+                <button onClick={onLogout} className="mt-6 px-6 py-3 bg-teal-500 text-slate-950 rounded-2xl font-black uppercase text-[10px] tracking-widest">Voltar ao Login</button>
+            </div>
+        );
+    }
 
     const dateStr = selectedDate.toISOString().split('T')[0];
     const brokerageRecords = records.filter(r => r.brokerageId === activeBrokerage?.id);
@@ -434,11 +451,13 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const recordsOnDay = brokerageRecords.filter(r => getRecordDate(r) === dateStr)
         .sort((a, b) => ((a as any).timestamp || 0) - ((b as any).timestamp || 0));
     
-    const recordsBeforeDay = brokerageRecords.filter(r => getRecordDate(r) < dateStr)
-        .sort((a, b) => {
+    const recordsBeforeDay = brokerageRecords.filter(r => {
+        const d = getRecordDate(r);
+        return d && d < dateStr;
+    }).sort((a, b) => {
              const d1 = getRecordDate(a);
              const d2 = getRecordDate(b);
-             if (d1 !== d2) return d1.localeCompare(d2);
+             if (d1 && d2 && d1 !== d2) return d1.localeCompare(d2);
              return ((a as any).timestamp || 0) - ((b as any).timestamp || 0);
         });
 
@@ -490,20 +509,23 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     }
 
     const brokerageBalances = useMemo(() => {
+        if (!brokerages || brokerages.length === 0) return [];
         return brokerages.map(b => {
-            const bRecords = records.filter(r => r.brokerageId === b.id);
-            if (bRecords.length === 0) return { name: b.name, balance: b.initialBalance, currency: b.currency };
+            const bRecords = (records || []).filter(r => r && r.brokerageId === b.id);
+            if (bRecords.length === 0) return { name: b.name, balance: b.initialBalance || 0, currency: b.currency || 'USD' };
             
-            const sorted = bRecords.sort((r1, r2) => {
+            const sorted = [...bRecords].sort((r1, r2) => {
                 const d1 = r1.recordType === 'day' ? r1.id : r1.date;
                 const d2 = r2.recordType === 'day' ? r2.id : r2.date;
-                if (d1 !== d2) return d1.localeCompare(d2);
+                if (d1 && d2 && d1 !== d2) return d1.localeCompare(d2);
                 return ((r1 as any).timestamp || 0) - ((r2 as any).timestamp || 0);
             });
             
             const last = sorted[sorted.length - 1];
-            const balance = last.recordType === 'day' ? last.endBalanceUSD : (last as TransactionRecord).runningBalanceUSD || 0;
-            return { name: b.name, balance, currency: b.currency };
+            if (!last) return { name: b.name, balance: b.initialBalance || 0, currency: b.currency || 'USD' };
+
+            const balance = last.recordType === 'day' ? (last.endBalanceUSD || 0) : ((last as TransactionRecord).runningBalanceUSD || 0);
+            return { name: b.name, balance, currency: b.currency || 'USD' };
         });
     }, [brokerages, records]);
 
@@ -554,7 +576,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                         </div>
                         <div className="flex items-center gap-3">
                             <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button>
-                            <div className="w-10 h-10 rounded-2xl bg-teal-500 flex items-center justify-center text-slate-950 font-black text-xs">{user.username.slice(0, 2).toUpperCase()}</div>
+                            <div className="w-10 h-10 rounded-2xl bg-teal-500 flex items-center justify-center text-slate-950 font-black text-xs">{(user?.username || '??').slice(0, 2).toUpperCase()}</div>
                         </div>
                     </div>
                 </header>
@@ -773,7 +795,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 
     const tableData = useMemo(() => {
         const rows = [];
-        const sortedRealRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0).sort((a: DailyRecord, b: DailyRecord) => a.id.localeCompare(b.id));
+        const sortedRealRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0).sort((a: DailyRecord, b: DailyRecord) => (a.id && b.id) ? a.id.localeCompare(b.id) : 0);
         let startDate = sortedRealRecords.length > 0 ? new Date(sortedRealRecords[0].id + 'T12:00:00') : new Date();
         startDate.setHours(12,0,0,0);
         let runningBalance = activeBrokerage?.initialBalance || 0;
@@ -908,7 +930,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
 const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, deleteTrade }) => {
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-    const dayRecords = records.filter((r: any) => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0).sort((a: any, b: any) => b.id.localeCompare(a.id));
+    const dayRecords = records.filter((r: any) => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0).sort((a: any, b: any) => (b.id && a.id) ? b.id.localeCompare(a.id) : 0);
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div><h2 className={`text-2xl font-black ${theme.text}`}>Extrato de Operações</h2><p className={theme.textMuted}>Histórico completo de performance.</p></div>
@@ -946,7 +968,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) =
         const dayRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0);
         
         if (viewMode === 'daily') {
-            return dayRecords.sort((a: DailyRecord, b: DailyRecord) => b.id.localeCompare(a.id)).map((r: DailyRecord) => ({
+            return dayRecords.sort((a: DailyRecord, b: DailyRecord) => (b.id && a.id) ? b.id.localeCompare(a.id) : 0).map((r: DailyRecord) => ({
                 id: r.id,
                 label: new Date(r.id + 'T12:00:00').toLocaleDateString('pt-BR'),
                 profit: r.netProfitUSD,
@@ -974,7 +996,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) =
                 weeks[weekId].losses += r.lossCount;
                 weeks[weekId].total += (r.winCount + r.lossCount);
             });
-            return Object.values(weeks).sort((a, b) => b.id.localeCompare(a.id)).map(w => ({
+            return Object.values(weeks).sort((a, b) => (b.id && a.id) ? b.id.localeCompare(a.id) : 0).map(w => ({
                 ...w,
                 winRate: w.total > 0 ? (w.wins / w.total) * 100 : 0
             }));
@@ -995,7 +1017,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) =
                 months[monthId].losses += r.lossCount;
                 months[monthId].total += (r.winCount + r.lossCount);
             });
-            return Object.values(months).sort((a, b) => b.id.localeCompare(a.id)).map(m => ({
+            return Object.values(months).sort((a, b) => (b.id && a.id) ? b.id.localeCompare(a.id) : 0).map(m => ({
                 ...m,
                 winRate: m.total > 0 ? (m.wins / m.total) * 100 : 0
             }));
