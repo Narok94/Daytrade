@@ -130,7 +130,7 @@ export default async function handler(
             })));
 
         const allTransactions = records
-            .filter(r => r.recordType === 'deposit' || r.recordType === 'withdrawal')
+            .filter(r => (r.recordType as string) === 'deposit' || (r.recordType as string) === 'withdrawal')
             .map((r: any) => ({
                 id: r.id,
                 record_id: r.date,
@@ -138,7 +138,7 @@ export default async function handler(
                 tipo: r.recordType,
                 entrada: parseFloat(String(r.amountUSD)) || 0,
                 payout: 0,
-                resultado: r.recordType === 'deposit' ? parseFloat(String(r.amountUSD)) : -parseFloat(String(r.amountUSD)),
+                resultado: (r.recordType as string) === 'deposit' ? parseFloat(String(r.amountUSD)) : -parseFloat(String(r.amountUSD)),
                 data: new Date(r.timestamp || Date.now()).toISOString()
             }));
 

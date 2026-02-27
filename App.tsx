@@ -322,7 +322,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             } else {
                 const amount = r.recordType === 'deposit' ? r.amountUSD : -r.amountUSD;
                 runningBalance += amount;
-                return r;
+                return { ...r, runningBalanceUSD: runningBalance };
             }
         });
 
@@ -424,15 +424,35 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" /></div>;
 
     const dateStr = selectedDate.toISOString().split('T')[0];
-    const dailyRecord = records.find((r): r is DailyRecord => r.id === dateStr && r.recordType === 'day' && r.brokerageId === activeBrokerage?.id);
-    const dayTransactions = records.filter((r): r is TransactionRecord => r.date === dateStr && (r.recordType === 'deposit' || r.recordType === 'withdrawal') && r.brokerageId === activeBrokerage?.id);
+    const brokerageRecords = records.filter(r => r.brokerageId === activeBrokerage?.id);
     
-    const sortedPreviousForDashboard = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.id < dateStr && r.brokerageId === activeBrokerage?.id).sort((a: DailyRecord, b: DailyRecord) => b.id.localeCompare(a.id));
-    const startBalDashboard = sortedPreviousForDashboard.length > 0 ? sortedPreviousForDashboard[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
+    // Helper to get balance from a record
+    const getRecordBalance = (r: AppRecord) => r.recordType === 'day' ? r.endBalanceUSD : (r as TransactionRecord).runningBalanceUSD || 0;
+    const getRecordDate = (r: AppRecord) => r.recordType === 'day' ? r.id : r.date;
+
+    const recordsOnDay = brokerageRecords.filter(r => getRecordDate(r) === dateStr)
+        .sort((a, b) => ((a as any).timestamp || 0) - ((b as any).timestamp || 0));
+    
+    const recordsBeforeDay = brokerageRecords.filter(r => getRecordDate(r) < dateStr)
+        .sort((a, b) => {
+             const d1 = getRecordDate(a);
+             const d2 = getRecordDate(b);
+             if (d1 !== d2) return d1.localeCompare(d2);
+             return ((a as any).timestamp || 0) - ((b as any).timestamp || 0);
+        });
+
+    const lastRecordBeforeDay = recordsBeforeDay[recordsBeforeDay.length - 1];
+    const startBalDashboard = lastRecordBeforeDay ? getRecordBalance(lastRecordBeforeDay) : (activeBrokerage?.initialBalance || 0);
+
+    const lastRecordOfDay = recordsOnDay[recordsOnDay.length - 1];
+    const currentBalanceForDashboard = lastRecordOfDay ? getRecordBalance(lastRecordOfDay) : startBalDashboard;
+
+    const dailyRecord = recordsOnDay.find((r): r is DailyRecord => r.recordType === 'day');
+    const dayTransactions = recordsOnDay.filter((r): r is TransactionRecord => r.recordType === 'deposit' || r.recordType === 'withdrawal');
 
     // LÓGICA DE META DIÁRIA
     const currentMonthStr = new Date().toISOString().slice(0, 7);
-    const brokerageRecords = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id);
+    const dailyBrokerageRecords = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id);
     
     const customGoal = goals.find(g => g.type === 'custom' && g.deadline);
     const monthlyGoal = goals.find(g => g.type === 'monthly');
@@ -441,9 +461,9 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     if (customGoal && customGoal.deadline) {
         const startStr = new Date(customGoal.createdAt).toISOString().split('T')[0];
-        const currentProfit = brokerageRecords
-            .filter((r: any) => r.id >= startStr && r.id <= customGoal.deadline!)
-            .reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
+        const currentProfit = dailyBrokerageRecords
+            .filter((r: DailyRecord) => r.id >= startStr && r.id <= customGoal.deadline!)
+            .reduce((acc: number, r: DailyRecord) => acc + r.netProfitUSD, 0);
         
         const remainingToTarget = customGoal.targetAmount - currentProfit;
         
@@ -459,7 +479,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         const remainingDays = Math.max(1, diffDays);
         activeDailyGoal = Math.max(0, remainingToTarget) / remainingDays;
     } else if (monthlyGoal) {
-        const monthRecords = brokerageRecords.filter((r: any) => r.id.startsWith(currentMonthStr));
+        const monthRecords = dailyBrokerageRecords.filter((r: DailyRecord) => r.id.startsWith(currentMonthStr));
         const currentMonthProfit = monthRecords.reduce((acc, r) => acc + r.netProfitUSD, 0);
         const remainingToTarget = monthlyGoal.targetAmount - currentMonthProfit;
         const remainingDaysEstimate = Math.max(1, 22 - monthRecords.length); 
@@ -524,6 +544,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             dailyRecordForSelectedDay={dailyRecord} 
                             transactionsForSelectedDay={dayTransactions}
                             startBalanceForSelectedDay={startBalDashboard} 
+                            currentBalanceForDashboard={currentBalanceForDashboard}
                             isDarkMode={isDarkMode} 
                             dailyGoalTarget={activeDailyGoal} 
                         />
@@ -551,7 +572,7 @@ const SavingStatusIndicator: React.FC<{status: string}> = ({status}) => {
 // For brevity, assuming they are within this file but omitted in the update to focus on the change.
 // (I will keep the logic from the previous provided file structure)
 
-const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, addTransaction, deleteTransaction, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, transactionsForSelectedDay, startBalanceForSelectedDay, isDarkMode, dailyGoalTarget }) => {
+const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, addTransaction, deleteTransaction, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, transactionsForSelectedDay, startBalanceForSelectedDay, currentBalanceForDashboard, isDarkMode, dailyGoalTarget }) => {
     const theme = useThemeClasses(isDarkMode);
     const [quantity, setQuantity] = useState('1');
     const [transAmount, setTransAmount] = useState('');
@@ -576,7 +597,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     };
 
     const currentProfit = dailyRecordForSelectedDay?.netProfitUSD ?? 0;
-    const currentBalance = dailyRecordForSelectedDay?.endBalanceUSD ?? startBalanceForSelectedDay;
+    const currentBalance = currentBalanceForDashboard;
     const winRate = ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0)) > 0 
         ? (((dailyRecordForSelectedDay?.winCount || 0) / ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0))) * 100).toFixed(1) : '0.0';
     
@@ -730,18 +751,36 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             const currentDate = new Date(startDate);
             currentDate.setDate(startDate.getDate() + i);
             const dateId = currentDate.toISOString().split('T')[0];
-            const realRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateId && r.brokerageId === activeBrokerage?.id && r.trades.length > 0);
+            
+            // Get all records for this day (trades and transactions)
+            const dayRecords = records.filter((r: any) => 
+                (r.recordType === 'day' ? r.id : r.date) === dateId && 
+                r.brokerageId === activeBrokerage?.id
+            ).sort((a: any, b: any) => (a.timestamp || 0) - (b.timestamp || 0));
+
+            const realRecord = dayRecords.find((r: any) => r.recordType === 'day' && r.trades.length > 0);
+            const transactions = dayRecords.filter((r: any) => r.recordType === 'deposit' || r.recordType === 'withdrawal');
+            const transProfit = transactions.reduce((acc: number, t: any) => acc + (t.recordType === 'deposit' ? t.amountUSD : -t.amountUSD), 0);
             
             let initial = runningBalance, win, loss, profit, final, isProjection, operationValue, goalMet = false;
             
             if (realRecord) {
                 win = realRecord.winCount; 
                 loss = realRecord.lossCount; 
-                profit = realRecord.netProfitUSD; 
-                final = realRecord.endBalanceUSD;
+                profit = realRecord.netProfitUSD + transProfit; 
+                final = initial + profit;
                 operationValue = (realRecord.trades.length > 0) ? realRecord.trades[0].entryValue : (initial * (projEntryPercent / 100));
                 isProjection = false;
                 goalMet = win >= projWins;
+            } else if (transactions.length > 0) {
+                // Only transactions, no trades
+                win = 0;
+                loss = 0;
+                profit = transProfit;
+                final = initial + profit;
+                operationValue = initial * (projEntryPercent / 100);
+                isProjection = false;
+                goalMet = false;
             } else {
                 isProjection = true; 
                 operationValue = initial * (projEntryPercent / 100); 

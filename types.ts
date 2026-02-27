@@ -41,6 +41,7 @@ export interface TransactionRecord {
     amountUSD: number;
     notes: string;
     timestamp?: number;
+    runningBalanceUSD?: number;
 }
 
 export interface Goal {
