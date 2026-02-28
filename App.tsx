@@ -521,8 +521,36 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         <div className={`flex h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
             {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
             <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
-                <div className={`h-20 flex-none flex items-center px-8 font-black italic text-teal-400 text-xl tracking-tighter border-b ${theme.border} ${theme.header}`}>HRK</div>
+                <div className={`h-20 flex-none flex items-center justify-between px-8 border-b ${theme.border} ${theme.header}`}>
+                    <div className="flex flex-col">
+                        <span className="font-black italic text-teal-400 text-xl tracking-tighter leading-none">HRK</span>
+                        <span className="text-[6px] font-black uppercase tracking-[0.3em] text-teal-500/40 mt-1">High Return Knowledge</span>
+                        <span className="text-[5px] font-bold text-teal-500/20 mt-0.5">Binary Options Control</span>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5">
+                        <div className="flex items-center gap-[3px] opacity-20">
+                            <div className="flex flex-col gap-[2px]">
+                                <div className="w-[2px] h-2 bg-green-500 mx-auto" />
+                                <div className="w-2 h-3 bg-green-500 rounded-sm" />
+                                <div className="w-[2px] h-1 bg-green-500 mx-auto" />
+                            </div>
+                            <div className="flex flex-col gap-[2px]">
+                                <div className="w-[2px] h-1 bg-red-500 mx-auto" />
+                                <div className="w-2 h-4 bg-red-500 rounded-sm" />
+                                <div className="w-[2px] h-2 bg-red-500 mx-auto" />
+                            </div>
+                        </div>
+                        <div className="px-1.5 py-0.5 rounded-sm bg-teal-500/10 border border-teal-500/20 text-[5px] font-black text-teal-500/50 uppercase tracking-widest">M1 / OTC</div>
+                    </div>
+                </div>
                 <nav className="flex-1 p-4 space-y-1">
+                    <div className="px-4 py-2 mb-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-[0.2em] text-teal-500/40">
+                            <div className="w-1 h-1 rounded-full bg-teal-500" />
+                            Trading Mode: M1 / OTC
+                        </div>
+                        <div className="px-1 py-0.5 rounded bg-teal-500/10 text-[6px] font-black text-teal-500/50 uppercase">Binary</div>
+                    </div>
                     <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
                     <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
                     <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Juros Compostos</button>
@@ -532,12 +560,28 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
                     <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Configurações</button>
                 </nav>
-                <div className="p-4 border-t border-slate-800/50"><button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 font-bold hover:bg-red-500/10 rounded-2xl"><LogoutIcon className="w-5 h-5" />Sair</button></div>
+                <div className="p-4 border-t border-slate-800/50">
+                    <div className="flex items-center justify-between px-4 mb-4 opacity-20">
+                        <div className="flex items-center gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                            <span className="text-[7px] font-black uppercase tracking-widest">Call</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <span className="text-[7px] font-black uppercase tracking-widest">Put</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                        </div>
+                    </div>
+                    <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 font-bold hover:bg-red-500/10 rounded-2xl"><LogoutIcon className="w-5 h-5" />Sair</button>
+                </div>
             </aside>
             <main className="flex-1 flex flex-col overflow-hidden">
                 <header className={`h-20 flex-none flex items-center justify-between px-6 md:px-8 border-b ${theme.border} ${theme.header}`}>
                     <div className="flex items-center gap-4">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-6 h-6" /></button>
+                        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/30 border border-slate-800/50 text-[8px] font-black uppercase tracking-widest text-teal-400/60">
+                            <div className="w-1 h-1 rounded-full bg-teal-400 animate-pulse" />
+                            Market: Active
+                        </div>
                         <SavingStatusIndicator status={savingStatus} />
                         <div className="hidden md:flex items-center gap-2 ml-4">
                             <select 
