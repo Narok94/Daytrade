@@ -208,9 +208,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
 
             <div className="glass-card w-full max-w-[340px] p-8 md:p-10 rounded-[2rem] relative">
                 <div className="text-center mb-6">
-                    <h1 className="text-3xl font-black text-white tracking-[0.2em] uppercase neon-glow-text">HRK</h1>
-                    <p className="text-white/70 mt-1 text-[7px] font-bold tracking-[0.2em] uppercase opacity-80">High Return Knowledge</p>
-                    <p className="text-emerald-400/50 text-[6px] font-black tracking-[0.3em] uppercase mt-0.5">Binary Operations Control</p>
+                    <h1 className="text-5xl font-black text-white tracking-[0.2em] uppercase neon-glow-text">HRK</h1>
+                    <p className="text-emerald-400/50 text-[8px] font-black tracking-[0.3em] uppercase mt-2">Binary Operations Control</p>
                     <h2 className="text-4xl font-black text-emerald-400 mt-8 tracking-widest uppercase neon-glow-text">{isRegistering ? 'REGISTRO' : 'LOGIN'}</h2>
                 </div>
 

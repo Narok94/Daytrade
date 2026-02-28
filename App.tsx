@@ -521,26 +521,21 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         <div className={`flex h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
             {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
             <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
-                <div className={`h-20 flex-none flex items-center justify-between px-8 border-b ${theme.border} ${theme.header}`}>
-                    <div className="flex flex-col">
-                        <span className="font-black italic text-teal-400 text-xl tracking-tighter leading-none">HRK</span>
-                        <span className="text-[6px] font-black uppercase tracking-[0.3em] text-teal-500/40 mt-1">High Return Knowledge</span>
-                        <span className="text-[5px] font-bold text-teal-500/20 mt-0.5">Binary Options Control</span>
+                <div className={`h-20 flex-none flex items-center justify-center border-b ${theme.border} ${theme.header} relative overflow-hidden`}>
+                    <div className="flex flex-col items-center relative z-10">
+                        <span className="font-black italic text-teal-400 text-3xl tracking-tighter leading-none">HRK</span>
+                        <span className="text-[6px] font-black uppercase tracking-[0.3em] text-teal-500/40 mt-1">Binary Options Control</span>
                     </div>
-                    <div className="flex flex-col items-end gap-1.5">
-                        <div className="flex items-center gap-[3px] opacity-20">
-                            <div className="flex flex-col gap-[2px]">
-                                <div className="w-[2px] h-2 bg-green-500 mx-auto" />
-                                <div className="w-2 h-3 bg-green-500 rounded-sm" />
-                                <div className="w-[2px] h-1 bg-green-500 mx-auto" />
-                            </div>
-                            <div className="flex flex-col gap-[2px]">
-                                <div className="w-[2px] h-1 bg-red-500 mx-auto" />
-                                <div className="w-2 h-4 bg-red-500 rounded-sm" />
-                                <div className="w-[2px] h-2 bg-red-500 mx-auto" />
-                            </div>
-                        </div>
-                        <div className="px-1.5 py-0.5 rounded-sm bg-teal-500/10 border border-teal-500/20 text-[5px] font-black text-teal-500/50 uppercase tracking-widest">M1 / OTC</div>
+                    {/* Subtle background decorations */}
+                    <div className="absolute right-4 bottom-2 flex items-end gap-[2px] opacity-10">
+                        <div className="w-[2px] h-3 bg-green-500" />
+                        <div className="w-[2px] h-5 bg-red-500" />
+                        <div className="w-[2px] h-4 bg-green-500" />
+                    </div>
+                    <div className="absolute left-4 top-2 flex items-start gap-[2px] opacity-10">
+                        <div className="w-[2px] h-4 bg-red-500" />
+                        <div className="w-[2px] h-2 bg-green-500" />
+                        <div className="w-[2px] h-3 bg-red-500" />
                     </div>
                 </div>
                 <nav className="flex-1 p-4 space-y-1">
