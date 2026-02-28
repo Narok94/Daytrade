@@ -18,16 +18,16 @@ const formatMoney = (val: number) => val.toLocaleString('pt-BR', { minimumFracti
 
 const useThemeClasses = (isDarkMode: boolean) => {
     return useMemo(() => ({
-        bg: isDarkMode ? 'bg-slate-950' : 'bg-slate-50',
-        text: isDarkMode ? 'text-slate-50' : 'text-slate-900',
-        textMuted: isDarkMode ? 'text-slate-400' : 'text-slate-500',
-        card: isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm',
-        input: isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-700' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400',
-        border: isDarkMode ? 'border-slate-800' : 'border-slate-200',
-        sidebar: isDarkMode ? 'bg-slate-950 border-r border-slate-800' : 'bg-white border-r border-slate-200',
-        header: isDarkMode ? 'bg-slate-950 border-b border-slate-800' : 'bg-white border-b border-slate-200',
+        bg: isDarkMode ? 'bg-slate-950' : 'bg-zinc-100',
+        text: isDarkMode ? 'text-slate-50' : 'text-zinc-900',
+        textMuted: isDarkMode ? 'text-slate-400' : 'text-zinc-500',
+        card: isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-zinc-50 border-zinc-200 shadow-sm',
+        input: isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-700' : 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400',
+        border: isDarkMode ? 'border-slate-800' : 'border-zinc-200',
+        sidebar: isDarkMode ? 'bg-slate-950 border-r border-slate-800' : 'bg-zinc-50 border-r border-zinc-200',
+        header: isDarkMode ? 'bg-slate-950 border-b border-slate-800' : 'bg-zinc-50 border-b border-zinc-200',
         navActive: isDarkMode ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-600',
-        navInactive: isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100',
+        navInactive: isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50',
     }), [isDarkMode]);
 };
 
@@ -551,18 +551,18 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             </select>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className="hidden lg:flex items-center gap-4 mr-4">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="flex items-center gap-2 md:gap-4 mr-2 md:mr-4 overflow-x-auto no-scrollbar max-w-[150px] sm:max-w-[300px] md:max-w-none">
                             {brokerageBalances.map((b, i) => (
-                                <div key={i} className={`flex flex-col items-end px-3 py-1 rounded-xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                                    <span className="text-[8px] font-black uppercase opacity-50 leading-none">{b.name}</span>
-                                    <span className={`text-xs font-black ${b.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                <div key={i} className={`flex flex-col items-end px-2 md:px-3 py-1 rounded-xl border shrink-0 ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                                    <span className="text-[7px] md:text-[8px] font-black uppercase opacity-50 leading-none">{b.name}</span>
+                                    <span className={`text-[10px] md:text-xs font-black ${b.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                         {b.currency === 'USD' ? '$' : 'R$'} {formatMoney(b.balance)}
                                     </span>
                                 </div>
                             ))}
                         </div>
-                        <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button>
+                        <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 shrink-0">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button>
                         <div className="w-10 h-10 rounded-2xl bg-teal-500 flex items-center justify-center text-slate-950 font-black text-xs">{user.username.slice(0, 2).toUpperCase()}</div>
                     </div>
                 </header>
