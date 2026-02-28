@@ -33,6 +33,23 @@
         scrollbar-width: none;  /* Firefox */
       }
 
+      /* Mobile optimizations */
+      @media (max-width: 640px) {
+        body {
+          font-size: 14px;
+        }
+        .glass-card {
+          padding: 1.5rem !important;
+          border-radius: 1.5rem !important;
+        }
+        input, select, button {
+          font-size: 16px !important; /* Prevent iOS zoom on focus */
+        }
+        .h-20 {
+          height: 64px !important; /* Compact header on mobile */
+        }
+      }
+
       body {
         margin: 0;
         font-family: 'Inter', sans-serif;

@@ -193,26 +193,26 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     {analysisResult ? (
                         <div className="space-y-6">
                             {/* Recommendation Card */}
-                            <div className={`p-6 rounded-3xl border-2 flex items-center justify-between ${analysisResult.recommendation === 'CALL' ? 'bg-green-500/10 border-green-500/30' : analysisResult.recommendation === 'PUT' ? 'bg-red-500/10 border-red-500/30' : 'bg-slate-800/20 border-slate-700'}`}>
+                            <div className={`p-4 md:p-6 rounded-3xl border-2 flex items-center justify-between ${analysisResult.recommendation === 'CALL' ? 'bg-green-500/10 border-green-500/30' : analysisResult.recommendation === 'PUT' ? 'bg-red-500/10 border-red-500/30' : 'bg-slate-800/20 border-slate-700'}`}>
                                 <div>
-                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Decisão do Motor</p>
-                                    <h4 className={`text-5xl font-black ${analysisResult.recommendation === 'CALL' ? 'text-green-500' : analysisResult.recommendation === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
+                                    <p className="text-[8px] md:text-[10px] font-black uppercase opacity-60 mb-1">Decisão do Motor</p>
+                                    <h4 className={`text-3xl md:text-5xl font-black ${analysisResult.recommendation === 'CALL' ? 'text-green-500' : analysisResult.recommendation === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
                                         {analysisResult.recommendation === 'CALL' ? '↑ CALL' : analysisResult.recommendation === 'PUT' ? '↓ PUT' : '∅ NEUTRO'}
                                     </h4>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase opacity-60 mb-1">Confiança</p>
-                                    <p className="text-3xl font-black">{analysisResult.confidence}%</p>
+                                    <p className="text-[8px] md:text-[10px] font-black uppercase opacity-60 mb-1">Confiança</p>
+                                    <p className="text-2xl md:text-3xl font-black">{analysisResult.confidence}%</p>
                                 </div>
                             </div>
 
                             {/* Time Card */}
-                            <div className="p-6 rounded-3xl border border-teal-500/30 bg-slate-950/40 flex items-center justify-between">
+                            <div className="p-4 md:p-6 rounded-3xl border border-teal-500/30 bg-slate-950/40 flex items-center justify-between">
                                 <div>
-                                    <p className="text-[10px] font-black uppercase text-teal-400 mb-1">Horário de Entrada</p>
-                                    <p className="text-5xl font-black text-white tracking-tighter tabular-nums">{analysisResult.entryTime}</p>
+                                    <p className="text-[8px] md:text-[10px] font-black uppercase text-teal-400 mb-1">Horário de Entrada</p>
+                                    <p className="text-3xl md:text-5xl font-black text-white tracking-tighter tabular-nums">{analysisResult.entryTime}</p>
                                 </div>
-                                <TargetIcon className="w-12 h-12 text-teal-400 opacity-50" />
+                                <TargetIcon className="w-8 h-8 md:w-12 md:h-12 text-teal-400 opacity-50" />
                             </div>
 
                             {/* Levels Grid */}
@@ -517,6 +517,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         activeDailyGoal = (activeBrokerage?.initialBalance * 0.03 || 1);
     }
 
+    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
+
     return (
         <div className={`flex h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
             {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
@@ -590,19 +592,33 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             </select>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="flex items-center gap-2 md:gap-4 mr-2 md:mr-4 overflow-x-auto no-scrollbar max-w-[150px] sm:max-w-[300px] md:max-w-none">
+                    <div className="flex items-center gap-1.5 md:gap-3 overflow-hidden flex-1 justify-end">
+                        <div className="flex items-center gap-1 md:gap-4 overflow-x-auto no-scrollbar flex-1 justify-end py-1">
+                            {/* Total Balance Pill for Mobile */}
+                            <div className={`flex flex-col items-end px-1.5 md:px-3 py-0.5 md:py-1 rounded-md md:rounded-xl border shrink-0 border-teal-500/30 bg-teal-500/5 lg:hidden`}>
+                                <span className="text-[5px] font-black uppercase text-teal-500/60 leading-none">Total</span>
+                                <span className={`text-[8px] font-bold leading-tight ${brokerageBalances.reduce((acc, b) => acc + b.balance, 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {currencySymbol} {formatMoney(brokerageBalances.reduce((acc, b) => acc + b.balance, 0))}
+                                </span>
+                            </div>
+                            
                             {brokerageBalances.map((b, i) => (
-                                <div key={i} className={`flex flex-col items-end px-2 md:px-3 py-1 rounded-xl border shrink-0 ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                                    <span className="text-[7px] md:text-[8px] font-black uppercase opacity-50 leading-none">{b.name}</span>
-                                    <span className={`text-[10px] md:text-xs font-black ${b.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                <div key={i} className={`flex flex-col items-end px-1.5 md:px-3 py-0.5 md:py-1 rounded-md md:rounded-xl border shrink-0 ${isDarkMode ? 'bg-slate-900/40 border-slate-800/50' : 'bg-zinc-200/50 border-zinc-300/50'}`}>
+                                    <span className="text-[5px] md:text-[8px] font-black uppercase opacity-40 leading-none">{b.name}</span>
+                                    <span className={`text-[8px] md:text-xs font-bold leading-tight ${b.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                         {b.currency === 'USD' ? '$' : 'R$'} {formatMoney(b.balance)}
                                     </span>
                                 </div>
                             ))}
                         </div>
-                        <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 shrink-0">{isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}</button>
-                        <div className="w-10 h-10 rounded-2xl bg-teal-500 flex items-center justify-center text-slate-950 font-black text-xs">{user.username.slice(0, 2).toUpperCase()}</div>
+                        <div className="flex items-center gap-1 md:gap-3 shrink-0">
+                            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1 md:p-2 text-slate-400 hover:text-teal-400 transition-colors">
+                                {isDarkMode ? <SunIcon className="w-3.5 h-3.5 md:w-5 md:h-5" /> : <MoonIcon className="w-3.5 h-3.5 md:w-5 md:h-5" />}
+                            </button>
+                            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-teal-500 flex items-center justify-center text-slate-950 font-black text-[9px] md:text-xs shadow-lg shadow-teal-500/20">
+                                {user.username.slice(0, 2).toUpperCase()}
+                            </div>
+                        </div>
                     </div>
                 </header>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -697,12 +713,12 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                 <div><h2 className={`text-2xl font-black ${theme.text}`}>Dashboard de Gestão</h2><p className={theme.textMuted}>Controle operacional em tempo real.</p></div>
                 <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
                 {kpis.map((kpi, i) => (
-                    <div key={i} className={`p-4 rounded-3xl border ${theme.card} flex flex-col justify-between`}>
-                        <div className="flex justify-between items-start mb-1"><p className="text-[9px] md:text-[10px] uppercase font-black text-slate-500 tracking-wider leading-none">{kpi.label}</p><kpi.icon className={`w-4 h-4 ${kpi.color} opacity-80`} /></div>
-                        <p className={`text-base md:text-lg lg:text-xl font-black ${kpi.color} truncate`}>{kpi.val}</p>
-                        {kpi.subVal && <p className="text-[8px] md:text-[9px] font-bold mt-1 text-slate-500 truncate leading-tight">{kpi.subVal}</p>}
+                    <div key={i} className={`p-3 md:p-4 rounded-2xl md:rounded-3xl border ${theme.card} flex flex-col justify-between`}>
+                        <div className="flex justify-between items-start mb-1"><p className="text-[8px] md:text-[10px] uppercase font-black text-slate-500 tracking-wider leading-none">{kpi.label}</p><kpi.icon className={`w-3 h-3 md:w-4 md:h-4 ${kpi.color} opacity-80`} /></div>
+                        <p className={`text-sm md:text-lg lg:text-xl font-black ${kpi.color} truncate`}>{kpi.val}</p>
+                        {kpi.subVal && <p className="text-[7px] md:text-[9px] font-bold mt-1 text-slate-500 truncate leading-tight">{kpi.subVal}</p>}
                     </div>
                 ))}
             </div>
