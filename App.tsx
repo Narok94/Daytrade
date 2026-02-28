@@ -25,7 +25,7 @@ const useThemeClasses = (isDarkMode: boolean) => {
         input: isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-700' : 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400',
         border: isDarkMode ? 'border-slate-800' : 'border-zinc-200',
         sidebar: isDarkMode ? 'bg-slate-950 border-r border-slate-800' : 'bg-zinc-50 border-r border-zinc-200',
-        header: isDarkMode ? 'bg-slate-950 border-b border-slate-800' : 'bg-zinc-50 border-b border-zinc-200',
+        header: isDarkMode ? 'bg-slate-950' : 'bg-zinc-50',
         navActive: isDarkMode ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-600',
         navInactive: isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50',
     }), [isDarkMode]);
@@ -521,7 +521,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         <div className={`flex h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
             {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
             <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
-                <div className={`h-20 flex items-center px-8 font-black italic text-teal-400 text-xl tracking-tighter ${theme.header}`}>HRK</div>
+                <div className={`h-20 flex-none flex items-center px-8 font-black italic text-teal-400 text-xl tracking-tighter border-b ${theme.border} ${theme.header}`}>HRK</div>
                 <nav className="flex-1 p-4 space-y-1">
                     <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
                     <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
@@ -535,7 +535,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 <div className="p-4 border-t border-slate-800/50"><button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 font-bold hover:bg-red-500/10 rounded-2xl"><LogoutIcon className="w-5 h-5" />Sair</button></div>
             </aside>
             <main className="flex-1 flex flex-col overflow-hidden">
-                <header className={`h-20 flex items-center justify-between px-6 md:px-8 ${theme.header}`}>
+                <header className={`h-20 flex-none flex items-center justify-between px-6 md:px-8 border-b ${theme.border} ${theme.header}`}>
                     <div className="flex items-center gap-4">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-6 h-6" /></button>
                         <SavingStatusIndicator status={savingStatus} />
