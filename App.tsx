@@ -520,8 +520,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     return (
         <div className={`flex h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
             {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
-            <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col border-r transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
-                <div className="h-20 flex items-center px-8 border-b border-slate-800/50 font-black italic text-teal-400 text-xl tracking-tighter">HRK</div>
+            <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
+                <div className={`h-20 flex items-center px-8 font-black italic text-teal-400 text-xl tracking-tighter ${theme.header}`}>HRK</div>
                 <nav className="flex-1 p-4 space-y-1">
                     <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
                     <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
@@ -535,7 +535,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 <div className="p-4 border-t border-slate-800/50"><button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 font-bold hover:bg-red-500/10 rounded-2xl"><LogoutIcon className="w-5 h-5" />Sair</button></div>
             </aside>
             <main className="flex-1 flex flex-col overflow-hidden">
-                <header className={`h-20 flex items-center justify-between px-6 md:px-8 border-b ${theme.header}`}>
+                <header className={`h-20 flex items-center justify-between px-6 md:px-8 ${theme.header}`}>
                     <div className="flex items-center gap-4">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-6 h-6" /></button>
                         <SavingStatusIndicator status={savingStatus} />
