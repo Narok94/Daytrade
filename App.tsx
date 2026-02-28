@@ -10,7 +10,8 @@ import {
     CalculatorIcon, SunIcon, MoonIcon, MenuIcon, ArrowPathIcon, 
     InformationCircleIcon, TrophyIcon, 
     ChartBarIcon, CheckIcon, DocumentTextIcon,
-    PlusIcon, TrashIcon, CpuChipIcon, TrendingDownIcon
+    PlusIcon, TrashIcon, CpuChipIcon, TrendingDownIcon,
+    ChevronLeftIcon, ChevronRightIcon
 } from './components/icons';
 
 // --- Helper Functions ---
@@ -1000,10 +1001,80 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
     );
 };
 
+const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
+    const theme = useThemeClasses(isDarkMode);
+    const [currentDate, setCurrentDate] = useState(new Date());
+
+    const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+    const startDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const totalDays = daysInMonth(year, month);
+    const startDay = startDayOfMonth(year, month);
+
+    const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+    const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
+
+    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const monthName = currentDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+
+    const dailyProfits = useMemo(() => {
+        const profits: Record<string, number> = {};
+        records.filter((r: any): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id)
+            .forEach((r: DailyRecord) => {
+                profits[r.id] = r.netProfitUSD;
+            });
+        return profits;
+    }, [records, activeBrokerage]);
+
+    const calendarDays = [];
+    for (let i = 0; i < startDay; i++) calendarDays.push(null);
+    for (let d = 1; d <= totalDays; d++) calendarDays.push(d);
+
+    return (
+        <div className={`p-4 md:p-8 rounded-3xl border ${theme.card} max-w-4xl mx-auto`}>
+            <div className="flex items-center justify-between mb-8">
+                <button onClick={prevMonth} className="p-2 hover:bg-slate-800/50 rounded-xl transition-colors"><ChevronLeftIcon className="w-5 h-5" /></button>
+                <h3 className="text-lg font-black uppercase tracking-widest text-teal-400">{monthName}</h3>
+                <button onClick={nextMonth} className="p-2 hover:bg-slate-800/50 rounded-xl transition-colors"><ChevronRightIcon className="w-5 h-5" /></button>
+            </div>
+
+            <div className="grid grid-cols-7 gap-1 md:gap-3">
+                {dayNames.map(day => (
+                    <div key={day} className="text-center text-[10px] font-black uppercase text-slate-500 py-2">{day}</div>
+                ))}
+                {calendarDays.map((day, idx) => {
+                    if (day === null) return <div key={`empty-${idx}`} className="aspect-square" />;
+                    
+                    const dateId = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const profit = dailyProfits[dateId];
+                    const isToday = new Date().toISOString().split('T')[0] === dateId;
+
+                    return (
+                        <div key={dateId} className={`aspect-square rounded-xl md:rounded-2xl border ${isDarkMode ? 'border-slate-800/50' : 'border-zinc-200'} flex flex-col items-center justify-center p-1 relative transition-all hover:scale-105 cursor-default ${isToday ? 'ring-2 ring-teal-500/50' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-green-500/10' : 'bg-red-500/10') : ''}`}>
+                            <span className="text-[10px] md:text-xs font-black opacity-40 mb-0.5">{day}</span>
+                            {profit !== undefined && (
+                                <span className={`text-[7px] md:text-[9px] font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {profit >= 0 ? '+' : ''}{formatMoney(profit)}
+                                </span>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+            <div className="mt-8 flex justify-center gap-6 text-[10px] font-black uppercase tracking-widest opacity-40">
+                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500" /> Lucro</div>
+                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500" /> Prejuízo</div>
+            </div>
+        </div>
+    );
+};
+
 const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-    const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+    const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly' | 'calendar'>('calendar');
 
     const stats = useMemo(() => {
         const dayRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0);
@@ -1074,21 +1145,23 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) =
                     <h2 className={`text-2xl font-black ${theme.text}`}>Histórico de Performance</h2>
                     <p className={theme.textMuted}>Análise detalhada por períodos.</p>
                 </div>
-                <div className="flex p-1 rounded-2xl bg-slate-900 border border-slate-800">
-                    {(['daily', 'weekly', 'monthly'] as const).map((mode) => (
+                <div className="flex p-1 rounded-2xl bg-slate-900 border border-slate-800 overflow-x-auto no-scrollbar">
+                    {(['calendar', 'daily', 'weekly', 'monthly'] as const).map((mode) => (
                         <button
                             key={mode}
                             onClick={() => setViewMode(mode)}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === mode ? 'bg-teal-500 text-slate-950 shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${viewMode === mode ? 'bg-teal-500 text-slate-950 shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
-                            {mode === 'daily' ? 'Diário' : mode === 'weekly' ? 'Semanal' : 'Mensal'}
+                            {mode === 'calendar' ? 'Calendário' : mode === 'daily' ? 'Diário' : mode === 'weekly' ? 'Semanal' : 'Mensal'}
                         </button>
                     ))}
                 </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4">
-                {stats.length > 0 ? stats.map((item: any) => (
+                {viewMode === 'calendar' ? (
+                    <CalendarHistory isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />
+                ) : stats.length > 0 ? stats.map((item: any) => (
                     <div key={item.id} className={`p-6 rounded-3xl border ${theme.card} flex flex-col md:flex-row md:items-center justify-between gap-6`}>
                         <div className="flex items-center gap-4">
                             <div className={`p-3 rounded-2xl ${item.profit >= 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
