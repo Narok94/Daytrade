@@ -521,7 +521,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
 
     return (
-        <div className={`flex h-screen overflow-hidden ${theme.bg} ${theme.text}`}>
+        <div className={`flex h-screen overflow-hidden overflow-x-hidden ${theme.bg} ${theme.text}`}>
             {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
             <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
                 <div className={`h-20 flex-none flex items-center justify-center border-b ${theme.border} ${theme.header} relative overflow-hidden`}>
@@ -581,11 +581,11 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             Market: Active
                         </div>
                         <SavingStatusIndicator status={savingStatus} />
-                        <div className="hidden md:flex items-center gap-2 ml-4">
+                        <div className="flex items-center gap-1 md:gap-2 ml-1 md:ml-4 max-w-[100px] md:max-w-none">
                             <select 
                                 value={activeBrokerageId || ''} 
                                 onChange={(e) => setActiveBrokerageId(e.target.value)}
-                                className={`text-xs font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 cursor-pointer ${theme.text}`}
+                                className={`text-[9px] md:text-xs font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 cursor-pointer truncate ${theme.text}`}
                             >
                                 {brokerages.map(b => (
                                     <option key={b.id} value={b.id} className={isDarkMode ? 'bg-slate-900' : 'bg-white'}>{b.name}</option>
@@ -593,16 +593,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             </select>
                         </div>
                     </div>
-                    <div className="flex items-center gap-1.5 md:gap-3 overflow-hidden flex-1 justify-end">
-                        <div className="flex items-center gap-1 md:gap-4 overflow-x-auto no-scrollbar flex-1 justify-end py-1">
-                            {/* Total Balance Pill for Mobile */}
-                            <div className={`flex flex-col items-end px-1.5 md:px-3 py-0.5 md:py-1 rounded-md md:rounded-xl border shrink-0 border-teal-500/30 bg-teal-500/5 lg:hidden`}>
-                                <span className="text-[5px] font-black uppercase text-teal-500/60 leading-none">Total</span>
-                                <span className={`text-[8px] font-bold leading-tight ${brokerageBalances.reduce((acc, b) => acc + b.balance, 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                    {currencySymbol} {formatMoney(brokerageBalances.reduce((acc, b) => acc + b.balance, 0))}
-                                </span>
-                            </div>
-                            
+                    <div className="flex items-center gap-1 md:gap-3 overflow-hidden justify-end">
+                        <div className="flex items-center gap-1 md:gap-4 overflow-x-auto no-scrollbar py-1">
                             {brokerageBalances.map((b, i) => (
                                 <div key={i} className={`flex flex-col items-end px-1.5 md:px-3 py-0.5 md:py-1 rounded-md md:rounded-xl border shrink-0 ${isDarkMode ? 'bg-slate-900/40 border-slate-800/50' : 'bg-zinc-200/50 border-zinc-300/50'}`}>
                                     <span className="text-[5px] md:text-[8px] font-black uppercase opacity-40 leading-none">{b.name}</span>
@@ -622,7 +614,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                         </div>
                     </div>
                 </header>
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
                     {activeTab === 'dashboard' && (
                         <DashboardPanel 
                             activeBrokerage={activeBrokerage} 
