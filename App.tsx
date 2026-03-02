@@ -1025,16 +1025,16 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
     for (let d = 1; d <= totalDays; d++) calendarDays.push(d);
 
     return (
-        <div className={`p-2 md:p-4 rounded-2xl border ${theme.card} w-full max-w-3xl mx-auto`}>
-            <div className="flex items-center justify-between mb-4">
-                <button onClick={prevMonth} className="p-1.5 hover:bg-slate-800/50 rounded-lg transition-colors"><ChevronLeftIcon className="w-4 h-4" /></button>
-                <h3 className="text-sm md:text-base font-black uppercase tracking-widest text-teal-400">{monthName}</h3>
-                <button onClick={nextMonth} className="p-1.5 hover:bg-slate-800/50 rounded-lg transition-colors"><ChevronRightIcon className="w-4 h-4" /></button>
+        <div className={`p-1.5 md:p-3 rounded-xl border ${theme.card} w-full max-w-xl mx-auto`}>
+            <div className="flex items-center justify-between mb-3">
+                <button onClick={prevMonth} className="p-1 hover:bg-slate-800/50 rounded-md transition-colors"><ChevronLeftIcon className="w-3.5 h-3.5" /></button>
+                <h3 className="text-xs md:text-sm font-black uppercase tracking-widest text-teal-400">{monthName}</h3>
+                <button onClick={nextMonth} className="p-1 hover:bg-slate-800/50 rounded-md transition-colors"><ChevronRightIcon className="w-3.5 h-3.5" /></button>
             </div>
 
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-0.5 md:gap-1">
                 {dayNames.map(day => (
-                    <div key={day} className="text-center text-[9px] md:text-[10px] font-black uppercase text-slate-500 py-1">{day}</div>
+                    <div key={day} className="text-center text-[8px] md:text-[9px] font-black uppercase text-slate-500 py-0.5">{day}</div>
                 ))}
                 {calendarDays.map((day, idx) => {
                     if (day === null) return <div key={`empty-${idx}`} className="aspect-square" />;
@@ -1044,10 +1044,10 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
                     const isToday = new Date().toISOString().split('T')[0] === dateId;
 
                     return (
-                        <div key={dateId} className={`aspect-square rounded-lg md:rounded-xl border ${isDarkMode ? 'border-slate-800/50' : 'border-zinc-200'} flex flex-col items-center justify-center p-0.5 relative transition-all hover:scale-105 cursor-default ${isToday ? 'ring-2 ring-teal-500/50' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-green-500/10' : 'bg-red-500/10') : ''}`}>
-                            <span className="text-[9px] md:text-xs font-black opacity-40 mb-0.5">{day}</span>
+                        <div key={dateId} className={`aspect-square rounded-md md:rounded-lg border ${isDarkMode ? 'border-slate-800/50' : 'border-zinc-200'} flex flex-col items-center justify-center p-0.5 relative transition-all hover:scale-105 cursor-default ${isToday ? 'ring-1 ring-teal-500/50' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-green-500/10' : 'bg-red-500/10') : ''}`}>
+                            <span className="text-[8px] md:text-[10px] font-black opacity-40 mb-0.5">{day}</span>
                             {profit !== undefined && (
-                                <span className={`text-[6px] md:text-[9px] font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                <span className={`text-[5px] md:text-[8px] font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                     {profit >= 0 ? '+' : ''}{formatMoney(profit)}
                                 </span>
                             )}
@@ -1055,9 +1055,9 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
                     );
                 })}
             </div>
-            <div className="mt-4 flex justify-center gap-4 text-[9px] font-black uppercase tracking-widest opacity-40">
-                <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-green-500" /> Lucro</div>
-                <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-red-500" /> Prejuízo</div>
+            <div className="mt-3 flex justify-center gap-3 text-[8px] font-black uppercase tracking-widest opacity-40">
+                <div className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-green-500" /> Lucro</div>
+                <div className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-red-500" /> Prejuízo</div>
             </div>
         </div>
     );
