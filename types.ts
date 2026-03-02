@@ -46,6 +46,7 @@ export interface TransactionRecord {
 
 export interface Goal {
   id: string;
+  brokerageId: string;
   name: string;
   type: 'daily' | 'weekly' | 'monthly' | 'annual' | 'custom';
   targetAmount: number;

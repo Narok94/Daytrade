@@ -484,8 +484,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const currentMonthStr = new Date().toISOString().slice(0, 7);
     const dailyBrokerageRecords = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id);
     
-    const customGoal = goals.find(g => g.type === 'custom' && g.deadline);
-    const monthlyGoal = goals.find(g => g.type === 'monthly');
+    const customGoal = goals.find(g => g.type === 'custom' && g.deadline && g.brokerageId === activeBrokerage?.id);
+    const monthlyGoal = goals.find(g => g.type === 'monthly' && g.brokerageId === activeBrokerage?.id);
     
     let activeDailyGoal = 0;
 
@@ -1258,11 +1258,12 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
     
     const addGoal = () => {
-        if (!newGoalName || !newGoalAmount) return;
+        if (!newGoalName || !newGoalAmount || !activeBrokerage) return;
         if (newGoalType === 'custom' && !newGoalDeadline) return;
         
         const goal: Goal = { 
             id: crypto.randomUUID(), 
+            brokerageId: activeBrokerage.id,
             name: newGoalName, 
             type: newGoalType, 
             targetAmount: parseFloat(newGoalAmount) || 0, 
@@ -1337,7 +1338,7 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
                 </div>
                 
                 <div className="space-y-4">
-                    {goals.map((goal: Goal) => {
+                    {goals.filter((g: Goal) => g.brokerageId === activeBrokerage?.id).map((goal: Goal) => {
                         const { percentage, label, current } = calculateProgress(goal);
                         return (
                             <div key={goal.id} className="p-6 rounded-3xl bg-slate-950/30 border border-slate-800/50 space-y-4">
