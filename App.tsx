@@ -1025,16 +1025,16 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
     for (let d = 1; d <= totalDays; d++) calendarDays.push(d);
 
     return (
-        <div className={`p-3 md:p-6 rounded-3xl border ${theme.card} w-full max-w-5xl mx-auto`}>
-            <div className="flex items-center justify-between mb-6">
-                <button onClick={prevMonth} className="p-2 hover:bg-slate-800/50 rounded-xl transition-colors"><ChevronLeftIcon className="w-5 h-5" /></button>
-                <h3 className="text-base md:text-xl font-black uppercase tracking-widest text-teal-400">{monthName}</h3>
-                <button onClick={nextMonth} className="p-2 hover:bg-slate-800/50 rounded-xl transition-colors"><ChevronRightIcon className="w-5 h-5" /></button>
+        <div className={`p-2 md:p-4 rounded-2xl border ${theme.card} w-full max-w-3xl mx-auto`}>
+            <div className="flex items-center justify-between mb-4">
+                <button onClick={prevMonth} className="p-1.5 hover:bg-slate-800/50 rounded-lg transition-colors"><ChevronLeftIcon className="w-4 h-4" /></button>
+                <h3 className="text-sm md:text-base font-black uppercase tracking-widest text-teal-400">{monthName}</h3>
+                <button onClick={nextMonth} className="p-1.5 hover:bg-slate-800/50 rounded-lg transition-colors"><ChevronRightIcon className="w-4 h-4" /></button>
             </div>
 
-            <div className="grid grid-cols-7 gap-1 md:gap-2">
+            <div className="grid grid-cols-7 gap-1">
                 {dayNames.map(day => (
-                    <div key={day} className="text-center text-[10px] md:text-xs font-black uppercase text-slate-500 py-2">{day}</div>
+                    <div key={day} className="text-center text-[9px] md:text-[10px] font-black uppercase text-slate-500 py-1">{day}</div>
                 ))}
                 {calendarDays.map((day, idx) => {
                     if (day === null) return <div key={`empty-${idx}`} className="aspect-square" />;
@@ -1044,10 +1044,10 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
                     const isToday = new Date().toISOString().split('T')[0] === dateId;
 
                     return (
-                        <div key={dateId} className={`aspect-square rounded-xl md:rounded-2xl border ${isDarkMode ? 'border-slate-800/50' : 'border-zinc-200'} flex flex-col items-center justify-center p-0.5 md:p-1 relative transition-all hover:scale-105 cursor-default ${isToday ? 'ring-2 ring-teal-500/50' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-green-500/10' : 'bg-red-500/10') : ''}`}>
-                            <span className="text-[10px] md:text-sm font-black opacity-40 mb-0.5">{day}</span>
+                        <div key={dateId} className={`aspect-square rounded-lg md:rounded-xl border ${isDarkMode ? 'border-slate-800/50' : 'border-zinc-200'} flex flex-col items-center justify-center p-0.5 relative transition-all hover:scale-105 cursor-default ${isToday ? 'ring-2 ring-teal-500/50' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-green-500/10' : 'bg-red-500/10') : ''}`}>
+                            <span className="text-[9px] md:text-xs font-black opacity-40 mb-0.5">{day}</span>
                             {profit !== undefined && (
-                                <span className={`text-[7px] md:text-[10px] font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                <span className={`text-[6px] md:text-[9px] font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                     {profit >= 0 ? '+' : ''}{formatMoney(profit)}
                                 </span>
                             )}
@@ -1055,9 +1055,9 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
                     );
                 })}
             </div>
-            <div className="mt-6 flex justify-center gap-6 text-[10px] font-black uppercase tracking-widest opacity-40">
-                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500" /> Lucro</div>
-                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500" /> Prejuízo</div>
+            <div className="mt-4 flex justify-center gap-4 text-[9px] font-black uppercase tracking-widest opacity-40">
+                <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-green-500" /> Lucro</div>
+                <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-red-500" /> Prejuízo</div>
             </div>
         </div>
     );
@@ -1131,11 +1131,11 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) =
     }, [records, viewMode]);
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
+        <div className="p-2 md:p-4 space-y-4 max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row md:justify-between items-start gap-3">
                 <div>
-                    <h2 className={`text-2xl font-black ${theme.text}`}>Histórico de Performance</h2>
-                    <p className={theme.textMuted}>Análise detalhada por períodos.</p>
+                    <h2 className={`text-xl md:text-2xl font-black ${theme.text}`}>Histórico de Performance</h2>
+                    <p className={`text-[10px] md:text-xs ${theme.textMuted}`}>Análise detalhada por períodos.</p>
                 </div>
                 <div className="flex p-1 rounded-2xl bg-slate-900 border border-slate-800 overflow-x-auto no-scrollbar">
                     {(['calendar', 'daily', 'weekly', 'monthly'] as const).map((mode) => (
