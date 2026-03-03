@@ -690,6 +690,12 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
     
     const dailyGoalPercent = dailyGoalTarget > 0 ? (currentProfit / dailyGoalTarget) * 100 : 0;
 
+    const entryValueNum = parseFloat(customEntryValue) || 0;
+    const payoutNum = parseFloat(customPayout) || 0;
+    const qtyNum = parseInt(quantity) || 1;
+    const estimatedProfit = entryValueNum * (payoutNum / 100) * qtyNum;
+    const estimatedLoss = entryValueNum * qtyNum;
+
     const stopWinReached = activeBrokerage.stopGainTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.winCount >= activeBrokerage.stopGainTrades;
     const stopLossReached = activeBrokerage.stopLossTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.lossCount >= activeBrokerage.stopLossTrades;
 
@@ -725,7 +731,15 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                                 <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout %</label><input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                                 <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4 pt-2">
+                            <div className="flex justify-between items-center px-1">
+                                <p className="text-[8px] font-black uppercase tracking-widest text-red-500/40">
+                                    Risco: <span className="text-red-500/60">{currencySymbol} {formatMoney(estimatedLoss)}</span>
+                                </p>
+                                <p className="text-[9px] font-black uppercase tracking-widest text-green-500/40">
+                                    Estimativa de Ganho: <span className="text-green-500/80">{currencySymbol} {formatMoney(estimatedProfit)}</span>
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 pt-1">
                                 <button onClick={() => handleQuickAdd('win')} disabled={stopWinReached || stopLossReached} className="h-14 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">WIN</button>
                                 <button onClick={() => handleQuickAdd('loss')} disabled={stopWinReached || stopLossReached} className="h-14 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">LOSS</button>
                             </div>
