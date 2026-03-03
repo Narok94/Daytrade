@@ -834,10 +834,13 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
         startDate.setHours(12,0,0,0);
         let runningBalance = activeBrokerage?.initialBalance || 0;
         
+        const todayStr = new Date().toISOString().split('T')[0];
+        
         for (let i = 0; i < 30; i++) {
             const currentDate = new Date(startDate);
             currentDate.setDate(startDate.getDate() + i);
             const dateId = currentDate.toISOString().split('T')[0];
+            const isPast = dateId < todayStr;
             
             // Get all records for this day (trades and transactions)
             const dayRecords = records.filter((r: any) => 
@@ -870,14 +873,25 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                 goalMet = false;
             } else {
                 isProjection = true; 
-                operationValue = initial * (projEntryPercent / 100); 
-                win = projWins; 
-                loss = projLosses;
-                const winProfit = (operationValue * (projPayout / 100)) * win;
-                const lossCost = operationValue * loss;
-                profit = winProfit - lossCost;
-                final = initial + profit;
-                goalMet = true;
+                if (isPast) {
+                    // Past day with no operations: no profit, balance stays same
+                    win = 0;
+                    loss = 0;
+                    profit = 0;
+                    final = initial;
+                    operationValue = 0;
+                    goalMet = false;
+                } else {
+                    // Future or today: project based on goals
+                    operationValue = initial * (projEntryPercent / 100); 
+                    win = projWins; 
+                    loss = projLosses;
+                    const winProfit = (operationValue * (projPayout / 100)) * win;
+                    const lossCost = operationValue * loss;
+                    profit = winProfit - lossCost;
+                    final = initial + profit;
+                    goalMet = true;
+                }
             }
             rows.push({ diaTrade: i + 1, dateId, dateDisplay: currentDate.toLocaleDateString('pt-BR'), initial, win, loss, profit, final, operationValue, isProjection, goalMet });
             runningBalance = final;
