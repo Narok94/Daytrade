@@ -109,7 +109,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             3. Padrão de Candle (Exaustão/Força).
                             4. Prioridade: Retração em pavios longos em SNR.
                             
-                            RETORNE APENAS O OBJETO JSON.` },
+                            RETORNE APENAS O OBJETO JSON PURO. NÃO ADICIONE EXPLICAÇÕES FORA DO JSON.` },
                         ],
                     },
                     config: {
@@ -151,13 +151,37 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             }
 
             let jsonText = response.text.trim();
-            // Sanitize: remove potential markdown blocks
-            if (jsonText.startsWith('```')) {
-                jsonText = jsonText.replace(/^```json\n?/, '').replace(/```$/, '').trim();
+            console.log("Resposta bruta da IA:", jsonText);
+
+            // Tenta limpar a resposta se houver lixo em volta do JSON
+            try {
+                // Remove blocos de markdown se existirem
+                if (jsonText.includes('```')) {
+                    const match = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+                    if (match) jsonText = match[1].trim();
+                }
+
+                // Se ainda não for um JSON puro (começando com {), tenta encontrar o primeiro { e o último }
+                if (!jsonText.startsWith('{')) {
+                    const start = jsonText.indexOf('{');
+                    const end = jsonText.lastIndexOf('}');
+                    if (start !== -1 && end !== -1) {
+                        jsonText = jsonText.substring(start, end + 1);
+                    }
+                }
+
+                const result = JSON.parse(jsonText);
+                
+                // Validação básica dos campos obrigatórios
+                if (!result.recommendation || !result.reasoning) {
+                    throw new Error("Campos obrigatórios ausentes no JSON");
+                }
+
+                setAnalysisResult(result);
+            } catch (parseError) {
+                console.error("Erro ao parsear JSON:", parseError, "Texto:", jsonText);
+                throw new Error("JSON_PARSE_FAILED: A resposta da IA não pôde ser convertida em dados válidos.");
             }
-            
-            const result = JSON.parse(jsonText);
-            setAnalysisResult(result);
         } catch (err: any) {
             console.error("Erro Crítico na Análise Sniper:", err);
             
@@ -174,7 +198,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 // Tentar novamente com flash se o pro falhar por disponibilidade
                 setTimeout(runAIAnalysis, 2000);
             } else if (err.message?.includes("JSON")) {
-                userFriendlyError = "ERRO DE PROCESSAMENTO: A IA gerou uma resposta em formato inválido. Por favor, tente analisar novamente.";
+                userFriendlyError = "ERRO DE FORMATO: A IA enviou dados corrompidos. Isso acontece em picos de tráfego. Por favor, tente novamente agora.";
             } else if (err.message) {
                 userFriendlyError = `DETALHE DO ERRO: ${err.message}`;
             }
