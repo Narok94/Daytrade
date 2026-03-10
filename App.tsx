@@ -103,17 +103,17 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         parts: [
                             { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
                             { text: `HORÁRIO: ${timeString}. 
-                            ANÁLISE IMEDIATA M1:
-                            1. Tendência (10-15 candles).
-                            2. SNR mais próxima.
-                            3. Padrão de Candle (Exaustão/Força).
-                            4. Prioridade: Retração em pavios longos em SNR.
+                            ANÁLISE OBRIGATÓRIA M1:
+                            1. Tendência Imediata (últimos 10-15 candles).
+                            2. Suporte e Resistência (zona mais próxima de reversão/retração).
+                            3. Padrão de Candle (Exaustão: doji, martelo, estrela; Força: marubozu).
+                            4. Filtro de Ruído (ignore lateralidade sem volume).
                             
-                            RETORNE APENAS O OBJETO JSON PURO. NÃO ADICIONE EXPLICAÇÕES FORA DO JSON.` },
+                            RETORNE APENAS O OBJETO JSON.` },
                         ],
                     },
                     config: {
-                        systemInstruction: "Você é um analista sênior de Price Action especializado em Scalping e Opções Binárias em gráficos de M1. Seu objetivo é fornecer uma direção de entrada em menos de 10 segundos. Analise tendência imediata, suporte/resistência e padrões de candle. Ignore ruídos. Seja puramente analítico e direto, sem disclaimers. Use apenas 'CALL', 'PUT' ou 'AGUARDAR' para a recomendação.",
+                        systemInstruction: "Role: Você é um analista sênior de Price Action especializado em Scalping e Opções Binárias/Digital em gráficos de M1. Objetivo: Analisar a imagem do gráfico e fornecer uma direção de entrada (CALL ou PUT) em menos de 10 segundos. Critérios: Tendência Imediata, Suporte/Resistência, Padrão de Candle e Filtro de Ruído. Formato de Resposta: ATIVO, DIREÇÃO (CALL/PUT/AGUARDAR), MOTIVO (1 frase curta), CONFIANÇA (0-100%), EXPIRAÇÃO (Próxima vela / 1 minuto). Seja puramente analítico e direto, sem disclaimers.",
                         temperature: 0.2,
                         maxOutputTokens: 150,
                         responseMimeType: "application/json",
