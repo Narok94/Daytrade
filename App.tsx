@@ -80,8 +80,9 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         setError(null);
         try {
             // Use a more capable model for better reasoning and accuracy
-            const modelName = 'gemini-3.1-pro-preview';
-            const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+            let modelName = 'gemini-3.1-pro-preview';
+            const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
+            console.log("Iniciando análise. Chave presente:", !!apiKey);
             
             if (!apiKey) {
                 throw new Error("Chave de API não encontrada. Configure a GEMINI_API_KEY.");
@@ -94,56 +95,67 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const now = new Date();
             const timeString = now.toLocaleTimeString('pt-BR');
 
-            const response = await ai.models.generateContent({
-                model: modelName,
-                contents: {
-                    parts: [
-                        { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
-                        { text: `HORÁRIO ATUAL: ${timeString}. 
-                        EXECUTE PROTOCOLO SNIPER ELITE V6:
-                        
-                        1. MAPEAMENTO ESTRUTURAL:
-                           - Identifique a tendência primária (LTA/LTB) e a micro-tendência atual.
-                           - Localize as zonas de Suporte e Resistência (SNR) mais próximas do preço atual.
-                           - Verifique se o preço está em uma região de "Vácuo" ou de "Congestão".
+            const generateContent = async (model: string) => {
+                return await ai.models.generateContent({
+                    model: model,
+                    contents: {
+                        parts: [
+                            { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
+                            { text: `HORÁRIO ATUAL: ${timeString}. 
+                            EXECUTE PROTOCOLO SNIPER ELITE V6:
+                            
+                            1. MAPEAMENTO ESTRUTURAL:
+                               - Identifique a tendência primária (LTA/LTB) e a micro-tendência atual.
+                               - Localize as zonas de Suporte e Resistência (SNR) mais próximas do preço atual.
+                               - Verifique se o preço está em uma região de "Vácuo" ou de "Congestão".
 
-                        2. ANÁLISE DE CANDLESTICK (M1):
-                           - Procure por padrões de reversão: Martelo, Estrela Cadente, Engolfo, Harami ou Doji em zonas de SNR.
-                           - Analise o tamanho dos pavios (rejeição) vs corpo (força).
-                           - Identifique "Velas de Exaustão" (muito grandes sem pavio) ou "Velas de Impulsão".
+                            2. ANÁLISE DE CANDLESTICK (M1):
+                               - Procure por padrões de reversão: Martelo, Estrela Cadente, Engolfo, Harami ou Doji em zonas de SNR.
+                               - Analise o tamanho dos pavios (rejeição) vs corpo (força).
+                               - Identifique "Velas de Exaustão" (muito grandes sem pavio) ou "Velas de Impulsão".
 
-                        3. PROBABILIDADE E GATILHO:
-                           - Calcule a probabilidade de a PRÓXIMA VELA (M1) ser da cor oposta ou continuar o fluxo.
-                           - Só emita CALL ou PUT se a confiança for > 70%. Caso contrário, emita WAIT.
-                           - Se houver rompimento confirmado com vela de força, siga o fluxo.
-                           - Se houver rejeição clara em SNR com pavio longo, opere na retração/reversão.
+                            3. PROBABILIDADE E GATILHO:
+                               - Calcule a probabilidade de a PRÓXIMA VELA (M1) ser da cor oposta ou continuar o fluxo.
+                               - Só emita CALL ou PUT se a confiança for > 70%. Caso contrário, emita WAIT.
+                               - Se houver rompimento confirmado com vela de força, siga o fluxo.
+                               - Se houver rejeição clara em SNR com pavio longo, opere na retração/reversão.
 
-                        4. EXECUÇÃO:
-                           - A entrada deve ser para o início do próximo minuto: ${now.getMinutes() + 1}:00.
-                        
-                        RETORNE APENAS O JSON.` },
-                    ],
-                },
-                config: {
-                    systemInstruction: "Você é um Analista Quantitativo Sênior e Trader Profissional de Opções Binárias com 15 anos de experiência em Price Action Puro e Leitura de Fluxo (Tape Reading) em gráficos de 1 minuto (M1). Sua precisão é cirúrgica. Você ignora ruídos e foca apenas em confluências de alta probabilidade. Você deve analisar a imagem do gráfico fornecida e decidir a melhor operação para a próxima vela. Seja extremamente técnico na justificativa.",
-                    temperature: 0.1,
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            recommendation: { type: Type.STRING, enum: ['CALL', 'PUT', 'WAIT'] },
-                            confidence: { type: Type.NUMBER },
-                            patterns: { type: Type.ARRAY, items: { type: Type.STRING } },
-                            indicatorAnalysis: { type: Type.STRING },
-                            reasoning: { type: Type.STRING },
-                            supportLevel: { type: Type.STRING },
-                            resistanceLevel: { type: Type.STRING },
-                            entryTime: { type: Type.STRING }
-                        },
-                        required: ['recommendation', 'confidence', 'patterns', 'indicatorAnalysis', 'reasoning', 'supportLevel', 'resistanceLevel', 'entryTime']
+                            4. EXECUÇÃO:
+                               - A entrada deve ser para o início do próximo minuto: ${now.getMinutes() + 1}:00.
+                            
+                            RETORNE APENAS O JSON.` },
+                        ],
+                    },
+                    config: {
+                        systemInstruction: "Você é um Analista Quantitativo Sênior e Trader Profissional de Opções Binárias com 15 anos de experiência em Price Action Puro e Leitura de Fluxo (Tape Reading) em gráficos de 1 minuto (M1). Sua precisão é cirúrgica. Você ignora ruídos e foca apenas em confluências de alta probabilidade. Você deve analisar a imagem do gráfico fornecida e decidir a melhor operação para a próxima vela. Seja extremamente técnico na justificativa.",
+                        temperature: 0.1,
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: Type.OBJECT,
+                            properties: {
+                                recommendation: { type: Type.STRING, enum: ['CALL', 'PUT', 'WAIT'] },
+                                confidence: { type: Type.NUMBER },
+                                patterns: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                indicatorAnalysis: { type: Type.STRING },
+                                reasoning: { type: Type.STRING },
+                                supportLevel: { type: Type.STRING },
+                                resistanceLevel: { type: Type.STRING },
+                                entryTime: { type: Type.STRING }
+                            },
+                            required: ['recommendation', 'confidence', 'patterns', 'indicatorAnalysis', 'reasoning', 'supportLevel', 'resistanceLevel', 'entryTime']
+                        }
                     }
-                }
-            });
+                });
+            };
+
+            let response;
+            try {
+                response = await generateContent(modelName);
+            } catch (proError) {
+                console.warn("Falha no modelo Pro, tentando Flash...", proError);
+                modelName = 'gemini-3-flash-preview';
+                response = await generateContent(modelName);
+            }
 
             if (!response.text) {
                 throw new Error("A IA não retornou uma resposta válida. Tente novamente.");
@@ -152,19 +164,22 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const result = JSON.parse(response.text);
             setAnalysisResult(result);
         } catch (err: any) {
-            console.error("Erro na Análise Sniper:", err);
+            console.error("Erro Crítico na Análise Sniper:", err);
             
-            // Providenciar feedback mais específico se possível
-            let userFriendlyError = "Erro na análise. Verifique sua conexão e a nitidez da imagem.";
+            let userFriendlyError = "Erro inesperado na análise. Tente novamente.";
             
-            if (err.message?.includes("API Key")) {
-                userFriendlyError = "Chave de API inválida ou não configurada. Verifique as configurações.";
-            } else if (err.message?.includes("quota")) {
-                userFriendlyError = "Limite de uso da IA atingido. Tente novamente em alguns instantes.";
+            if (err.message?.includes("Chave de API")) {
+                userFriendlyError = "CONFIGURAÇÃO PENDENTE: A Chave de API (GEMINI_API_KEY) não foi encontrada no ambiente.";
+            } else if (err.message?.includes("quota") || err.message?.includes("429")) {
+                userFriendlyError = "LIMITE ATINGIDO: O limite de requisições da IA foi atingido. Aguarde 1 minuto e tente novamente.";
+            } else if (err.message?.includes("model not found") || err.message?.includes("404")) {
+                userFriendlyError = "ERRO DE MODELO: O modelo de IA solicitado não está disponível no momento. Tentando reconectar...";
+                // Tentar novamente com flash se o pro falhar por disponibilidade
+                setTimeout(runAIAnalysis, 2000);
             } else if (err.message?.includes("JSON")) {
-                userFriendlyError = "Erro ao processar a resposta da IA. Tente analisar novamente.";
+                userFriendlyError = "ERRO DE PROCESSAMENTO: A IA gerou uma resposta em formato inválido. Por favor, tente analisar novamente.";
             } else if (err.message) {
-                userFriendlyError = `Erro: ${err.message}`;
+                userFriendlyError = `DETALHE DO ERRO: ${err.message}`;
             }
 
             setError(userFriendlyError);
@@ -181,7 +196,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         <CpuChipIcon className="w-8 h-8 text-teal-400" />
                     </div>
                     <div>
-                        <h2 className={`text-2xl font-black ${theme.text}`}>Scanner Sniper v5</h2>
+                        <h2 className={`text-2xl font-black ${theme.text}`}>Scanner Sniper v6</h2>
                         <p className={theme.textMuted}>Análise agressiva e assertiva focada em Price Action M1.</p>
                     </div>
                 </div>
@@ -284,9 +299,18 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             </div>
                         </div>
                     ) : error ? (
-                        <div className="h-full flex flex-col items-center justify-center py-20 text-center">
-                            <InformationCircleIcon className="w-16 h-16 text-red-500 mb-4" />
-                            <p className="text-sm font-bold text-red-400 max-w-[250px]">{error}</p>
+                        <div className="h-full flex flex-col items-center justify-center py-10 text-center px-4">
+                            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4 border border-red-500/20">
+                                <InformationCircleIcon className="w-8 h-8 text-red-500" />
+                            </div>
+                            <p className="text-[10px] font-black uppercase text-red-500 mb-2 tracking-widest">Falha na Operação</p>
+                            <p className="text-xs font-bold text-slate-400 max-w-[280px] mb-6 leading-relaxed">{error}</p>
+                            <button 
+                                onClick={runAIAnalysis}
+                                className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-slate-700"
+                            >
+                                Tentar Novamente
+                            </button>
                         </div>
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center py-20 opacity-20 text-center">
