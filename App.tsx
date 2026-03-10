@@ -79,10 +79,14 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         setIsAnalyzing(true);
         setError(null);
         try {
+            // Use a more capable model for better reasoning and accuracy
+            const modelName = 'gemini-3.1-pro-preview';
             const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+            
             if (!apiKey) {
-                throw new Error("API Key não configurada. Verifique as configurações do ambiente.");
+                throw new Error("Chave de API não encontrada. Configure a GEMINI_API_KEY.");
             }
+
             const ai = new GoogleGenAI({ apiKey });
             const compressed = await compressImage(selectedImage);
             const base64Data = compressed.split(',')[1];
@@ -91,21 +95,37 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const timeString = now.toLocaleTimeString('pt-BR');
 
             const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
+                model: modelName,
                 contents: {
                     parts: [
                         { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
-                        { text: `SISTEMA: ${timeString}. 
-                        PROTOCOLO SNIPER V5 (M1):
-                        1. ANALISE: Tendência majoritária vs micro-tendência (últimas 10 velas).
-                        2. GATILHOS: Procure por exaustão de preço, rompimento de suporte/resistência ou reversão em SNR.
-                        3. AGRESSIVIDADE: Se houver um padrão claro de Price Action (Martelo, Engolfo, Pinbar), emita CALL ou PUT imediatamente. Não fique apenas no WAIT se o movimento for provável (> 65%).
-                        4. TEMPO: Determine o início da próxima vela M1. Se agora são ${now.getSeconds()} segundos, a entrada deve ser no minuto ${now.getMinutes() + 1}:00.
-                        Retorne JSON puro.` },
+                        { text: `HORÁRIO ATUAL: ${timeString}. 
+                        EXECUTE PROTOCOLO SNIPER ELITE V6:
+                        
+                        1. MAPEAMENTO ESTRUTURAL:
+                           - Identifique a tendência primária (LTA/LTB) e a micro-tendência atual.
+                           - Localize as zonas de Suporte e Resistência (SNR) mais próximas do preço atual.
+                           - Verifique se o preço está em uma região de "Vácuo" ou de "Congestão".
+
+                        2. ANÁLISE DE CANDLESTICK (M1):
+                           - Procure por padrões de reversão: Martelo, Estrela Cadente, Engolfo, Harami ou Doji em zonas de SNR.
+                           - Analise o tamanho dos pavios (rejeição) vs corpo (força).
+                           - Identifique "Velas de Exaustão" (muito grandes sem pavio) ou "Velas de Impulsão".
+
+                        3. PROBABILIDADE E GATILHO:
+                           - Calcule a probabilidade de a PRÓXIMA VELA (M1) ser da cor oposta ou continuar o fluxo.
+                           - Só emita CALL ou PUT se a confiança for > 70%. Caso contrário, emita WAIT.
+                           - Se houver rompimento confirmado com vela de força, siga o fluxo.
+                           - Se houver rejeição clara em SNR com pavio longo, opere na retração/reversão.
+
+                        4. EXECUÇÃO:
+                           - A entrada deve ser para o início do próximo minuto: ${now.getMinutes() + 1}:00.
+                        
+                        RETORNE APENAS O JSON.` },
                     ],
                 },
                 config: {
-                    systemInstruction: "Você é um trader profissional de opções binárias especializado em M1. Analise o fluxo das velas. Foque em rejeições de preço (pavios) e impulsão. Seu objetivo é encontrar a maior probabilidade para a PRÓXIMA VELA. Responda apenas com o JSON conforme o schema, sendo técnico e direto na justificativa.",
+                    systemInstruction: "Você é um Analista Quantitativo Sênior e Trader Profissional de Opções Binárias com 15 anos de experiência em Price Action Puro e Leitura de Fluxo (Tape Reading) em gráficos de 1 minuto (M1). Sua precisão é cirúrgica. Você ignora ruídos e foca apenas em confluências de alta probabilidade. Você deve analisar a imagem do gráfico fornecida e decidir a melhor operação para a próxima vela. Seja extremamente técnico na justificativa.",
                     temperature: 0.1,
                     responseMimeType: "application/json",
                     responseSchema: {
@@ -124,12 +144,30 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     }
                 }
             });
-            const text = response.text;
-            if (!text) throw new Error("Motor inativo ou resposta vazia.");
-            setAnalysisResult(JSON.parse(text));
+
+            if (!response.text) {
+                throw new Error("A IA não retornou uma resposta válida. Tente novamente.");
+            }
+
+            const result = JSON.parse(response.text);
+            setAnalysisResult(result);
         } catch (err: any) {
-            console.error(err);
-            setError(err.message || "Ocorreu um erro na análise sniper. Tente novamente com uma imagem mais nítida.");
+            console.error("Erro na Análise Sniper:", err);
+            
+            // Providenciar feedback mais específico se possível
+            let userFriendlyError = "Erro na análise. Verifique sua conexão e a nitidez da imagem.";
+            
+            if (err.message?.includes("API Key")) {
+                userFriendlyError = "Chave de API inválida ou não configurada. Verifique as configurações.";
+            } else if (err.message?.includes("quota")) {
+                userFriendlyError = "Limite de uso da IA atingido. Tente novamente em alguns instantes.";
+            } else if (err.message?.includes("JSON")) {
+                userFriendlyError = "Erro ao processar a resposta da IA. Tente analisar novamente.";
+            } else if (err.message) {
+                userFriendlyError = `Erro: ${err.message}`;
+            }
+
+            setError(userFriendlyError);
         } finally {
             setIsAnalyzing(false);
         }
