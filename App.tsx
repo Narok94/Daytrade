@@ -79,17 +79,18 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         setIsAnalyzing(true);
         setError(null);
         try {
-            // Use a more capable model for better reasoning and accuracy
-            let modelName = 'gemini-3.1-pro-preview';
+            // Switch to Flash as default for speed (M1 needs < 30s)
+            let modelName = 'gemini-3-flash-preview';
             const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
-            console.log("Iniciando análise. Chave presente:", !!apiKey);
+            console.log("Iniciando análise ultra-rápida. Chave presente:", !!apiKey);
             
             if (!apiKey) {
                 throw new Error("Chave de API não encontrada. Configure a GEMINI_API_KEY.");
             }
 
             const ai = new GoogleGenAI({ apiKey });
-            const compressed = await compressImage(selectedImage);
+            // Compress more for faster upload/processing
+            const compressed = await compressImage(selectedImage, 1000);
             const base64Data = compressed.split(',')[1];
             
             const now = new Date();
@@ -101,33 +102,19 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     contents: {
                         parts: [
                             { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
-                            { text: `HORÁRIO ATUAL: ${timeString}. 
-                            EXECUTE PROTOCOLO SNIPER ELITE V6:
+                            { text: `HORÁRIO: ${timeString}. 
+                            PROTOCOLO SNIPER FLASH V6 (M1):
+                            1. SNR: Suporte/Resistência imediatos.
+                            2. CANDLES: Padrão de reversão ou força nos últimos 3 candles.
+                            3. DECISÃO: CALL, PUT ou WAIT.
+                            4. CONFIANÇA: 0-100%.
+                            5. ENTRADA: Próximo minuto (${now.getMinutes() + 1}:00).
                             
-                            1. MAPEAMENTO ESTRUTURAL:
-                               - Identifique a tendência primária (LTA/LTB) e a micro-tendência atual.
-                               - Localize as zonas de Suporte e Resistência (SNR) mais próximas do preço atual.
-                               - Verifique se o preço está em uma região de "Vácuo" ou de "Congestão".
-
-                            2. ANÁLISE DE CANDLESTICK (M1):
-                               - Procure por padrões de reversão: Martelo, Estrela Cadente, Engolfo, Harami ou Doji em zonas de SNR.
-                               - Analise o tamanho dos pavios (rejeição) vs corpo (força).
-                               - Identifique "Velas de Exaustão" (muito grandes sem pavio) ou "Velas de Impulsão".
-
-                            3. PROBABILIDADE E GATILHO:
-                               - Calcule a probabilidade de a PRÓXIMA VELA (M1) ser da cor oposta ou continuar o fluxo.
-                               - Só emita CALL ou PUT se a confiança for > 70%. Caso contrário, emita WAIT.
-                               - Se houver rompimento confirmado com vela de força, siga o fluxo.
-                               - Se houver rejeição clara em SNR com pavio longo, opere na retração/reversão.
-
-                            4. EXECUÇÃO:
-                               - A entrada deve ser para o início do próximo minuto: ${now.getMinutes() + 1}:00.
-                            
-                            RETORNE APENAS O JSON.` },
+                            RETORNE APENAS JSON.` },
                         ],
                     },
                     config: {
-                        systemInstruction: "Você é um Analista Quantitativo Sênior e Trader Profissional de Opções Binárias com 15 anos de experiência em Price Action Puro e Leitura de Fluxo (Tape Reading) em gráficos de 1 minuto (M1). Sua precisão é cirúrgica. Você ignora ruídos e foca apenas em confluências de alta probabilidade. Você deve analisar a imagem do gráfico fornecida e decidir a melhor operação para a próxima vela. Seja extremamente técnico na justificativa.",
+                        systemInstruction: "Você é um Trader de Elite M1. Analise o gráfico e dê o gatilho em segundos. Seja direto e técnico.",
                         temperature: 0.1,
                         responseMimeType: "application/json",
                         responseSchema: {
@@ -151,9 +138,14 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             let response;
             try {
                 response = await generateContent(modelName);
-            } catch (proError) {
-                console.warn("Falha no modelo Pro, tentando Flash...", proError);
-                modelName = 'gemini-3-flash-preview';
+            } catch (flashError: any) {
+                console.warn("Falha no modelo Flash, tentando Pro como backup...", flashError);
+                // If 503, wait a bit or try another model
+                if (flashError.message?.includes("503") || flashError.message?.includes("demand")) {
+                    modelName = 'gemini-2.5-flash'; // Try a more stable version if available
+                } else {
+                    modelName = 'gemini-3.1-pro-preview';
+                }
                 response = await generateContent(modelName);
             }
 
@@ -172,6 +164,8 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 userFriendlyError = "CONFIGURAÇÃO PENDENTE: A Chave de API (GEMINI_API_KEY) não foi encontrada no ambiente.";
             } else if (err.message?.includes("quota") || err.message?.includes("429")) {
                 userFriendlyError = "LIMITE ATINGIDO: O limite de requisições da IA foi atingido. Aguarde 1 minuto e tente novamente.";
+            } else if (err.message?.includes("503") || err.message?.includes("demand")) {
+                userFriendlyError = "IA SOBRECARREGADA: O Google está com alta demanda. Tente novamente em 5 segundos - o sistema usará um motor alternativo.";
             } else if (err.message?.includes("model not found") || err.message?.includes("404")) {
                 userFriendlyError = "ERRO DE MODELO: O modelo de IA solicitado não está disponível no momento. Tentando reconectar...";
                 // Tentar novamente com flash se o pro falhar por disponibilidade
@@ -200,12 +194,16 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         <p className={theme.textMuted}>Análise agressiva e assertiva focada em Price Action M1.</p>
                     </div>
                 </div>
-                <div className="flex gap-2">
-                    <div className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white/70">IA Online</span>
+                    <div className="flex gap-2">
+                        <div className="px-4 py-2 rounded-xl bg-teal-500/20 border border-teal-500/30 flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-teal-400">Ultra-Fast Mode</span>
+                        </div>
+                        <div className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/70">IA Online</span>
+                        </div>
                     </div>
-                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
