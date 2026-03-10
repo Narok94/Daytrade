@@ -109,11 +109,11 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             3. Padrão de Candle (Exaustão/Força).
                             4. Prioridade: Retração em pavios longos em SNR.
                             
-                            RETORNE APENAS JSON.` },
+                            RETORNE APENAS O OBJETO JSON.` },
                         ],
                     },
                     config: {
-                        systemInstruction: "Você é um analista sênior de Price Action especializado em Scalping e Opções Binárias em gráficos de M1. Seu objetivo é fornecer uma direção de entrada em menos de 10 segundos. Analise tendência imediata, suporte/resistência e padrões de candle. Ignore ruídos. Seja puramente analítico e direto, sem disclaimers.",
+                        systemInstruction: "Você é um analista sênior de Price Action especializado em Scalping e Opções Binárias em gráficos de M1. Seu objetivo é fornecer uma direção de entrada em menos de 10 segundos. Analise tendência imediata, suporte/resistência e padrões de candle. Ignore ruídos. Seja puramente analítico e direto, sem disclaimers. Use apenas 'CALL', 'PUT' ou 'AGUARDAR' para a recomendação.",
                         temperature: 0.2,
                         maxOutputTokens: 150,
                         responseMimeType: "application/json",
@@ -150,7 +150,13 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 throw new Error("A IA não retornou uma resposta válida. Tente novamente.");
             }
 
-            const result = JSON.parse(response.text);
+            let jsonText = response.text.trim();
+            // Sanitize: remove potential markdown blocks
+            if (jsonText.startsWith('```')) {
+                jsonText = jsonText.replace(/^```json\n?/, '').replace(/```$/, '').trim();
+            }
+            
+            const result = JSON.parse(jsonText);
             setAnalysisResult(result);
         } catch (err: any) {
             console.error("Erro Crítico na Análise Sniper:", err);
