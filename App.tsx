@@ -14,254 +14,41 @@ import {
     ChevronLeftIcon, ChevronRightIcon
 } from './components/icons';
 
+import { DashboardPanel } from './features/Dashboard/DashboardPanel';
+import { AIAnalysisPanel } from './features/AIAnalysis/AIAnalysisPanel';
+import { CompoundInterestPanel } from './features/CompoundInterest/CompoundInterestPanel';
+import { ReportPanel } from './features/Report/ReportPanel';
+import { HistoryPanel } from './features/History/HistoryPanel';
+import { SorosCalculatorPanel } from './features/Soros/SorosCalculatorPanel';
+import { GoalsPanel } from './features/Goals/GoalsPanel';
+import { SettingsPanel } from './features/Settings/SettingsPanel';
+import { SavingStatusIndicator } from './components/ui/SavingStatusIndicator';
+
 // --- Helper Functions ---
 const formatMoney = (val: number) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const useThemeClasses = (isDarkMode: boolean) => {
     return useMemo(() => ({
-        bg: isDarkMode ? 'bg-slate-950' : 'bg-zinc-100',
-        text: isDarkMode ? 'text-slate-50' : 'text-zinc-900',
-        textMuted: isDarkMode ? 'text-slate-400' : 'text-zinc-500',
-        card: isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-zinc-50 border-zinc-200 shadow-sm',
-        input: isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-700' : 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400',
-        border: isDarkMode ? 'border-slate-800' : 'border-zinc-200',
-        sidebar: isDarkMode ? 'bg-slate-950 border-r border-slate-800' : 'bg-zinc-50 border-r border-zinc-200',
-        header: isDarkMode ? 'bg-slate-950' : 'bg-zinc-50',
-        navActive: isDarkMode ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-600',
-        navInactive: isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50',
+        bg: isDarkMode ? 'bg-[#0a0c10]' : 'bg-[#f8fafc]',
+        text: isDarkMode ? 'text-slate-100' : 'text-slate-900',
+        textMuted: isDarkMode ? 'text-slate-500' : 'text-slate-500',
+        card: isDarkMode ? 'bg-slate-900/40 backdrop-blur-md border-slate-800/50 shadow-2xl' : 'bg-white/80 backdrop-blur-md border-slate-200/60 shadow-sm',
+        input: isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-700 focus:border-blue-500/50' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500/50',
+        border: isDarkMode ? 'border-slate-800/50' : 'border-slate-200/60',
+        sidebar: isDarkMode ? 'bg-[#0a0c10] border-r border-slate-800/50' : 'bg-white border-r border-slate-200/60',
+        header: isDarkMode ? 'bg-[#0a0c10]/80 backdrop-blur-md' : 'bg-white/80 backdrop-blur-md',
+        navActive: isDarkMode ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600',
+        navInactive: isDarkMode ? 'text-slate-500 hover:text-slate-200 hover:bg-slate-900/30' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100',
+        accent: isDarkMode ? 'text-blue-400' : 'text-blue-600',
+        success: isDarkMode ? 'text-emerald-400' : 'text-emerald-600',
+        danger: isDarkMode ? 'text-rose-400' : 'text-rose-600',
     }), [isDarkMode]);
-};
-
-// --- AI Analysis Panel (Sniper Assertivo v5) ---
-const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
-    const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult | null>(null);
-    const [error, setError] = useState<string | null>(null);
-
-    const compressImage = (dataUrl: string, maxWidth = 1200): Promise<string> => {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.src = dataUrl;
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                if (width > maxWidth) {
-                    height = (maxWidth / width) * height;
-                    width = maxWidth;
-                }
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx?.drawImage(img, 0, 0, width, height);
-                // 0.8 de qualidade é o "sweet spot" para a IA ver os pavios sem demorar no upload
-                resolve(canvas.toDataURL('image/jpeg', 0.8));
-            };
-        });
-    };
-
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setSelectedImage(reader.result as string);
-                setAnalysisResult(null);
-                setError(null);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const runAIAnalysis = async () => {
-        if (!selectedImage) return;
-        setIsAnalyzing(true);
-        setError(null);
-        try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            const compressed = await compressImage(selectedImage);
-            const base64Data = compressed.split(',')[1];
-            
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('pt-BR');
-
-            const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: {
-                    parts: [
-                        { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
-                        { text: `SISTEMA: ${timeString}. 
-                        PROTOCOLO SNIPER V5 (M1):
-                        1. ANALISE: Tendência majoritária vs micro-tendência (últimas 10 velas).
-                        2. GATILHOS: Procure por exaustão de preço, rompimento de suporte/resistência ou reversão em SNR.
-                        3. AGRESSIVIDADE: Se houver um padrão claro de Price Action (Martelo, Engolfo, Pinbar), emita CALL ou PUT imediatamente. Não fique apenas no WAIT se o movimento for provável (> 65%).
-                        4. TEMPO: Determine o início da próxima vela M1. Se agora são ${now.getSeconds()} segundos, a entrada deve ser no minuto ${now.getMinutes() + 1}:00.
-                        Retorne JSON puro.` },
-                    ],
-                },
-                config: {
-                    systemInstruction: "Você é um trader profissional de opções binárias especializado em M1. Analise o fluxo das velas. Foque em rejeições de preço (pavios) e impulsão. Seu objetivo é encontrar a maior probabilidade para a PRÓXIMA VELA. Responda apenas com o JSON conforme o schema, sendo técnico e direto na justificativa.",
-                    temperature: 0.1,
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            recommendation: { type: Type.STRING, enum: ['CALL', 'PUT', 'WAIT'] },
-                            confidence: { type: Type.NUMBER },
-                            patterns: { type: Type.ARRAY, items: { type: Type.STRING } },
-                            indicatorAnalysis: { type: Type.STRING },
-                            reasoning: { type: Type.STRING },
-                            supportLevel: { type: Type.STRING },
-                            resistanceLevel: { type: Type.STRING },
-                            entryTime: { type: Type.STRING }
-                        },
-                        required: ['recommendation', 'confidence', 'patterns', 'indicatorAnalysis', 'reasoning', 'supportLevel', 'resistanceLevel', 'entryTime']
-                    }
-                }
-            });
-            const text = response.text;
-            if (!text) throw new Error("Motor inativo.");
-            setAnalysisResult(JSON.parse(text));
-        } catch (err: any) {
-            console.error(err);
-            setError("Ocorreu um erro na análise sniper. Tente novamente com uma imagem mais nítida.");
-        } finally {
-            setIsAnalyzing(false);
-        }
-    };
-
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-2xl bg-teal-500/10 border border-teal-500/20">
-                        <CpuChipIcon className="w-8 h-8 text-teal-400" />
-                    </div>
-                    <div>
-                        <h2 className={`text-2xl font-black ${theme.text}`}>Scanner Sniper v5</h2>
-                        <p className={theme.textMuted}>Análise agressiva e assertiva focada em Price Action M1.</p>
-                    </div>
-                </div>
-                <div className="flex gap-2">
-                    <div className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white/70">IA Online</span>
-                    </div>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Upload Section */}
-                <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><TargetIcon className="w-5 h-5 text-teal-400" /> Captura do Gráfico</h3>
-                    <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl p-6 min-h-[350px] relative overflow-hidden bg-slate-950/20">
-                        {!selectedImage ? (
-                            <label className="cursor-pointer flex flex-col items-center gap-4 text-center">
-                                <div className="w-20 h-20 rounded-full bg-teal-500/10 flex items-center justify-center text-teal-400 shadow-xl shadow-teal-500/10 border border-teal-500/20"><PlusIcon className="w-10 h-10" /></div>
-                                <div className="space-y-1">
-                                    <p className="font-black text-white uppercase tracking-tighter">Clique para Analisar</p>
-                                    <p className="text-[10px] font-bold text-white/40 max-w-[180px]">M1 recomendado para máxima assertividade</p>
-                                </div>
-                                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                            </label>
-                        ) : (
-                            <div className="w-full h-full flex flex-col items-center gap-4">
-                                <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-black">
-                                    <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
-                                    {isAnalyzing && (
-                                        <div className="absolute inset-0 bg-teal-950/80 backdrop-blur-md flex flex-col items-center justify-center gap-4">
-                                            <div className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
-                                            <div className="text-center">
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-teal-400">Escaneando Candles...</p>
-                                                <p className="text-[8px] font-bold text-white/50 mt-1">Lendo pavios e regiões de SNR</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex gap-4 w-full">
-                                    <button onClick={() => setSelectedImage(null)} className="flex-1 py-4 text-[10px] font-black uppercase rounded-2xl border border-slate-800 hover:bg-slate-800/50 transition-all">Limpar</button>
-                                    <button disabled={isAnalyzing} onClick={runAIAnalysis} className="flex-[2] py-4 text-[10px] font-black uppercase rounded-2xl bg-teal-500 text-slate-950 shadow-lg shadow-teal-500/20 hover:scale-[1.02] active:scale-95 transition-all">{isAnalyzing ? 'Calculando Probabilidade...' : 'Analisar Gatilho Agora'}</button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Results Section */}
-                <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CpuChipIcon className="w-5 h-5 text-purple-400" /> Relatório Sniper</h3>
-                    {analysisResult ? (
-                        <div className="space-y-6">
-                            {/* Recommendation Card */}
-                            <div className={`p-4 md:p-6 rounded-3xl border-2 flex items-center justify-between ${analysisResult.recommendation === 'CALL' ? 'bg-green-500/10 border-green-500/30' : analysisResult.recommendation === 'PUT' ? 'bg-red-500/10 border-red-500/30' : 'bg-slate-800/20 border-slate-700'}`}>
-                                <div>
-                                    <p className="text-[8px] md:text-[10px] font-black uppercase opacity-60 mb-1">Decisão do Motor</p>
-                                    <h4 className={`text-3xl md:text-5xl font-black ${analysisResult.recommendation === 'CALL' ? 'text-green-500' : analysisResult.recommendation === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
-                                        {analysisResult.recommendation === 'CALL' ? '↑ CALL' : analysisResult.recommendation === 'PUT' ? '↓ PUT' : '∅ NEUTRO'}
-                                    </h4>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[8px] md:text-[10px] font-black uppercase opacity-60 mb-1">Confiança</p>
-                                    <p className="text-2xl md:text-3xl font-black">{analysisResult.confidence}%</p>
-                                </div>
-                            </div>
-
-                            {/* Time Card */}
-                            <div className="p-4 md:p-6 rounded-3xl border border-teal-500/30 bg-slate-950/40 flex items-center justify-between">
-                                <div>
-                                    <p className="text-[8px] md:text-[10px] font-black uppercase text-teal-400 mb-1">Horário de Entrada</p>
-                                    <p className="text-3xl md:text-5xl font-black text-white tracking-tighter tabular-nums">{analysisResult.entryTime}</p>
-                                </div>
-                                <TargetIcon className="w-8 h-8 md:w-12 md:h-12 text-teal-400 opacity-50" />
-                            </div>
-
-                            {/* Levels Grid */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Suporte</p>
-                                    <p className="text-xs font-bold text-green-400">{analysisResult.supportLevel}</p>
-                                </div>
-                                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Resistência</p>
-                                    <p className="text-xs font-bold text-red-400">{analysisResult.resistanceLevel}</p>
-                                </div>
-                            </div>
-
-                            {/* Reasoning */}
-                            <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800">
-                                <p className="text-[9px] font-black uppercase text-slate-500 mb-3">Confluências Detectadas</p>
-                                <div className="flex flex-wrap gap-2 mb-4">
-                                    {analysisResult.patterns.map((p, i) => (
-                                        <span key={i} className="px-2 py-1 rounded bg-teal-500/10 border border-teal-500/20 text-[9px] font-black text-teal-400 uppercase">{p}</span>
-                                    ))}
-                                </div>
-                                <p className="text-xs font-medium text-slate-300 leading-relaxed italic border-l-2 border-teal-500 pl-4">
-                                    "{analysisResult.reasoning}"
-                                </p>
-                            </div>
-                        </div>
-                    ) : error ? (
-                        <div className="h-full flex flex-col items-center justify-center py-20 text-center">
-                            <InformationCircleIcon className="w-16 h-16 text-red-500 mb-4" />
-                            <p className="text-sm font-bold text-red-400 max-w-[250px]">{error}</p>
-                        </div>
-                    ) : (
-                        <div className="h-full flex flex-col items-center justify-center py-20 opacity-20 text-center">
-                            <CpuChipIcon className="w-20 h-20 mb-6" />
-                            <p className="text-xs font-black uppercase tracking-[0.2em]">Aguardando Scan</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
 };
 
 // --- App Root Logic ---
 const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout }) => {
     const [activeTab, setActiveTab] = useState<string>('dashboard');
-    const [isDarkMode, setIsDarkMode] = useState(true);
+    const [isDarkMode, setIsDarkMode] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [brokerages, setBrokerages] = useState<Brokerage[]>([]);
@@ -524,92 +311,78 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         <div className={`flex h-screen overflow-hidden overflow-x-hidden ${theme.bg} ${theme.text}`}>
             {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
             <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
-                <div className={`h-20 flex-none flex items-center justify-center border-b ${theme.border} ${theme.header} relative overflow-hidden`}>
-                    <div className="flex flex-col items-center relative z-10">
-                        <span className="font-black italic text-teal-400 text-3xl tracking-tighter leading-none">HRK</span>
-                        <span className="text-[6px] font-black uppercase tracking-[0.3em] text-teal-500/40 mt-1">Binary Options Control</span>
-                    </div>
-                    {/* Subtle background decorations */}
-                    <div className="absolute right-4 bottom-2 flex items-end gap-[2px] opacity-10">
-                        <div className="w-[2px] h-3 bg-green-500" />
-                        <div className="w-[2px] h-5 bg-red-500" />
-                        <div className="w-[2px] h-4 bg-green-500" />
-                    </div>
-                    <div className="absolute left-4 top-2 flex items-start gap-[2px] opacity-10">
-                        <div className="w-[2px] h-4 bg-red-500" />
-                        <div className="w-[2px] h-2 bg-green-500" />
-                        <div className="w-[2px] h-3 bg-red-500" />
+                <div className={`h-24 flex-none flex items-center px-8 border-b ${theme.border} ${theme.header} relative overflow-hidden`}>
+                    <div className="flex items-center gap-3 relative z-10">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                            <span className="font-black italic text-white text-xl tracking-tighter">H</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className={`font-black text-lg tracking-tight leading-none ${theme.text}`}>HRK</span>
+                            <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-blue-500/60 mt-1">Binary Control</span>
+                        </div>
                     </div>
                 </div>
-                <nav className="flex-1 p-4 space-y-1">
-                    <div className="px-4 py-2 mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-[0.2em] text-teal-500/40">
-                            <div className="w-1 h-1 rounded-full bg-teal-500" />
-                            Trading Mode: M1 / OTC
+                <nav className="flex-1 p-6 space-y-1.5">
+                    <div className="px-2 py-2 mb-4 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                            Live Market
                         </div>
-                        <div className="px-1 py-0.5 rounded bg-teal-500/10 text-[6px] font-black text-teal-500/50 uppercase">Binary</div>
                     </div>
-                    <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
-                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
-                    <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Juros Compostos</button>
-                    <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Extrato</button>
-                    <button onClick={() => {setActiveTab('history'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'history' ? theme.navActive : theme.navInactive}`}><ListBulletIcon className="w-5 h-5" />Histórico</button>
-                    <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
-                    <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
-                    <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Configurações</button>
+                    <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
+                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
+                    <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Juros Compostos</button>
+                    <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Extrato</button>
+                    <button onClick={() => {setActiveTab('history'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${activeTab === 'history' ? theme.navActive : theme.navInactive}`}><ListBulletIcon className="w-5 h-5" />Histórico</button>
+                    <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
+                    <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
+                    <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Configurações</button>
                 </nav>
-                <div className="p-4 border-t border-slate-800/50">
-                    <div className="flex items-center justify-between px-4 mb-4 opacity-20">
-                        <div className="flex items-center gap-1">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                            <span className="text-[7px] font-black uppercase tracking-widest">Call</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <span className="text-[7px] font-black uppercase tracking-widest">Put</span>
-                            <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                        </div>
-                    </div>
-                    <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 font-bold hover:bg-red-500/10 rounded-2xl"><LogoutIcon className="w-5 h-5" />Sair</button>
+                <div className="p-6 border-t border-slate-200/60">
+                    <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-rose-500 font-semibold hover:bg-rose-50 rounded-xl transition-colors"><LogoutIcon className="w-5 h-5" />Sair</button>
                 </div>
             </aside>
             <main className="flex-1 flex flex-col overflow-hidden">
-                <header className={`h-20 flex-none flex items-center justify-between px-6 md:px-8 border-b ${theme.border} ${theme.header}`}>
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-6 h-6" /></button>
-                        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/30 border border-slate-800/50 text-[8px] font-black uppercase tracking-widest text-teal-400/60">
-                            <div className="w-1 h-1 rounded-full bg-teal-400 animate-pulse" />
-                            Market: Active
+                <header className={`h-24 flex-none flex items-center justify-between px-8 border-b ${theme.border} ${theme.header}`}>
+                    <div className="flex items-center gap-6">
+                        <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-500"><MenuIcon className="w-6 h-6" /></button>
+                        <div className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/5 border border-blue-500/10 text-[10px] font-bold uppercase tracking-widest text-blue-600">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                            System Operational
                         </div>
                         <SavingStatusIndicator status={savingStatus} />
-                        <div className="flex items-center gap-1 md:gap-2 ml-1 md:ml-4 max-w-[100px] md:max-w-none">
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <div className="hidden md:flex items-center gap-3">
                             <select 
                                 value={activeBrokerageId || ''} 
                                 onChange={(e) => setActiveBrokerageId(e.target.value)}
-                                className={`text-[9px] md:text-xs font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 cursor-pointer truncate ${theme.text}`}
+                                className={`text-xs font-bold uppercase tracking-widest bg-slate-100/50 border-none rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500/20 cursor-pointer ${theme.text}`}
                             >
                                 {brokerages.map(b => (
                                     <option key={b.id} value={b.id} className={isDarkMode ? 'bg-slate-900' : 'bg-white'}>{b.name}</option>
                                 ))}
                             </select>
                         </div>
-                    </div>
-                    <div className="flex items-center gap-1 md:gap-3 overflow-hidden justify-end">
-                        <div className="flex items-center gap-1 md:gap-4 overflow-x-auto no-scrollbar py-1">
-                            {brokerageBalances.map((b, i) => (
-                                <div key={i} className={`flex flex-col items-end px-1.5 md:px-3 py-0.5 md:py-1 rounded-md md:rounded-xl border shrink-0 ${isDarkMode ? 'bg-slate-900/40 border-slate-800/50' : 'bg-zinc-200/50 border-zinc-300/50'}`}>
-                                    <span className="text-[5px] md:text-[8px] font-black uppercase opacity-40 leading-none">{b.name}</span>
-                                    <span className={`text-[8px] md:text-xs font-bold leading-tight ${b.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                        {b.currency === 'USD' ? '$' : 'R$'} {formatMoney(b.balance)}
-                                    </span>
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                                {brokerageBalances.slice(0, 2).map((b, i) => (
+                                    <div key={i} className={`flex flex-col items-end px-4 py-2 rounded-xl border ${isDarkMode ? 'bg-slate-900/40 border-slate-800/50' : 'bg-white border-slate-200/60 shadow-sm'}`}>
+                                        <span className="text-[9px] font-bold uppercase text-slate-400 leading-none mb-1">{b.name}</span>
+                                        <span className={`text-sm font-bold leading-tight ${b.balance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                            {b.currency === 'USD' ? '$' : 'R$'} {formatMoney(b.balance)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="h-10 w-[1px] bg-slate-200/60 hidden md:block" />
+                            <div className="flex items-center gap-4">
+                                <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors text-slate-500">
+                                    {isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+                                </button>
+                                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-white font-bold text-sm shadow-xl shadow-slate-900/10">
+                                    {user.username.slice(0, 2).toUpperCase()}
                                 </div>
-                            ))}
-                        </div>
-                        <div className="flex items-center gap-1 md:gap-3 shrink-0">
-                            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1 md:p-2 text-slate-400 hover:text-teal-400 transition-colors">
-                                {isDarkMode ? <SunIcon className="w-3.5 h-3.5 md:w-5 md:h-5" /> : <MoonIcon className="w-3.5 h-3.5 md:w-5 md:h-5" />}
-                            </button>
-                            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-teal-500 flex items-center justify-center text-slate-950 font-black text-[9px] md:text-xs shadow-lg shadow-teal-500/20">
-                                {user.username.slice(0, 2).toUpperCase()}
                             </div>
                         </div>
                     </div>
@@ -632,6 +405,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             transactionsForSelectedDay={dayTransactions}
                             startBalanceForSelectedDay={startBalDashboard} 
                             currentBalanceForDashboard={currentBalanceForDashboard}
+                            theme={theme}
                             isDarkMode={isDarkMode} 
                             dailyGoalTarget={activeDailyGoal} 
                         />
@@ -645,818 +419,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} />}
                 </div>
             </main>
-        </div>
-    );
-};
-
-const SavingStatusIndicator: React.FC<{status: string}> = ({status}) => {
-    if (status === 'saving') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500"><ArrowPathIcon className="w-3 h-3 animate-spin" /> Salvando...</div>;
-    if (status === 'saved') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-green-500"><CheckIcon className="w-3 h-3" /> Sincronizado</div>;
-    return null;
-};
-
-// Sub-components like DashboardPanel, CompoundInterestPanel, etc., should be defined correctly here if not in separate files.
-// For brevity, assuming they are within this file but omitted in the update to focus on the change.
-// (I will keep the logic from the previous provided file structure)
-
-const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, addTransaction, deleteTransaction, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, transactionsForSelectedDay, startBalanceForSelectedDay, currentBalanceForDashboard, isDarkMode, dailyGoalTarget }) => {
-    const theme = useThemeClasses(isDarkMode);
-    const [quantity, setQuantity] = useState('1');
-    const [transAmount, setTransAmount] = useState('');
-    const [transType, setTransType] = useState<'deposit' | 'withdrawal'>('deposit');
-    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
-    
-    const handleQuickAdd = (type: 'win' | 'loss') => {
-         const entryValue = parseFloat(customEntryValue) || 0;
-         const payout = parseFloat(customPayout) || 0;
-         const qty = parseInt(quantity) || 1;
-         if (type === 'win') addRecord(qty, 0, entryValue, payout);
-         else addRecord(0, qty, entryValue, payout);
-         setQuantity('1');
-    };
-
-    const handleTransaction = () => {
-        const amount = parseFloat(transAmount) || 0;
-        if (amount > 0) {
-            addTransaction(transType, amount);
-            setTransAmount('');
-        }
-    };
-
-    const currentProfit = dailyRecordForSelectedDay?.netProfitUSD ?? 0;
-    const currentBalance = currentBalanceForDashboard;
-    const winRate = ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0)) > 0 
-        ? (((dailyRecordForSelectedDay?.winCount || 0) / ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0))) * 100).toFixed(1) : '0.0';
-    
-    const dailyGoalPercent = dailyGoalTarget > 0 ? (currentProfit / dailyGoalTarget) * 100 : 0;
-
-    const entryValueNum = parseFloat(customEntryValue) || 0;
-    const payoutNum = parseFloat(customPayout) || 0;
-    const qtyNum = parseInt(quantity) || 1;
-    const estimatedProfit = entryValueNum * (payoutNum / 100) * qtyNum;
-    const estimatedLoss = entryValueNum * qtyNum;
-
-    const stopWinReached = activeBrokerage.stopGainTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.winCount >= activeBrokerage.stopGainTrades;
-    const stopLossReached = activeBrokerage.stopLossTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.lossCount >= activeBrokerage.stopLossTrades;
-
-    const kpis = [
-        { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-green-500' },
-        { label: 'Lucro Diário', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol} ${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-green-500' : 'text-red-500' },
-        { label: 'Meta Diária', val: `${currencySymbol}${formatMoney(dailyGoalTarget)}`, subVal: `${Math.min(100, dailyGoalPercent).toFixed(0)}% Alcançado`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-green-500' : 'text-blue-400' },
-        { label: 'Win Rate', val: `${winRate}%`, icon: TrophyIcon, color: 'text-purple-400' },
-    ];
-
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
-                <div><h2 className={`text-2xl font-black ${theme.text}`}>Dashboard de Gestão</h2><p className={theme.textMuted}>Controle operacional em tempo real.</p></div>
-                <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
-                {kpis.map((kpi, i) => (
-                    <div key={i} className={`p-3 md:p-4 rounded-2xl md:rounded-3xl border ${theme.card} flex flex-col justify-between`}>
-                        <div className="flex justify-between items-start mb-1"><p className="text-[8px] md:text-[10px] uppercase font-black text-slate-500 tracking-wider leading-none">{kpi.label}</p><kpi.icon className={`w-3 h-3 md:w-4 md:h-4 ${kpi.color} opacity-80`} /></div>
-                        <p className={`text-sm md:text-lg lg:text-xl font-black ${kpi.color} truncate`}>{kpi.val}</p>
-                        {kpi.subVal && <p className="text-[7px] md:text-[9px] font-bold mt-1 text-slate-500 truncate leading-tight">{kpi.subVal}</p>}
-                    </div>
-                ))}
-            </div>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <div className="space-y-6">
-                    <div className={`p-6 rounded-3xl border ${theme.card}`}>
-                        <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-green-500" /> Nova Operação</h3>
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
-                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout %</label><input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
-                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
-                            </div>
-                            <div className="flex justify-between items-center px-1">
-                                <p className="text-[8px] font-black uppercase tracking-widest text-red-500/40">
-                                    Risco: <span className="text-red-500/60">{currencySymbol} {formatMoney(estimatedLoss)}</span>
-                                </p>
-                                <p className="text-[9px] font-black uppercase tracking-widest text-green-500/40">
-                                    Estimativa de Ganho: <span className="text-green-500/80">{currencySymbol} {formatMoney(estimatedProfit)}</span>
-                                </p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 pt-1">
-                                <button onClick={() => handleQuickAdd('win')} disabled={stopWinReached || stopLossReached} className="h-14 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">WIN</button>
-                                <button onClick={() => handleQuickAdd('loss')} disabled={stopWinReached || stopLossReached} className="h-14 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">LOSS</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className={`p-6 rounded-3xl border ${theme.card}`}>
-                        <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><ArrowPathIcon className="w-5 h-5 text-blue-500" /> Movimentação de Banca</h3>
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Tipo</label>
-                                    <select value={transType} onChange={e => setTransType(e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-blue-500 outline-none font-bold ${theme.input}`}>
-                                        <option value="deposit">Depósito</option>
-                                        <option value="withdrawal">Saque</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor</label>
-                                    <input type="number" value={transAmount} onChange={e => setTransAmount(e.target.value)} placeholder="0.00" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-blue-500 outline-none font-bold ${theme.input}`} />
-                                </div>
-                            </div>
-                            <button onClick={handleTransaction} className="w-full h-12 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95">Confirmar Lançamento</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60 text-blue-400"><ListBulletIcon className="w-5 h-5" /> Histórico do Dia</h3>
-                    <div className="flex-1 overflow-y-auto max-h-[500px] pr-2 custom-scrollbar">
-                        <div className="space-y-2">
-                            {/* Transactions first */}
-                            {transactionsForSelectedDay.map((trans: any) => (
-                                <div key={trans.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-blue-950/20 border-blue-800/30' : 'bg-blue-50 border-blue-200/50'}`}>
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-2 h-8 rounded-full ${trans.recordType === 'deposit' ? 'bg-blue-500' : 'bg-orange-500'}`} />
-                                        <div>
-                                            <p className="text-[10px] font-black uppercase text-slate-500 leading-none">{new Date(trans.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                                            <p className="text-sm font-bold">{trans.recordType === 'deposit' ? 'Depósito' : 'Saque'}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className={`text-sm font-black ${trans.recordType === 'deposit' ? 'text-blue-500' : 'text-orange-500'}`}>
-                                            {trans.recordType === 'deposit' ? '+' : '-'}{currencySymbol} {formatMoney(trans.amountUSD)}
-                                        </p>
-                                        <button onClick={() => deleteTransaction(trans.id)} className="text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button>
-                                    </div>
-                                </div>
-                            ))}
-
-                            {/* Trades */}
-                            {dailyRecordForSelectedDay?.trades?.length ? (
-                                [...dailyRecordForSelectedDay.trades].reverse().map((trade) => {
-                                    const tradeProfit = trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)) : -trade.entryValue;
-                                    return (
-                                        <div key={trade.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-slate-950/50 border-slate-800/50' : 'bg-slate-50 border-slate-200/50'}`}>
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-2 h-8 rounded-full ${trade.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} />
-                                                <div>
-                                                    <p className="text-[10px] font-black uppercase text-slate-500 leading-none">
-                                                        {new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                                        <span className="ml-2 opacity-50">Payout: {trade.payoutPercentage}%</span>
-                                                    </p>
-                                                    <p className="text-sm font-bold">{trade.result === 'win' ? 'Vitória' : 'Derrota'}</p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className={`text-sm font-black ${tradeProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                                    {tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}
-                                                </p>
-                                                <button onClick={() => deleteTrade(trade.id, selectedDateString)} className="text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button>
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            ) : null}
-
-                            {!dailyRecordForSelectedDay?.trades?.length && !transactionsForSelectedDay.length && (
-                                <div className="h-full flex flex-col items-center justify-center opacity-30 py-10">
-                                    <InformationCircleIcon className="w-10 h-10 mb-2" />
-                                    <p className="text-xs font-black uppercase">Sem atividades hoje</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// ... Omitted other panels as they remain the same as previous logic ...
-const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
-    const theme = useThemeClasses(isDarkMode);
-    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
-    
-    const [projWins, setProjWins] = useState(2);
-    const [projLosses, setProjLosses] = useState(0);
-    const [projEntryPercent, setProjEntryPercent] = useState(10);
-    const [projPayout, setProjPayout] = useState(activeBrokerage.payoutPercentage || 80);
-
-    const tableData = useMemo(() => {
-        const rows = [];
-        const sortedRealRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0).sort((a: DailyRecord, b: DailyRecord) => a.id.localeCompare(b.id));
-        let startDate = sortedRealRecords.length > 0 ? new Date(sortedRealRecords[0].id + 'T12:00:00') : new Date();
-        startDate.setHours(12,0,0,0);
-        let runningBalance = activeBrokerage?.initialBalance || 0;
-        
-        const todayStr = new Date().toISOString().split('T')[0];
-        
-        for (let i = 0; i < 30; i++) {
-            const currentDate = new Date(startDate);
-            currentDate.setDate(startDate.getDate() + i);
-            const dateId = currentDate.toISOString().split('T')[0];
-            const isPast = dateId < todayStr;
-            
-            // Get all records for this day (trades and transactions)
-            const dayRecords = records.filter((r: any) => 
-                (r.recordType === 'day' ? r.id : r.date) === dateId && 
-                r.brokerageId === activeBrokerage?.id
-            ).sort((a: any, b: any) => (a.timestamp || 0) - (b.timestamp || 0));
-
-            const realRecord = dayRecords.find((r: any) => r.recordType === 'day' && r.trades.length > 0);
-            const transactions = dayRecords.filter((r: any) => r.recordType === 'deposit' || r.recordType === 'withdrawal');
-            const transProfit = transactions.reduce((acc: number, t: any) => acc + (t.recordType === 'deposit' ? t.amountUSD : -t.amountUSD), 0);
-            
-            let initial = runningBalance, win, loss, profit, final, isProjection, operationValue, goalMet = false;
-            
-            if (realRecord) {
-                win = realRecord.winCount; 
-                loss = realRecord.lossCount; 
-                profit = realRecord.netProfitUSD + transProfit; 
-                final = initial + profit;
-                operationValue = (realRecord.trades.length > 0) ? realRecord.trades[0].entryValue : (initial * (projEntryPercent / 100));
-                isProjection = false;
-                goalMet = win >= projWins;
-            } else if (transactions.length > 0) {
-                // Only transactions, no trades
-                win = 0;
-                loss = 0;
-                profit = transProfit;
-                final = initial + profit;
-                operationValue = initial * (projEntryPercent / 100);
-                isProjection = false;
-                goalMet = false;
-            } else {
-                isProjection = true; 
-                if (isPast) {
-                    // Past day with no operations: no profit, balance stays same
-                    win = 0;
-                    loss = 0;
-                    profit = 0;
-                    final = initial;
-                    operationValue = 0;
-                    goalMet = false;
-                } else {
-                    // Future or today: project based on goals
-                    operationValue = initial * (projEntryPercent / 100); 
-                    win = projWins; 
-                    loss = projLosses;
-                    const winProfit = (operationValue * (projPayout / 100)) * win;
-                    const lossCost = operationValue * loss;
-                    profit = winProfit - lossCost;
-                    final = initial + profit;
-                    goalMet = true;
-                }
-            }
-            rows.push({ diaTrade: i + 1, dateId, dateDisplay: currentDate.toLocaleDateString('pt-BR'), initial, win, loss, profit, final, operationValue, isProjection, goalMet });
-            runningBalance = final;
-        }
-        return rows;
-    }, [records, activeBrokerage.initialBalance, projWins, projLosses, projEntryPercent, projPayout]);
-
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
-                <div>
-                    <h2 className={`text-2xl font-black ${theme.text}`}>Planejamento de Juros Compostos</h2>
-                    <p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Projeção baseada no histórico real e metas futuras.</p>
-                </div>
-            </div>
-
-            <div className={`rounded-3xl border overflow-hidden shadow-2xl ${theme.card}`}>
-                <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-center border-collapse min-w-[1000px]">
-                        <thead>
-                            <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Dia</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Data</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Saldo Inicial</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span>Meta (W/L)</span>
-                                        <div className="flex items-center gap-1">
-                                            <input type="number" value={projWins} onChange={e => setProjWins(parseInt(e.target.value) || 0)} className={`w-10 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
-                                            <span className="opacity-30">x</span>
-                                            <input type="number" value={projLosses} onChange={e => setProjLosses(parseInt(e.target.value) || 0)} className={`w-10 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
-                                        </div>
-                                    </div>
-                                </th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span>Operação</span>
-                                        <div className="flex items-center gap-1">
-                                            <input type="number" value={projEntryPercent} onChange={e => setProjEntryPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
-                                            <span className="opacity-30">%</span>
-                                        </div>
-                                    </div>
-                                </th>
-                                <th className="py-5 px-3 border-b border-slate-800/20 text-green-500">W</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20 text-red-500">L</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span>Lucro</span>
-                                        <div className="flex items-center gap-1">
-                                            <input type="number" value={projPayout} onChange={e => setProjPayout(parseInt(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
-                                            <span className="opacity-30">%</span>
-                                        </div>
-                                    </div>
-                                </th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Saldo Final</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/10">
-                            {tableData.map((row) => (
-                                <tr key={row.diaTrade} className={`text-sm font-bold hover:bg-slate-800/5 transition-colors ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : !row.goalMet ? 'bg-red-500/5' : ''}`}>
-                                    <td className="py-4 px-3 opacity-40 font-mono text-xs">#{row.diaTrade}</td>
-                                    <td className="py-4 px-3 text-[10px] uppercase font-black opacity-60">{row.dateDisplay}</td>
-                                    <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
-                                    <td className="py-4 px-3">
-                                        <span className={`px-3 py-1 rounded-xl text-[10px] font-black ${row.isProjection ? 'bg-blue-500/10 text-blue-400' : row.goalMet ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                                            {row.isProjection ? `${projWins}x${projLosses}` : row.goalMet ? 'META BATIDA' : 'META NÃO ATINGIDA'}
-                                        </span>
-                                    </td>
-                                    <td className="py-4 px-3 font-mono text-sm text-blue-400">{currencySymbol} {formatMoney(row.operationValue)}</td>
-                                    <td className="py-4 px-3"><span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-xl">{row.win}</span></td>
-                                    <td className="py-4 px-3"><span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-xl">{row.loss}</span></td>
-                                    <td className={`py-4 px-3 font-black ${row.profit > 0 ? 'text-green-500' : row.profit < 0 ? 'text-red-500' : 'opacity-30'}`}>{row.profit > 0 ? '+' : ''}{currencySymbol} {formatMoney(row.profit)}</td>
-                                    <td className="py-4 px-3 font-black opacity-90">{currencySymbol} {formatMoney(row.final)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, deleteTrade }) => {
-    const theme = useThemeClasses(isDarkMode);
-    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-    const dayRecords = records.filter((r: any) => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0).sort((a: any, b: any) => b.id.localeCompare(a.id));
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div><h2 className={`text-2xl font-black ${theme.text}`}>Extrato de Operações</h2><p className={theme.textMuted}>Histórico completo de performance.</p></div>
-            <div className="space-y-4">
-                {dayRecords.length > 0 ? dayRecords.map((record: DailyRecord) => (
-                    <div key={record.id} className={`p-6 rounded-3xl border ${theme.card}`}>
-                        <div className="flex justify-between items-center mb-4">
-                            <h4 className="font-black text-sm uppercase tracking-wider">{new Date(record.id + 'T12:00:00').toLocaleDateString('pt-BR')}</h4>
-                            <div className="text-right"><p className={`text-sm font-black ${record.netProfitUSD >= 0 ? 'text-green-500' : 'text-red-500'}`}>{record.netProfitUSD >= 0 ? '+' : ''}{currencySymbol} {formatMoney(record.netProfitUSD)}</p></div>
-                        </div>
-                        <div className="space-y-2">
-                            {record.trades.map((trade) => {
-                                const tradeProfit = trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)) : -trade.entryValue;
-                                return (
-                                    <div key={trade.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-slate-950/50 border-slate-800/50' : 'bg-slate-50 border-slate-200/50'}`}>
-                                        <div className="flex items-center gap-3"><div className={`w-2 h-8 rounded-full ${trade.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} /><div><p className="text-[10px] font-black uppercase text-slate-500 leading-none">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p><p className="text-sm font-bold">{trade.result === 'win' ? 'Vitória' : 'Derrota'}</p></div></div>
-                                        <div className="text-right"><p className={`text-sm font-black ${tradeProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}</p><button onClick={() => deleteTrade(trade.id, record.id)} className="text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button></div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )) : <div className="py-20 text-center opacity-30"><InformationCircleIcon className="w-12 h-12 mx-auto mb-4" /><p className="text-xs font-black uppercase">Nenhuma operação encontrada</p></div>}
-            </div>
-        </div>
-    );
-};
-
-const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
-    const theme = useThemeClasses(isDarkMode);
-    const [currentDate, setCurrentDate] = useState(new Date());
-
-    const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
-    const startDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
-
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const totalDays = daysInMonth(year, month);
-    const startDay = startDayOfMonth(year, month);
-
-    const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
-    const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
-
-    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    const monthName = currentDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
-
-    const dailyProfits = useMemo(() => {
-        const profits: Record<string, number> = {};
-        records.filter((r: any): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id)
-            .forEach((r: DailyRecord) => {
-                profits[r.id] = r.netProfitUSD;
-            });
-        return profits;
-    }, [records, activeBrokerage]);
-
-    const calendarDays = [];
-    for (let i = 0; i < startDay; i++) calendarDays.push(null);
-    for (let d = 1; d <= totalDays; d++) calendarDays.push(d);
-
-    return (
-        <div className={`p-1.5 md:p-3 rounded-xl border ${theme.card} w-full max-w-xl mx-auto`}>
-            <div className="flex items-center justify-between mb-3">
-                <button onClick={prevMonth} className="p-1 hover:bg-slate-800/50 rounded-md transition-colors"><ChevronLeftIcon className="w-3.5 h-3.5" /></button>
-                <h3 className="text-xs md:text-sm font-black uppercase tracking-widest text-teal-400">{monthName}</h3>
-                <button onClick={nextMonth} className="p-1 hover:bg-slate-800/50 rounded-md transition-colors"><ChevronRightIcon className="w-3.5 h-3.5" /></button>
-            </div>
-
-            <div className="grid grid-cols-7 gap-0.5 md:gap-1">
-                {dayNames.map(day => (
-                    <div key={day} className="text-center text-[8px] md:text-[9px] font-black uppercase text-slate-500 py-0.5">{day}</div>
-                ))}
-                {calendarDays.map((day, idx) => {
-                    if (day === null) return <div key={`empty-${idx}`} className="aspect-square" />;
-                    
-                    const dateId = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                    const profit = dailyProfits[dateId];
-                    const isToday = new Date().toISOString().split('T')[0] === dateId;
-
-                    return (
-                        <div key={dateId} className={`aspect-square rounded-md md:rounded-lg border ${isDarkMode ? 'border-slate-800/50' : 'border-zinc-200'} flex flex-col items-center justify-center p-0.5 relative transition-all hover:scale-105 cursor-default ${isToday ? 'ring-1 ring-teal-500/50' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-green-500/10' : 'bg-red-500/10') : ''}`}>
-                            <span className="text-[8px] md:text-[10px] font-black opacity-40 mb-0.5">{day}</span>
-                            {profit !== undefined && (
-                                <span className={`text-[5px] md:text-[8px] font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                    {profit >= 0 ? '+' : ''}{formatMoney(profit)}
-                                </span>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-            <div className="mt-3 flex justify-center gap-3 text-[8px] font-black uppercase tracking-widest opacity-40">
-                <div className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-green-500" /> Lucro</div>
-                <div className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-red-500" /> Prejuízo</div>
-            </div>
-        </div>
-    );
-};
-
-const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
-    const theme = useThemeClasses(isDarkMode);
-    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-    const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly' | 'calendar'>('calendar');
-
-    const stats = useMemo(() => {
-        const dayRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0);
-        
-        if (viewMode === 'daily') {
-            return dayRecords.sort((a: DailyRecord, b: DailyRecord) => b.id.localeCompare(a.id)).map((r: DailyRecord) => ({
-                id: r.id,
-                label: new Date(r.id + 'T12:00:00').toLocaleDateString('pt-BR'),
-                profit: r.netProfitUSD,
-                wins: r.winCount,
-                losses: r.lossCount,
-                total: r.winCount + r.lossCount,
-                winRate: (r.winCount + r.lossCount) > 0 ? (r.winCount / (r.winCount + r.lossCount)) * 100 : 0
-            }));
-        }
-
-        if (viewMode === 'weekly') {
-            const weeks: Record<string, any> = {};
-            dayRecords.forEach((r: DailyRecord) => {
-                const date = new Date(r.id + 'T12:00:00');
-                const day = date.getDay();
-                const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
-                const monday = new Date(date.setDate(diff));
-                const weekId = monday.toISOString().split('T')[0];
-                
-                if (!weeks[weekId]) {
-                    weeks[weekId] = { id: weekId, label: `Semana de ${monday.toLocaleDateString('pt-BR')}`, profit: 0, wins: 0, losses: 0, total: 0 };
-                }
-                weeks[weekId].profit += r.netProfitUSD;
-                weeks[weekId].wins += r.winCount;
-                weeks[weekId].losses += r.lossCount;
-                weeks[weekId].total += (r.winCount + r.lossCount);
-            });
-            return Object.values(weeks).sort((a, b) => b.id.localeCompare(a.id)).map(w => ({
-                ...w,
-                winRate: w.total > 0 ? (w.wins / w.total) * 100 : 0
-            }));
-        }
-
-        if (viewMode === 'monthly') {
-            const months: Record<string, any> = {};
-            dayRecords.forEach((r: DailyRecord) => {
-                const monthId = r.id.slice(0, 7); // YYYY-MM
-                if (!months[monthId]) {
-                    const [year, month] = monthId.split('-');
-                    const date = new Date(parseInt(year), parseInt(month) - 1, 1);
-                    const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-                    months[monthId] = { id: monthId, label: label.charAt(0).toUpperCase() + label.slice(1), profit: 0, wins: 0, losses: 0, total: 0 };
-                }
-                months[monthId].profit += r.netProfitUSD;
-                months[monthId].wins += r.winCount;
-                months[monthId].losses += r.lossCount;
-                months[monthId].total += (r.winCount + r.lossCount);
-            });
-            return Object.values(months).sort((a, b) => b.id.localeCompare(a.id)).map(m => ({
-                ...m,
-                winRate: m.total > 0 ? (m.wins / m.total) * 100 : 0
-            }));
-        }
-
-        return [];
-    }, [records, viewMode]);
-
-    return (
-        <div className="p-2 md:p-4 space-y-4 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:justify-between items-start gap-3">
-                <div>
-                    <h2 className={`text-xl md:text-2xl font-black ${theme.text}`}>Histórico de Performance</h2>
-                    <p className={`text-[10px] md:text-xs ${theme.textMuted}`}>Análise detalhada por períodos.</p>
-                </div>
-                <div className="flex p-1 rounded-2xl bg-slate-900 border border-slate-800 overflow-x-auto no-scrollbar">
-                    {(['calendar', 'daily', 'weekly', 'monthly'] as const).map((mode) => (
-                        <button
-                            key={mode}
-                            onClick={() => setViewMode(mode)}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${viewMode === mode ? 'bg-teal-500 text-slate-950 shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                        >
-                            {mode === 'calendar' ? 'Calendário' : mode === 'daily' ? 'Diário' : mode === 'weekly' ? 'Semanal' : 'Mensal'}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4">
-                {viewMode === 'calendar' ? (
-                    <CalendarHistory isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />
-                ) : stats.length > 0 ? stats.map((item: any) => (
-                    <div key={item.id} className={`p-6 rounded-3xl border ${theme.card} flex flex-col md:flex-row md:items-center justify-between gap-6`}>
-                        <div className="flex items-center gap-4">
-                            <div className={`p-3 rounded-2xl ${item.profit >= 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                                {item.profit >= 0 ? <TrendingUpIcon className="w-6 h-6" /> : <TrendingDownIcon className="w-6 h-6" />}
-                            </div>
-                            <div>
-                                <h4 className="font-black text-lg leading-none mb-1">{item.label}</h4>
-                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">{item.total} Operações Realizadas</p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
-                            <div>
-                                <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Resultado</p>
-                                <p className={`text-lg font-black ${item.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                    {item.profit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(item.profit)}
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Win / Loss %</p>
-                                <p className="text-lg font-black">
-                                    <span className="text-green-500">{item.winRate.toFixed(0)}%</span>
-                                    <span className="mx-1 opacity-20">/</span>
-                                    <span className="text-red-500">{(100 - item.winRate).toFixed(0)}%</span>
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Wins / Losses</p>
-                                <p className="text-lg font-black">
-                                    <span className="text-green-500">{item.wins}</span>
-                                    <span className="mx-1 opacity-20">/</span>
-                                    <span className="text-red-500">{item.losses}</span>
-                                </p>
-                            </div>
-                            <div className="hidden md:block">
-                                <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Performance</p>
-                                <div className="w-24 h-2 bg-slate-800 rounded-full overflow-hidden mt-2">
-                                    <div className="h-full bg-green-500" style={{ width: `${item.winRate}%` }} />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )) : (
-                    <div className="py-20 text-center opacity-30">
-                        <InformationCircleIcon className="w-12 h-12 mx-auto mb-4" />
-                        <p className="text-xs font-black uppercase">Nenhum dado para este período</p>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
-
-const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
-    const [initialValue, setInitialValue] = useState('10');
-    const [payout, setPayout] = useState(String(activeBrokerage?.payoutPercentage || 80));
-    const [levels, setLevels] = useState('3');
-    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-    const calculateSoros = () => {
-        const val = parseFloat(initialValue) || 0;
-        const p = (parseFloat(payout) || 0) / 100;
-        const l = Math.min(10, parseInt(levels) || 0);
-        const results = [];
-        let currentEntry = val;
-        for (let i = 1; i <= l; i++) {
-            const profit = currentEntry * p;
-            const total = currentEntry + profit;
-            results.push({ level: i, entry: currentEntry, profit, total });
-            currentEntry = total;
-        }
-        return results;
-    };
-    const results = calculateSoros();
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
-            <div><h2 className="text-2xl font-black">Calculadora de Soros</h2><p className={theme.textMuted}>Planejamento de alavancagem progressiva.</p></div>
-            <div className={`p-8 rounded-3xl border ${theme.card} space-y-6`}>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Valor Inicial</label><input type="number" value={initialValue} onChange={e => setInitialValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Payout %</label><input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Níveis</label><input type="number" value={levels} onChange={e => setLevels(e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                </div>
-                <div className="space-y-3">
-                    {results.map(r => (
-                        <div key={r.level} className="flex items-center justify-between p-4 rounded-2xl bg-slate-950/20 border border-slate-800/50">
-                            <div><p className="text-[10px] font-black uppercase text-slate-500">Nível {r.level}</p><p className="text-sm font-bold">Entrada: {currencySymbol} {formatMoney(r.entry)}</p></div>
-                            <div className="text-right"><p className="text-[10px] font-black uppercase text-green-500">Lucro Estimado</p><p className="text-sm font-black text-green-500">+{currencySymbol} {formatMoney(r.profit)}</p></div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrokerage }) => {
-    const [newGoalName, setNewGoalName] = useState('');
-    const [newGoalAmount, setNewGoalAmount] = useState('');
-    const [newGoalType, setNewGoalType] = useState<'weekly' | 'monthly' | 'custom'>('monthly');
-    const [newGoalDeadline, setNewGoalDeadline] = useState('');
-    
-    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-    
-    const addGoal = () => {
-        if (!newGoalName || !newGoalAmount || !activeBrokerage) return;
-        if (newGoalType === 'custom' && !newGoalDeadline) return;
-        
-        const goal: Goal = { 
-            id: crypto.randomUUID(), 
-            brokerageId: activeBrokerage.id,
-            name: newGoalName, 
-            type: newGoalType, 
-            targetAmount: parseFloat(newGoalAmount) || 0, 
-            deadline: newGoalType === 'custom' ? newGoalDeadline : undefined,
-            createdAt: Date.now() 
-        };
-        setGoals([...goals, goal]);
-        setNewGoalName('');
-        setNewGoalAmount('');
-        setNewGoalDeadline('');
-    };
-    
-    const deleteGoal = (id: string) => setGoals(goals.filter((g: Goal) => g.id !== id));
-    
-    const calculateProgress = (goal: Goal) => {
-        const brokerageRecords = records.filter((r: any) => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id);
-        let relevantProfit = 0;
-        let label = "Progresso";
-
-        if (goal.type === 'monthly') {
-            const currentMonthStr = new Date().toISOString().slice(0, 7);
-            relevantProfit = brokerageRecords
-                .filter((r: any) => r.id.startsWith(currentMonthStr))
-                .reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
-            label = "Progresso do Mês";
-        } else if (goal.type === 'weekly') {
-            const now = new Date();
-            const day = now.getDay();
-            const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-            const monday = new Date(now.setDate(diff));
-            monday.setHours(0,0,0,0);
-            const mondayStr = monday.toISOString().split('T')[0];
-            
-            relevantProfit = brokerageRecords
-                .filter((r: any) => r.id >= mondayStr)
-                .reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
-            label = "Progresso da Semana";
-        } else if (goal.type === 'custom' && goal.deadline) {
-            const startStr = new Date(goal.createdAt).toISOString().split('T')[0];
-            relevantProfit = brokerageRecords
-                .filter((r: any) => r.id >= startStr && r.id <= goal.deadline!)
-                .reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
-            label = `Até ${new Date(goal.deadline + 'T12:00:00').toLocaleDateString('pt-BR')}`;
-        }
-
-        const percentage = goal.targetAmount > 0 ? (relevantProfit / goal.targetAmount) * 100 : 0;
-        return { percentage, label, current: relevantProfit };
-    };
-
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
-            <div><h2 className="text-2xl font-black">Metas Financeiras</h2><p className={theme.textMuted}>Acompanhamento de objetivos a longo prazo.</p></div>
-            <div className={`p-8 rounded-3xl border ${theme.card} space-y-8`}>
-                <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="text" placeholder="Nome da Meta" value={newGoalName} onChange={e => setNewGoalName(e.target.value)} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} />
-                        <select value={newGoalType} onChange={e => setNewGoalType(e.target.value as any)} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`}>
-                            <option value="weekly">Semanal</option>
-                            <option value="monthly">Mensal</option>
-                            <option value="custom">Até certa data</option>
-                        </select>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="number" placeholder="Valor Alvo" value={newGoalAmount} onChange={e => setNewGoalAmount(e.target.value)} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} />
-                        {newGoalType === 'custom' ? (
-                            <input type="date" value={newGoalDeadline} onChange={e => setNewGoalDeadline(e.target.value)} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} />
-                        ) : (
-                            <div className="h-12" />
-                        )}
-                    </div>
-                    <button onClick={addGoal} className="w-full h-12 bg-teal-500 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest">Adicionar Meta</button>
-                </div>
-                
-                <div className="space-y-4">
-                    {goals.filter((g: Goal) => g.brokerageId === activeBrokerage?.id).map((goal: Goal) => {
-                        const { percentage, label, current } = calculateProgress(goal);
-                        return (
-                            <div key={goal.id} className="p-6 rounded-3xl bg-slate-950/30 border border-slate-800/50 space-y-4">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-[10px] font-black uppercase text-slate-500 mb-1">{goal.name}</p>
-                                        <h4 className="text-xl font-black">{currencySymbol} {formatMoney(goal.targetAmount)}</h4>
-                                        <p className="text-[10px] font-bold text-slate-400 mt-1">Atual: {currencySymbol} {formatMoney(current)}</p>
-                                    </div>
-                                    <button onClick={() => deleteGoal(goal.id)} className="text-red-500/50 hover:text-red-500"><TrashIcon className="w-5 h-5" /></button>
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-[10px] font-black uppercase"><span className="text-slate-500">{label}</span><span className={percentage >= 100 ? 'text-green-500' : 'text-blue-400'}>{percentage.toFixed(1)}%</span></div>
-                                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden"><div className={`h-full transition-all duration-500 ${percentage >= 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }} /></div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset }) => {
-    const [newBrokerageName, setNewBrokerageName] = useState('');
-    
-    const updateBrokerage = (field: keyof Brokerage, value: any) => {
-        setBrokerages((prev: Brokerage[]) => prev.map((b) => b.id === brokerage.id ? { ...b, [field]: value } : b));
-    };
-
-    const addNewBrokerage = () => {
-        if (!newBrokerageName) return;
-        const newB: Brokerage = {
-            id: crypto.randomUUID(),
-            name: newBrokerageName,
-            initialBalance: 10,
-            entryMode: 'percentage',
-            entryValue: 10,
-            payoutPercentage: 80,
-            stopGainTrades: 3,
-            stopLossTrades: 2,
-            currency: 'USD'
-        };
-        setBrokerages((prev: Brokerage[]) => [...prev, newB]);
-        setNewBrokerageName('');
-    };
-
-    const deleteBrokerage = (id: string) => {
-        setBrokerages((prev: Brokerage[]) => prev.filter(b => b.id !== id));
-    };
-
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
-            <div className="flex justify-between items-center">
-                <div><h2 className="text-2xl font-black">Configurações de Banca</h2><p className={theme.textMuted}>Gestão de capital e limites de risco.</p></div>
-                <div className="flex gap-2">
-                    <input 
-                        type="text" 
-                        placeholder="Nome da Nova Corretora" 
-                        value={newBrokerageName}
-                        onChange={e => setNewBrokerageName(e.target.value)}
-                        className={`h-10 px-4 rounded-xl border text-xs font-bold outline-none ${theme.input}`}
-                    />
-                    <button onClick={addNewBrokerage} className="h-10 px-4 bg-teal-500 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest">Nova</button>
-                </div>
-            </div>
-            
-            <div className={`p-8 rounded-3xl border ${theme.card} space-y-8`}>
-                <section className="space-y-6">
-                    <div className="flex justify-between items-center">
-                        <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60">Parâmetros de {brokerage.name}</h3>
-                        <button onClick={() => deleteBrokerage(brokerage.id)} className="text-red-500 text-[10px] font-black uppercase tracking-widest hover:underline">Excluir Corretora</button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Nome da Banca</label><input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Moeda</label><select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`}><option value="USD">Dólar ($)</option><option value="BRL">Real (R$)</option></select></div>
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Saldo Inicial</label><input type="number" value={brokerage.initialBalance} onChange={e => updateBrokerage('initialBalance', parseFloat(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Payout Padrão %</label><input type="number" value={brokerage.payoutPercentage} onChange={e => updateBrokerage('payoutPercentage', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                    </div>
-                </section>
-                <section className="space-y-6 pt-8 border-t border-slate-800/10">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60">Bloqueio Operacional (Stop)</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Gain (Wins)</label><input type="number" value={brokerage.stopGainTrades} onChange={e => updateBrokerage('stopGainTrades', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Loss (Losses)</label><input type="number" value={brokerage.stopLossTrades} onChange={e => updateBrokerage('stopLossTrades', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                    </div>
-                </section>
-                <button onClick={onReset} className="px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all">Limpar Histórico de Operações</button>
-            </div>
         </div>
     );
 };

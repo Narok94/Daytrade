@@ -1,5 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserIcon, LockClosedIcon } from './icons';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { Card } from './ui/Card';
 
 interface LoginProps {
     onLogin: (username: string, password: string, rememberMe: boolean) => Promise<boolean>;
@@ -16,148 +19,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
     const [isRegistering, setIsRegistering] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [currentTime, setCurrentTime] = useState('');
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const chartTrackRef = useRef<HTMLDivElement>(null);
     
     useEffect(() => {
         const timerId = setInterval(() => {
              const date = new Date();
-             const options: Intl.DateTimeFormatOptions = {
-                 weekday: 'long',
-                 year: 'numeric',
-                 month: 'long',
-                 day: 'numeric',
-                 hour: '2-digit',
-                 minute: '2-digit',
-                 second: '2-digit',
-                 timeZoneName: 'shortOffset',
-             };
-             const formattedTime = date.toLocaleString('pt-BR', options).replace('GMT', 'UTC').replace(/,([^,]*)$/, '$1');
-             setCurrentTime(formattedTime);
+             setCurrentTime(date.toLocaleTimeString('pt-BR'));
         }, 1000);
-
         return () => clearInterval(timerId);
-    }, []);
-
-    // Effect for generating scrolling candlestick chart
-    useEffect(() => {
-        const track = chartTrackRef.current;
-        if (!track) return;
-
-        const createCandles = () => {
-            track.innerHTML = ''; // Clear previous
-            const fragment = document.createDocumentFragment();
-            // Generate enough candles to fill the track twice for a seamless loop
-            const numCandles = Math.ceil(window.innerWidth / 18) * 2; 
-
-            for (let i = 0; i < numCandles; i++) {
-                const candle = document.createElement('div');
-                const wick = document.createElement('div');
-                const body = document.createElement('div');
-
-                const isGreen = Math.random() > 0.5;
-                candle.className = `chart-candle ${isGreen ? 'green' : 'red'}`;
-                
-                const totalHeight = Math.random() * 200 + 50; // 50px to 250px
-                const bodyHeight = Math.random() * (totalHeight * 0.8) + (totalHeight * 0.1);
-                const bodyTop = Math.random() * (totalHeight - bodyHeight);
-
-                candle.style.height = `${totalHeight}px`;
-
-                wick.className = 'wick';
-                wick.style.height = `${totalHeight}px`;
-
-                body.className = 'body';
-                body.style.height = `${bodyHeight}px`;
-                body.style.top = `${bodyTop}px`;
-
-                candle.appendChild(wick);
-                candle.appendChild(body);
-                fragment.appendChild(candle);
-            }
-            
-            // Clone the entire set of candles for a perfect animation loop
-            const clonedFragment = fragment.cloneNode(true);
-            track.appendChild(fragment);
-            track.appendChild(clonedFragment);
-            track.style.width = `${(numCandles * 18) * 2}px`;
-        };
-        createCandles();
-    }, []);
-
-    // Effect for particle canvas
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        let animationFrameId: number;
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-
-        class Particle {
-            x: number; y: number; size: number; speedX: number; speedY: number;
-            constructor(x: number, y: number, size: number, speedX: number, speedY: number) {
-                this.x = x; this.y = y; this.size = size; this.speedX = speedX; this.speedY = speedY;
-            }
-            update() {
-                if (canvas) {
-                    if (this.x > canvas.width || this.x < 0) this.speedX = -this.speedX;
-                    if (this.y > canvas.height || this.y < 0) this.speedY = -this.speedY;
-                }
-                this.x += this.speedX;
-                this.y += this.speedY;
-            }
-            draw() {
-                if (ctx) {
-                    ctx.fillStyle = 'rgba(74, 222, 128, 0.3)';
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
-        }
-        
-        let particlesArray: Particle[] = [];
-        const init = () => {
-            particlesArray = [];
-            const numberOfParticles = (canvas.width * canvas.height) / 12000;
-            for (let i = 0; i < numberOfParticles; i++) {
-                const size = Math.random() * 1.5 + 0.5;
-                const x = Math.random() * canvas.width;
-                const y = Math.random() * canvas.height;
-                const speedX = (Math.random() * 0.4) - 0.2;
-                const speedY = (Math.random() * 0.4) - 0.2;
-                particlesArray.push(new Particle(x, y, size, speedX, speedY));
-            }
-        };
-
-        const animate = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            for (let i = 0; i < particlesArray.length; i++) {
-                particlesArray[i].update();
-                particlesArray[i].draw();
-            }
-            animationFrameId = requestAnimationFrame(animate);
-        };
-
-        const handleResize = () => {
-            if (canvas) {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-                init();
-            }
-        };
-
-        init();
-        animate();
-        window.addEventListener('resize', handleResize);
-
-        return () => {
-            window.cancelAnimationFrame(animationFrameId);
-            window.removeEventListener('resize', handleResize);
-        };
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -189,149 +57,109 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
     };
 
     return (
-        <div className="login-container min-h-screen w-full flex items-center justify-center p-4 font-sans">
-            <canvas ref={canvasRef} className="particle-canvas"></canvas>
-            <div className="cyber-grid"></div>
+        <div className="min-h-screen w-full flex items-center justify-center p-6 bg-slate-50 relative overflow-hidden">
+            {/* Background Decorative Elements */}
+            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
             
-            <div className="scrolling-chart-container">
-                <div ref={chartTrackRef} className="chart-track"></div>
-            </div>
-
-            <div className="binary-signals-container">
-                <div className="signal call signal-1">↑ CALL</div>
-                <div className="signal put signal-2">↓ PUT</div>
-                <div className="signal call signal-3">↑ CALL</div>
-                <div className="signal put signal-4">↓ PUT</div>
-                <div className="signal call signal-5">↑ CALL</div>
-            </div>
-
-
-            <div className="glass-card w-full max-w-[340px] p-8 md:p-10 rounded-[2rem] relative">
-                <div className="text-center mb-6">
-                    <h1 className="text-5xl font-black text-white tracking-[0.2em] uppercase neon-glow-text">HRK</h1>
-                    <p className="text-emerald-400/50 text-[8px] font-black tracking-[0.3em] uppercase mt-2">Binary Operations Control</p>
-                    <h2 className="text-4xl font-black text-emerald-400 mt-8 tracking-widest uppercase neon-glow-text">{isRegistering ? 'REGISTRO' : 'LOGIN'}</h2>
+            <div className="w-full max-w-[400px] relative z-10">
+                <div className="text-center mb-10">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white soft-shadow mb-6 animate-float">
+                        <svg className="w-8 h-8 text-blue-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2L14.59 9.41L22 12L14.59 14.59L12 22L9.41 14.59L2 12L9.41 9.41L12 2Z" fill="currentColor"/>
+                        </svg>
+                    </div>
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">HRK Control</h1>
+                    <p className="text-slate-400 text-xs font-medium tracking-widest uppercase mt-2">Binary Operations Management</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <fieldset disabled={isLoading} className="space-y-4">
-                        <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                <UserIcon className="w-5 h-5 text-white/50 group-focus-within:text-emerald-400 transition-colors" />
-                            </div>
-                            <input
-                                type="text"
-                                id="username"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                className="quantum-input w-full h-12 pl-12 pr-12 rounded-full text-[10px] font-black tracking-widest placeholder-white/40 focus:outline-none"
-                                placeholder="USERNAME"
-                                required
-                            />
-                            <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                                <LockClosedIcon className="w-5 h-5 text-white/80" />
-                            </div>
-                        </div>
-                        <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                <UserIcon className="w-5 h-5 text-white/50 group-focus-within:text-emerald-400 transition-colors" />
-                            </div>
-                            <input
-                                type="password"
-                                id="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="quantum-input w-full h-12 pl-12 pr-12 rounded-full text-[10px] font-black tracking-widest placeholder-white/40 focus:outline-none"
-                                placeholder="PASSWORD"
-                                required
-                            />
-                            <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                                <LockClosedIcon className="w-5 h-5 text-white/80" />
-                            </div>
-                        </div>
+                <Card className="p-8 md:p-10">
+                    <div className="mb-8">
+                        <h2 className="text-xl font-bold text-slate-900">{isRegistering ? 'Criar Conta' : 'Bem-vindo de volta'}</h2>
+                        <p className="text-slate-400 text-xs mt-1">{isRegistering ? 'Comece sua jornada profissional hoje.' : 'Acesse sua central de operações.'}</p>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        <Input
+                            label="Usuário"
+                            placeholder="Seu nome de usuário"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            required
+                        />
+                        <Input
+                            label="Senha"
+                            type="password"
+                            placeholder="••••••••"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
                         
                         {isRegistering && (
-                             <div className="relative group">
-                                <input
-                                    type="password"
-                                    id="confirmPassword"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="quantum-input w-full h-12 px-6 rounded-full text-[10px] font-black tracking-widest placeholder-white/40 focus:outline-none"
-                                    placeholder="CONFIRM PASSWORD"
-                                    required
-                                />
-                            </div>
+                            <Input
+                                label="Confirmar Senha"
+                                type="password"
+                                placeholder="••••••••"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                            />
                         )}
 
                         {!isRegistering && (
-                            <div className="flex items-center gap-2 px-2">
+                            <div className="flex items-center justify-between px-1">
                                 <label className="flex items-center cursor-pointer group">
-                                    <div className="relative">
-                                        <input
-                                            type="checkbox"
-                                            checked={rememberMe}
-                                            onChange={(e) => setRememberMe(e.target.checked)}
-                                            className="sr-only"
-                                        />
-                                        <div className={`w-4 h-4 rounded border transition-all ${rememberMe ? 'bg-emerald-500 border-emerald-500' : 'bg-white/5 border-white/20 group-hover:border-emerald-500/50'}`}>
-                                            {rememberMe && (
-                                                <svg className="w-3 h-3 text-white mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={rememberMe}
+                                        onChange={(e) => setRememberMe(e.target.checked)}
+                                        className="sr-only"
+                                    />
+                                    <div className={`w-4 h-4 rounded border transition-all ${rememberMe ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-200 group-hover:border-blue-400'}`}>
+                                        {rememberMe && (
+                                            <svg className="w-3 h-3 text-white mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        )}
                                     </div>
-                                    <span className="text-[9px] font-black text-white/50 uppercase tracking-widest ml-2 group-hover:text-emerald-400/70 transition-colors">Lembrar-me</span>
+                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2 group-hover:text-blue-600 transition-colors">Lembrar-me</span>
                                 </label>
+                                <button type="button" className="text-[10px] font-bold text-blue-600 uppercase tracking-widest hover:underline">Esqueci a senha</button>
                             </div>
                         )}
-                    </fieldset>
 
-                    {error && (
-                        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
-                             <p className="text-[9px] text-red-400 text-center font-black uppercase tracking-widest">{error}</p>
-                        </div>
-                    )}
-                    
-                    <div className="pt-4 flex justify-center">
-                        <button
+                        {error && (
+                            <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl">
+                                 <p className="text-[10px] text-rose-500 text-center font-bold uppercase tracking-wider">{error}</p>
+                            </div>
+                        )}
+                        
+                        <Button
                             type="submit"
-                            disabled={isLoading}
-                            className="enter-button w-[160px] h-12 rounded-xl text-xs font-black uppercase tracking-[0.4em] text-white disabled:opacity-50"
+                            isLoading={isLoading}
+                            className="w-full"
+                            size="lg"
                         >
-                            {isLoading ? (
-                                <svg className="animate-spin h-5 w-5 text-white mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            ) : (
-                               'ENTER'
-                            )}
+                            {isRegistering ? 'REGISTRAR AGORA' : 'ENTRAR NO PAINEL'}
+                        </Button>
+                    </form>
+
+                    <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+                        <button
+                            type="button"
+                            onClick={toggleView}
+                            disabled={isLoading}
+                            className="text-[10px] font-bold text-slate-400 hover:text-blue-600 tracking-widest transition-all uppercase"
+                        >
+                            {isRegistering ? 'Já tem uma conta? Login' : 'Não tem conta? Registre-se'}
                         </button>
                     </div>
-                </form>
-
-                <div className="mt-8 flex items-center justify-center">
-                    <button
-                        type="button"
-                        onClick={toggleView}
-                        disabled={isLoading}
-                        className="text-[9px] font-black text-emerald-400/70 hover:text-emerald-300 tracking-widest transition-all uppercase hover:scale-105"
-                    >
-                        {isRegistering ? 'LOGIN' : `SIGN UP`}
-                    </button>
+                </Card>
+                
+                <div className="mt-10 text-center">
+                    <p className="text-slate-300 text-[10px] font-bold tracking-[0.2em] uppercase">{currentTime}</p>
                 </div>
-            </div>
-            
-            <div className="absolute bottom-6 text-center w-full z-10 px-4">
-                <p className="text-white/40 text-[9px] font-mono tracking-widest font-bold">{currentTime}</p>
-            </div>
-            
-            <div className="absolute bottom-10 right-10 opacity-30 animate-pulse">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 0L14.59 9.41L24 12L14.59 14.59L12 24L9.41 14.59L0 12L9.41 9.41L12 0Z" fill="#4ade80"/>
-                </svg>
             </div>
         </div>
     );
