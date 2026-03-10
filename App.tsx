@@ -910,7 +910,15 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             rows.push({ diaTrade: i + 1, dateId, dateDisplay: currentDate.toLocaleDateString('pt-BR'), initial, win, loss, profit, final, operationValue, isProjection, goalMet });
             runningBalance = final;
         }
-        return rows;
+
+        // Ocultar dias sem movimentação (projeções no passado sem dados reais)
+        const filteredRows = rows.filter(row => !row.isProjection || row.dateId >= todayStr);
+
+        // Re-indexar para manter a sequência visual dos dias de operação/projeção
+        return filteredRows.map((row, index) => ({
+            ...row,
+            diaTrade: index + 1
+        }));
     }, [records, activeBrokerage.initialBalance, projWins, projLosses, projEntryPercent, projPayout]);
 
     return (
