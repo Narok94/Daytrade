@@ -177,35 +177,40 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 } catch (e) {
                     console.warn("Falha no JSON.parse, tentando extração manual por regex...", e);
                     // Fallback: Tenta extrair os campos via regex se o JSON falhar
-                    const assetMatch = jsonText.match(/"asset":\s*"([^"]+)"/i);
-                    const recMatch = jsonText.match(/"recommendation":\s*"([^"]+)"/i);
-                    const reasonMatch = jsonText.match(/"reasoning":\s*"([^"]+)"/i);
-                    const confMatch = jsonText.match(/"confidence":\s*(\d+)/i);
-                    const expMatch = jsonText.match(/"expiration":\s*"([^"]+)"/i);
+                    // Suporta tanto chaves JSON ("asset") quanto rótulos de texto ("ATIVO:")
+                    const assetMatch = jsonText.match(/(?:asset|ativo):\s*["*]*([^"*\n\r]+)["*]*/i);
+                    const recMatch = jsonText.match(/(?:recommendation|direção|direcao):\s*["*]*([^"*\n\r]+)["*]*/i);
+                    const reasonMatch = jsonText.match(/(?:reasoning|motivo):\s*["*]*([^"*\n\r]+)["*]*/i);
+                    const confMatch = jsonText.match(/(?:confidence|confiança|confianca):\s*["*]*(\d+)/i);
+                    const expMatch = jsonText.match(/(?:expiration|expiração|expiracao):\s*["*]*([^"*\n\r]+)["*]*/i);
 
                     if (recMatch && reasonMatch) {
                         result = {
-                            asset: assetMatch ? assetMatch[1] : "Desconhecido",
-                            recommendation: recMatch[1],
-                            reasoning: reasonMatch[1],
-                            confidence: confMatch ? parseInt(confMatch[1]) : 80,
-                            expiration: expMatch ? expMatch[1] : "Próxima vela"
+                            asset: assetMatch ? assetMatch[1].trim() : "Análise de Gráfico",
+                            recommendation: recMatch[1].trim(),
+                            reasoning: reasonMatch[1].trim(),
+                            confidence: confMatch ? parseInt(confMatch[1]) : 85,
+                            expiration: expMatch ? expMatch[1].trim() : "Próxima vela"
                         };
                     } else {
-                        throw new Error("Não foi possível extrair dados da resposta da IA.");
+                        throw new Error("Não foi possível extrair os dados da análise. Tente novamente.");
                     }
                 }
                 
                 // Validação e normalização dos campos
                 if (!result.recommendation || !result.reasoning) {
-                    throw new Error("Campos obrigatórios ausentes na resposta.");
+                    throw new Error("Dados incompletos na resposta da IA.");
                 }
 
-                // Normaliza recomendação para o enum esperado
+                // Normaliza recomendação para o enum esperado (CALL, PUT, AGUARDAR)
                 const rec = result.recommendation.toUpperCase();
-                if (rec.includes('CALL')) result.recommendation = 'CALL';
-                else if (rec.includes('PUT')) result.recommendation = 'PUT';
-                else result.recommendation = 'AGUARDAR';
+                if (rec.includes('CALL') || rec.includes('COMPRA') || rec.includes('BUY')) {
+                    result.recommendation = 'CALL';
+                } else if (rec.includes('PUT') || rec.includes('VENDA') || rec.includes('SELL')) {
+                    result.recommendation = 'PUT';
+                } else {
+                    result.recommendation = 'AGUARDAR';
+                }
 
                 setAnalysisResult(result);
             } catch (parseError: any) {
