@@ -1,7 +1,7 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './src/index.css';
+import './index.css';
 import Auth from './Auth';
 
 const rootElement = document.getElementById('root');

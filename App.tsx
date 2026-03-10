@@ -79,7 +79,11 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         setIsAnalyzing(true);
         setError(null);
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+            if (!apiKey) {
+                throw new Error("API Key não configurada. Verifique as configurações do ambiente.");
+            }
+            const ai = new GoogleGenAI({ apiKey });
             const compressed = await compressImage(selectedImage);
             const base64Data = compressed.split(',')[1];
             
@@ -121,11 +125,11 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 }
             });
             const text = response.text;
-            if (!text) throw new Error("Motor inativo.");
+            if (!text) throw new Error("Motor inativo ou resposta vazia.");
             setAnalysisResult(JSON.parse(text));
         } catch (err: any) {
             console.error(err);
-            setError("Ocorreu um erro na análise sniper. Tente novamente com uma imagem mais nítida.");
+            setError(err.message || "Ocorreu um erro na análise sniper. Tente novamente com uma imagem mais nítida.");
         } finally {
             setIsAnalyzing(false);
         }
