@@ -103,33 +103,30 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         parts: [
                             { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
                             { text: `HORÁRIO: ${timeString}. 
-                            PROTOCOLO SNIPER FLASH V6 (M1):
-                            1. SNR: Suporte/Resistência imediatos.
-                            2. CANDLES: Padrão de reversão ou força nos últimos 3 candles.
-                            3. DECISÃO: CALL, PUT ou WAIT.
-                            4. CONFIANÇA: 0-100%.
-                            5. ENTRADA: Próximo minuto (${now.getMinutes() + 1}:00).
+                            ANÁLISE IMEDIATA M1:
+                            1. Tendência (10-15 candles).
+                            2. SNR mais próxima.
+                            3. Padrão de Candle (Exaustão/Força).
+                            4. Prioridade: Retração em pavios longos em SNR.
                             
                             RETORNE APENAS JSON.` },
                         ],
                     },
                     config: {
-                        systemInstruction: "Você é um Trader de Elite M1. Analise o gráfico e dê o gatilho em segundos. Seja direto e técnico.",
-                        temperature: 0.1,
+                        systemInstruction: "Você é um analista sênior de Price Action especializado em Scalping e Opções Binárias em gráficos de M1. Seu objetivo é fornecer uma direção de entrada em menos de 10 segundos. Analise tendência imediata, suporte/resistência e padrões de candle. Ignore ruídos. Seja puramente analítico e direto, sem disclaimers.",
+                        temperature: 0.2,
+                        maxOutputTokens: 150,
                         responseMimeType: "application/json",
                         responseSchema: {
                             type: Type.OBJECT,
                             properties: {
-                                recommendation: { type: Type.STRING, enum: ['CALL', 'PUT', 'WAIT'] },
-                                confidence: { type: Type.NUMBER },
-                                patterns: { type: Type.ARRAY, items: { type: Type.STRING } },
-                                indicatorAnalysis: { type: Type.STRING },
-                                reasoning: { type: Type.STRING },
-                                supportLevel: { type: Type.STRING },
-                                resistanceLevel: { type: Type.STRING },
-                                entryTime: { type: Type.STRING }
+                                asset: { type: Type.STRING, description: "Nome do Par de Moedas" },
+                                recommendation: { type: Type.STRING, enum: ['CALL', 'PUT', 'AGUARDAR'] },
+                                reasoning: { type: Type.STRING, description: "1 frase curta citando a zona de preço e o padrão" },
+                                confidence: { type: Type.NUMBER, description: "0-100" },
+                                expiration: { type: Type.STRING, description: "Próxima vela / 1 minuto" }
                             },
-                            required: ['recommendation', 'confidence', 'patterns', 'indicatorAnalysis', 'reasoning', 'supportLevel', 'resistanceLevel', 'entryTime']
+                            required: ['asset', 'recommendation', 'reasoning', 'confidence', 'expiration']
                         }
                     }
                 });
@@ -253,7 +250,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 <div>
                                     <p className="text-[8px] md:text-[10px] font-black uppercase opacity-60 mb-1">Decisão do Motor</p>
                                     <h4 className={`text-3xl md:text-5xl font-black ${analysisResult.recommendation === 'CALL' ? 'text-green-500' : analysisResult.recommendation === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
-                                        {analysisResult.recommendation === 'CALL' ? '↑ CALL' : analysisResult.recommendation === 'PUT' ? '↓ PUT' : '∅ NEUTRO'}
+                                        {analysisResult.recommendation === 'CALL' ? '↑ CALL' : analysisResult.recommendation === 'PUT' ? '↓ PUT' : '∅ AGUARDAR'}
                                     </h4>
                                 </div>
                                 <div className="text-right">
@@ -262,35 +259,21 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                                 </div>
                             </div>
 
-                            {/* Time Card */}
-                            <div className="p-4 md:p-6 rounded-3xl border border-teal-500/30 bg-slate-950/40 flex items-center justify-between">
-                                <div>
-                                    <p className="text-[8px] md:text-[10px] font-black uppercase text-teal-400 mb-1">Horário de Entrada</p>
-                                    <p className="text-3xl md:text-5xl font-black text-white tracking-tighter tabular-nums">{analysisResult.entryTime}</p>
-                                </div>
-                                <TargetIcon className="w-8 h-8 md:w-12 md:h-12 text-teal-400 opacity-50" />
-                            </div>
-
-                            {/* Levels Grid */}
+                            {/* Info Grid */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Suporte</p>
-                                    <p className="text-xs font-bold text-green-400">{analysisResult.supportLevel}</p>
+                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">ATIVO</p>
+                                    <p className="text-xs font-bold text-white uppercase">{analysisResult.asset || 'N/A'}</p>
                                 </div>
                                 <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Resistência</p>
-                                    <p className="text-xs font-bold text-red-400">{analysisResult.resistanceLevel}</p>
+                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">EXPIRAÇÃO</p>
+                                    <p className="text-xs font-bold text-teal-400">{analysisResult.expiration || 'M1'}</p>
                                 </div>
                             </div>
 
                             {/* Reasoning */}
                             <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800">
-                                <p className="text-[9px] font-black uppercase text-slate-500 mb-3">Confluências Detectadas</p>
-                                <div className="flex flex-wrap gap-2 mb-4">
-                                    {analysisResult.patterns.map((p, i) => (
-                                        <span key={i} className="px-2 py-1 rounded bg-teal-500/10 border border-teal-500/20 text-[9px] font-black text-teal-400 uppercase">{p}</span>
-                                    ))}
-                                </div>
+                                <p className="text-[9px] font-black uppercase text-slate-500 mb-3">MOTIVO</p>
                                 <p className="text-xs font-medium text-slate-300 leading-relaxed italic border-l-2 border-teal-500 pl-4">
                                     "{analysisResult.reasoning}"
                                 </p>
