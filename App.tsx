@@ -139,7 +139,8 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 console.warn("Falha no modelo Flash, tentando Pro como backup...", flashError);
                 // If 503, wait a bit or try another model
                 if (flashError.message?.includes("503") || flashError.message?.includes("demand")) {
-                    modelName = 'gemini-2.5-flash'; // Try a more stable version if available
+                    await new Promise(r => setTimeout(r, 2000));
+                    modelName = 'gemini-3.1-pro-preview'; 
                 } else {
                     modelName = 'gemini-3.1-pro-preview';
                 }
@@ -170,17 +171,46 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     }
                 }
 
-                const result = JSON.parse(jsonText);
+                let result;
+                try {
+                    result = JSON.parse(jsonText);
+                } catch (e) {
+                    console.warn("Falha no JSON.parse, tentando extração manual por regex...", e);
+                    // Fallback: Tenta extrair os campos via regex se o JSON falhar
+                    const assetMatch = jsonText.match(/"asset":\s*"([^"]+)"/i);
+                    const recMatch = jsonText.match(/"recommendation":\s*"([^"]+)"/i);
+                    const reasonMatch = jsonText.match(/"reasoning":\s*"([^"]+)"/i);
+                    const confMatch = jsonText.match(/"confidence":\s*(\d+)/i);
+                    const expMatch = jsonText.match(/"expiration":\s*"([^"]+)"/i);
+
+                    if (recMatch && reasonMatch) {
+                        result = {
+                            asset: assetMatch ? assetMatch[1] : "Desconhecido",
+                            recommendation: recMatch[1],
+                            reasoning: reasonMatch[1],
+                            confidence: confMatch ? parseInt(confMatch[1]) : 80,
+                            expiration: expMatch ? expMatch[1] : "Próxima vela"
+                        };
+                    } else {
+                        throw new Error("Não foi possível extrair dados da resposta da IA.");
+                    }
+                }
                 
-                // Validação básica dos campos obrigatórios
+                // Validação e normalização dos campos
                 if (!result.recommendation || !result.reasoning) {
-                    throw new Error("Campos obrigatórios ausentes no JSON");
+                    throw new Error("Campos obrigatórios ausentes na resposta.");
                 }
 
+                // Normaliza recomendação para o enum esperado
+                const rec = result.recommendation.toUpperCase();
+                if (rec.includes('CALL')) result.recommendation = 'CALL';
+                else if (rec.includes('PUT')) result.recommendation = 'PUT';
+                else result.recommendation = 'AGUARDAR';
+
                 setAnalysisResult(result);
-            } catch (parseError) {
-                console.error("Erro ao parsear JSON:", parseError, "Texto:", jsonText);
-                throw new Error("JSON_PARSE_FAILED: A resposta da IA não pôde ser convertida em dados válidos.");
+            } catch (parseError: any) {
+                console.error("Erro final de processamento:", parseError, "Texto:", jsonText);
+                throw new Error(`ERRO_TECNICO: ${parseError.message || "Dados corrompidos"}`);
             }
         } catch (err: any) {
             console.error("Erro Crítico na Análise Sniper:", err);
@@ -197,8 +227,8 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 userFriendlyError = "ERRO DE MODELO: O modelo de IA solicitado não está disponível no momento. Tentando reconectar...";
                 // Tentar novamente com flash se o pro falhar por disponibilidade
                 setTimeout(runAIAnalysis, 2000);
-            } else if (err.message?.includes("JSON")) {
-                userFriendlyError = "ERRO DE FORMATO: A IA enviou dados corrompidos. Isso acontece em picos de tráfego. Por favor, tente novamente agora.";
+            } else if (err.message?.includes("JSON") || err.message?.includes("ERRO_TECNICO")) {
+                userFriendlyError = "FALHA DE LEITURA: A IA não conseguiu estruturar os dados técnicos. Certifique-se de que o gráfico está nítido e tente novamente.";
             } else if (err.message) {
                 userFriendlyError = `DETALHE DO ERRO: ${err.message}`;
             }
