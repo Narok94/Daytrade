@@ -1323,10 +1323,11 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
     const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly' | 'calendar'>('calendar');
     const [isImporting, setIsImporting] = useState(false);
     const [importError, setImportError] = useState<string | null>(null);
+    const [isTextModalOpen, setIsTextModalOpen] = useState(false);
+    const [importText, setImportText] = useState('');
 
-    const handleScreenshotImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files || files.length === 0) return;
+    const handleTextImport = async () => {
+        if (!importText.trim()) return;
 
         setIsImporting(true);
         setImportError(null);
@@ -1336,75 +1337,60 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
             if (!apiKey) throw new Error("Chave de API não encontrada.");
             const ai = new GoogleGenAI({ apiKey });
 
-            let allTrades: any[] = [];
-            
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                const reader = new FileReader();
-                const imageData = await new Promise<string>((resolve) => {
-                    reader.onloadend = () => resolve(reader.result as string);
-                    reader.readAsDataURL(file);
-                });
-
-                const compressed = await compressImage(imageData, 1200);
-                const base64Data = compressed.split(',')[1];
-
-                const response = await withRetry(() => ai.models.generateContent({
-                    model: 'gemini-3-flash-preview',
-                    contents: {
-                        parts: [
-                            { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
-                            { text: `Analise este print do histórico de operações da corretora. 
-                            Extraia todas as operações visíveis.
-                            Para cada operação, identifique:
-                            - Data (no formato YYYY-MM-DD)
-                            - Resultado (win ou loss)
-                            - Valor de Entrada (número)
-                            - Payout % (número)
-                            
-                            Retorne APENAS um array JSON de objetos.` }
-                        ],
-                    },
-                    config: {
-                        systemInstruction: "Você é um assistente especializado em extração de dados de trading. Extraia as operações da imagem e retorne um JSON válido.",
-                        responseMimeType: "application/json",
-                        responseSchema: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    date: { type: Type.STRING, description: "Data da operação YYYY-MM-DD" },
-                                    result: { type: Type.STRING, enum: ['win', 'loss'] },
-                                    entryValue: { type: Type.NUMBER },
-                                    payoutPercentage: { type: Type.NUMBER }
-                                },
-                                required: ['date', 'result', 'entryValue', 'payoutPercentage']
-                            }
+            const response = await withRetry(() => ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: {
+                    parts: [
+                        { text: `Analise este texto que contém um histórico de operações de trading. 
+                        Extraia todas as operações mencionadas.
+                        Para cada operação, identifique:
+                        - Data (no formato YYYY-MM-DD)
+                        - Resultado (win ou loss)
+                        - Valor de Entrada (número)
+                        - Payout % (número)
+                        
+                        Texto:
+                        ${importText}
+                        
+                        Retorne APENAS um array JSON de objetos.` }
+                    ],
+                },
+                config: {
+                    systemInstruction: "Você é um assistente especializado em extração de dados de trading. Extraia as operações do texto e retorne um JSON válido.",
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                date: { type: Type.STRING, description: "Data da operação YYYY-MM-DD" },
+                                result: { type: Type.STRING, enum: ['win', 'loss'] },
+                                entryValue: { type: Type.NUMBER },
+                                payoutPercentage: { type: Type.NUMBER }
+                            },
+                            required: ['date', 'result', 'entryValue', 'payoutPercentage']
                         }
                     }
-                }));
-
-                const text = response.text;
-                if (text) {
-                    const trades = JSON.parse(text);
-                    if (Array.isArray(trades)) {
-                        allTrades = [...allTrades, ...trades];
-                    }
                 }
-            }
+            }));
 
-            if (allTrades.length > 0) {
-                addBulkTrades(allTrades);
-                alert(`${allTrades.length} operações importadas de ${files.length} imagens com sucesso!`);
-            } else {
-                setImportError("Nenhuma operação encontrada nas imagens enviadas.");
+            const text = response.text;
+            if (text) {
+                const trades = JSON.parse(text);
+                if (Array.isArray(trades) && trades.length > 0) {
+                    addBulkTrades(trades);
+                    alert(`${trades.length} operações importadas com sucesso!`);
+                    setIsTextModalOpen(false);
+                    setImportText('');
+                } else {
+                    setImportError("Nenhuma operação encontrada no texto enviado.");
+                }
             }
         } catch (err: any) {
             console.error(err);
-            setImportError("Erro ao processar imagens: " + err.message);
+            setImportError("Erro ao processar texto: " + err.message);
         } finally {
             setIsImporting(false);
-            if (e.target) e.target.value = '';
         }
     };
 
@@ -1478,11 +1464,13 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                         <h2 className={`text-xl md:text-2xl font-black ${theme.text}`}>Histórico de Performance</h2>
                         <p className={`text-[10px] md:text-xs ${theme.textMuted}`}>Análise detalhada por períodos.</p>
                     </div>
-                    <label className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all shadow-lg active:scale-95 disabled:opacity-50">
-                        {isImporting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PhotoIcon className="w-4 h-4" />}
-                        {isImporting ? 'Processando...' : 'Importar Prints'}
-                        <input type="file" accept="image/*" className="hidden" onChange={handleScreenshotImport} disabled={isImporting} multiple />
-                    </label>
+                    <button 
+                        onClick={() => setIsTextModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                    >
+                        {isImporting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <DocumentTextIcon className="w-4 h-4" />}
+                        {isImporting ? 'Processando...' : 'Importar Texto'}
+                    </button>
                 </div>
                 {importError && (
                     <div className="w-full md:w-auto px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl">
@@ -1555,6 +1543,53 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                     </div>
                 )}
             </div>
+
+            {/* Modal de Importação de Texto */}
+            {isTextModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+                    <div className={`w-full max-w-2xl rounded-3xl border ${theme.card} p-6 md:p-8 space-y-6 shadow-2xl`}>
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h3 className={`text-xl font-black ${theme.text}`}>Importar Histórico</h3>
+                                <p className={`text-xs ${theme.textMuted}`}>Cole o texto do seu histórico de operações abaixo.</p>
+                            </div>
+                            <button onClick={() => setIsTextModalOpen(false)} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
+                                <TrashIcon className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+
+                        <textarea
+                            value={importText}
+                            onChange={(e) => setImportText(e.target.value)}
+                            placeholder="Ex: 11/03/2026 - Win - $10.00 - 80%..."
+                            className={`w-full h-64 p-4 rounded-2xl border outline-none font-bold resize-none ${theme.input} text-xs`}
+                        />
+
+                        {importError && (
+                            <div className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl">
+                                <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider">{importError}</p>
+                            </div>
+                        )}
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setIsTextModalOpen(false)}
+                                className={`flex-1 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] border ${theme.card} hover:bg-slate-800 transition-all`}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleTextImport}
+                                disabled={isImporting || !importText.trim()}
+                                className="flex-1 py-4 bg-teal-500 hover:bg-teal-400 text-slate-950 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-teal-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {isImporting && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
+                                {isImporting ? 'Processando...' : 'Confirmar Importação'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
