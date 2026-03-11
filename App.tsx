@@ -1302,73 +1302,83 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
     const [importError, setImportError] = useState<string | null>(null);
 
     const handleScreenshotImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
 
         setIsImporting(true);
         setImportError(null);
 
         try {
-            const reader = new FileReader();
-            const imageData = await new Promise<string>((resolve) => {
-                reader.onloadend = () => resolve(reader.result as string);
-                reader.readAsDataURL(file);
-            });
-
             const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
             if (!apiKey) throw new Error("Chave de API não encontrada.");
-
             const ai = new GoogleGenAI({ apiKey });
-            const compressed = await compressImage(imageData, 1200);
-            const base64Data = compressed.split(',')[1];
 
-            const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: {
-                    parts: [
-                        { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
-                        { text: `Analise este print do histórico de operações da corretora. 
-                        Extraia todas as operações visíveis.
-                        Para cada operação, identifique:
-                        - Data (no formato YYYY-MM-DD)
-                        - Resultado (win ou loss)
-                        - Valor de Entrada (número)
-                        - Payout % (número)
-                        
-                        Retorne APENAS um array JSON de objetos.` }
-                    ],
-                },
-                config: {
-                    systemInstruction: "Você é um assistente especializado em extração de dados de trading. Extraia as operações da imagem e retorne um JSON válido.",
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                date: { type: Type.STRING, description: "Data da operação YYYY-MM-DD" },
-                                result: { type: Type.STRING, enum: ['win', 'loss'] },
-                                entryValue: { type: Type.NUMBER },
-                                payoutPercentage: { type: Type.NUMBER }
-                            },
-                            required: ['date', 'result', 'entryValue', 'payoutPercentage']
+            let allTrades: any[] = [];
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                const imageData = await new Promise<string>((resolve) => {
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.readAsDataURL(file);
+                });
+
+                const compressed = await compressImage(imageData, 1200);
+                const base64Data = compressed.split(',')[1];
+
+                const response = await ai.models.generateContent({
+                    model: 'gemini-3-flash-preview',
+                    contents: {
+                        parts: [
+                            { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
+                            { text: `Analise este print do histórico de operações da corretora. 
+                            Extraia todas as operações visíveis.
+                            Para cada operação, identifique:
+                            - Data (no formato YYYY-MM-DD)
+                            - Resultado (win ou loss)
+                            - Valor de Entrada (número)
+                            - Payout % (número)
+                            
+                            Retorne APENAS um array JSON de objetos.` }
+                        ],
+                    },
+                    config: {
+                        systemInstruction: "Você é um assistente especializado em extração de dados de trading. Extraia as operações da imagem e retorne um JSON válido.",
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    date: { type: Type.STRING, description: "Data da operação YYYY-MM-DD" },
+                                    result: { type: Type.STRING, enum: ['win', 'loss'] },
+                                    entryValue: { type: Type.NUMBER },
+                                    payoutPercentage: { type: Type.NUMBER }
+                                },
+                                required: ['date', 'result', 'entryValue', 'payoutPercentage']
+                            }
                         }
                     }
-                }
-            });
+                });
 
-            const text = response.text;
-            if (!text) throw new Error("A IA não retornou nenhum dado.");
-            const trades = JSON.parse(text);
-            if (Array.isArray(trades) && trades.length > 0) {
-                addBulkTrades(trades);
-                alert(`${trades.length} operações importadas com sucesso!`);
+                const text = response.text;
+                if (text) {
+                    const trades = JSON.parse(text);
+                    if (Array.isArray(trades)) {
+                        allTrades = [...allTrades, ...trades];
+                    }
+                }
+            }
+
+            if (allTrades.length > 0) {
+                addBulkTrades(allTrades);
+                alert(`${allTrades.length} operações importadas de ${files.length} imagens com sucesso!`);
             } else {
-                setImportError("Nenhuma operação encontrada na imagem.");
+                setImportError("Nenhuma operação encontrada nas imagens enviadas.");
             }
         } catch (err: any) {
             console.error(err);
-            setImportError("Erro ao processar imagem: " + err.message);
+            setImportError("Erro ao processar imagens: " + err.message);
         } finally {
             setIsImporting(false);
             if (e.target) e.target.value = '';
@@ -1447,8 +1457,8 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                     </div>
                     <label className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all shadow-lg active:scale-95 disabled:opacity-50">
                         {isImporting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PhotoIcon className="w-4 h-4" />}
-                        {isImporting ? 'Processando...' : 'Importar Print'}
-                        <input type="file" accept="image/*" className="hidden" onChange={handleScreenshotImport} disabled={isImporting} />
+                        {isImporting ? 'Processando...' : 'Importar Prints'}
+                        <input type="file" accept="image/*" className="hidden" onChange={handleScreenshotImport} disabled={isImporting} multiple />
                     </label>
                 </div>
                 {importError && (
