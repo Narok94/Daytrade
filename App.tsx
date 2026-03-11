@@ -11,11 +11,32 @@ import {
     InformationCircleIcon, TrophyIcon, 
     ChartBarIcon, CheckIcon, DocumentTextIcon,
     PlusIcon, TrashIcon, CpuChipIcon, TrendingDownIcon,
-    ChevronLeftIcon, ChevronRightIcon
+    ChevronLeftIcon, ChevronRightIcon, PhotoIcon
 } from './components/icons';
 
 // --- Helper Functions ---
 const formatMoney = (val: number) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const compressImage = (dataUrl: string, maxWidth = 1200): Promise<string> => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.src = dataUrl;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            if (width > maxWidth) {
+                height = (maxWidth / width) * height;
+                width = maxWidth;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+    });
+};
 
 const getLocalDateString = (date: Date = new Date()) => {
     const year = date.getFullYear();
@@ -51,28 +72,6 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult | null>(null);
     const [error, setError] = useState<string | null>(null);
-
-    const compressImage = (dataUrl: string, maxWidth = 1200): Promise<string> => {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.src = dataUrl;
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                if (width > maxWidth) {
-                    height = (maxWidth / width) * height;
-                    width = maxWidth;
-                }
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx?.drawImage(img, 0, 0, width, height);
-                // 0.8 de qualidade é o "sweet spot" para a IA ver os pavios sem demorar no upload
-                resolve(canvas.toDataURL('image/jpeg', 0.8));
-            };
-        });
-    };
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -580,6 +579,43 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         }
     };
 
+    const addBulkTrades = (tradesToImport: { date: string, result: 'win' | 'loss', entryValue: number, payoutPercentage: number }[]) => {
+        if (!activeBrokerage) return;
+        setRecords(prev => {
+            let updatedRecords = [...prev];
+            tradesToImport.forEach(t => {
+                const dateKey = t.date;
+                const newTrade: Trade = { 
+                    id: crypto.randomUUID(), 
+                    result: t.result, 
+                    entryValue: t.entryValue, 
+                    payoutPercentage: t.payoutPercentage, 
+                    timestamp: new Date(t.date + 'T12:00:00').getTime() 
+                };
+                
+                const existingIdx = updatedRecords.findIndex(r => r.id === dateKey && r.recordType === 'day' && r.brokerageId === activeBrokerage.id);
+                if (existingIdx >= 0) {
+                    const rec = updatedRecords[existingIdx] as DailyRecord;
+                    updatedRecords[existingIdx] = { ...rec, trades: [...rec.trades, newTrade] };
+                } else {
+                    updatedRecords.push({ 
+                        recordType: 'day', 
+                        brokerageId: activeBrokerage.id, 
+                        id: dateKey, 
+                        date: dateKey, 
+                        trades: [newTrade], 
+                        startBalanceUSD: 0, 
+                        winCount: 0, 
+                        lossCount: 0, 
+                        netProfitUSD: 0, 
+                        endBalanceUSD: 0 
+                    });
+                }
+            });
+            return recalibrateHistory(updatedRecords, activeBrokerage.initialBalance, activeBrokerage.id);
+        });
+    };
+
     const brokerageBalances = useMemo(() => {
         return brokerages.map(b => {
             const bRecords = records.filter(r => r.brokerageId === b.id)
@@ -787,7 +823,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {activeTab === 'ai-analysis' && <AIAnalysisPanel theme={theme} isDarkMode={isDarkMode} />}
                     {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
                     {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
-                    {activeTab === 'history' && <HistoryPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
+                    {activeTab === 'history' && <HistoryPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} addBulkTrades={addBulkTrades} />}
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
                 {activeTab === 'settings' && (
@@ -1258,10 +1294,86 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
     );
 };
 
-const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
+const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, addBulkTrades }) => {
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
     const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly' | 'calendar'>('calendar');
+    const [isImporting, setIsImporting] = useState(false);
+    const [importError, setImportError] = useState<string | null>(null);
+
+    const handleScreenshotImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsImporting(true);
+        setImportError(null);
+
+        try {
+            const reader = new FileReader();
+            const imageData = await new Promise<string>((resolve) => {
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(file);
+            });
+
+            const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
+            if (!apiKey) throw new Error("Chave de API não encontrada.");
+
+            const ai = new GoogleGenAI({ apiKey });
+            const compressed = await compressImage(imageData, 1200);
+            const base64Data = compressed.split(',')[1];
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: {
+                    parts: [
+                        { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
+                        { text: `Analise este print do histórico de operações da corretora. 
+                        Extraia todas as operações visíveis.
+                        Para cada operação, identifique:
+                        - Data (no formato YYYY-MM-DD)
+                        - Resultado (win ou loss)
+                        - Valor de Entrada (número)
+                        - Payout % (número)
+                        
+                        Retorne APENAS um array JSON de objetos.` }
+                    ],
+                },
+                config: {
+                    systemInstruction: "Você é um assistente especializado em extração de dados de trading. Extraia as operações da imagem e retorne um JSON válido.",
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                date: { type: Type.STRING, description: "Data da operação YYYY-MM-DD" },
+                                result: { type: Type.STRING, enum: ['win', 'loss'] },
+                                entryValue: { type: Type.NUMBER },
+                                payoutPercentage: { type: Type.NUMBER }
+                            },
+                            required: ['date', 'result', 'entryValue', 'payoutPercentage']
+                        }
+                    }
+                }
+            });
+
+            const text = response.text;
+            if (!text) throw new Error("A IA não retornou nenhum dado.");
+            const trades = JSON.parse(text);
+            if (Array.isArray(trades) && trades.length > 0) {
+                addBulkTrades(trades);
+                alert(`${trades.length} operações importadas com sucesso!`);
+            } else {
+                setImportError("Nenhuma operação encontrada na imagem.");
+            }
+        } catch (err: any) {
+            console.error(err);
+            setImportError("Erro ao processar imagem: " + err.message);
+        } finally {
+            setIsImporting(false);
+            if (e.target) e.target.value = '';
+        }
+    };
 
     const stats = useMemo(() => {
         const dayRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0);
@@ -1328,10 +1440,22 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) =
     return (
         <div className="p-2 md:p-4 space-y-4 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-3">
-                <div>
-                    <h2 className={`text-xl md:text-2xl font-black ${theme.text}`}>Histórico de Performance</h2>
-                    <p className={`text-[10px] md:text-xs ${theme.textMuted}`}>Análise detalhada por períodos.</p>
+                <div className="flex justify-between w-full md:w-auto items-center gap-4">
+                    <div>
+                        <h2 className={`text-xl md:text-2xl font-black ${theme.text}`}>Histórico de Performance</h2>
+                        <p className={`text-[10px] md:text-xs ${theme.textMuted}`}>Análise detalhada por períodos.</p>
+                    </div>
+                    <label className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all shadow-lg active:scale-95 disabled:opacity-50">
+                        {isImporting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PhotoIcon className="w-4 h-4" />}
+                        {isImporting ? 'Processando...' : 'Importar Print'}
+                        <input type="file" accept="image/*" className="hidden" onChange={handleScreenshotImport} disabled={isImporting} />
+                    </label>
                 </div>
+                {importError && (
+                    <div className="w-full md:w-auto px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl">
+                        <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider">{importError}</p>
+                    </div>
+                )}
                 <div className="flex p-1 rounded-2xl bg-slate-900 border border-slate-800 overflow-x-auto no-scrollbar">
                     {(['calendar', 'daily', 'weekly', 'monthly'] as const).map((mode) => (
                         <button
