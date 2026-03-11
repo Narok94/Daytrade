@@ -17,6 +17,19 @@ import {
 // --- Helper Functions ---
 const formatMoney = (val: number) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const getLocalDateString = (date: Date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const getLocalMonthString = (date: Date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+};
+
 const useThemeClasses = (isDarkMode: boolean) => {
     return useMemo(() => ({
         bg: isDarkMode ? 'bg-slate-950' : 'bg-zinc-100',
@@ -400,7 +413,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     useEffect(() => {
         if (!activeBrokerage) return;
-        const dateKey = selectedDate.toISOString().split('T')[0];
+        const dateKey = getLocalDateString(selectedDate);
         const sortedDays = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.date < dateKey).sort((a,b) => b.id.localeCompare(a.id));
         const startBal = sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
         const dailyRecordForSelectedDay = records.find((r): r is DailyRecord => r.id === dateKey && r.recordType === 'day');
@@ -485,7 +498,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const addRecord = (win: number, loss: number, customEntry?: number, customPayout?: number) => {
         if (!activeBrokerage) return;
         setRecords(prev => {
-            const dateKey = selectedDate.toISOString().split('T')[0];
+            const dateKey = getLocalDateString(selectedDate);
             const sortedPrevious = prev.filter((r): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage.id && r.date < dateKey).sort((a,b) => b.id.localeCompare(a.id));
             const startBal = sortedPrevious.length > 0 ? sortedPrevious[0].endBalanceUSD : (activeBrokerage.initialBalance || 0);
             const dailyRecordForSelectedDay = prev.find((r): r is DailyRecord => r.id === dateKey && r.recordType === 'day' && r.brokerageId === activeBrokerage.id);
@@ -519,7 +532,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const addTransaction = (type: 'deposit' | 'withdrawal', amount: number, notes: string = '') => {
         if (!activeBrokerage || amount <= 0) return;
         setRecords(prev => {
-            const dateKey = selectedDate.toISOString().split('T')[0];
+            const dateKey = getLocalDateString(selectedDate);
             const newTransaction: TransactionRecord = {
                 recordType: type,
                 brokerageId: activeBrokerage.id,
@@ -565,7 +578,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const theme = useThemeClasses(isDarkMode);
     if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" /></div>;
 
-    const dateStr = selectedDate.toISOString().split('T')[0];
+    const dateStr = getLocalDateString(selectedDate);
     const brokerageRecords = records.filter(r => r.brokerageId === activeBrokerage?.id);
     
     // Helper to get balance from a record
@@ -593,7 +606,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const dayTransactions = recordsOnDay.filter((r): r is TransactionRecord => r.recordType === 'deposit' || r.recordType === 'withdrawal');
 
     // LÓGICA DE META DIÁRIA
-    const currentMonthStr = new Date().toISOString().slice(0, 7);
+    const currentMonthStr = getLocalMonthString();
     const dailyBrokerageRecords = records.filter((r): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id);
     
     const customGoal = goals.find(g => g.type === 'custom' && g.deadline && g.brokerageId === activeBrokerage?.id);
@@ -602,7 +615,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     let activeDailyGoal = 0;
 
     if (customGoal && customGoal.deadline) {
-        const startStr = new Date(customGoal.createdAt).toISOString().split('T')[0];
+        const startStr = getLocalDateString(new Date(customGoal.createdAt));
         const currentProfit = dailyBrokerageRecords
             .filter((r: DailyRecord) => r.id >= startStr && r.id <= customGoal.deadline!)
             .reduce((acc: number, r: DailyRecord) => acc + r.netProfitUSD, 0);
@@ -960,12 +973,12 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
         startDate.setHours(12,0,0,0);
         let runningBalance = activeBrokerage?.initialBalance || 0;
         
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = getLocalDateString();
         
         for (let i = 0; i < 30; i++) {
             const currentDate = new Date(startDate);
             currentDate.setDate(startDate.getDate() + i);
-            const dateId = currentDate.toISOString().split('T')[0];
+            const dateId = getLocalDateString(currentDate);
             const isPast = dateId < todayStr;
             
             // Get all records for this day (trades and transactions)
@@ -1189,7 +1202,7 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
                     
                     const dateId = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                     const profit = dailyProfits[dateId];
-                    const isToday = new Date().toISOString().split('T')[0] === dateId;
+                    const isToday = getLocalDateString() === dateId;
 
                     return (
                         <div key={dateId} className={`aspect-square rounded-md md:rounded-lg border ${isDarkMode ? 'border-slate-800/50' : 'border-zinc-200'} flex flex-col items-center justify-center p-0.5 relative transition-all hover:scale-105 cursor-default ${isToday ? 'ring-1 ring-teal-500/50' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-green-500/10' : 'bg-red-500/10') : ''}`}>
@@ -1238,7 +1251,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) =
                 const day = date.getDay();
                 const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
                 const monday = new Date(date.setDate(diff));
-                const weekId = monday.toISOString().split('T')[0];
+                const weekId = getLocalDateString(monday);
                 
                 if (!weeks[weekId]) {
                     weeks[weekId] = { id: weekId, label: `Semana de ${monday.toLocaleDateString('pt-BR')}`, profit: 0, wins: 0, losses: 0, total: 0 };
@@ -1432,7 +1445,7 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
         let label = "Progresso";
 
         if (goal.type === 'monthly') {
-            const currentMonthStr = new Date().toISOString().slice(0, 7);
+            const currentMonthStr = getLocalMonthString();
             relevantProfit = brokerageRecords
                 .filter((r: any) => r.id.startsWith(currentMonthStr))
                 .reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
@@ -1443,14 +1456,14 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
             const diff = now.getDate() - day + (day === 0 ? -6 : 1);
             const monday = new Date(now.setDate(diff));
             monday.setHours(0,0,0,0);
-            const mondayStr = monday.toISOString().split('T')[0];
+            const mondayStr = getLocalDateString(monday);
             
             relevantProfit = brokerageRecords
                 .filter((r: any) => r.id >= mondayStr)
                 .reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
             label = "Progresso da Semana";
         } else if (goal.type === 'custom' && goal.deadline) {
-            const startStr = new Date(goal.createdAt).toISOString().split('T')[0];
+            const startStr = getLocalDateString(new Date(goal.createdAt));
             relevantProfit = brokerageRecords
                 .filter((r: any) => r.id >= startStr && r.id <= goal.deadline!)
                 .reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
