@@ -392,6 +392,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const [brokerages, setBrokerages] = useState<Brokerage[]>([]);
     const [activeBrokerageId, setActiveBrokerageId] = useState<string | null>(null);
     const [records, setRecords] = useState<AppRecord[]>([]);
+    const [trash, setTrash] = useState<AppRecord[]>([]);
     const [goals, setGoals] = useState<Goal[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [customEntryValue, setCustomEntryValue] = useState('');
@@ -474,6 +475,12 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 setBrokerages(loadedBrokerages); 
                 setRecords(recalibratedRecords); 
                 setGoals(data.goals || []);
+                
+                // Load trash from localStorage as a local safety net
+                const localTrash = localStorage.getItem(`trash_${user.id}`);
+                if (localTrash) {
+                    try { setTrash(JSON.parse(localTrash)); } catch(e) {}
+                }
             }
         } catch (e) { console.error(e); } finally { setIsLoading(false); }
     }, [user.id, recalibrateAll]);
@@ -555,7 +562,23 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         });
     };
 
-    const handleReset = () => { if(confirm("Apagar todo histórico?")) { setRecords([]); } };
+    const handleReset = () => { 
+        if(confirm("ATENÇÃO: Isso apagará todo o histórico de operações permanentemente no servidor. Deseja continuar? (Uma cópia será salva na Lixeira local)")) { 
+            setTrash([...records]);
+            localStorage.setItem(`trash_${user.id}`, JSON.stringify(records));
+            setRecords([]); 
+            alert("Histórico movido para a Lixeira local. Você pode restaurá-lo nas Configurações se necessário.");
+        } 
+    };
+
+    const restoreTrash = () => {
+        if (trash.length > 0) {
+            setRecords([...trash]);
+            setTrash([]);
+            localStorage.removeItem(`trash_${user.id}`);
+            alert("Histórico restaurado com sucesso!");
+        }
+    };
 
     const brokerageBalances = useMemo(() => {
         return brokerages.map(b => {
@@ -767,7 +790,16 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {activeTab === 'history' && <HistoryPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
-                    {activeTab === 'settings' && <SettingsPanel theme={theme} brokerage={activeBrokerage} setBrokerages={setBrokerages} onReset={handleReset} />}
+                {activeTab === 'settings' && (
+                    <SettingsPanel 
+                        theme={theme} 
+                        brokerage={activeBrokerage} 
+                        setBrokerages={setBrokerages} 
+                        onReset={handleReset} 
+                        trashCount={trash.length}
+                        onRestore={restoreTrash}
+                    />
+                )}
                 </div>
             </main>
         </div>
@@ -1532,7 +1564,7 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
     );
 };
 
-const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset }) => {
+const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset, trashCount, onRestore }) => {
     const [newBrokerageName, setNewBrokerageName] = useState('');
     
     const updateBrokerage = (field: keyof Brokerage, value: any) => {
@@ -1602,7 +1634,14 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                         <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Loss (Losses)</label><input type="number" value={brokerage.stopLossTrades} onChange={e => updateBrokerage('stopLossTrades', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
                     </div>
                 </section>
-                <button onClick={onReset} className="px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all">Limpar Histórico de Operações</button>
+                <div className="flex flex-col md:flex-row gap-4">
+                    <button onClick={onReset} className="flex-1 px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all">Limpar Histórico de Operações</button>
+                    {trashCount > 0 && (
+                        <button onClick={onRestore} className="flex-1 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2">
+                            <ArrowPathIcon className="w-4 h-4" /> Restaurar da Lixeira ({trashCount})
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
