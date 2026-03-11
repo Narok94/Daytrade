@@ -961,10 +961,9 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     
-    const [projWins, setProjWins] = useState(2);
-    const [projLosses, setProjLosses] = useState(0);
-    const [projEntryPercent, setProjEntryPercent] = useState(10);
-    const [projPayout, setProjPayout] = useState(activeBrokerage.payoutPercentage || 80);
+    const [projMetaPercent, setProjMetaPercent] = useState(10);
+    const [projStopPercent, setProjStopPercent] = useState(3);
+    const [projEntryPercent, setProjEntryPercent] = useState(1);
 
     const tableData = useMemo(() => {
         const rows = [];
@@ -981,7 +980,6 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             const dateId = getLocalDateString(currentDate);
             const isPast = dateId < todayStr;
             
-            // Get all records for this day (trades and transactions)
             const dayRecords = records.filter((r: any) => 
                 (r.recordType === 'day' ? r.id : r.date) === dateId && 
                 r.brokerageId === activeBrokerage?.id
@@ -991,60 +989,57 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             const transactions = dayRecords.filter((r: any) => r.recordType === 'deposit' || r.recordType === 'withdrawal');
             const transProfit = transactions.reduce((acc: number, t: any) => acc + (t.recordType === 'deposit' ? t.amountUSD : -t.amountUSD), 0);
             
-            let initial = runningBalance, win, loss, profit, final, isProjection, operationValue, goalMet = false;
+            let initial = runningBalance, profit, final, isProjection, status = 'META BATIDA';
+            const targetProfit = initial * (projMetaPercent / 100);
+            const stopValue = initial * (projStopPercent / 100);
+            const entryValue = initial * (projEntryPercent / 100);
             
             if (realRecord) {
-                win = realRecord.winCount; 
-                loss = realRecord.lossCount; 
                 profit = realRecord.netProfitUSD + transProfit; 
                 final = initial + profit;
-                operationValue = (realRecord.trades.length > 0) ? realRecord.trades[0].entryValue : (initial * (projEntryPercent / 100));
+                status = profit >= 0 ? 'META BATIDA' : 'STOP-LOSS';
                 isProjection = false;
-                goalMet = win >= projWins;
             } else if (transactions.length > 0) {
-                // Only transactions, no trades
-                win = 0;
-                loss = 0;
                 profit = transProfit;
                 final = initial + profit;
-                operationValue = initial * (projEntryPercent / 100);
+                status = profit >= 0 ? 'META BATIDA' : 'STOP-LOSS';
                 isProjection = false;
-                goalMet = false;
             } else {
                 isProjection = true; 
                 if (isPast) {
-                    // Past day with no operations: no profit, balance stays same
-                    win = 0;
-                    loss = 0;
                     profit = 0;
                     final = initial;
-                    operationValue = 0;
-                    goalMet = false;
+                    status = 'SEM OPERAÇÃO';
                 } else {
-                    // Future or today: project based on goals
-                    operationValue = initial * (projEntryPercent / 100); 
-                    win = projWins; 
-                    loss = projLosses;
-                    const winProfit = (operationValue * (projPayout / 100)) * win;
-                    const lossCost = operationValue * loss;
-                    profit = winProfit - lossCost;
+                    profit = targetProfit;
                     final = initial + profit;
-                    goalMet = true;
+                    status = 'META BATIDA';
                 }
             }
-            rows.push({ diaTrade: i + 1, dateId, dateDisplay: currentDate.toLocaleDateString('pt-BR'), initial, win, loss, profit, final, operationValue, isProjection, goalMet });
+            rows.push({ 
+                diaTrade: i + 1, 
+                dateId, 
+                dateDisplay: currentDate.toLocaleDateString('pt-BR'), 
+                initial, 
+                profit, 
+                final, 
+                isProjection, 
+                status,
+                metaPercent: projMetaPercent,
+                targetProfit,
+                stopValue,
+                entryValue
+            });
             runningBalance = final;
         }
 
-        // Ocultar dias sem movimentação (projeções no passado sem dados reais)
         const filteredRows = rows.filter(row => !row.isProjection || row.dateId >= todayStr);
 
-        // Re-indexar para manter a sequência visual dos dias de operação/projeção
         return filteredRows.map((row, index) => ({
             ...row,
             diaTrade: index + 1
         }));
-    }, [records, activeBrokerage.initialBalance, projWins, projLosses, projEntryPercent, projPayout]);
+    }, [records, activeBrokerage.initialBalance, projMetaPercent, projStopPercent, projEntryPercent]);
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
@@ -1060,58 +1055,51 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                     <table className="w-full text-center border-collapse min-w-[1000px]">
                         <thead>
                             <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Dia</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Data</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Saldo Inicial</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Capital</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">
                                     <div className="flex flex-col items-center gap-1">
-                                        <span>Meta (W/L)</span>
+                                        <span>Meta</span>
                                         <div className="flex items-center gap-1">
-                                            <input type="number" value={projWins} onChange={e => setProjWins(parseInt(e.target.value) || 0)} className={`w-10 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
-                                            <span className="opacity-30">x</span>
-                                            <input type="number" value={projLosses} onChange={e => setProjLosses(parseInt(e.target.value) || 0)} className={`w-10 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
+                                            <input type="number" value={projMetaPercent} onChange={e => setProjMetaPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
+                                            <span className="opacity-30">%</span>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Lucro</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Status</th>
+                                <th className="py-5 px-3 border-b border-slate-800/20">
+                                    <div className="flex flex-col items-center gap-1">
+                                        <span>Stop</span>
+                                        <div className="flex items-center gap-1">
+                                            <input type="number" value={projStopPercent} onChange={e => setProjStopPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
+                                            <span className="opacity-30">%</span>
                                         </div>
                                     </div>
                                 </th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">
                                     <div className="flex flex-col items-center gap-1">
-                                        <span>Operação</span>
+                                        <span>Entrada</span>
                                         <div className="flex items-center gap-1">
                                             <input type="number" value={projEntryPercent} onChange={e => setProjEntryPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
                                             <span className="opacity-30">%</span>
                                         </div>
                                     </div>
                                 </th>
-                                <th className="py-5 px-3 border-b border-slate-800/20 text-green-500">W</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20 text-red-500">L</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span>Lucro</span>
-                                        <div className="flex items-center gap-1">
-                                            <input type="number" value={projPayout} onChange={e => setProjPayout(parseInt(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
-                                            <span className="opacity-30">%</span>
-                                        </div>
-                                    </div>
-                                </th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Saldo Final</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/10">
                             {tableData.map((row) => (
-                                <tr key={row.diaTrade} className={`text-sm font-bold hover:bg-slate-800/5 transition-colors ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : !row.goalMet ? 'bg-red-500/5' : ''}`}>
-                                    <td className="py-4 px-3 opacity-40 font-mono text-xs">#{row.diaTrade}</td>
-                                    <td className="py-4 px-3 text-[10px] uppercase font-black opacity-60">{row.dateDisplay}</td>
+                                <tr key={row.dateId} className={`text-sm font-bold hover:bg-slate-800/5 transition-colors ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : row.status === 'STOP-LOSS' ? 'bg-red-500/5' : ''}`}>
                                     <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
+                                    <td className="py-4 px-3 opacity-60">{row.metaPercent}%</td>
+                                    <td className="py-4 px-3 font-black text-blue-400">{currencySymbol} {formatMoney(row.targetProfit)}</td>
                                     <td className="py-4 px-3">
-                                        <span className={`px-3 py-1 rounded-xl text-[10px] font-black ${row.isProjection ? 'bg-blue-500/10 text-blue-400' : row.goalMet ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                                            {row.isProjection ? `${projWins}x${projLosses}` : row.goalMet ? 'META BATIDA' : 'META NÃO ATINGIDA'}
+                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' ? 'bg-green-500/20 text-green-500' : row.status === 'STOP-LOSS' ? 'bg-red-500/20 text-red-500' : 'bg-slate-500/20 text-slate-500'}`}>
+                                            {row.status}
                                         </span>
                                     </td>
-                                    <td className="py-4 px-3 font-mono text-sm text-blue-400">{currencySymbol} {formatMoney(row.operationValue)}</td>
-                                    <td className="py-4 px-3"><span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-xl">{row.win}</span></td>
-                                    <td className="py-4 px-3"><span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-xl">{row.loss}</span></td>
-                                    <td className={`py-4 px-3 font-black ${row.profit > 0 ? 'text-green-500' : row.profit < 0 ? 'text-red-500' : 'opacity-30'}`}>{row.profit > 0 ? '+' : ''}{currencySymbol} {formatMoney(row.profit)}</td>
-                                    <td className="py-4 px-3 font-black opacity-90">{currencySymbol} {formatMoney(row.final)}</td>
+                                    <td className="py-4 px-3 text-red-500/80">{currencySymbol} {formatMoney(row.stopValue)}</td>
+                                    <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.entryValue)}</td>
                                 </tr>
                             ))}
                         </tbody>
