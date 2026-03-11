@@ -51,7 +51,7 @@ const getLocalMonthString = (date: Date = new Date()) => {
     return `${year}-${month}`;
 };
 
-async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3, initialDelay = 1000): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 5, initialDelay = 2000, onRetry?: (attempt: number) => void): Promise<T> {
     let lastError: any;
     for (let i = 0; i < maxRetries; i++) {
         try {
@@ -62,9 +62,12 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3, initialDelay =
                 err.message?.includes('503') || 
                 err.message?.includes('429') || 
                 err.message?.toLowerCase().includes('high demand') ||
-                err.message?.toLowerCase().includes('unavailable');
+                err.message?.toLowerCase().includes('unavailable') ||
+                err.message?.toLowerCase().includes('overloaded');
             
             if (!isRetryable || i === maxRetries - 1) throw err;
+            
+            if (onRetry) onRetry(i + 1);
             
             const delay = initialDelay * Math.pow(2, i);
             console.log(`Erro de demanda (503/429). Tentativa ${i + 1}/${maxRetries}. Retentando em ${delay}ms...`);
@@ -1323,6 +1326,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
     const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly' | 'calendar'>('calendar');
     const [isImporting, setIsImporting] = useState(false);
     const [importError, setImportError] = useState<string | null>(null);
+    const [retryCount, setRetryCount] = useState(0);
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     const [importText, setImportText] = useState('');
 
@@ -1331,6 +1335,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
 
         setIsImporting(true);
         setImportError(null);
+        setRetryCount(0);
 
         try {
             const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
@@ -1376,7 +1381,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                         }
                     }
                 }
-            }));
+            }), 5, 2000, (attempt) => setRetryCount(attempt));
 
             const text = response.text;
             if (text) {
@@ -1392,7 +1397,11 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
             }
         } catch (err: any) {
             console.error(err);
-            setImportError("Erro ao processar texto: " + err.message);
+            if (err.message?.includes('503') || err.message?.includes('high demand')) {
+                setImportError("O Google está com alta demanda no momento (Erro 503). Por favor, aguarde 10 segundos e tente novamente.");
+            } else {
+                setImportError("Erro ao processar texto: " + err.message);
+            }
         } finally {
             setIsImporting(false);
         }
@@ -1556,6 +1565,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                             <div>
                                 <h3 className={`text-xl font-black ${theme.text}`}>Importar Histórico</h3>
                                 <p className={`text-xs ${theme.textMuted}`}>Cole o texto do seu histórico de operações abaixo.</p>
+                                <p className="text-[10px] text-teal-500 font-bold mt-1 uppercase tracking-tighter">Dica: Se der erro de demanda, tente importar em partes menores.</p>
                             </div>
                             <button onClick={() => setIsTextModalOpen(false)} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
                                 <TrashIcon className="w-5 h-5 text-slate-500" />
@@ -1588,7 +1598,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                                 className="flex-1 py-4 bg-teal-500 hover:bg-teal-400 text-slate-950 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-teal-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                             >
                                 {isImporting && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
-                                {isImporting ? 'Processando...' : 'Confirmar Importação'}
+                                {isImporting ? (retryCount > 0 ? `Tentativa ${retryCount + 1}...` : 'Processando...') : 'Confirmar Importação'}
                             </button>
                         </div>
                     </div>
