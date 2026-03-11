@@ -51,6 +51,29 @@ const getLocalMonthString = (date: Date = new Date()) => {
     return `${year}-${month}`;
 };
 
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3, initialDelay = 1000): Promise<T> {
+    let lastError: any;
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await fn();
+        } catch (err: any) {
+            lastError = err;
+            const isRetryable = 
+                err.message?.includes('503') || 
+                err.message?.includes('429') || 
+                err.message?.toLowerCase().includes('high demand') ||
+                err.message?.toLowerCase().includes('unavailable');
+            
+            if (!isRetryable || i === maxRetries - 1) throw err;
+            
+            const delay = initialDelay * Math.pow(2, i);
+            console.log(`Erro de demanda (503/429). Tentativa ${i + 1}/${maxRetries}. Retentando em ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+    throw lastError;
+}
+
 const useThemeClasses = (isDarkMode: boolean) => {
     return useMemo(() => ({
         bg: isDarkMode ? 'bg-slate-950' : 'bg-zinc-100',
@@ -109,7 +132,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             const timeString = now.toLocaleTimeString('pt-BR');
 
             const generateContent = async (model: string) => {
-                return await ai.models.generateContent({
+                return await withRetry(() => ai.models.generateContent({
                     model: model,
                     contents: {
                         parts: [
@@ -121,7 +144,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             3. Padrão de Candle (Exaustão: doji, martelo, estrela; Força: marubozu).
                             4. Filtro de Ruído (ignore lateralidade sem volume).
                             
-                            RETORNE APENAS O OBJETO JSON.` },
+                            RETORNE APENAS UM OBJETO JSON.` },
                         ],
                     },
                     config: {
@@ -141,7 +164,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                             required: ['asset', 'recommendation', 'reasoning', 'confidence', 'expiration']
                         }
                     }
-                });
+                }));
             };
 
             let response;
@@ -1326,7 +1349,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                 const compressed = await compressImage(imageData, 1200);
                 const base64Data = compressed.split(',')[1];
 
-                const response = await ai.models.generateContent({
+                const response = await withRetry(() => ai.models.generateContent({
                     model: 'gemini-3-flash-preview',
                     contents: {
                         parts: [
@@ -1359,7 +1382,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                             }
                         }
                     }
-                });
+                }));
 
                 const text = response.text;
                 if (text) {
