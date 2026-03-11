@@ -1341,13 +1341,17 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                 model: 'gemini-3-flash-preview',
                 contents: {
                     parts: [
-                        { text: `Analise este texto que contém um histórico de operações de trading. 
-                        Extraia todas as operações mencionadas.
-                        Para cada operação, identifique:
-                        - Data (no formato YYYY-MM-DD)
-                        - Resultado (win ou loss)
-                        - Valor de Entrada (número)
-                        - Payout % (número)
+                        { text: `Analise este texto que contém um histórico de operações de trading, possivelmente no formato: Data,Horário,Par de Moedas,Valor Entrada,Payout (%),Resultado.
+                        Exemplo: 02/03,08:27:01,CAD/JPY,"R$ 5,00",90%,"+ R$ 9,50"
+                        
+                        Regras de extração:
+                        1. Data: Converta para o formato YYYY-MM-DD. Use o ano de 2026.
+                        2. Resultado: Identifique como 'win' ou 'loss'.
+                           - Se houver lucro ("+ R$") ou for uma operação vencedora, use 'win'.
+                           - Se houver prejuízo ("- R$") ou for uma operação perdedora, use 'loss'.
+                           - Se for "Empate", use 'win' mas defina o Payout como 0 (isso garante que o lucro seja zero).
+                        3. Valor de Entrada: Extraia apenas o valor numérico (ex: 5.00).
+                        4. Payout %: Extraia apenas o número (ex: 90). Se for "-", use 0.
                         
                         Texto:
                         ${importText}
@@ -1356,7 +1360,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                     ],
                 },
                 config: {
-                    systemInstruction: "Você é um assistente especializado em extração de dados de trading. Extraia as operações do texto e retorne um JSON válido.",
+                    systemInstruction: "Você é um assistente especializado em extração de dados de trading. Você deve processar textos (incluindo formatos CSV) e extrair operações para um formato JSON padronizado. Trate 'Empate' como 'win' com payout 0.",
                     responseMimeType: "application/json",
                     responseSchema: {
                         type: Type.ARRAY,
