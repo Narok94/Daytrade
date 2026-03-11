@@ -853,7 +853,13 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                 <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
-                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout %</label><input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout</label>
+                                    <div className="relative">
+                                        <input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-12 px-4 pr-8 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
+                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-bold">%</span>
+                                    </div>
+                                </div>
                                 <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                             </div>
                             <div className="flex justify-between items-center px-1">
@@ -989,7 +995,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             const transactions = dayRecords.filter((r: any) => r.recordType === 'deposit' || r.recordType === 'withdrawal');
             const transProfit = transactions.reduce((acc: number, t: any) => acc + (t.recordType === 'deposit' ? t.amountUSD : -t.amountUSD), 0);
             
-            let initial = runningBalance, profit, final, isProjection, status = 'META BATIDA';
+            let initial = runningBalance, profit, final, isProjection, status = 'META BATIDA', hasOperation = false;
             const targetProfit = initial * (projMetaPercent / 100);
             const stopValue = initial * (projStopPercent / 100);
             const entryValue = initial * (projEntryPercent / 100);
@@ -999,21 +1005,25 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                 final = initial + profit;
                 status = profit >= 0 ? 'META BATIDA' : 'STOP-LOSS';
                 isProjection = false;
+                hasOperation = true;
             } else if (transactions.length > 0) {
                 profit = transProfit;
                 final = initial + profit;
                 status = profit >= 0 ? 'META BATIDA' : 'STOP-LOSS';
                 isProjection = false;
+                hasOperation = true;
             } else {
                 isProjection = true; 
                 if (isPast) {
                     profit = 0;
                     final = initial;
                     status = 'SEM OPERAÇÃO';
+                    hasOperation = false;
                 } else {
                     profit = targetProfit;
                     final = initial + profit;
                     status = 'META BATIDA';
+                    hasOperation = true; // Planned operation
                 }
             }
             rows.push({ 
@@ -1025,6 +1035,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                 final, 
                 isProjection, 
                 status,
+                hasOperation,
                 metaPercent: projMetaPercent,
                 targetProfit,
                 stopValue,
@@ -1033,9 +1044,8 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             runningBalance = final;
         }
 
-        const filteredRows = rows.filter(row => !row.isProjection || row.dateId >= todayStr);
-
-        return filteredRows.map((row, index) => ({
+        // We keep all rows now to show the "SEM OPERAÇÃO" gaps if they exist within the 30-day window
+        return rows.map((row, index) => ({
             ...row,
             diaTrade: index + 1
         }));
@@ -1055,6 +1065,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                     <table className="w-full text-center border-collapse min-w-[1000px]">
                         <thead>
                             <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
+                                <th className="py-5 px-3 border-b border-slate-800/20">Data</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">Capital</th>
                                 <th className="py-5 px-3 border-b border-slate-800/20">
                                     <div className="flex flex-col items-center gap-1">
@@ -1090,6 +1101,9 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                         <tbody className="divide-y divide-slate-800/10">
                             {tableData.map((row) => (
                                 <tr key={row.dateId} className={`text-sm font-bold hover:bg-slate-800/5 transition-colors ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : row.status === 'STOP-LOSS' ? 'bg-red-500/5' : ''}`}>
+                                    <td className="py-4 px-3 text-[10px] uppercase font-black opacity-60">
+                                        {row.hasOperation ? row.dateDisplay : ''}
+                                    </td>
                                     <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
                                     <td className="py-4 px-3 opacity-60">{row.metaPercent}%</td>
                                     <td className="py-4 px-3 font-black text-blue-400">{currencySymbol} {formatMoney(row.targetProfit)}</td>
@@ -1382,7 +1396,13 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
             <div className={`p-8 rounded-3xl border ${theme.card} space-y-6`}>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Valor Inicial</label><input type="number" value={initialValue} onChange={e => setInitialValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Payout %</label><input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-500 uppercase">Payout</label>
+                        <div className="relative">
+                            <input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full h-12 px-4 pr-8 rounded-xl border outline-none font-bold ${theme.input}`} />
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-bold">%</span>
+                        </div>
+                    </div>
                     <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Níveis</label><input type="number" value={levels} onChange={e => setLevels(e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
                 </div>
                 <div className="space-y-3">
@@ -1566,7 +1586,13 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                         <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Nome da Banca</label><input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
                         <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Moeda</label><select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`}><option value="USD">Dólar ($)</option><option value="BRL">Real (R$)</option></select></div>
                         <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Saldo Inicial</label><input type="number" value={brokerage.initialBalance} onChange={e => updateBrokerage('initialBalance', parseFloat(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Payout Padrão %</label><input type="number" value={brokerage.payoutPercentage} onChange={e => updateBrokerage('payoutPercentage', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Payout Padrão</label>
+                            <div className="relative">
+                                <input type="number" value={brokerage.payoutPercentage} onChange={e => updateBrokerage('payoutPercentage', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 pr-8 rounded-xl border outline-none font-bold ${theme.input}`} />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-bold">%</span>
+                            </div>
+                        </div>
                     </div>
                 </section>
                 <section className="space-y-6 pt-8 border-t border-slate-800/10">
