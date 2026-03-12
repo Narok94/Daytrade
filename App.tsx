@@ -489,6 +489,10 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         return currentRecords;
     }, [recalibrateHistory]);
 
+    const updateBrokerageSetting = useCallback((id: string, field: string, value: any) => {
+        setBrokerages(prev => prev.map(b => b.id === id ? { ...b, [field]: value } : b));
+    }, []);
+
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -829,6 +833,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {activeTab === 'dashboard' && (
                         <DashboardPanel 
                             activeBrokerage={activeBrokerage} 
+                            updateBrokerageSetting={updateBrokerageSetting}
                             customEntryValue={customEntryValue} 
                             setCustomEntryValue={setCustomEntryValue} 
                             customPayout={customPayout} 
@@ -880,13 +885,21 @@ const SavingStatusIndicator: React.FC<{status: string}> = ({status}) => {
 // For brevity, assuming they are within this file but omitted in the update to focus on the change.
 // (I will keep the logic from the previous provided file structure)
 
-const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, addTransaction, deleteTransaction, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, transactionsForSelectedDay, startBalanceForSelectedDay, currentBalanceForDashboard, isDarkMode, dailyGoalTarget }) => {
+const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, addTransaction, deleteTransaction, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, transactionsForSelectedDay, startBalanceForSelectedDay, currentBalanceForDashboard, isDarkMode, dailyGoalTarget }) => {
     const theme = useThemeClasses(isDarkMode);
     const [quantity, setQuantity] = useState('1');
     const [transAmount, setTransAmount] = useState('');
     const [transType, setTransType] = useState<'deposit' | 'withdrawal'>('deposit');
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     
+    const handlePayoutChange = (val: string) => {
+        setCustomPayout(val);
+        const num = parseFloat(val);
+        if (!isNaN(num)) {
+            updateBrokerageSetting(activeBrokerage.id, 'payoutPercentage', num);
+        }
+    };
+
     const handleQuickAdd = (type: 'win' | 'loss') => {
          const entryValue = parseFloat(customEntryValue) || 0;
          const payout = parseFloat(customPayout) || 0;
@@ -973,7 +986,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout</label>
                                     <div className="relative">
-                                        <input type="number" value={customPayout} onChange={e => setCustomPayout(e.target.value)} className={`w-full h-12 px-4 pr-8 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
+                                        <input type="number" value={customPayout} onChange={e => handlePayoutChange(e.target.value)} className={`w-full h-12 px-4 pr-8 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
                                         <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-bold">%</span>
                                     </div>
                                 </div>
@@ -1914,7 +1927,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
         let initialDays = savedDays ? JSON.parse(savedDays) : Array.from({ length: daysInMonth }, (_, i) => ({
             id: i + 1,
             date: `${String(i + 1).padStart(2, '0')}/${String(month).padStart(2, '0')}`,
-            payout: 80,
+            payout: activeBrokerage?.payoutPercentage || 80,
             entry: 0,
             result: 0,
             winCycle1: false,
@@ -1936,7 +1949,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                 return existing || {
                     id: dayNum,
                     date: `${String(dayNum).padStart(2, '0')}/${String(month).padStart(2, '0')}`,
-                    payout: 80,
+                    payout: activeBrokerage?.payoutPercentage || 80,
                     entry: 0,
                     result: 0,
                     winCycle1: false,
@@ -1993,10 +2006,14 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                 return {
                     ...day,
                     entry: firstTrade?.entryValue || day.entry,
+                    payout: firstTrade?.payoutPercentage || day.payout,
                     result: record.netProfitUSD,
                     winCycle1: trades.some((t: any) => t.result === 'win'),
                     lossCycle1: trades.some((t: any) => t.result === 'loss'),
                 };
+            }
+            if (dateStr === getLocalDateString()) {
+                return { ...day, payout: activeBrokerage.payoutPercentage };
             }
             return day;
         }));
@@ -2043,9 +2060,18 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
         setDaysData((prev: any[]) => prev.map((d: any) => d.id === id ? { ...d, [field]: value } : d));
     };
 
+    const monthRecords = useMemo(() => {
+        if (!records || !activeBrokerage) return [];
+        return records.filter((r: any) => 
+            r.recordType === 'day' && 
+            r.brokerageId === activeBrokerage.id && 
+            r.id.startsWith(selectedMonth)
+        );
+    }, [records, activeBrokerage?.id, selectedMonth]);
+
     const totalProfit = daysData.reduce((acc: number, d: any) => acc + (Number(d.result) || 0), 0);
-    const totalWins = daysData.filter((d: any) => d.winCycle1 || d.winCycle2).length;
-    const totalLosses = daysData.filter((d: any) => d.lossCycle1 || d.lossCycle2).length;
+    const totalWins = monthRecords.reduce((acc: number, r: any) => acc + (r.winCount || 0), 0);
+    const totalLosses = monthRecords.reduce((acc: number, r: any) => acc + (r.lossCount || 0), 0);
     const currentBank = bank + totalProfit;
 
     const cycle1Profit = (Number(cycle1.e1) || 0) + (Number(cycle1.e2) || 0) + (Number(cycle1.s1) || 0) + (Number(cycle1.s2) || 0);
