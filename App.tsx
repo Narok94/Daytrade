@@ -1905,8 +1905,13 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
 
         const [year, month] = selectedMonth.split('-').map(Number);
         const daysInMonth = new Date(year, month, 0).getDate();
+        const today = new Date();
+        const currentMonthStr = getLocalMonthString(today);
+        const isCurrentMonth = selectedMonth === currentMonthStr;
+        const startDay = isCurrentMonth ? today.getDate() : 1;
+        const expectedDaysCount = daysInMonth - startDay + 1;
 
-        const initialDays = savedDays ? JSON.parse(savedDays) : Array.from({ length: daysInMonth }, (_, i) => ({
+        let initialDays = savedDays ? JSON.parse(savedDays) : Array.from({ length: daysInMonth }, (_, i) => ({
             id: i + 1,
             date: `${String(i + 1).padStart(2, '0')}/${String(month).padStart(2, '0')}`,
             payout: 80,
@@ -1917,14 +1922,20 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
             winCycle2: false,
             lossCycle2: false
         }));
+
+        // Filter to start from today if it's the current month
+        if (isCurrentMonth) {
+            initialDays = initialDays.filter((d: any) => d.id >= startDay);
+        }
         
-        // Ensure we have the correct number of days if month changed
-        if (initialDays.length !== daysInMonth) {
-            const adjustedDays = Array.from({ length: daysInMonth }, (_, i) => {
-                const existing = initialDays.find((d: any) => d.id === i + 1);
+        // Ensure we have the correct number of days if month changed or if it's current month
+        if (initialDays.length !== expectedDaysCount) {
+            const adjustedDays = Array.from({ length: expectedDaysCount }, (_, i) => {
+                const dayNum = startDay + i;
+                const existing = initialDays.find((d: any) => d.id === dayNum);
                 return existing || {
-                    id: i + 1,
-                    date: `${String(i + 1).padStart(2, '0')}/${String(month).padStart(2, '0')}`,
+                    id: dayNum,
+                    date: `${String(dayNum).padStart(2, '0')}/${String(month).padStart(2, '0')}`,
                     payout: 80,
                     entry: 0,
                     result: 0,
@@ -2054,7 +2065,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
     }, []);
 
     return (
-        <div className="p-2 md:p-4 space-y-4 max-w-[1600px] mx-auto overflow-x-auto text-black">
+        <div className="p-1 md:p-2 space-y-2 w-full mx-auto text-black text-[11px]">
             <div className="flex items-center justify-between mb-4 bg-white p-4 rounded-2xl border border-black/10 shadow-sm">
                 <div>
                     <h2 className="text-xl font-black uppercase tracking-tighter text-black flex items-center gap-2">
@@ -2096,7 +2107,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                 </div>
             </div>
 
-            <div className="grid grid-cols-12 gap-3 min-w-[1300px]">
+            <div className="grid grid-cols-12 gap-1 w-full">
                 {/* GESTÃO MENSAL */}
                 <div className="col-span-3 space-y-1">
                     <div className="bg-blue-600 text-white font-black text-center py-1.5 uppercase text-xs border border-black rounded-t-lg">Gestão Mensal</div>
@@ -2110,13 +2121,13 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     <div className="max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
                         {daysData.map((d: any, idx: number) => (
                             <div key={d.id} className={`grid grid-cols-5 gap-0 border-x border-b border-black text-[10px] ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                                <div className="border-r border-black bg-yellow-400 text-black font-bold text-center py-1">{d.id}</div>
+                                <div className="border-r border-black bg-yellow-400 text-black font-bold text-center py-0.5">{d.id}</div>
                                 <div className="border-r border-black text-black">
                                     <input 
                                         type="text" 
                                         value={d.date} 
                                         onChange={e => updateDay(d.id, 'date', e.target.value)}
-                                        className="w-full bg-transparent text-center outline-none font-medium"
+                                        className="w-full bg-transparent text-center outline-none font-medium py-0.5"
                                     />
                                 </div>
                                 <div className="border-r border-black bg-blue-50 text-black">
@@ -2124,7 +2135,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                         type="text" 
                                         value={d.payout + '%'} 
                                         onChange={e => updateDay(d.id, 'payout', e.target.value.replace('%', ''))}
-                                        className="w-full bg-transparent text-center outline-none"
+                                        className="w-full bg-transparent text-center outline-none py-0.5"
                                     />
                                 </div>
                                 <div className="border-r border-black bg-blue-100/30 text-black">
@@ -2132,15 +2143,15 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                         type="number" 
                                         value={d.entry || ''} 
                                         onChange={e => updateDay(d.id, 'entry', e.target.value)}
-                                        className="w-full bg-transparent text-center outline-none font-bold"
+                                        className="w-full bg-transparent text-center outline-none font-bold py-0.5"
                                     />
                                 </div>
-                                <div className={`text-center py-1 font-black ${d.result > 0 ? 'bg-green-100 text-green-700' : d.result < 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-400'}`}>
+                                <div className={`text-center py-0.5 font-black ${d.result > 0 ? 'bg-green-100 text-green-700' : d.result < 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-400'}`}>
                                     <input 
                                         type="number" 
                                         value={d.result || ''} 
                                         onChange={e => updateDay(d.id, 'result', e.target.value)}
-                                        className="w-full bg-transparent text-center outline-none"
+                                        className="w-full bg-transparent text-center outline-none py-0.5"
                                     />
                                 </div>
                             </div>
