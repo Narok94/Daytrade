@@ -11,7 +11,10 @@ import {
     InformationCircleIcon, TrophyIcon, 
     ChartBarIcon, CheckIcon, DocumentTextIcon,
     PlusIcon, TrashIcon, CpuChipIcon, TrendingDownIcon,
-    ChevronLeftIcon, ChevronRightIcon, PhotoIcon
+    ChevronLeftIcon, ChevronRightIcon, PhotoIcon,
+    SparklesIcon, CheckCircleIcon, XMarkIcon, ArrowUpIcon, ArrowDownIcon,
+    ExclamationTriangleIcon, BoltIcon, ClockIcon, PlayIcon, CameraIcon,
+    ChevronDownIcon
 } from './components/icons';
 
 // --- Helper Functions ---
@@ -98,6 +101,13 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [showDetailed, setShowDetailed] = useState(false);
+    const [progress, setProgress] = useState({
+        upload: 0,
+        data: 0,
+        patterns: 0,
+        result: 0
+    });
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -107,6 +117,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 setSelectedImage(reader.result as string);
                 setAnalysisResult(null);
                 setError(null);
+                setProgress({ upload: 0, data: 0, patterns: 0, result: 0 });
             };
             reader.readAsDataURL(file);
         }
@@ -116,294 +127,354 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         if (!selectedImage) return;
         setIsAnalyzing(true);
         setError(null);
+        setShowDetailed(false);
+        
+        // Simulate progress for UI
+        const simulateProgress = async () => {
+            setProgress(p => ({ ...p, upload: 100 }));
+            await new Promise(r => setTimeout(r, 800));
+            setProgress(p => ({ ...p, data: 65 }));
+            await new Promise(r => setTimeout(r, 1200));
+            setProgress(p => ({ ...p, data: 100 }));
+            await new Promise(r => setTimeout(r, 500));
+            setProgress(p => ({ ...p, patterns: 45 }));
+            await new Promise(r => setTimeout(r, 1000));
+            setProgress(p => ({ ...p, patterns: 100 }));
+            await new Promise(r => setTimeout(r, 500));
+            setProgress(p => ({ ...p, result: 80 }));
+        };
+        
+        simulateProgress();
+
         try {
-            // Switch to Flash as default for speed (M1 needs < 30s)
-            let modelName = 'gemini-3-flash-preview';
             const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
-            console.log("Iniciando análise ultra-rápida. Chave presente:", !!apiKey);
             
             if (!apiKey) {
                 throw new Error("Chave de API não encontrada. Configure a GEMINI_API_KEY.");
             }
 
             const ai = new GoogleGenAI({ apiKey });
-            // Compress more for faster upload/processing
             const compressed = await compressImage(selectedImage, 1000);
             const base64Data = compressed.split(',')[1];
             
             const now = new Date();
-            const timeString = now.toLocaleTimeString('pt-BR');
+            const timeString = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-            const generateContent = async (model: string) => {
-                return await withRetry(() => ai.models.generateContent({
-                    model: model,
-                    contents: {
-                        parts: [
-                            { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
-                            { text: `HORÁRIO: ${timeString}. 
-                            ANÁLISE OBRIGATÓRIA M1:
-                            1. Tendência Imediata (últimos 10-15 candles).
-                            2. Suporte e Resistência (zona mais próxima de reversão/retração).
-                            3. Padrão de Candle (Exaustão: doji, martelo, estrela; Força: marubozu).
-                            4. Filtro de Ruído (ignore lateralidade sem volume).
-                            
-                            RETORNE APENAS UM OBJETO JSON.` },
-                        ],
+            const prompt = `HORÁRIO ATUAL: ${timeString}. 
+            ANÁLISE OBRIGATÓRIA M1:
+            Analise o gráfico seguindo estas prioridades:
+            1. Identificar a tendência predominante.
+            2. Identificar possíveis reversões ou figuras gráficas (padrões).
+            3. Identificar suportes, resistências e zonas intermediárias.
+            4. Recomendar operações a favor da tendência, priorizando rompimentos.
+
+            Retorne um JSON com:
+            1. asset: Par de moedas.
+            2. recommendation: CALL, PUT ou AGUARDAR.
+            3. confidence: 0-100.
+            4. reasoning: Explicação técnica baseada em tendência, suportes/resistências e rompimentos.
+            5. expiration: Tempo de expiração (ex: M1).
+            6. trend: ALTA, BAIXA ou LATERAL.
+            7. precision: ALTA, MEDIA ou BAIXA.
+            8. volume: ALTO, MEDIO ou BAIXO.
+            9. timeframe: M1, M5, etc.
+            10. entryTime: Horário sugerido de entrada (ex: ${timeString}).`;
+
+            const config = {
+                systemInstruction: "Você é um analista sênior de Price Action especializado em Opções Binárias. Sua metodologia foca em identificar tendências, figuras gráficas, zonas de suporte/resistência e operar a favor da tendência com foco em rompimentos. Retorne APENAS JSON.",
+                temperature: 0.2,
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        asset: { type: Type.STRING },
+                        recommendation: { type: Type.STRING, enum: ['CALL', 'PUT', 'AGUARDAR'] },
+                        confidence: { type: Type.NUMBER },
+                        reasoning: { type: Type.STRING },
+                        expiration: { type: Type.STRING },
+                        trend: { type: Type.STRING },
+                        precision: { type: Type.STRING },
+                        volume: { type: Type.STRING },
+                        timeframe: { type: Type.STRING },
+                        entryTime: { type: Type.STRING }
                     },
-                    config: {
-                        systemInstruction: "Role: Você é um analista sênior de Price Action especializado em Scalping e Opções Binárias/Digital em gráficos de M1. Objetivo: Analisar a imagem do gráfico e fornecer uma direção de entrada (CALL ou PUT) em menos de 10 segundos. Critérios: Tendência Imediata, Suporte/Resistência, Padrão de Candle e Filtro de Ruído. Formato de Resposta: ATIVO, DIREÇÃO (CALL/PUT/AGUARDAR), MOTIVO (1 frase curta), CONFIANÇA (0-100%), EXPIRAÇÃO (Próxima vela / 1 minuto). Seja puramente analítico e direto, sem disclaimers.",
-                        temperature: 0.2,
-                        maxOutputTokens: 150,
-                        responseMimeType: "application/json",
-                        responseSchema: {
-                            type: Type.OBJECT,
-                            properties: {
-                                asset: { type: Type.STRING, description: "Nome do Par de Moedas" },
-                                recommendation: { type: Type.STRING, enum: ['CALL', 'PUT', 'AGUARDAR'] },
-                                reasoning: { type: Type.STRING, description: "1 frase curta citando a zona de preço e o padrão" },
-                                confidence: { type: Type.NUMBER, description: "0-100" },
-                                expiration: { type: Type.STRING, description: "Próxima vela / 1 minuto" }
-                            },
-                            required: ['asset', 'recommendation', 'reasoning', 'confidence', 'expiration']
-                        }
-                    }
-                }));
+                    required: ['asset', 'recommendation', 'confidence', 'reasoning', 'expiration', 'trend', 'precision', 'volume', 'timeframe', 'entryTime']
+                }
             };
 
             let response;
             try {
-                response = await generateContent(modelName);
-            } catch (flashError: any) {
-                console.warn("Falha no modelo Flash, tentando Pro como backup...", flashError);
-                // If 503, wait a bit or try another model
-                if (flashError.message?.includes("503") || flashError.message?.includes("demand")) {
-                    await new Promise(r => setTimeout(r, 2000));
-                    modelName = 'gemini-3.1-pro-preview'; 
-                } else {
-                    modelName = 'gemini-3.1-pro-preview';
-                }
-                response = await generateContent(modelName);
+                response = await withRetry(() => ai.models.generateContent({
+                    model: 'gemini-3-flash-preview',
+                    contents: { parts: [{ inlineData: { mimeType: 'image/jpeg', data: base64Data } }, { text: prompt }] },
+                    config
+                }));
+            } catch (flashErr) {
+                console.warn("Flash model failed, trying Pro model...", flashErr);
+                response = await withRetry(() => ai.models.generateContent({
+                    model: 'gemini-3.1-pro-preview',
+                    contents: { parts: [{ inlineData: { mimeType: 'image/jpeg', data: base64Data } }, { text: prompt }] },
+                    config
+                }));
             }
 
-            if (!response.text) {
-                throw new Error("A IA não retornou uma resposta válida. Tente novamente.");
-            }
-
-            let jsonText = response.text.trim();
-            console.log("Resposta bruta da IA:", jsonText);
-
-            // Tenta limpar a resposta se houver lixo em volta do JSON
-            try {
-                // Remove blocos de markdown se existirem
-                if (jsonText.includes('```')) {
-                    const match = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-                    if (match) jsonText = match[1].trim();
-                }
-
-                // Se ainda não for um JSON puro (começando com {), tenta encontrar o primeiro { e o último }
-                if (!jsonText.startsWith('{')) {
-                    const start = jsonText.indexOf('{');
-                    const end = jsonText.lastIndexOf('}');
-                    if (start !== -1 && end !== -1) {
-                        jsonText = jsonText.substring(start, end + 1);
-                    }
-                }
-
-                let result;
-                try {
-                    result = JSON.parse(jsonText);
-                } catch (e) {
-                    console.warn("Falha no JSON.parse, tentando extração manual por regex...", e);
-                    // Fallback: Tenta extrair os campos via regex se o JSON falhar
-                    // Suporta tanto chaves JSON ("asset") quanto rótulos de texto ("ATIVO:")
-                    const assetMatch = jsonText.match(/(?:asset|ativo):\s*["*]*([^"*\n\r]+)["*]*/i);
-                    const recMatch = jsonText.match(/(?:recommendation|direção|direcao):\s*["*]*([^"*\n\r]+)["*]*/i);
-                    const reasonMatch = jsonText.match(/(?:reasoning|motivo):\s*["*]*([^"*\n\r]+)["*]*/i);
-                    const confMatch = jsonText.match(/(?:confidence|confiança|confianca):\s*["*]*(\d+)/i);
-                    const expMatch = jsonText.match(/(?:expiration|expiração|expiracao):\s*["*]*([^"*\n\r]+)["*]*/i);
-
-                    if (recMatch && reasonMatch) {
-                        result = {
-                            asset: assetMatch ? assetMatch[1].trim() : "Análise de Gráfico",
-                            recommendation: recMatch[1].trim(),
-                            reasoning: reasonMatch[1].trim(),
-                            confidence: confMatch ? parseInt(confMatch[1]) : 85,
-                            expiration: expMatch ? expMatch[1].trim() : "Próxima vela"
-                        };
-                    } else {
-                        throw new Error("Não foi possível extrair os dados da análise. Tente novamente.");
-                    }
-                }
-                
-                // Validação e normalização dos campos
-                if (!result.recommendation || !result.reasoning) {
-                    throw new Error("Dados incompletos na resposta da IA.");
-                }
-
-                // Normaliza recomendação para o enum esperado (CALL, PUT, AGUARDAR)
-                const rec = result.recommendation.toUpperCase();
-                if (rec.includes('CALL') || rec.includes('COMPRA') || rec.includes('BUY')) {
-                    result.recommendation = 'CALL';
-                } else if (rec.includes('PUT') || rec.includes('VENDA') || rec.includes('SELL')) {
-                    result.recommendation = 'PUT';
-                } else {
-                    result.recommendation = 'AGUARDAR';
-                }
-
-                setAnalysisResult(result);
-            } catch (parseError: any) {
-                console.error("Erro final de processamento:", parseError, "Texto:", jsonText);
-                throw new Error(`ERRO_TECNICO: ${parseError.message || "Dados corrompidos"}`);
-            }
+            if (!response.text) throw new Error("Resposta inválida da IA.");
+            
+            const result = JSON.parse(response.text.trim());
+            setProgress(p => ({ ...p, result: 100 }));
+            await new Promise(r => setTimeout(r, 500));
+            setAnalysisResult(result);
         } catch (err: any) {
-            console.error("Erro Crítico na Análise Sniper:", err);
-            
-            let userFriendlyError = "Erro inesperado na análise. Tente novamente.";
-            
-            if (err.message?.includes("Chave de API")) {
-                userFriendlyError = "CONFIGURAÇÃO PENDENTE: A Chave de API (GEMINI_API_KEY) não foi encontrada no ambiente.";
-            } else if (err.message?.includes("quota") || err.message?.includes("429")) {
-                userFriendlyError = "LIMITE ATINGIDO: O limite de requisições da IA foi atingido. Aguarde 1 minuto e tente novamente.";
-            } else if (err.message?.includes("503") || err.message?.includes("demand")) {
-                userFriendlyError = "IA SOBRECARREGADA: O Google está com alta demanda. Tente novamente em 5 segundos - o sistema usará um motor alternativo.";
-            } else if (err.message?.includes("model not found") || err.message?.includes("404")) {
-                userFriendlyError = "ERRO DE MODELO: O modelo de IA solicitado não está disponível no momento. Tentando reconectar...";
-                // Tentar novamente com flash se o pro falhar por disponibilidade
-                setTimeout(runAIAnalysis, 2000);
-            } else if (err.message?.includes("JSON") || err.message?.includes("ERRO_TECNICO")) {
-                userFriendlyError = "FALHA DE LEITURA: A IA não conseguiu estruturar os dados técnicos. Certifique-se de que o gráfico está nítido e tente novamente.";
-            } else if (err.message) {
-                userFriendlyError = `DETALHE DO ERRO: ${err.message}`;
-            }
-
-            setError(userFriendlyError);
+            console.error("AI Analysis Error:", err);
+            let userMessage = "Erro na análise. Tente novamente.";
+            if (err.message?.includes('429')) userMessage = "Muitas solicitações. Aguarde um momento.";
+            if (err.message?.includes('API key')) userMessage = "Erro na chave de API. Verifique as configurações.";
+            setError(userMessage);
         } finally {
             setIsAnalyzing(false);
         }
     };
 
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-2xl bg-teal-500/10 border border-teal-500/20">
-                        <CpuChipIcon className="w-8 h-8 text-teal-400" />
+    if (isAnalyzing) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[600px] p-6 space-y-12 bg-black text-white">
+                <div className="relative">
+                    <div className="w-24 h-24 rounded-full border-4 border-slate-800 flex items-center justify-center relative z-10 bg-black">
+                        <CpuChipIcon className="w-12 h-12 text-blue-500 animate-pulse" />
                     </div>
-                    <div>
-                        <h2 className={`text-2xl font-black ${theme.text}`}>Scanner Sniper v6</h2>
-                        <p className={theme.textMuted}>Análise agressiva e assertiva focada em Price Action M1.</p>
+                    <div className="absolute inset-0 border-4 border-blue-500 rounded-full animate-ping opacity-20" />
+                    <div className="absolute -inset-4 border border-blue-500/20 rounded-full animate-[spin_10s_linear_infinite]" />
+                </div>
+
+                <div className="text-center space-y-2">
+                    <h2 className="text-4xl font-black tracking-tighter">Analisando gráfico...</h2>
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Processando com inteligência artificial</p>
+                </div>
+
+                <div className="w-full max-w-md space-y-6">
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                            <span className="flex items-center gap-2"><PhotoIcon className="w-4 h-4 text-blue-400" /> Carregando Imagem</span>
+                            <span className="text-blue-400">{progress.upload}%</span>
+                        </div>
+                        <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
+                            <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${progress.upload}%` }} />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                            <span className="flex items-center gap-2"><CpuChipIcon className="w-4 h-4 text-purple-400" /> Processando Dados</span>
+                            <span className="text-purple-400">{progress.data}%</span>
+                        </div>
+                        <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500" style={{ width: `${progress.data}%` }} />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                            <span className="flex items-center gap-2"><SparklesIcon className="w-4 h-4 text-green-400" /> Analisando Padrões</span>
+                            <span className="text-green-400">{progress.patterns}%</span>
+                        </div>
+                        <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
+                            <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${progress.patterns}%` }} />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                            <span className="flex items-center gap-2"><CheckCircleIcon className="w-4 h-4 text-orange-400" /> Gerando Resultado</span>
+                            <span className="text-orange-400">{progress.result}%</span>
+                        </div>
+                        <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
+                            <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${progress.result}%` }} />
+                        </div>
                     </div>
                 </div>
-                    <div className="flex gap-2">
-                        <div className="px-4 py-2 rounded-xl bg-teal-500/20 border border-teal-500/30 flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-teal-400">Ultra-Fast Mode</span>
-                        </div>
-                        <div className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/70">IA Online</span>
-                        </div>
-                    </div>
+
+                <div className="px-6 py-3 bg-slate-900/50 border border-slate-800 rounded-full flex items-center gap-3">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                    <span className="text-xs font-bold text-slate-300">Processando dados...</span>
+                </div>
             </div>
+        );
+    }
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Upload Section */}
-                <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><TargetIcon className="w-5 h-5 text-teal-400" /> Captura do Gráfico</h3>
-                    <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl p-6 min-h-[350px] relative overflow-hidden bg-slate-950/20">
-                        {!selectedImage ? (
-                            <label className="cursor-pointer flex flex-col items-center gap-4 text-center">
-                                <div className="w-20 h-20 rounded-full bg-teal-500/10 flex items-center justify-center text-teal-400 shadow-xl shadow-teal-500/10 border border-teal-500/20"><PlusIcon className="w-10 h-10" /></div>
-                                <div className="space-y-1">
-                                    <p className="font-black text-white uppercase tracking-tighter">Clique para Analisar</p>
-                                    <p className="text-[10px] font-bold text-white/40 max-w-[180px]">M1 recomendado para máxima assertividade</p>
-                                </div>
-                                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                            </label>
-                        ) : (
-                            <div className="w-full h-full flex flex-col items-center gap-4">
-                                <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-black">
-                                    <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
-                                    {isAnalyzing && (
-                                        <div className="absolute inset-0 bg-teal-950/80 backdrop-blur-md flex flex-col items-center justify-center gap-4">
-                                            <div className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
-                                            <div className="text-center">
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-teal-400">Escaneando Candles...</p>
-                                                <p className="text-[8px] font-bold text-white/50 mt-1">Lendo pavios e regiões de SNR</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex gap-4 w-full">
-                                    <button onClick={() => setSelectedImage(null)} className="flex-1 py-4 text-[10px] font-black uppercase rounded-2xl border border-slate-800 hover:bg-slate-800/50 transition-all">Limpar</button>
-                                    <button disabled={isAnalyzing} onClick={runAIAnalysis} className="flex-[2] py-4 text-[10px] font-black uppercase rounded-2xl bg-teal-500 text-slate-950 shadow-lg shadow-teal-500/20 hover:scale-[1.02] active:scale-95 transition-all">{isAnalyzing ? 'Calculando Probabilidade...' : 'Analisar Gatilho Agora'}</button>
-                                </div>
-                            </div>
-                        )}
+    if (analysisResult) {
+        return (
+            <div className="max-w-md mx-auto p-4 space-y-4 bg-black min-h-screen text-white">
+                <div className="flex items-center justify-between px-2">
+                    <h2 className="text-xl font-black">Resultado da Análise</h2>
+                    <button onClick={() => setAnalysisResult(null)} className="p-2 bg-slate-900 rounded-full"><XMarkIcon className="w-5 h-5" /></button>
+                </div>
+
+                {/* Asset Card */}
+                <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-3xl flex items-center gap-4">
+                    <div className="w-12 h-12 bg-purple-600 rounded-2xl flex items-center justify-center">
+                        <ChartBarIcon className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Sinal Gerado</p>
+                        <div className="flex items-center gap-2">
+                            <h3 className="text-xl font-black tracking-tight">{analysisResult.asset}</h3>
+                            <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-[8px] font-black rounded-md">IA</span>
+                        </div>
                     </div>
                 </div>
 
-                {/* Results Section */}
-                <div className={`p-6 rounded-3xl border ${theme.card} flex flex-col`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CpuChipIcon className="w-5 h-5 text-purple-400" /> Relatório Sniper</h3>
-                    {analysisResult ? (
-                        <div className="space-y-6">
-                            {/* Recommendation Card */}
-                            <div className={`p-4 md:p-6 rounded-3xl border-2 flex items-center justify-between ${analysisResult.recommendation === 'CALL' ? 'bg-green-500/10 border-green-500/30' : analysisResult.recommendation === 'PUT' ? 'bg-red-500/10 border-red-500/30' : 'bg-slate-800/20 border-slate-700'}`}>
-                                <div>
-                                    <p className="text-[8px] md:text-[10px] font-black uppercase opacity-60 mb-1">Decisão do Motor</p>
-                                    <h4 className={`text-3xl md:text-5xl font-black ${analysisResult.recommendation === 'CALL' ? 'text-green-500' : analysisResult.recommendation === 'PUT' ? 'text-red-500' : 'text-slate-400'}`}>
-                                        {analysisResult.recommendation === 'CALL' ? '↑ CALL' : analysisResult.recommendation === 'PUT' ? '↓ PUT' : '∅ AGUARDAR'}
-                                    </h4>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[8px] md:text-[10px] font-black uppercase opacity-60 mb-1">Confiança</p>
-                                    <p className="text-2xl md:text-3xl font-black">{analysisResult.confidence}%</p>
-                                </div>
-                            </div>
+                {/* Timer Card */}
+                <div className="p-6 bg-slate-900/30 border border-blue-500/20 rounded-3xl text-center space-y-1">
+                    <div className="flex items-center justify-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+                        <h4 className="text-4xl font-black text-blue-500 tracking-tighter uppercase">
+                            {analysisResult.recommendation === 'AGUARDAR' ? 'AGUARDE' : 'ENTRE AGORA'}
+                        </h4>
+                    </div>
+                    <p className="text-xs font-bold text-blue-400/60">
+                        {analysisResult.recommendation === 'AGUARDAR' ? 'Aguardando melhor momento...' : 'Momento ideal para entrar!'}
+                    </p>
+                    <p className="text-[10px] font-bold text-slate-500 mt-2">Entrar às <span className="text-white">{analysisResult.entryTime}</span></p>
+                </div>
 
-                            {/* Info Grid */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">ATIVO</p>
-                                    <p className="text-xs font-bold text-white uppercase">{analysisResult.asset || 'N/A'}</p>
-                                </div>
-                                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-                                    <p className="text-[9px] font-black uppercase text-slate-500 mb-1">EXPIRAÇÃO</p>
-                                    <p className="text-xs font-bold text-teal-400">{analysisResult.expiration || 'M1'}</p>
-                                </div>
-                            </div>
+                {/* Action Button */}
+                <button className={`w-full py-6 rounded-3xl flex items-center justify-center gap-3 shadow-2xl transition-transform active:scale-95 ${
+                    analysisResult.recommendation === 'CALL' ? 'bg-green-500 shadow-green-500/20' : 
+                    analysisResult.recommendation === 'PUT' ? 'bg-red-500 shadow-red-500/20' : 'bg-slate-800'
+                }`}>
+                    {analysisResult.recommendation === 'CALL' ? <ArrowUpIcon className="w-8 h-8" /> : <ArrowDownIcon className="w-8 h-8" />}
+                    <span className="text-2xl font-black tracking-widest">{analysisResult.recommendation === 'CALL' ? 'COMPRA' : analysisResult.recommendation === 'PUT' ? 'VENDA' : 'AGUARDAR'}</span>
+                </button>
 
-                            {/* Reasoning */}
-                            <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800">
-                                <p className="text-[9px] font-black uppercase text-slate-500 mb-3">MOTIVO</p>
-                                <p className="text-xs font-medium text-slate-300 leading-relaxed italic border-l-2 border-teal-500 pl-4">
-                                    "{analysisResult.reasoning}"
-                                </p>
-                            </div>
+                {/* Confidence */}
+                <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-3xl space-y-3">
+                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                        <span>Confiança</span>
+                        <span>{analysisResult.confidence}%</span>
+                    </div>
+                    <div className="h-2.5 bg-slate-950 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${analysisResult.confidence}%` }} />
+                    </div>
+                </div>
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-3xl space-y-1">
+                        <div className="flex items-center gap-2 text-[8px] font-black text-green-500 uppercase">
+                            <ArrowUpIcon className="w-3 h-3" /> Tendência
                         </div>
-                    ) : error ? (
-                        <div className="h-full flex flex-col items-center justify-center py-10 text-center px-4">
-                            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4 border border-red-500/20">
-                                <InformationCircleIcon className="w-8 h-8 text-red-500" />
-                            </div>
-                            <p className="text-[10px] font-black uppercase text-red-500 mb-2 tracking-widest">Falha na Operação</p>
-                            <p className="text-xs font-bold text-slate-400 max-w-[280px] mb-6 leading-relaxed">{error}</p>
-                            <button 
-                                onClick={runAIAnalysis}
-                                className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-slate-700"
-                            >
-                                Tentar Novamente
-                            </button>
+                        <p className="text-sm font-black uppercase">{analysisResult.trend}</p>
+                    </div>
+                    <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-3xl space-y-1">
+                        <div className="flex items-center gap-2 text-[8px] font-black text-orange-500 uppercase">
+                            <ExclamationTriangleIcon className="w-3 h-3" /> Precisão
                         </div>
-                    ) : (
-                        <div className="h-full flex flex-col items-center justify-center py-20 opacity-20 text-center">
-                            <CpuChipIcon className="w-20 h-20 mb-6" />
-                            <p className="text-xs font-black uppercase tracking-[0.2em]">Aguardando Scan</p>
+                        <p className="text-sm font-black uppercase">{analysisResult.precision}</p>
+                    </div>
+                    <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-3xl space-y-1">
+                        <div className="flex items-center gap-2 text-[8px] font-black text-yellow-500 uppercase">
+                            <BoltIcon className="w-3 h-3" /> Volume
+                        </div>
+                        <p className="text-sm font-black uppercase">{analysisResult.volume}</p>
+                    </div>
+                    <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-3xl space-y-1">
+                        <div className="flex items-center gap-2 text-[8px] font-black text-blue-500 uppercase">
+                            <ClockIcon className="w-3 h-3" /> Time Frame
+                        </div>
+                        <p className="text-sm font-black uppercase">{analysisResult.timeframe}</p>
+                    </div>
+                </div>
+
+                {/* Detailed Analysis */}
+                <div className="border border-slate-800 rounded-3xl overflow-hidden">
+                    <button 
+                        onClick={() => setShowDetailed(!showDetailed)}
+                        className="w-full p-4 flex items-center justify-between bg-slate-900/30 hover:bg-slate-900/50 transition-colors"
+                    >
+                        <div className="flex items-center gap-3">
+                            <PlayIcon className="w-5 h-5 text-blue-500" />
+                            <span className="text-xs font-black uppercase tracking-widest">Análise Detalhada</span>
+                        </div>
+                        <ChevronDownIcon className={`w-5 h-5 transition-transform ${showDetailed ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showDetailed && (
+                        <div className="p-5 bg-slate-950/50 text-xs font-medium text-slate-300 leading-relaxed">
+                            {analysisResult.reasoning}
                         </div>
                     )}
                 </div>
+
+                <button 
+                    onClick={() => {
+                        setAnalysisResult(null);
+                        setSelectedImage(null);
+                    }}
+                    className="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-3xl flex items-center justify-center gap-3 font-black text-sm transition-colors"
+                >
+                    <CameraIcon className="w-5 h-5" /> Nova Análise
+                </button>
             </div>
+        );
+    }
+
+    return (
+        <div className="p-4 md:p-8 space-y-6 max-w-2xl mx-auto">
+            {!selectedImage ? (
+                <div className="space-y-8">
+                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-[40px] p-12 bg-slate-950/20 space-y-6">
+                        <div className="w-24 h-24 rounded-3xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 shadow-2xl shadow-blue-500/10">
+                            <CameraIcon className="w-12 h-12" />
+                        </div>
+                        <div className="text-center space-y-2">
+                            <h3 className="text-2xl font-black tracking-tight">Enviar Gráfico</h3>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Escolha como deseja enviar</p>
+                        </div>
+                        
+                        <div className="w-full space-y-3">
+                            <label className="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl flex items-center justify-center gap-3 font-black text-sm cursor-pointer transition-colors">
+                                <CameraIcon className="w-5 h-5" /> Tirar Foto
+                                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+                            </label>
+                            <label className="w-full py-4 bg-slate-800 hover:bg-slate-700 rounded-2xl flex items-center justify-center gap-3 font-black text-sm cursor-pointer transition-colors">
+                                <PhotoIcon className="w-5 h-5" /> Escolher da Galeria
+                                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                            </label>
+                        </div>
+                        
+                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Ou arraste e solte o arquivo aqui</p>
+                    </div>
+                    
+                    <button disabled className="w-full py-5 bg-blue-600/20 text-blue-500/50 rounded-3xl flex items-center justify-center gap-3 font-black text-lg cursor-not-allowed">
+                        <CpuChipIcon className="w-6 h-6" /> Analisar Gráfico
+                    </button>
+                </div>
+            ) : (
+                <div className="space-y-6">
+                    <div className="relative aspect-video rounded-[40px] overflow-hidden border-2 border-blue-500/30 shadow-2xl bg-black group">
+                        <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
+                        <button 
+                            onClick={() => setSelectedImage(null)}
+                            className="absolute top-4 right-4 p-2 bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-red-500 transition-colors"
+                        >
+                            <XMarkIcon className="w-5 h-5" />
+                        </button>
+                    </div>
+                    
+                    <button 
+                        onClick={runAIAnalysis}
+                        className="w-full py-6 bg-blue-600 hover:bg-blue-500 shadow-xl shadow-blue-600/20 rounded-[35px] flex items-center justify-center gap-4 font-black text-xl transition-all active:scale-95"
+                    >
+                        <CpuChipIcon className="w-8 h-8" /> Analisar Gráfico
+                    </button>
+
+                    {error && (
+                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-400 text-xs font-bold">
+                            <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0" />
+                            {error}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
@@ -531,7 +602,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         if (!isLoading) debouncedSave();
     }, [brokerages, records, goals, isLoading, debouncedSave]);
 
-    const addRecord = (win: number, loss: number, customEntry?: number, customPayout?: number) => {
+    const addRecord = (win: number, loss: number, customEntry?: number, customPayout?: number, isSoros?: boolean) => {
         if (!activeBrokerage) return;
         setRecords(prev => {
             const dateKey = getLocalDateString(selectedDate);
@@ -543,8 +614,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             const entryValue = (customEntry && customEntry > 0) ? customEntry : suggestedEntryValue;
             const payout = (customPayout && customPayout > 0) ? customPayout : activeBrokerage.payoutPercentage;
             const newTrades: Trade[] = [];
-            for(let i=0; i<win; i++) newTrades.push({ id: crypto.randomUUID(), result: 'win', entryValue, payoutPercentage: payout, timestamp: Date.now() });
-            for(let i=0; i<loss; i++) newTrades.push({ id: crypto.randomUUID(), result: 'loss', entryValue, payoutPercentage: payout, timestamp: Date.now() });
+            for(let i=0; i<win; i++) newTrades.push({ id: crypto.randomUUID(), result: 'win', entryValue, payoutPercentage: payout, timestamp: Date.now(), isSoros });
+            for(let i=0; i<loss; i++) newTrades.push({ id: crypto.randomUUID(), result: 'loss', entryValue, payoutPercentage: payout, timestamp: Date.now(), isSoros });
             const existingIdx = prev.findIndex(r => r.id === dateKey && r.recordType === 'day' && r.brokerageId === activeBrokerage.id);
             let updatedRecords = [...prev];
             if (existingIdx >= 0) {
@@ -890,6 +961,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     const [quantity, setQuantity] = useState('1');
     const [transAmount, setTransAmount] = useState('');
     const [transType, setTransType] = useState<'deposit' | 'withdrawal'>('deposit');
+    const [isNextTradeSoros, setIsNextTradeSoros] = useState(false);
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     
     const handlePayoutChange = (val: string) => {
@@ -904,9 +976,10 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
          const entryValue = parseFloat(customEntryValue) || 0;
          const payout = parseFloat(customPayout) || 0;
          const qty = parseInt(quantity) || 1;
-         if (type === 'win') addRecord(qty, 0, entryValue, payout);
-         else addRecord(0, qty, entryValue, payout);
+         if (type === 'win') addRecord(qty, 0, entryValue, payout, isNextTradeSoros);
+         else addRecord(0, qty, entryValue, payout, isNextTradeSoros);
          setQuantity('1');
+         setIsNextTradeSoros(false);
     };
 
     const handleTransaction = () => {
@@ -924,6 +997,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
         const profit = lastTrade.result === 'win' ? (lastTrade.entryValue * (lastTrade.payoutPercentage / 100)) : 0;
         const sorosValue = lastTrade.entryValue + profit;
         setCustomEntryValue(sorosValue.toFixed(2));
+        setIsNextTradeSoros(true);
     };
 
     const currentProfit = dailyRecordForSelectedDay?.netProfitUSD ?? 0;
@@ -1064,7 +1138,10 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                                         {new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                                         <span className="ml-2 opacity-50">Payout: {trade.payoutPercentage}%</span>
                                                     </p>
-                                                    <p className="text-sm font-bold">{trade.result === 'win' ? 'Vitória' : 'Derrota'}</p>
+                                                    <p className="text-sm font-bold">
+                                                        {trade.result === 'win' ? 'Vitória' : 'Derrota'}
+                                                        {trade.isSoros && <span className="ml-2 text-[8px] bg-emerald-500/20 text-emerald-500 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter">Soros</span>}
+                                                    </p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
@@ -1273,7 +1350,16 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
                                 const tradeProfit = trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)) : -trade.entryValue;
                                 return (
                                     <div key={trade.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-slate-950/50 border-slate-800/50' : 'bg-slate-50 border-slate-200/50'}`}>
-                                        <div className="flex items-center gap-3"><div className={`w-2 h-8 rounded-full ${trade.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} /><div><p className="text-[10px] font-black uppercase text-slate-500 leading-none">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p><p className="text-sm font-bold">{trade.result === 'win' ? 'Vitória' : 'Derrota'}</p></div></div>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-2 h-8 rounded-full ${trade.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                            <div>
+                                                <p className="text-[10px] font-black uppercase text-slate-500 leading-none">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                                                <p className="text-sm font-bold">
+                                                    {trade.result === 'win' ? 'Vitória' : 'Derrota'}
+                                                    {trade.isSoros && <span className="ml-2 text-[8px] bg-emerald-500/20 text-emerald-500 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter">Soros</span>}
+                                                </p>
+                                            </div>
+                                        </div>
                                         <div className="text-right"><p className={`text-sm font-black ${tradeProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}</p><button onClick={() => deleteTrade(trade.id, record.id)} className="text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button></div>
                                     </div>
                                 );
@@ -2050,6 +2136,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     result: record.netProfitUSD,
                     winCycle1: trades.some((t: any) => t.result === 'win'),
                     lossCycle1: trades.some((t: any) => t.result === 'loss'),
+                    hasSoros: trades.some((t: any) => t.isSoros),
                 };
             }
             
@@ -2060,6 +2147,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                 result: 0,
                 winCycle1: false,
                 lossCycle1: false,
+                hasSoros: false,
                 payout: dateStr === todayStr ? activeBrokerage.payoutPercentage : day.payout
             };
         }));
@@ -2190,7 +2278,10 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     <div className="max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
                         {daysData.map((d: any, idx: number) => (
                             <div key={d.id} className={`grid grid-cols-5 gap-0 border-x border-b border-black text-[10px] ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                                <div className="border-r border-black bg-yellow-400 text-black font-bold text-center py-0.5">{d.id}</div>
+                                <div className="border-r border-black bg-yellow-400 text-black font-bold text-center py-0.5 relative">
+                                    {d.id}
+                                    {d.hasSoros && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-emerald-500 rounded-bl-sm" title="Soros realizado" />}
+                                </div>
                                 <div className="border-r border-black text-black">
                                     <input 
                                         type="text" 
@@ -2276,11 +2367,17 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                 <div className="w-1/2 bg-white"><input type="number" value={cycle1.e2} onChange={e => setCycle1({...cycle1, e2: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
                             </div>
                             <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-emerald-50 p-2 border-r border-black text-emerald-800">Soros 01</div>
+                                <div className="w-1/2 bg-emerald-50 p-2 border-r border-black text-emerald-800 flex items-center justify-between">
+                                    <span>Entrada 03</span>
+                                    <span className="text-[8px] bg-emerald-200 px-1 rounded font-black uppercase">Soros</span>
+                                </div>
                                 <div className="w-1/2 bg-white"><input type="number" value={cycle1.s1} onChange={e => setCycle1({...cycle1, s1: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
                             </div>
                             <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-emerald-50 p-2 border-r border-black text-emerald-800">Soros 02</div>
+                                <div className="w-1/2 bg-emerald-50 p-2 border-r border-black text-emerald-800 flex items-center justify-between">
+                                    <span>Entrada 04</span>
+                                    <span className="text-[8px] bg-emerald-200 px-1 rounded font-black uppercase">Soros</span>
+                                </div>
                                 <div className="w-1/2 bg-white"><input type="number" value={cycle1.s2} onChange={e => setCycle1({...cycle1, s2: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
                             </div>
                             <div className="flex bg-orange-100">
@@ -2303,11 +2400,17 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                 <div className="w-1/2 bg-white"><input type="number" value={cycle2.e2} onChange={e => setCycle2({...cycle2, e2: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
                             </div>
                             <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-emerald-50 p-2 border-r border-black text-emerald-800">Soros 01</div>
+                                <div className="w-1/2 bg-emerald-50 p-2 border-r border-black text-emerald-800 flex items-center justify-between">
+                                    <span>Entrada 03</span>
+                                    <span className="text-[8px] bg-emerald-200 px-1 rounded font-black uppercase">Soros</span>
+                                </div>
                                 <div className="w-1/2 bg-white"><input type="number" value={cycle2.s1} onChange={e => setCycle2({...cycle2, s1: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
                             </div>
                             <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-emerald-50 p-2 border-r border-black text-emerald-800">Soros 02</div>
+                                <div className="w-1/2 bg-emerald-50 p-2 border-r border-black text-emerald-800 flex items-center justify-between">
+                                    <span>Entrada 04</span>
+                                    <span className="text-[8px] bg-emerald-200 px-1 rounded font-black uppercase">Soros</span>
+                                </div>
                                 <div className="w-1/2 bg-white"><input type="number" value={cycle2.s2} onChange={e => setCycle2({...cycle2, s2: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
                             </div>
                             <div className="flex bg-orange-100">

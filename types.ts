@@ -17,6 +17,7 @@ export interface Trade {
   result: 'win' | 'loss';
   entryValue: number;
   payoutPercentage: number;
+  isSoros?: boolean;
 }
 
 export interface DailyRecord {
@@ -60,6 +61,11 @@ export interface AIAnalysisResult {
     confidence: number;
     reasoning: string;
     expiration: string;
+    trend: string;
+    precision: string;
+    volume: string;
+    timeframe: string;
+    entryTime: string;
 }
 
 export type AppRecord = DailyRecord | TransactionRecord;
