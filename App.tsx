@@ -2005,41 +2005,44 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
 
                 return {
                     ...day,
-                    entry: firstTrade?.entryValue || day.entry,
-                    payout: firstTrade?.payoutPercentage || day.payout,
+                    entry: firstTrade?.entryValue || 0,
+                    payout: firstTrade?.payoutPercentage || (dateStr === getLocalDateString() ? activeBrokerage.payoutPercentage : day.payout),
                     result: record.netProfitUSD,
                     winCycle1: trades.some((t: any) => t.result === 'win'),
                     lossCycle1: trades.some((t: any) => t.result === 'loss'),
                 };
             }
-            if (dateStr === getLocalDateString()) {
-                return { ...day, payout: activeBrokerage.payoutPercentage };
-            }
-            return day;
+            
+            // If record not found, reset values for this day in the sheet to stay in sync with dashboard
+            return {
+                ...day,
+                entry: 0,
+                result: 0,
+                winCycle1: false,
+                lossCycle1: false,
+                payout: dateStr === getLocalDateString() ? activeBrokerage.payoutPercentage : day.payout
+            };
         }));
 
         // Sync deposits/withdrawals
         const appDeposits = records.filter((r: any) => r.recordType === 'deposit' && r.brokerageId === activeBrokerage.id && r.date.startsWith(selectedMonth));
         const appWithdrawals = records.filter((r: any) => r.recordType === 'withdrawal' && r.brokerageId === activeBrokerage.id && r.date.startsWith(selectedMonth));
 
-        if (appDeposits.length > 0) {
-            setDeposits(prev => {
-                const newDeps = [...prev];
-                appDeposits.forEach((ad: any, idx: number) => {
-                    if (idx < 10) newDeps[idx] = { date: ad.displayDate, value: ad.amountUSD };
-                });
-                return newDeps;
+        setDeposits(prev => {
+            const newDeps = Array(10).fill({ date: '', value: 0 });
+            appDeposits.forEach((ad: any, idx: number) => {
+                if (idx < 10) newDeps[idx] = { date: ad.displayDate, value: ad.amountUSD };
             });
-        }
-        if (appWithdrawals.length > 0) {
-            setWithdrawals(prev => {
-                const newWits = [...prev];
-                appWithdrawals.forEach((aw: any, idx: number) => {
-                    if (idx < 10) newWits[idx] = { date: aw.displayDate, value: aw.amountUSD };
-                });
-                return newWits;
+            return newDeps;
+        });
+
+        setWithdrawals(prev => {
+            const newWits = Array(10).fill({ date: '', value: 0 });
+            appWithdrawals.forEach((aw: any, idx: number) => {
+                if (idx < 10) newWits[idx] = { date: aw.displayDate, value: aw.amountUSD };
             });
-        }
+            return newWits;
+        });
 
     }, [records, activeBrokerage?.id, selectedMonth]);
 
