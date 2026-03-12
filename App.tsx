@@ -853,7 +853,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {activeTab === 'history' && <HistoryPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} addBulkTrades={addBulkTrades} />}
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
-                    {activeTab === 'management-sheet' && <ManagementSheetPanel theme={theme} activeBrokerage={activeBrokerage} isDarkMode={isDarkMode} />}
+                    {activeTab === 'management-sheet' && <ManagementSheetPanel theme={theme} activeBrokerage={activeBrokerage} isDarkMode={isDarkMode} records={records} />}
                 {activeTab === 'settings' && (
                     <SettingsPanel 
                         theme={theme} 
@@ -904,6 +904,15 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
         }
     };
 
+    const handleSoros = () => {
+        if (!dailyRecordForSelectedDay?.trades?.length) return;
+        const trades = dailyRecordForSelectedDay.trades;
+        const lastTrade = trades[trades.length - 1];
+        const profit = lastTrade.result === 'win' ? (lastTrade.entryValue * (lastTrade.payoutPercentage / 100)) : 0;
+        const sorosValue = lastTrade.entryValue + profit;
+        setCustomEntryValue(sorosValue.toFixed(2));
+    };
+
     const currentProfit = dailyRecordForSelectedDay?.netProfitUSD ?? 0;
     const currentBalance = currentBalanceForDashboard;
     const winRate = ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0)) > 0 
@@ -948,7 +957,19 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, customEntryValue, setC
                         <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-green-500" /> Nova Operação</h3>
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor</label><input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor</label>
+                                    <div className="relative">
+                                        <input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
+                                        <button 
+                                            onClick={handleSoros}
+                                            title="Calcular Soros (Última entrada + lucro)"
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[8px] font-black uppercase rounded-lg transition-all active:scale-95 shadow-sm"
+                                        >
+                                            Soros
+                                        </button>
+                                    </div>
+                                </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout</label>
                                     <div className="relative">
@@ -1855,58 +1876,156 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
     );
 };
 
-const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMode }) => {
+const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMode, records }) => {
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
+    const [selectedMonth, setSelectedMonth] = useState(() => getLocalMonthString());
     
-    const [daysData, setDaysData] = useState(() => {
-        const saved = localStorage.getItem('management_sheet_days');
-        if (saved) return JSON.parse(saved);
-        return Array.from({ length: 31 }, (_, i) => ({
+    // Storage keys based on brokerage and month
+    const getStorageKey = (suffix: string) => `ms_${activeBrokerage?.id || 'default'}_${selectedMonth}_${suffix}`;
+
+    const [daysData, setDaysData] = useState<any[]>([]);
+    const [bank, setBank] = useState(1000);
+    const [stopPercent, setStopPercent] = useState(10);
+    const [exchangeRate, setExchangeRate] = useState(5.0);
+    const [cycle1, setCycle1] = useState({ e1: 0, e2: 0, s1: 0, s2: 0 });
+    const [cycle2, setCycle2] = useState({ e1: 0, e2: 0, s1: 0, s2: 0 });
+    const [deposits, setDeposits] = useState<any[]>(Array(10).fill({ date: '', value: 0 }));
+    const [withdrawals, setWithdrawals] = useState<any[]>(Array(10).fill({ date: '', value: 0 }));
+
+    // Load data when brokerage or month changes
+    useEffect(() => {
+        const savedDays = localStorage.getItem(getStorageKey('days'));
+        const savedBank = localStorage.getItem(getStorageKey('bank'));
+        const savedStop = localStorage.getItem(getStorageKey('stop'));
+        const savedExchange = localStorage.getItem(getStorageKey('exchange'));
+        const savedCycle1 = localStorage.getItem(getStorageKey('cycle1'));
+        const savedCycle2 = localStorage.getItem(getStorageKey('cycle2'));
+        const savedDeposits = localStorage.getItem(getStorageKey('deposits'));
+        const savedWithdrawals = localStorage.getItem(getStorageKey('withdrawals'));
+
+        const [year, month] = selectedMonth.split('-').map(Number);
+        const daysInMonth = new Date(year, month, 0).getDate();
+
+        const initialDays = savedDays ? JSON.parse(savedDays) : Array.from({ length: daysInMonth }, (_, i) => ({
             id: i + 1,
-            date: i === 0 ? '11/03' : '',
+            date: `${String(i + 1).padStart(2, '0')}/${String(month).padStart(2, '0')}`,
             payout: 80,
             entry: 0,
             result: 0,
-            win: false,
-            loss: false,
             winCycle1: false,
             lossCycle1: false,
             winCycle2: false,
             lossCycle2: false
         }));
-    });
+        
+        // Ensure we have the correct number of days if month changed
+        if (initialDays.length !== daysInMonth) {
+            const adjustedDays = Array.from({ length: daysInMonth }, (_, i) => {
+                const existing = initialDays.find((d: any) => d.id === i + 1);
+                return existing || {
+                    id: i + 1,
+                    date: `${String(i + 1).padStart(2, '0')}/${String(month).padStart(2, '0')}`,
+                    payout: 80,
+                    entry: 0,
+                    result: 0,
+                    winCycle1: false,
+                    lossCycle1: false,
+                    winCycle2: false,
+                    lossCycle2: false
+                };
+            });
+            setDaysData(adjustedDays);
+        } else {
+            setDaysData(initialDays);
+        }
 
-    const [bank, setBank] = useState(() => Number(localStorage.getItem('management_sheet_bank')) || activeBrokerage?.initialBalance || 1000);
-    const [stopPercent, setStopPercent] = useState(() => Number(localStorage.getItem('management_sheet_stop')) || 10);
-    const [exchangeRate, setExchangeRate] = useState(() => Number(localStorage.getItem('management_sheet_exchange')) || 5.0);
+        setBank(savedBank ? Number(savedBank) : (activeBrokerage?.initialBalance || 1000));
+        setStopPercent(savedStop ? Number(savedStop) : 10);
+        setExchangeRate(savedExchange ? Number(savedExchange) : 5.0);
+        setCycle1(savedCycle1 ? JSON.parse(savedCycle1) : { e1: 0, e2: 0, s1: 0, s2: 0 });
+        setCycle2(savedCycle2 ? JSON.parse(savedCycle2) : { e1: 0, e2: 0, s1: 0, s2: 0 });
+        setDeposits(savedDeposits ? JSON.parse(savedDeposits) : Array(10).fill({ date: '', value: 0 }));
+        setWithdrawals(savedWithdrawals ? JSON.parse(savedWithdrawals) : Array(10).fill({ date: '', value: 0 }));
+    }, [activeBrokerage?.id, selectedMonth]);
 
-    const [cycle1, setCycle1] = useState(() => {
-        const saved = localStorage.getItem('management_sheet_cycle1');
-        return saved ? JSON.parse(saved) : { e1: 0, e2: 0, s1: 0, s2: 0 };
-    });
-    const [cycle2, setCycle2] = useState(() => {
-        const saved = localStorage.getItem('management_sheet_cycle2');
-        return saved ? JSON.parse(saved) : { e1: 0, e2: 0, s1: 0, s2: 0 };
-    });
-
-    const [deposits, setDeposits] = useState(() => {
-        const saved = localStorage.getItem('management_sheet_deposits');
-        return saved ? JSON.parse(saved) : Array(10).fill({ date: '', value: 0 });
-    });
-    const [withdrawals, setWithdrawals] = useState(() => {
-        const saved = localStorage.getItem('management_sheet_withdrawals');
-        return saved ? JSON.parse(saved) : Array(10).fill({ date: '', value: 0 });
-    });
-
+    // Sync with App Records
     useEffect(() => {
-        localStorage.setItem('management_sheet_days', JSON.stringify(daysData));
-        localStorage.setItem('management_sheet_bank', bank.toString());
-        localStorage.setItem('management_sheet_stop', stopPercent.toString());
-        localStorage.setItem('management_sheet_exchange', exchangeRate.toString());
-        localStorage.setItem('management_sheet_cycle1', JSON.stringify(cycle1));
-        localStorage.setItem('management_sheet_cycle2', JSON.stringify(cycle2));
-        localStorage.setItem('management_sheet_deposits', JSON.stringify(deposits));
-        localStorage.setItem('management_sheet_withdrawals', JSON.stringify(withdrawals));
+        if (!records || !activeBrokerage) return;
+
+        setDaysData(prev => prev.map(day => {
+            const [d, m] = day.date.split('/');
+            const [year, month] = selectedMonth.split('-');
+            const dateStr = `${year}-${m}-${d}`;
+            
+            const record = records.find((r: any) => r.recordType === 'day' && r.id === dateStr && r.brokerageId === activeBrokerage.id);
+            
+            if (record) {
+                const trades = record.trades || [];
+                const firstTrade = trades[0];
+                const secondTrade = trades[1];
+                
+                // Update cycle widget if it's today
+                if (dateStr === getLocalDateString()) {
+                    if (firstTrade) {
+                        setCycle1(c => ({ ...c, e1: firstTrade.entryValue }));
+                        if (secondTrade) {
+                            const isSoros = secondTrade.entryValue > firstTrade.entryValue;
+                            if (isSoros) {
+                                setCycle1(c => ({ ...c, s1: secondTrade.entryValue }));
+                            } else {
+                                setCycle1(c => ({ ...c, e2: secondTrade.entryValue }));
+                            }
+                        }
+                    }
+                }
+
+                return {
+                    ...day,
+                    entry: firstTrade?.entryValue || day.entry,
+                    result: record.netProfitUSD,
+                    winCycle1: trades.some((t: any) => t.result === 'win'),
+                    lossCycle1: trades.some((t: any) => t.result === 'loss'),
+                };
+            }
+            return day;
+        }));
+
+        // Sync deposits/withdrawals
+        const appDeposits = records.filter((r: any) => r.recordType === 'deposit' && r.brokerageId === activeBrokerage.id && r.date.startsWith(selectedMonth));
+        const appWithdrawals = records.filter((r: any) => r.recordType === 'withdrawal' && r.brokerageId === activeBrokerage.id && r.date.startsWith(selectedMonth));
+
+        if (appDeposits.length > 0) {
+            setDeposits(prev => {
+                const newDeps = [...prev];
+                appDeposits.forEach((ad: any, idx: number) => {
+                    if (idx < 10) newDeps[idx] = { date: ad.displayDate, value: ad.amountUSD };
+                });
+                return newDeps;
+            });
+        }
+        if (appWithdrawals.length > 0) {
+            setWithdrawals(prev => {
+                const newWits = [...prev];
+                appWithdrawals.forEach((aw: any, idx: number) => {
+                    if (idx < 10) newWits[idx] = { date: aw.displayDate, value: aw.amountUSD };
+                });
+                return newWits;
+            });
+        }
+
+    }, [records, activeBrokerage?.id, selectedMonth]);
+
+    // Save data
+    useEffect(() => {
+        if (daysData.length === 0) return;
+        localStorage.setItem(getStorageKey('days'), JSON.stringify(daysData));
+        localStorage.setItem(getStorageKey('bank'), bank.toString());
+        localStorage.setItem(getStorageKey('stop'), stopPercent.toString());
+        localStorage.setItem(getStorageKey('exchange'), exchangeRate.toString());
+        localStorage.setItem(getStorageKey('cycle1'), JSON.stringify(cycle1));
+        localStorage.setItem(getStorageKey('cycle2'), JSON.stringify(cycle2));
+        localStorage.setItem(getStorageKey('deposits'), JSON.stringify(deposits));
+        localStorage.setItem(getStorageKey('withdrawals'), JSON.stringify(withdrawals));
     }, [daysData, bank, stopPercent, exchangeRate, cycle1, cycle2, deposits, withdrawals]);
 
     const updateDay = (id: number, field: string, value: any) => {
@@ -1924,214 +2043,252 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
     const totalDeposits = deposits.reduce((acc: number, d: any) => acc + (Number(d.value) || 0), 0);
     const totalWithdrawals = withdrawals.reduce((acc: number, d: any) => acc + (Number(d.value) || 0), 0);
 
+    const months = useMemo(() => {
+        const result = [];
+        const now = new Date();
+        for (let i = 0; i < 12; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            result.push(getLocalMonthString(d));
+        }
+        return result;
+    }, []);
+
     return (
-        <div className="p-2 md:p-4 space-y-4 max-w-[1600px] mx-auto overflow-x-auto">
-            <div className="flex items-center justify-between mb-4">
+        <div className="p-2 md:p-4 space-y-4 max-w-[1600px] mx-auto overflow-x-auto text-black">
+            <div className="flex items-center justify-between mb-4 bg-white p-4 rounded-2xl border border-black/10 shadow-sm">
                 <div>
-                    <h2 className="text-xl font-black uppercase tracking-tighter">Planilha de Gerenciamento</h2>
-                    <p className={theme.textMuted}>Controle avançado estilo Excel</p>
+                    <h2 className="text-xl font-black uppercase tracking-tighter text-black flex items-center gap-2">
+                        <DocumentTextIcon className="w-6 h-6 text-blue-600" />
+                        Planilha de Gerenciamento
+                    </h2>
+                    <p className="text-black/60 text-xs font-bold uppercase tracking-widest mt-1">
+                        {activeBrokerage?.name} • {selectedMonth}
+                    </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-3 items-center">
+                    <select 
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        className="bg-slate-100 border border-black/20 rounded-xl px-4 py-2 text-xs font-black uppercase outline-none focus:border-blue-500 transition-all"
+                    >
+                        {months.map(m => (
+                            <option key={m} value={m}>{m}</option>
+                        ))}
+                    </select>
                     <button 
                         onClick={() => {
-                            if(confirm('Deseja resetar toda a planilha?')) {
-                                localStorage.removeItem('management_sheet_days');
-                                localStorage.removeItem('management_sheet_bank');
-                                localStorage.removeItem('management_sheet_stop');
-                                localStorage.removeItem('management_sheet_exchange');
-                                localStorage.removeItem('management_sheet_cycle1');
-                                localStorage.removeItem('management_sheet_cycle2');
-                                localStorage.removeItem('management_sheet_deposits');
-                                localStorage.removeItem('management_sheet_withdrawals');
+                            if(confirm('Deseja resetar os dados deste mês para esta corretora?')) {
+                                localStorage.removeItem(getStorageKey('days'));
+                                localStorage.removeItem(getStorageKey('bank'));
+                                localStorage.removeItem(getStorageKey('stop'));
+                                localStorage.removeItem(getStorageKey('exchange'));
+                                localStorage.removeItem(getStorageKey('cycle1'));
+                                localStorage.removeItem(getStorageKey('cycle2'));
+                                localStorage.removeItem(getStorageKey('deposits'));
+                                localStorage.removeItem(getStorageKey('withdrawals'));
                                 window.location.reload();
                             }
                         }}
-                        className="px-4 py-2 bg-red-500/10 text-red-500 rounded-xl text-[10px] font-black uppercase"
+                        className="px-4 py-2 bg-red-500/10 text-red-600 rounded-xl text-[10px] font-black uppercase hover:bg-red-500/20 transition-all"
                     >
-                        Resetar Planilha
+                        Resetar Mês
                     </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-12 gap-2 min-w-[1200px]">
+            <div className="grid grid-cols-12 gap-3 min-w-[1300px]">
                 {/* GESTÃO MENSAL */}
                 <div className="col-span-3 space-y-1">
-                    <div className="bg-white text-black font-black text-center py-1 uppercase text-xs border border-black">Gestão Mensal</div>
-                    <div className="grid grid-cols-5 gap-0 border border-black text-[9px] font-black uppercase text-center bg-slate-200 text-black">
-                        <div className="border-r border-black py-0.5">RF</div>
-                        <div className="border-r border-black py-0.5">Data</div>
-                        <div className="border-r border-black py-0.5">Payout</div>
-                        <div className="border-r border-black py-0.5">Entrada</div>
-                        <div className="py-0.5">Lucro/Prej</div>
+                    <div className="bg-blue-600 text-white font-black text-center py-1.5 uppercase text-xs border border-black rounded-t-lg">Gestão Mensal</div>
+                    <div className="grid grid-cols-5 gap-0 border border-black text-[9px] font-black uppercase text-center bg-slate-800 text-white">
+                        <div className="border-r border-black py-1">RF</div>
+                        <div className="border-r border-black py-1">Data</div>
+                        <div className="border-r border-black py-1">Payout</div>
+                        <div className="border-r border-black py-1">Entrada</div>
+                        <div className="py-1">Lucro/Prej</div>
                     </div>
-                    {daysData.map((d: any) => (
-                        <div key={d.id} className="grid grid-cols-5 gap-0 border-x border-b border-black text-[10px]">
-                            <div className="border-r border-black bg-yellow-400 text-black font-bold text-center py-0.5">{d.id}</div>
-                            <div className="border-r border-black bg-slate-100 text-black">
-                                <input 
-                                    type="text" 
-                                    value={d.date} 
-                                    onChange={e => updateDay(d.id, 'date', e.target.value)}
-                                    className="w-full bg-transparent text-center outline-none"
-                                />
+                    <div className="max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
+                        {daysData.map((d: any, idx: number) => (
+                            <div key={d.id} className={`grid grid-cols-5 gap-0 border-x border-b border-black text-[10px] ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                                <div className="border-r border-black bg-yellow-400 text-black font-bold text-center py-1">{d.id}</div>
+                                <div className="border-r border-black text-black">
+                                    <input 
+                                        type="text" 
+                                        value={d.date} 
+                                        onChange={e => updateDay(d.id, 'date', e.target.value)}
+                                        className="w-full bg-transparent text-center outline-none font-medium"
+                                    />
+                                </div>
+                                <div className="border-r border-black bg-blue-50 text-black">
+                                    <input 
+                                        type="text" 
+                                        value={d.payout + '%'} 
+                                        onChange={e => updateDay(d.id, 'payout', e.target.value.replace('%', ''))}
+                                        className="w-full bg-transparent text-center outline-none"
+                                    />
+                                </div>
+                                <div className="border-r border-black bg-blue-100/30 text-black">
+                                    <input 
+                                        type="number" 
+                                        value={d.entry || ''} 
+                                        onChange={e => updateDay(d.id, 'entry', e.target.value)}
+                                        className="w-full bg-transparent text-center outline-none font-bold"
+                                    />
+                                </div>
+                                <div className={`text-center py-1 font-black ${d.result > 0 ? 'bg-green-100 text-green-700' : d.result < 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-400'}`}>
+                                    <input 
+                                        type="number" 
+                                        value={d.result || ''} 
+                                        onChange={e => updateDay(d.id, 'result', e.target.value)}
+                                        className="w-full bg-transparent text-center outline-none"
+                                    />
+                                </div>
                             </div>
-                            <div className="border-r border-black bg-blue-200 text-black">
-                                <input 
-                                    type="text" 
-                                    value={d.payout + '%'} 
-                                    onChange={e => updateDay(d.id, 'payout', e.target.value.replace('%', ''))}
-                                    className="w-full bg-transparent text-center outline-none"
-                                />
-                            </div>
-                            <div className="border-r border-black bg-blue-100 text-black">
-                                <input 
-                                    type="number" 
-                                    value={d.entry || ''} 
-                                    onChange={e => updateDay(d.id, 'entry', e.target.value)}
-                                    className="w-full bg-transparent text-center outline-none"
-                                />
-                            </div>
-                            <div className={`text-center py-0.5 font-bold ${d.result >= 0 ? 'bg-blue-200 text-blue-800' : 'bg-red-100 text-red-800'}`}>
-                                <input 
-                                    type="number" 
-                                    value={d.result || ''} 
-                                    onChange={e => updateDay(d.id, 'result', e.target.value)}
-                                    className="w-full bg-transparent text-center outline-none"
-                                />
-                            </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
 
                 {/* MIDDLE COLUMN */}
                 <div className="col-span-3 space-y-4">
                     {/* GESTÃO DE CAPITAL */}
                     <div className="space-y-1">
-                        <div className="bg-white text-black font-black text-center py-1 uppercase text-xs border border-black">Gestão de Capital</div>
+                        <div className="bg-slate-800 text-white font-black text-center py-1.5 uppercase text-xs border border-black rounded-t-lg">Gestão de Capital</div>
                         <div className="grid grid-cols-3 border border-black text-[9px] font-black uppercase text-center bg-slate-200 text-black">
-                            <div className="border-r border-black py-0.5">Banca</div>
-                            <div className="border-r border-black py-0.5">Stop %</div>
-                            <div className="py-0.5">BRL/USD</div>
+                            <div className="border-r border-black py-1">Banca</div>
+                            <div className="border-r border-black py-1">Stop</div>
+                            <div className="py-1">Valor Stop</div>
                         </div>
                         <div className="grid grid-cols-3 border-x border-b border-black text-[10px]">
-                            <div className="border-r border-black bg-slate-100 text-black">
-                                <input type="number" value={bank} onChange={e => setBank(Number(e.target.value))} className="w-full bg-transparent text-center outline-none font-bold" />
+                            <div className="border-r border-black bg-white text-black">
+                                <input type="number" value={bank} onChange={e => setBank(Number(e.target.value))} className="w-full bg-transparent text-center py-2 outline-none font-bold" />
                             </div>
-                            <div className="border-r border-black bg-slate-100 text-black">
-                                <input type="number" value={stopPercent} onChange={e => setStopPercent(Number(e.target.value))} className="w-full bg-transparent text-center outline-none font-bold" />
+                            <div className="border-r border-black bg-white text-black">
+                                <input type="number" value={stopPercent} onChange={e => setStopPercent(Number(e.target.value))} className="w-full bg-transparent text-center py-2 outline-none font-bold" />
                             </div>
-                            <div className="bg-slate-100 text-black">
-                                <input type="number" value={exchangeRate} onChange={e => setExchangeRate(Number(e.target.value))} className="w-full bg-transparent text-center outline-none font-bold" />
+                            <div className="bg-blue-50 text-blue-700 flex items-center justify-center font-black">
+                                {currencySymbol} {formatMoney(bank * (stopPercent / 100))}
                             </div>
                         </div>
                     </div>
 
                     {/* BANCA INICIAL / ATUALIZADA */}
-                    <div className="grid grid-cols-1 gap-1">
-                        <div className="flex border border-black">
-                            <div className="bg-blue-400 text-black font-black text-[10px] uppercase px-2 py-2 flex-1 border-r border-black">Banca Inicial</div>
-                            <div className="bg-blue-200 text-black font-black text-xs px-4 py-2 flex-1 text-center">{currencySymbol} {formatMoney(bank)}</div>
+                    <div className="grid grid-cols-1 gap-2">
+                        <div className="flex border border-black rounded-lg overflow-hidden shadow-sm">
+                            <div className="bg-blue-600 text-white font-black text-[10px] uppercase px-3 py-3 flex-1 border-r border-black flex items-center">Banca Inicial</div>
+                            <div className="bg-white text-black font-black text-sm px-4 py-3 flex-1 text-center">{currencySymbol} {formatMoney(bank)}</div>
                         </div>
-                        <div className="flex border border-black">
-                            <div className="bg-blue-400 text-black font-black text-[10px] uppercase px-2 py-2 flex-1 border-r border-black">Banca Atualizada</div>
-                            <div className="bg-blue-200 text-black font-black text-xs px-4 py-2 flex-1 text-center">{currencySymbol} {formatMoney(currentBank)}</div>
+                        <div className="flex border border-black rounded-lg overflow-hidden shadow-sm">
+                            <div className="bg-emerald-600 text-white font-black text-[10px] uppercase px-3 py-3 flex-1 border-r border-black flex items-center">Banca Atualizada</div>
+                            <div className="bg-white text-black font-black text-sm px-4 py-3 flex-1 text-center">{currencySymbol} {formatMoney(currentBank)}</div>
                         </div>
                     </div>
 
                     {/* GESTÃO DE ENTRADAS CICLO 01 */}
                     <div className="space-y-1">
-                        <div className="bg-orange-300 text-black font-black text-center py-1 uppercase text-[10px] border border-black">Gestão de Entradas Ciclo 01</div>
-                        <div className="border border-black text-[10px] font-bold">
+                        <div className="bg-orange-500 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Gestão de Entradas Ciclo 01</div>
+                        <div className="border border-black text-[10px] font-bold rounded-b-lg overflow-hidden">
                             <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-orange-100 p-1 border-r border-black">Entrada 01</div>
-                                <div className="w-1/2 bg-white"><input type="number" value={cycle1.e1} onChange={e => setCycle1({...cycle1, e1: e.target.value})} className="w-full outline-none px-2 text-black" /></div>
+                                <div className="w-1/2 bg-orange-50 p-2 border-r border-black text-orange-800">Entrada 01</div>
+                                <div className="w-1/2 bg-white"><input type="number" value={cycle1.e1} onChange={e => setCycle1({...cycle1, e1: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
                             </div>
                             <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-orange-100 p-1 border-r border-black">Entrada 02</div>
-                                <div className="w-1/2 bg-white"><input type="number" value={cycle1.e2} onChange={e => setCycle1({...cycle1, e2: e.target.value})} className="w-full outline-none px-2 text-black" /></div>
+                                <div className="w-1/2 bg-orange-50 p-2 border-r border-black text-orange-800">Entrada 02</div>
+                                <div className="w-1/2 bg-white"><input type="number" value={cycle1.e2} onChange={e => setCycle1({...cycle1, e2: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
                             </div>
                             <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-orange-100 p-1 border-r border-black">Soros 01</div>
-                                <div className="w-1/2 bg-white"><input type="number" value={cycle1.s1} onChange={e => setCycle1({...cycle1, s1: e.target.value})} className="w-full outline-none px-2 text-black" /></div>
+                                <div className="w-1/2 bg-emerald-50 p-2 border-r border-black text-emerald-800">Soros 01</div>
+                                <div className="w-1/2 bg-white"><input type="number" value={cycle1.s1} onChange={e => setCycle1({...cycle1, s1: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
                             </div>
                             <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-orange-100 p-1 border-r border-black">Soros 02</div>
-                                <div className="w-1/2 bg-white"><input type="number" value={cycle1.s2} onChange={e => setCycle1({...cycle1, s2: e.target.value})} className="w-full outline-none px-2 text-black" /></div>
+                                <div className="w-1/2 bg-emerald-50 p-2 border-r border-black text-emerald-800">Soros 02</div>
+                                <div className="w-1/2 bg-white"><input type="number" value={cycle1.s2} onChange={e => setCycle1({...cycle1, s2: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
                             </div>
-                            <div className="flex bg-orange-200">
-                                <div className="w-1/2 p-1 border-r border-black uppercase text-[9px] font-black">Lucro / Prejuízo</div>
-                                <div className={`w-1/2 text-center font-black ${cycle1Profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{currencySymbol} {formatMoney(cycle1Profit)}</div>
+                            <div className="flex bg-orange-100">
+                                <div className="w-1/2 p-2 border-r border-black uppercase text-[9px] font-black text-orange-900">Lucro / Prejuízo</div>
+                                <div className={`w-1/2 text-center py-2 font-black ${cycle1Profit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{currencySymbol} {formatMoney(cycle1Profit)}</div>
                             </div>
                         </div>
                     </div>
 
                     {/* GESTÃO DE ENTRADAS CICLO 02 */}
                     <div className="space-y-1">
-                        <div className="bg-orange-300 text-black font-black text-center py-1 uppercase text-[10px] border border-black">Gestão de Entradas Ciclo 02</div>
-                        <div className="border border-black text-[10px] font-bold">
+                        <div className="bg-orange-500 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Gestão de Entradas Ciclo 02</div>
+                        <div className="border border-black text-[10px] font-bold rounded-b-lg overflow-hidden">
                             <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-orange-100 p-1 border-r border-black">Entrada 01</div>
-                                <div className="w-1/2 bg-white"><input type="number" value={cycle2.e1} onChange={e => setCycle2({...cycle2, e1: e.target.value})} className="w-full outline-none px-2 text-black" /></div>
+                                <div className="w-1/2 bg-orange-50 p-2 border-r border-black text-orange-800">Entrada 01</div>
+                                <div className="w-1/2 bg-white"><input type="number" value={cycle2.e1} onChange={e => setCycle2({...cycle2, e1: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
                             </div>
                             <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-orange-100 p-1 border-r border-black">Entrada 02</div>
-                                <div className="w-1/2 bg-white"><input type="number" value={cycle2.e2} onChange={e => setCycle2({...cycle2, e2: e.target.value})} className="w-full outline-none px-2 text-black" /></div>
+                                <div className="w-1/2 bg-orange-50 p-2 border-r border-black text-orange-800">Entrada 02</div>
+                                <div className="w-1/2 bg-white"><input type="number" value={cycle2.e2} onChange={e => setCycle2({...cycle2, e2: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
                             </div>
                             <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-orange-100 p-1 border-r border-black">Soros 01</div>
-                                <div className="w-1/2 bg-white"><input type="number" value={cycle2.s1} onChange={e => setCycle2({...cycle2, s1: e.target.value})} className="w-full outline-none px-2 text-black" /></div>
+                                <div className="w-1/2 bg-emerald-50 p-2 border-r border-black text-emerald-800">Soros 01</div>
+                                <div className="w-1/2 bg-white"><input type="number" value={cycle2.s1} onChange={e => setCycle2({...cycle2, s1: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
                             </div>
                             <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-orange-100 p-1 border-r border-black">Soros 02</div>
-                                <div className="w-1/2 bg-white"><input type="number" value={cycle2.s2} onChange={e => setCycle2({...cycle2, s2: e.target.value})} className="w-full outline-none px-2 text-black" /></div>
+                                <div className="w-1/2 bg-emerald-50 p-2 border-r border-black text-emerald-800">Soros 02</div>
+                                <div className="w-1/2 bg-white"><input type="number" value={cycle2.s2} onChange={e => setCycle2({...cycle2, s2: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
                             </div>
-                            <div className="flex bg-orange-200">
-                                <div className="w-1/2 p-1 border-r border-black uppercase text-[9px] font-black">Lucro / Prejuízo</div>
-                                <div className={`w-1/2 text-center font-black ${cycle2Profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{currencySymbol} {formatMoney(cycle2Profit)}</div>
+                            <div className="flex bg-orange-100">
+                                <div className="w-1/2 p-2 border-r border-black uppercase text-[9px] font-black text-orange-900">Lucro / Prejuízo</div>
+                                <div className={`w-1/2 text-center py-2 font-black ${cycle2Profit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{currencySymbol} {formatMoney(cycle2Profit)}</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* CICLOS WIN/LOSS */}
-                <div className="col-span-3 grid grid-cols-2 gap-2">
+                <div className="col-span-3 grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                        <div className="bg-white text-black font-black text-center py-1 uppercase text-[9px] border border-black">Primeiro Ciclo</div>
+                        <div className="bg-slate-800 text-white font-black text-center py-1.5 uppercase text-[9px] border border-black rounded-t-lg">Primeiro Ciclo</div>
                         <div className="grid grid-cols-2 border border-black text-[8px] font-black uppercase text-center bg-slate-200 text-black">
-                            <div className="border-r border-black py-0.5">Win</div>
-                            <div className="py-0.5">Loss</div>
+                            <div className="border-r border-black py-1">Win</div>
+                            <div className="py-1">Loss</div>
                         </div>
-                        {daysData.map((d: any) => (
-                            <div key={d.id} className="grid grid-cols-2 border-x border-b border-black h-5">
-                                <div 
-                                    onClick={() => updateDay(d.id, 'winCycle1', !d.winCycle1)}
-                                    className={`border-r border-black cursor-pointer ${d.winCycle1 ? 'bg-green-500' : 'bg-orange-100'}`}
-                                />
-                                <div 
-                                    onClick={() => updateDay(d.id, 'lossCycle1', !d.lossCycle1)}
-                                    className={`cursor-pointer ${d.lossCycle1 ? 'bg-red-500' : 'bg-orange-100'}`}
-                                />
-                            </div>
-                        ))}
+                        <div className="max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
+                            {daysData.map((d: any) => (
+                                <div key={d.id} className="grid grid-cols-2 border-x border-b border-black h-6">
+                                    <div 
+                                        onClick={() => updateDay(d.id, 'winCycle1', !d.winCycle1)}
+                                        className={`border-r border-black cursor-pointer transition-all flex items-center justify-center ${d.winCycle1 ? 'bg-emerald-500' : 'bg-white hover:bg-emerald-50'}`}
+                                    >
+                                        {d.winCycle1 && <CheckIcon className="w-4 h-4 text-white" />}
+                                    </div>
+                                    <div 
+                                        onClick={() => updateDay(d.id, 'lossCycle1', !d.lossCycle1)}
+                                        className={`cursor-pointer transition-all flex items-center justify-center ${d.lossCycle1 ? 'bg-red-500' : 'bg-white hover:bg-red-50'}`}
+                                    >
+                                        {d.lossCycle1 && <div className="w-3 h-0.5 bg-white rounded-full" />}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                     <div className="space-y-1">
-                        <div className="bg-white text-black font-black text-center py-1 uppercase text-[9px] border border-black">Segundo Ciclo</div>
+                        <div className="bg-slate-800 text-white font-black text-center py-1.5 uppercase text-[9px] border border-black rounded-t-lg">Segundo Ciclo</div>
                         <div className="grid grid-cols-2 border border-black text-[8px] font-black uppercase text-center bg-slate-200 text-black">
-                            <div className="border-r border-black py-0.5">Win</div>
-                            <div className="py-0.5">Loss</div>
+                            <div className="border-r border-black py-1">Win</div>
+                            <div className="py-1">Loss</div>
                         </div>
-                        {daysData.map((d: any) => (
-                            <div key={d.id} className="grid grid-cols-2 border-x border-b border-black h-5">
-                                <div 
-                                    onClick={() => updateDay(d.id, 'winCycle2', !d.winCycle2)}
-                                    className={`border-r border-black cursor-pointer ${d.winCycle2 ? 'bg-green-500' : 'bg-orange-100'}`}
-                                />
-                                <div 
-                                    onClick={() => updateDay(d.id, 'lossCycle2', !d.lossCycle2)}
-                                    className={`cursor-pointer ${d.lossCycle2 ? 'bg-red-500' : 'bg-orange-100'}`}
-                                />
-                            </div>
-                        ))}
+                        <div className="max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
+                            {daysData.map((d: any) => (
+                                <div key={d.id} className="grid grid-cols-2 border-x border-b border-black h-6">
+                                    <div 
+                                        onClick={() => updateDay(d.id, 'winCycle2', !d.winCycle2)}
+                                        className={`border-r border-black cursor-pointer transition-all flex items-center justify-center ${d.winCycle2 ? 'bg-emerald-500' : 'bg-white hover:bg-emerald-50'}`}
+                                    >
+                                        {d.winCycle2 && <CheckIcon className="w-4 h-4 text-white" />}
+                                    </div>
+                                    <div 
+                                        onClick={() => updateDay(d.id, 'lossCycle2', !d.lossCycle2)}
+                                        className={`cursor-pointer transition-all flex items-center justify-center ${d.lossCycle2 ? 'bg-red-500' : 'bg-white hover:bg-red-50'}`}
+                                    >
+                                        {d.lossCycle2 && <div className="w-3 h-0.5 bg-white rounded-full" />}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
@@ -2139,24 +2296,24 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                 <div className="col-span-3 space-y-4">
                     {/* PLACAR MENSAL */}
                     <div className="space-y-1">
-                        <div className="bg-white text-black font-black text-center py-1 uppercase text-[10px] border border-black">Gestão de Placar Mensal</div>
-                        <div className="grid grid-cols-2 border border-black h-16">
-                            <div className="bg-green-500 text-black flex flex-col items-center justify-center border-r border-black">
-                                <span className="text-[10px] font-black uppercase">Win</span>
-                                <span className="text-2xl font-black">{totalWins}</span>
+                        <div className="bg-slate-800 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Gestão de Placar Mensal</div>
+                        <div className="grid grid-cols-2 border border-black h-20 rounded-b-lg overflow-hidden shadow-sm">
+                            <div className="bg-emerald-500 text-white flex flex-col items-center justify-center border-r border-black">
+                                <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Win</span>
+                                <span className="text-3xl font-black">{totalWins}</span>
                             </div>
-                            <div className="bg-red-500 text-black flex flex-col items-center justify-center">
-                                <span className="text-[10px] font-black uppercase">Loss</span>
-                                <span className="text-2xl font-black">{totalLosses}</span>
+                            <div className="bg-red-500 text-white flex flex-col items-center justify-center">
+                                <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Loss</span>
+                                <span className="text-3xl font-black">{totalLosses}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* LUCRO MENSAL */}
                     <div className="space-y-1">
-                        <div className="bg-white text-black font-black text-center py-1 uppercase text-[10px] border border-black">Lucro / Prejuízo Mensal</div>
-                        <div className="bg-white border border-black h-16 flex items-center justify-center">
-                            <span className={`text-2xl font-black ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <div className="bg-slate-800 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Lucro / Prejuízo Mensal</div>
+                        <div className="bg-white border border-black h-20 flex items-center justify-center rounded-b-lg shadow-sm">
+                            <span className={`text-3xl font-black ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                 {totalProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(totalProfit)}
                             </span>
                         </div>
@@ -2164,87 +2321,106 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
 
                     {/* RELOGIO */}
                     <div className="space-y-1">
-                        <div className="bg-blue-600 text-white font-black text-center py-1 uppercase text-[10px] border border-black">Relógio Operacional</div>
-                        <div className="bg-blue-400 text-black border border-black h-16 flex items-center justify-center font-black text-xl">
+                        <div className="bg-blue-600 text-black font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Relógio Operacional</div>
+                        <div className="bg-blue-50 text-blue-800 border border-black h-20 flex items-center justify-center font-black text-2xl rounded-b-lg shadow-sm">
                             {new Date().toLocaleTimeString('pt-BR')}
                         </div>
                     </div>
 
                     {/* DEPOSITOS / SAQUES */}
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                            <div className="bg-white text-black font-black text-center py-1 uppercase text-[9px] border border-black">Depósitos</div>
+                            <div className="bg-emerald-600 text-white font-black text-center py-1.5 uppercase text-[9px] border border-black rounded-t-lg">Depósitos</div>
                             <div className="grid grid-cols-2 border border-black text-[8px] font-black uppercase text-center bg-slate-200 text-black">
-                                <div className="border-r border-black py-0.5">Data</div>
-                                <div className="py-0.5">Valor</div>
+                                <div className="border-r border-black py-1">Data</div>
+                                <div className="py-1">Valor</div>
                             </div>
-                            {deposits.map((d: any, i: number) => (
-                                <div key={i} className="grid grid-cols-2 border-x border-b border-black text-[9px]">
-                                    <input 
-                                        type="text" 
-                                        value={d.date} 
-                                        onChange={e => {
-                                            const newD = [...deposits];
-                                            newD[i] = { ...newD[i], date: e.target.value };
-                                            setDeposits(newD);
-                                        }}
-                                        className="w-full bg-white text-black outline-none border-r border-black px-1"
-                                    />
-                                    <input 
-                                        type="number" 
-                                        value={d.value || ''} 
-                                        onChange={e => {
-                                            const newD = [...deposits];
-                                            newD[i] = { ...newD[i], value: e.target.value };
-                                            setDeposits(newD);
-                                        }}
-                                        className="w-full bg-white text-black outline-none px-1"
-                                    />
-                                </div>
-                            ))}
-                            <div className="flex bg-slate-200 border border-black text-[9px] font-black p-1">
-                                <div className="flex-1 text-black">Total</div>
-                                <div className="text-blue-700">{currencySymbol} {formatMoney(totalDeposits)}</div>
+                            <div className="max-h-[300px] overflow-y-auto border-b border-black custom-scrollbar">
+                                {deposits.map((d: any, i: number) => (
+                                    <div key={i} className="grid grid-cols-2 border-x border-b border-black text-[9px]">
+                                        <input 
+                                            type="text" 
+                                            value={d.date} 
+                                            onChange={e => {
+                                                const newD = [...deposits];
+                                                newD[i] = { ...newD[i], date: e.target.value };
+                                                setDeposits(newD);
+                                            }}
+                                            className="w-full bg-white text-black outline-none border-r border-black px-1 py-1"
+                                        />
+                                        <input 
+                                            type="number" 
+                                            value={d.value || ''} 
+                                            onChange={e => {
+                                                const newD = [...deposits];
+                                                newD[i] = { ...newD[i], value: Number(e.target.value) };
+                                                setDeposits(newD);
+                                            }}
+                                            className="w-full bg-white text-black outline-none px-1 py-1 font-bold"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex bg-emerald-50 border border-black text-[9px] font-black p-2 rounded-b-lg">
+                                <div className="flex-1 text-emerald-900">Total</div>
+                                <div className="text-emerald-700">{currencySymbol} {formatMoney(totalDeposits)}</div>
                             </div>
                         </div>
                         <div className="space-y-1">
-                            <div className="bg-white text-black font-black text-center py-1 uppercase text-[9px] border border-black">Saques</div>
+                            <div className="bg-red-600 text-white font-black text-center py-1.5 uppercase text-[9px] border border-black rounded-t-lg">Saques</div>
                             <div className="grid grid-cols-2 border border-black text-[8px] font-black uppercase text-center bg-slate-200 text-black">
-                                <div className="border-r border-black py-0.5">Data</div>
-                                <div className="py-0.5">Valor</div>
+                                <div className="border-r border-black py-1">Data</div>
+                                <div className="py-1">Valor</div>
                             </div>
-                            {withdrawals.map((w: any, i: number) => (
-                                <div key={i} className="grid grid-cols-2 border-x border-b border-black text-[9px]">
-                                    <input 
-                                        type="text" 
-                                        value={w.date} 
-                                        onChange={e => {
-                                            const newW = [...withdrawals];
-                                            newW[i] = { ...newW[i], date: e.target.value };
-                                            setWithdrawals(newW);
-                                        }}
-                                        className="w-full bg-white text-black outline-none border-r border-black px-1"
-                                    />
-                                    <input 
-                                        type="number" 
-                                        value={w.value || ''} 
-                                        onChange={e => {
-                                            const newW = [...withdrawals];
-                                            newW[i] = { ...newW[i], value: e.target.value };
-                                            setWithdrawals(newW);
-                                        }}
-                                        className="w-full bg-white text-black outline-none px-1"
-                                    />
-                                </div>
-                            ))}
-                            <div className="flex bg-slate-200 border border-black text-[9px] font-black p-1">
-                                <div className="flex-1 text-black">Total</div>
+                            <div className="max-h-[300px] overflow-y-auto border-b border-black custom-scrollbar">
+                                {withdrawals.map((w: any, i: number) => (
+                                    <div key={i} className="grid grid-cols-2 border-x border-b border-black text-[9px]">
+                                        <input 
+                                            type="text" 
+                                            value={w.date} 
+                                            onChange={e => {
+                                                const newW = [...withdrawals];
+                                                newW[i] = { ...newW[i], date: e.target.value };
+                                                setWithdrawals(newW);
+                                            }}
+                                            className="w-full bg-white text-black outline-none border-r border-black px-1 py-1"
+                                        />
+                                        <input 
+                                            type="number" 
+                                            value={w.value || ''} 
+                                            onChange={e => {
+                                                const newW = [...withdrawals];
+                                                newW[i] = { ...newW[i], value: Number(e.target.value) };
+                                                setWithdrawals(newW);
+                                            }}
+                                            className="w-full bg-white text-black outline-none px-1 py-1 font-bold"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex bg-red-50 border border-black text-[9px] font-black p-2 rounded-b-lg">
+                                <div className="flex-1 text-red-900">Total</div>
                                 <div className="text-red-700">{currencySymbol} {formatMoney(totalWithdrawals)}</div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+            <style>{`
+                .custom-scrollbar::-webkit-scrollbar {
+                    width: 4px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: #f1f1f1;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: #888;
+                    border-radius: 10px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: #555;
+                }
+            `}</style>
         </div>
     );
 };
