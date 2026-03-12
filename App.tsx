@@ -1972,9 +1972,65 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
         setWithdrawals(savedWithdrawals ? JSON.parse(savedWithdrawals) : Array(10).fill({ date: '', value: 0 }));
     }, [activeBrokerage?.id, selectedMonth]);
 
+    const yesterdayBalance = useMemo(() => {
+        if (!records || !activeBrokerage) return activeBrokerage?.initialBalance || 0;
+        const todayStr = getLocalDateString();
+        const pastRecords = records.filter((r: any) => 
+            r.brokerageId === activeBrokerage.id && 
+            r.id < todayStr
+        );
+        const profit = pastRecords.reduce((sum: number, r: any) => {
+            if (r.recordType === 'day') return sum + r.netProfitUSD;
+            if (r.recordType === 'deposit') return sum + r.amountUSD;
+            if (r.recordType === 'withdrawal') return sum - r.amountUSD;
+            return sum;
+        }, 0);
+        return (activeBrokerage?.initialBalance || 0) + profit;
+    }, [records, activeBrokerage?.id]);
+
     // Sync with App Records
     useEffect(() => {
         if (!records || !activeBrokerage) return;
+
+        const todayStr = getLocalDateString();
+        const todayRecord = records.find((r: any) => r.recordType === 'day' && r.id === todayStr && r.brokerageId === activeBrokerage.id);
+        
+        // If it's a new day (no trades yet), reset the bank to yesterday's closing balance
+        if (!todayRecord) {
+            setBank(yesterdayBalance);
+            setCycle1({ e1: 0, e2: 0, s1: 0, s2: 0 });
+            setCycle2({ e1: 0, e2: 0, s1: 0, s2: 0 });
+        }
+
+        const trades = todayRecord?.trades || [];
+        const firstTrade = trades[0];
+        const secondTrade = trades[1];
+        const thirdTrade = trades[2];
+        const fourthTrade = trades[3];
+
+        setCycle1(prev => {
+            const next = { ...prev, e1: 0, e2: 0, s1: 0, s2: 0 };
+            if (firstTrade) {
+                next.e1 = firstTrade.entryValue;
+                if (secondTrade) {
+                    // Heuristic: if 2nd trade > 1st, it's likely a Soros (S1)
+                    if (secondTrade.entryValue > firstTrade.entryValue) {
+                        next.s1 = secondTrade.entryValue;
+                        if (thirdTrade) next.e2 = thirdTrade.entryValue;
+                        if (fourthTrade) next.s2 = fourthTrade.entryValue;
+                    } else {
+                        next.e2 = secondTrade.entryValue;
+                        if (thirdTrade) {
+                            if (thirdTrade.entryValue > secondTrade.entryValue) next.s1 = thirdTrade.entryValue;
+                            else if (fourthTrade) next.s2 = fourthTrade.entryValue;
+                        }
+                    }
+                }
+            }
+            // Check all fields to ensure we don't skip an update when a trade is deleted
+            if (prev.e1 === next.e1 && prev.e2 === next.e2 && prev.s1 === next.s1 && prev.s2 === next.s2) return prev;
+            return next;
+        });
 
         setDaysData(prev => prev.map(day => {
             const [d, m] = day.date.split('/');
@@ -1986,27 +2042,11 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
             if (record) {
                 const trades = record.trades || [];
                 const firstTrade = trades[0];
-                const secondTrade = trades[1];
                 
-                // Update cycle widget if it's today
-                if (dateStr === getLocalDateString()) {
-                    if (firstTrade) {
-                        setCycle1(c => ({ ...c, e1: firstTrade.entryValue }));
-                        if (secondTrade) {
-                            const isSoros = secondTrade.entryValue > firstTrade.entryValue;
-                            if (isSoros) {
-                                setCycle1(c => ({ ...c, s1: secondTrade.entryValue }));
-                            } else {
-                                setCycle1(c => ({ ...c, e2: secondTrade.entryValue }));
-                            }
-                        }
-                    }
-                }
-
                 return {
                     ...day,
                     entry: firstTrade?.entryValue || 0,
-                    payout: firstTrade?.payoutPercentage || (dateStr === getLocalDateString() ? activeBrokerage.payoutPercentage : day.payout),
+                    payout: firstTrade?.payoutPercentage || (dateStr === todayStr ? activeBrokerage.payoutPercentage : day.payout),
                     result: record.netProfitUSD,
                     winCycle1: trades.some((t: any) => t.result === 'win'),
                     lossCycle1: trades.some((t: any) => t.result === 'loss'),
@@ -2020,7 +2060,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                 result: 0,
                 winCycle1: false,
                 lossCycle1: false,
-                payout: dateStr === getLocalDateString() ? activeBrokerage.payoutPercentage : day.payout
+                payout: dateStr === todayStr ? activeBrokerage.payoutPercentage : day.payout
             };
         }));
 
