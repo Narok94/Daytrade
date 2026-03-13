@@ -2304,9 +2304,9 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                 </div>
             </div>
 
-            <div className="grid grid-cols-12 gap-1 w-full">
+            <div className="grid grid-cols-12 gap-2 w-full">
                 {/* GESTÃO MENSAL */}
-                <div className="col-span-3 space-y-1">
+                <div className="col-span-5 space-y-1">
                     <div className="bg-blue-600 text-white font-black text-center py-1.5 uppercase text-xs border border-black rounded-t-lg">Gestão Mensal</div>
                     <div className="grid grid-cols-5 gap-0 border border-black text-[9px] font-black uppercase text-center bg-slate-800 text-white">
                         <div className="border-r border-black py-1">RF</div>
@@ -2317,8 +2317,8 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     </div>
                     <div className="max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
                         {daysData.map((d: any, idx: number) => (
-                            <div key={d.id} className={`grid grid-cols-5 gap-0 border-x border-b border-black text-[10px] ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                                <div className="border-r border-black bg-yellow-400 text-black font-bold text-center py-0.5 relative">
+                            <div key={d.id} className={`grid grid-cols-5 gap-0 border-x border-b border-black text-[10px] transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                                <div className="border-r border-black bg-yellow-400 text-black font-bold text-center py-1 relative">
                                     {d.id}
                                     {d.hasSoros && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-emerald-500 rounded-bl-sm" title="Soros realizado" />}
                                 </div>
@@ -2327,31 +2327,31 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                         type="text" 
                                         value={d.date} 
                                         onChange={e => updateDay(d.id, 'date', e.target.value)}
-                                        className="w-full bg-transparent text-center outline-none font-medium py-0.5"
+                                        className="w-full bg-transparent text-center outline-none font-medium py-1 focus:bg-white transition-colors"
                                     />
                                 </div>
-                                <div className="border-r border-black bg-blue-50 text-black">
+                                <div className="border-r border-black bg-blue-50/30 text-black">
                                     <input 
                                         type="text" 
                                         value={d.payout + '%'} 
                                         onChange={e => updateDay(d.id, 'payout', e.target.value.replace('%', ''))}
-                                        className="w-full bg-transparent text-center outline-none py-0.5"
+                                        className="w-full bg-transparent text-center outline-none py-1 focus:bg-white transition-colors"
                                     />
                                 </div>
-                                <div className="border-r border-black bg-blue-100/30 text-black">
+                                <div className="border-r border-black bg-blue-100/20 text-black">
                                     <input 
                                         type="number" 
                                         value={d.entry || ''} 
                                         onChange={e => updateDay(d.id, 'entry', e.target.value)}
-                                        className="w-full bg-transparent text-center outline-none font-bold py-0.5"
+                                        className="w-full bg-transparent text-center outline-none font-bold py-1 focus:bg-white transition-colors"
                                     />
                                 </div>
-                                <div className={`text-center py-0.5 font-black ${d.result > 0 ? 'bg-green-100 text-green-700' : d.result < 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-400'}`}>
+                                <div className={`text-center py-1 font-black transition-colors ${d.result > 0 ? 'bg-green-100/50 text-green-700' : d.result < 0 ? 'bg-red-100/50 text-red-700' : 'bg-slate-100/50 text-slate-400'}`}>
                                     <input 
                                         type="number" 
                                         value={d.result || ''} 
                                         onChange={e => updateDay(d.id, 'result', e.target.value)}
-                                        className="w-full bg-transparent text-center outline-none py-0.5"
+                                        className="w-full bg-transparent text-center outline-none py-0 focus:bg-white/50 transition-colors"
                                     />
                                 </div>
                             </div>
@@ -2361,36 +2361,34 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
 
                 {/* MIDDLE COLUMN */}
                 <div className="col-span-3 space-y-4">
-                    {/* GESTÃO DE CAPITAL */}
-                    <div className="space-y-1">
-                        <div className="bg-slate-800 text-white font-black text-center py-1.5 uppercase text-xs border border-black rounded-t-lg">Gestão de Capital</div>
-                        <div className="grid grid-cols-3 border border-black text-[9px] font-black uppercase text-center bg-slate-200 text-black">
-                            <div className="border-r border-black py-1">Banca</div>
-                            <div className="border-r border-black py-1">Stop</div>
-                            <div className="py-1">Valor Stop</div>
+                    {/* BANCA CARDS */}
+                    <div className="grid grid-cols-1 gap-2">
+                        <div className="bg-white border border-black rounded-xl overflow-hidden shadow-sm flex flex-col">
+                            <div className="bg-blue-600 text-white font-black text-[9px] uppercase py-1 text-center border-b border-black">Banca Inicial</div>
+                            <div className="text-black font-black text-xl py-2 text-center">{currencySymbol} {formatMoney(bank)}</div>
                         </div>
-                        <div className="grid grid-cols-3 border-x border-b border-black text-[10px]">
-                            <div className="border-r border-black bg-white text-black">
-                                <input type="number" value={bank} onChange={e => setBank(Number(e.target.value))} className="w-full bg-transparent text-center py-2 outline-none font-bold" />
-                            </div>
-                            <div className="border-r border-black bg-white text-black">
-                                <input type="number" value={stopPercent} onChange={e => setStopPercent(Number(e.target.value))} className="w-full bg-transparent text-center py-2 outline-none font-bold" />
-                            </div>
-                            <div className="bg-blue-50 text-blue-700 flex items-center justify-center font-black">
-                                {currencySymbol} {formatMoney(bank * (stopPercent / 100))}
-                            </div>
+                        <div className="bg-white border border-black rounded-xl overflow-hidden shadow-sm flex flex-col">
+                            <div className="bg-emerald-600 text-white font-black text-[9px] uppercase py-1 text-center border-b border-black">Banca Atualizada</div>
+                            <div className="text-emerald-600 font-black text-xl py-2 text-center">{currencySymbol} {formatMoney(currentBank)}</div>
                         </div>
                     </div>
 
-                    {/* BANCA INICIAL / ATUALIZADA */}
-                    <div className="grid grid-cols-1 gap-2">
-                        <div className="flex border border-black rounded-lg overflow-hidden shadow-sm">
-                            <div className="bg-blue-600 text-white font-black text-[10px] uppercase px-3 py-3 flex-1 border-r border-black flex items-center">Banca Inicial</div>
-                            <div className="bg-white text-black font-black text-sm px-4 py-3 flex-1 text-center">{currencySymbol} {formatMoney(bank)}</div>
-                        </div>
-                        <div className="flex border border-black rounded-lg overflow-hidden shadow-sm">
-                            <div className="bg-emerald-600 text-white font-black text-[10px] uppercase px-3 py-3 flex-1 border-r border-black flex items-center">Banca Atualizada</div>
-                            <div className="bg-white text-black font-black text-sm px-4 py-3 flex-1 text-center">{currencySymbol} {formatMoney(currentBank)}</div>
+                    {/* GESTÃO DE CAPITAL */}
+                    <div className="space-y-1">
+                        <div className="bg-slate-800 text-white font-black text-center py-1.5 uppercase text-xs border border-black rounded-t-lg">Configuração de Risco</div>
+                        <div className="bg-white border border-black p-3 rounded-b-lg space-y-3 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase text-slate-500">Banca Base</span>
+                                <input type="number" value={bank} onChange={e => setBank(Number(e.target.value))} className="w-24 bg-slate-100 border border-black/10 rounded px-2 py-1 text-right font-black outline-none focus:border-blue-500" />
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase text-slate-500">Stop Diário %</span>
+                                <input type="number" value={stopPercent} onChange={e => setStopPercent(Number(e.target.value))} className="w-24 bg-slate-100 border border-black/10 rounded px-2 py-1 text-right font-black outline-none focus:border-blue-500" />
+                            </div>
+                            <div className="pt-2 border-t border-black/5 flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase text-blue-600">Valor do Stop</span>
+                                <span className="text-sm font-black text-blue-700">{currencySymbol} {formatMoney(bank * (stopPercent / 100))}</span>
+                            </div>
                         </div>
                     </div>
 
@@ -2461,108 +2459,46 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     </div>
                 </div>
 
-                {/* RIGHT COLUMN */}
-                <div className="col-span-6 space-y-4">
+                {/* RIGHT COLUMN - SUMMARY */}
+                <div className="col-span-4 space-y-4">
                     {/* PLACAR MENSAL */}
                     <div className="space-y-1">
-                        <div className="bg-slate-800 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Gestão de Placar Mensal</div>
-                        <div className="grid grid-cols-2 border border-black h-20 rounded-b-lg overflow-hidden shadow-sm">
-                            <div className="bg-emerald-500 text-white flex flex-col items-center justify-center border-r border-black">
-                                <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Win</span>
-                                <span className="text-3xl font-black">{totalWins}</span>
+                        <div className="bg-slate-900 text-white font-black text-center py-2 uppercase text-[10px] border border-black rounded-t-2xl">Placar Mensal</div>
+                        <div className="grid grid-cols-2 border-x border-b border-black h-28 rounded-b-2xl overflow-hidden shadow-md">
+                            <div className="bg-emerald-500 text-white flex flex-col items-center justify-center border-r border-black group hover:bg-emerald-600 transition-colors">
+                                <span className="text-[11px] font-black uppercase tracking-widest opacity-70 mb-1">Vitórias</span>
+                                <span className="text-5xl font-black drop-shadow-sm">{totalWins}</span>
                             </div>
-                            <div className="bg-red-500 text-white flex flex-col items-center justify-center">
-                                <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Loss</span>
-                                <span className="text-3xl font-black">{totalLosses}</span>
+                            <div className="bg-red-500 text-white flex flex-col items-center justify-center group hover:bg-red-600 transition-colors">
+                                <span className="text-[11px] font-black uppercase tracking-widest opacity-70 mb-1">Derrotas</span>
+                                <span className="text-5xl font-black drop-shadow-sm">{totalLosses}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* LUCRO MENSAL */}
                     <div className="space-y-1">
-                        <div className="bg-slate-800 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Lucro / Prejuízo Mensal</div>
-                        <div className="bg-white border border-black h-20 flex items-center justify-center rounded-b-lg shadow-sm">
-                            <span className={`text-3xl font-black ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        <div className="bg-slate-900 text-white font-black text-center py-2 uppercase text-[10px] border border-black rounded-t-2xl">Resultado Financeiro</div>
+                        <div className="bg-white border-x border-b border-black h-28 flex flex-col items-center justify-center rounded-b-2xl shadow-md relative overflow-hidden">
+                            <div className={`absolute inset-0 opacity-5 ${totalProfit >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                            <span className="text-[10px] font-black uppercase text-slate-400 mb-1 relative z-10">Lucro Líquido Mensal</span>
+                            <span className={`text-4xl font-black relative z-10 ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                 {totalProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(totalProfit)}
                             </span>
                         </div>
                     </div>
 
-                    {/* DEPOSITOS / SAQUES */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                            <div className="bg-emerald-600 text-white font-black text-center py-1.5 uppercase text-[9px] border border-black rounded-t-lg">Depósitos</div>
-                            <div className="grid grid-cols-2 border border-black text-[8px] font-black uppercase text-center bg-slate-200 text-black">
-                                <div className="border-r border-black py-1">Data</div>
-                                <div className="py-1">Valor</div>
-                            </div>
-                            <div className="max-h-[300px] overflow-y-auto border-b border-black custom-scrollbar">
-                                {deposits.map((d: any, i: number) => (
-                                    <div key={i} className="grid grid-cols-2 border-x border-b border-black text-[9px]">
-                                        <input 
-                                            type="text" 
-                                            value={d.date} 
-                                            onChange={e => {
-                                                const newD = [...deposits];
-                                                newD[i] = { ...newD[i], date: e.target.value };
-                                                setDeposits(newD);
-                                            }}
-                                            className="w-full bg-white text-black outline-none border-r border-black px-1 py-1"
-                                        />
-                                        <input 
-                                            type="number" 
-                                            value={d.value || ''} 
-                                            onChange={e => {
-                                                const newD = [...deposits];
-                                                newD[i] = { ...newD[i], value: Number(e.target.value) };
-                                                setDeposits(newD);
-                                            }}
-                                            className="w-full bg-white text-black outline-none px-1 py-1 font-bold"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="flex flex-col bg-emerald-50 border border-black text-[9px] font-black p-2 rounded-b-lg text-center">
-                                <div className="text-emerald-900 uppercase tracking-tighter">Total</div>
-                                <div className="text-emerald-700 text-xs">{currencySymbol} {formatMoney(totalDeposits)}</div>
-                            </div>
+                    {/* QUICK STATS */}
+                    <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-white border border-black p-3 rounded-xl shadow-sm flex flex-col items-center justify-center">
+                            <span className="text-[8px] font-black uppercase text-slate-500">Assertividade</span>
+                            <span className="text-lg font-black text-blue-600">
+                                {totalWins + totalLosses > 0 ? ((totalWins / (totalWins + totalLosses)) * 100).toFixed(1) : '0'}%
+                            </span>
                         </div>
-                        <div className="space-y-1">
-                            <div className="bg-red-600 text-white font-black text-center py-1.5 uppercase text-[9px] border border-black rounded-t-lg">Saques</div>
-                            <div className="grid grid-cols-2 border border-black text-[8px] font-black uppercase text-center bg-slate-200 text-black">
-                                <div className="border-r border-black py-1">Data</div>
-                                <div className="py-1">Valor</div>
-                            </div>
-                            <div className="max-h-[300px] overflow-y-auto border-b border-black custom-scrollbar">
-                                {withdrawals.map((w: any, i: number) => (
-                                    <div key={i} className="grid grid-cols-2 border-x border-b border-black text-[9px]">
-                                        <input 
-                                            type="text" 
-                                            value={w.date} 
-                                            onChange={e => {
-                                                const newW = [...withdrawals];
-                                                newW[i] = { ...newW[i], date: e.target.value };
-                                                setWithdrawals(newW);
-                                            }}
-                                            className="w-full bg-white text-black outline-none border-r border-black px-1 py-1"
-                                        />
-                                        <input 
-                                            type="number" 
-                                            value={w.value || ''} 
-                                            onChange={e => {
-                                                const newW = [...withdrawals];
-                                                newW[i] = { ...newW[i], value: Number(e.target.value) };
-                                                setWithdrawals(newW);
-                                            }}
-                                            className="w-full bg-white text-black outline-none px-1 py-1 font-bold"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="flex flex-col bg-red-50 border border-black text-[9px] font-black p-2 rounded-b-lg text-center">
-                                <div className="text-red-900 uppercase tracking-tighter">Total</div>
-                                <div className="text-red-700 text-xs">{currencySymbol} {formatMoney(totalWithdrawals)}</div>
-                            </div>
+                        <div className="bg-white border border-black p-3 rounded-xl shadow-sm flex flex-col items-center justify-center">
+                            <span className="text-[8px] font-black uppercase text-slate-500">Total Trades</span>
+                            <span className="text-lg font-black text-slate-800">{totalWins + totalLosses}</span>
                         </div>
                     </div>
                 </div>
