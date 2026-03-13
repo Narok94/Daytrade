@@ -577,7 +577,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             if (r.recordType === 'day') {
                 const winCount = r.trades.filter(t => t.result === 'win').length;
                 const lossCount = r.trades.filter(t => t.result === 'loss').length;
-                const netProfitUSD = r.trades.reduce((acc, t) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0);
+                const netProfitUSD = Number(r.trades.reduce((acc, t) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0).toFixed(2));
                 const endBalanceUSD = runningBalance + netProfitUSD;
                 const updated = { ...r, startBalanceUSD: runningBalance, winCount, lossCount, netProfitUSD, endBalanceUSD };
                 runningBalance = endBalanceUSD;
@@ -2052,7 +2052,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
             id: i + 1,
             date: `${String(i + 1).padStart(2, '0')}/${String(month).padStart(2, '0')}`,
             payout: activeBrokerage?.payoutPercentage || 80,
-            entry: 0,
+            tradeCount: 0,
             result: 0,
             winCycle1: false,
             lossCycle1: false
@@ -2072,7 +2072,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     id: dayNum,
                     date: `${String(dayNum).padStart(2, '0')}/${String(month).padStart(2, '0')}`,
                     payout: activeBrokerage?.payoutPercentage || 80,
-                    entry: 0,
+                    tradeCount: 0,
                     result: 0,
                     winCycle1: false,
                     lossCycle1: false
@@ -2152,7 +2152,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                 
                 return {
                     ...day,
-                    entry: firstTrade?.entryValue || 0,
+                    tradeCount: trades.length,
                     payout: firstTrade?.payoutPercentage || (dateStr === todayStr ? activeBrokerage.payoutPercentage : day.payout),
                     result: record.netProfitUSD,
                     winCycle1: trades.some((t: any) => t.result === 'win'),
@@ -2164,7 +2164,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
             // If record not found, reset values for this day in the sheet to stay in sync with dashboard
             return {
                 ...day,
-                entry: 0,
+                tradeCount: 0,
                 result: 0,
                 winCycle1: false,
                 lossCycle1: false,
@@ -2290,7 +2290,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                         <div className="border-r border-black py-1">RF</div>
                         <div className="border-r border-black py-1">Data</div>
                         <div className="border-r border-black py-1">Payout</div>
-                        <div className="border-r border-black py-1">Entrada</div>
+                        <div className="border-r border-black py-1">Entradas</div>
                         <div className="py-1">Lucro/Prej</div>
                     </div>
                     <div className="max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
@@ -2319,15 +2319,16 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                 <div className="border-r border-black bg-blue-100/20 text-black">
                                     <input 
                                         type="number" 
-                                        value={d.entry || ''} 
-                                        onChange={e => updateDay(d.id, 'entry', e.target.value)}
+                                        value={d.tradeCount || 0} 
+                                        readOnly
                                         className="w-full bg-transparent text-center outline-none font-bold py-1 focus:bg-white transition-colors"
                                     />
                                 </div>
                                 <div className={`text-center py-1 font-black transition-colors ${d.result > 0 ? 'bg-green-100/50 text-green-700' : d.result < 0 ? 'bg-red-100/50 text-red-700' : 'bg-slate-100/50 text-slate-400'}`}>
                                     <input 
                                         type="number" 
-                                        value={d.result || ''} 
+                                        step="0.01"
+                                        value={d.result !== undefined && d.result !== '' ? Number(d.result).toFixed(2) : ''} 
                                         onChange={e => updateDay(d.id, 'result', e.target.value)}
                                         className="w-full bg-transparent text-center outline-none py-0 focus:bg-white/50 transition-colors"
                                     />
@@ -2374,10 +2375,10 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     <div className="space-y-1">
                         <div className="bg-orange-500 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Sessão</div>
                         <div className="border-x border-b border-black rounded-b-lg overflow-hidden shadow-sm">
-                            <div className="flex overflow-x-auto custom-scrollbar bg-white border-b border-black">
+                            <div className="grid grid-cols-1 bg-white border-b border-black max-h-[250px] overflow-y-auto custom-scrollbar">
                                 {sessionEntries.map((val, idx) => (
-                                    <div key={idx} className="min-w-[70px] flex-1 border-r border-black last:border-r-0">
-                                        <div className="bg-orange-50 text-[7px] font-black uppercase text-orange-800 border-b border-black py-1 text-center whitespace-nowrap px-1">
+                                    <div key={idx} className="flex border-b border-black last:border-b-0">
+                                        <div className="bg-orange-50 w-24 text-[7px] font-black uppercase text-orange-800 border-r border-black py-2 flex items-center justify-center">
                                             Entrada {String(idx + 1).padStart(2, '0')}
                                         </div>
                                         <input 
@@ -2392,7 +2393,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                                 }
                                                 setSessionEntries(newEntries);
                                             }} 
-                                            className="w-full h-8 outline-none text-center text-[10px] font-black" 
+                                            className="flex-1 h-8 outline-none text-center text-[10px] font-black" 
                                         />
                                     </div>
                                 ))}

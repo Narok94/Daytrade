@@ -185,7 +185,7 @@ export default async function handler(
                     record.startBalanceUSD = previousDayEndBalance;
                     record.winCount = record.trades.filter((t: any) => t.result === 'win').length;
                     record.lossCount = record.trades.filter((t: any) => t.result === 'loss').length;
-                    record.netProfitUSD = record.trades.reduce((acc: number, t: any) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0);
+                    record.netProfitUSD = Number(record.trades.reduce((acc: number, t: any) => acc + (t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue), 0).toFixed(2));
                     record.endBalanceUSD = record.startBalanceUSD + record.netProfitUSD;
                     previousDayEndBalance = record.endBalanceUSD;
                 } else {
