@@ -2027,7 +2027,6 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
     const [stopPercent, setStopPercent] = useState(10);
     const [exchangeRate, setExchangeRate] = useState(5.0);
     const [cycle1, setCycle1] = useState({ e1: 0, e2: 0, s1: 0, s2: 0 });
-    const [cycle2, setCycle2] = useState({ e1: 0, e2: 0, s1: 0, s2: 0 });
     const [deposits, setDeposits] = useState<any[]>(Array(10).fill({ date: '', value: 0 }));
     const [withdrawals, setWithdrawals] = useState<any[]>(Array(10).fill({ date: '', value: 0 }));
 
@@ -2038,7 +2037,6 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
         const savedStop = localStorage.getItem(getStorageKey('stop'));
         const savedExchange = localStorage.getItem(getStorageKey('exchange'));
         const savedCycle1 = localStorage.getItem(getStorageKey('cycle1'));
-        const savedCycle2 = localStorage.getItem(getStorageKey('cycle2'));
         const savedDeposits = localStorage.getItem(getStorageKey('deposits'));
         const savedWithdrawals = localStorage.getItem(getStorageKey('withdrawals'));
 
@@ -2057,9 +2055,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
             entry: 0,
             result: 0,
             winCycle1: false,
-            lossCycle1: false,
-            winCycle2: false,
-            lossCycle2: false
+            lossCycle1: false
         }));
 
         // Filter to start from today if it's the current month
@@ -2079,9 +2075,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     entry: 0,
                     result: 0,
                     winCycle1: false,
-                    lossCycle1: false,
-                    winCycle2: false,
-                    lossCycle2: false
+                    lossCycle1: false
                 };
             });
             setDaysData(adjustedDays);
@@ -2093,7 +2087,6 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
         setStopPercent(savedStop ? Number(savedStop) : 10);
         setExchangeRate(savedExchange ? Number(savedExchange) : 5.0);
         setCycle1(savedCycle1 ? JSON.parse(savedCycle1) : { e1: 0, e2: 0, s1: 0, s2: 0 });
-        setCycle2(savedCycle2 ? JSON.parse(savedCycle2) : { e1: 0, e2: 0, s1: 0, s2: 0 });
         setDeposits(savedDeposits ? JSON.parse(savedDeposits) : Array(10).fill({ date: '', value: 0 }));
         setWithdrawals(savedWithdrawals ? JSON.parse(savedWithdrawals) : Array(10).fill({ date: '', value: 0 }));
     }, [activeBrokerage?.id, selectedMonth]);
@@ -2125,7 +2118,6 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
         if (!todayRecord) {
             setBank(yesterdayBalance);
             setCycle1({ e1: 0, e2: 0, s1: 0, s2: 0 });
-            setCycle2({ e1: 0, e2: 0, s1: 0, s2: 0 });
         }
 
         const trades = todayRecord?.trades || [];
@@ -2222,10 +2214,9 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
         localStorage.setItem(getStorageKey('stop'), stopPercent.toString());
         localStorage.setItem(getStorageKey('exchange'), exchangeRate.toString());
         localStorage.setItem(getStorageKey('cycle1'), JSON.stringify(cycle1));
-        localStorage.setItem(getStorageKey('cycle2'), JSON.stringify(cycle2));
         localStorage.setItem(getStorageKey('deposits'), JSON.stringify(deposits));
         localStorage.setItem(getStorageKey('withdrawals'), JSON.stringify(withdrawals));
-    }, [daysData, bank, stopPercent, exchangeRate, cycle1, cycle2, deposits, withdrawals]);
+    }, [daysData, bank, stopPercent, exchangeRate, cycle1, deposits, withdrawals]);
 
     const updateDay = (id: number, field: string, value: any) => {
         setDaysData((prev: any[]) => prev.map((d: any) => d.id === id ? { ...d, [field]: value } : d));
@@ -2246,7 +2237,6 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
     const currentBank = bank + totalProfit;
 
     const cycle1Profit = (Number(cycle1.e1) || 0) + (Number(cycle1.e2) || 0) + (Number(cycle1.s1) || 0) + (Number(cycle1.s2) || 0);
-    const cycle2Profit = (Number(cycle2.e1) || 0) + (Number(cycle2.e2) || 0) + (Number(cycle2.s1) || 0) + (Number(cycle2.s2) || 0);
 
     const totalDeposits = deposits.reduce((acc: number, d: any) => acc + (Number(d.value) || 0), 0);
     const totalWithdrawals = withdrawals.reduce((acc: number, d: any) => acc + (Number(d.value) || 0), 0);
@@ -2291,7 +2281,6 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                 localStorage.removeItem(getStorageKey('stop'));
                                 localStorage.removeItem(getStorageKey('exchange'));
                                 localStorage.removeItem(getStorageKey('cycle1'));
-                                localStorage.removeItem(getStorageKey('cycle2'));
                                 localStorage.removeItem(getStorageKey('deposits'));
                                 localStorage.removeItem(getStorageKey('withdrawals'));
                                 window.location.reload();
@@ -2392,68 +2381,35 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                         </div>
                     </div>
 
-                    {/* SESSÃO 01 */}
+                    {/* SESSÃO */}
                     <div className="space-y-1">
-                        <div className="bg-orange-500 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Sessão 01</div>
-                        <div className="border border-black text-[10px] font-bold rounded-b-lg overflow-hidden">
-                            <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-orange-50 p-2 border-r border-black text-orange-800">Entrada 01</div>
-                                <div className="w-1/2 bg-white"><input type="number" value={cycle1.e1} onChange={e => setCycle1({...cycle1, e1: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
+                        <div className="bg-orange-500 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Sessão</div>
+                        <div className="border-x border-b border-black rounded-b-lg overflow-hidden shadow-sm">
+                            <div className="grid grid-cols-4 bg-orange-50 text-[8px] font-black uppercase text-orange-800 border-b border-black">
+                                <div className="border-r border-black py-1 text-center">Entrada 01</div>
+                                <div className="border-r border-black py-1 text-center">Entrada 02</div>
+                                <div className="border-r border-black py-1 text-center">Soros 01</div>
+                                <div className="py-1 text-center">Soros 02</div>
                             </div>
-                            <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-orange-50 p-2 border-r border-black text-orange-800">Entrada 02</div>
-                                <div className="w-1/2 bg-white"><input type="number" value={cycle1.e2} onChange={e => setCycle1({...cycle1, e2: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
-                            </div>
-                            <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-emerald-50 p-2 border-r border-black text-emerald-800 flex items-center justify-between">
-                                    <span>Entrada 03</span>
-                                    <span className="text-[8px] bg-emerald-200 px-1 rounded font-black uppercase">Soros</span>
+                            <div className="grid grid-cols-4 bg-white border-b border-black">
+                                <div className="border-r border-black">
+                                    <input type="number" value={cycle1.e1} onChange={e => setCycle1({...cycle1, e1: Number(e.target.value)})} className="w-full h-8 outline-none text-center text-[10px] font-black" />
                                 </div>
-                                <div className="w-1/2 bg-white"><input type="number" value={cycle1.s1} onChange={e => setCycle1({...cycle1, s1: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
-                            </div>
-                            <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-emerald-50 p-2 border-r border-black text-emerald-800 flex items-center justify-between">
-                                    <span>Entrada 04</span>
-                                    <span className="text-[8px] bg-emerald-200 px-1 rounded font-black uppercase">Soros</span>
+                                <div className="border-r border-black">
+                                    <input type="number" value={cycle1.e2} onChange={e => setCycle1({...cycle1, e2: Number(e.target.value)})} className="w-full h-8 outline-none text-center text-[10px] font-black" />
                                 </div>
-                                <div className="w-1/2 bg-white"><input type="number" value={cycle1.s2} onChange={e => setCycle1({...cycle1, s2: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
-                            </div>
-                            <div className="flex bg-orange-100">
-                                <div className="w-1/2 p-2 border-r border-black uppercase text-[9px] font-black text-orange-900">Lucro / Prejuízo</div>
-                                <div className={`w-1/2 text-center py-2 font-black ${cycle1Profit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{currencySymbol} {formatMoney(cycle1Profit)}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* SESSÃO 02 */}
-                    <div className="space-y-1">
-                        <div className="bg-orange-500 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Sessão 02</div>
-                        <div className="border border-black text-[10px] font-bold rounded-b-lg overflow-hidden">
-                            <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-orange-50 p-2 border-r border-black text-orange-800">Entrada 01</div>
-                                <div className="w-1/2 bg-white"><input type="number" value={cycle2.e1} onChange={e => setCycle2({...cycle2, e1: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
-                            </div>
-                            <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-orange-50 p-2 border-r border-black text-orange-800">Entrada 02</div>
-                                <div className="w-1/2 bg-white"><input type="number" value={cycle2.e2} onChange={e => setCycle2({...cycle2, e2: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
-                            </div>
-                            <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-emerald-50 p-2 border-r border-black text-emerald-800 flex items-center justify-between">
-                                    <span>Entrada 03</span>
-                                    <span className="text-[8px] bg-emerald-200 px-1 rounded font-black uppercase">Soros</span>
+                                <div className="border-r border-black">
+                                    <input type="number" value={cycle1.s1} onChange={e => setCycle1({...cycle1, s1: Number(e.target.value)})} className="w-full h-8 outline-none text-center text-[10px] font-black" />
                                 </div>
-                                <div className="w-1/2 bg-white"><input type="number" value={cycle2.s1} onChange={e => setCycle2({...cycle2, s1: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
-                            </div>
-                            <div className="flex border-b border-black">
-                                <div className="w-1/2 bg-emerald-50 p-2 border-r border-black text-emerald-800 flex items-center justify-between">
-                                    <span>Entrada 04</span>
-                                    <span className="text-[8px] bg-emerald-200 px-1 rounded font-black uppercase">Soros</span>
+                                <div>
+                                    <input type="number" value={cycle1.s2} onChange={e => setCycle1({...cycle1, s2: Number(e.target.value)})} className="w-full h-8 outline-none text-center text-[10px] font-black" />
                                 </div>
-                                <div className="w-1/2 bg-white"><input type="number" value={cycle2.s2} onChange={e => setCycle2({...cycle2, s2: Number(e.target.value)})} className="w-full h-full outline-none px-2 text-black font-black" /></div>
                             </div>
-                            <div className="flex bg-orange-100">
-                                <div className="w-1/2 p-2 border-r border-black uppercase text-[9px] font-black text-orange-900">Lucro / Prejuízo</div>
-                                <div className={`w-1/2 text-center py-2 font-black ${cycle2Profit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{currencySymbol} {formatMoney(cycle2Profit)}</div>
+                            <div className="bg-orange-100 flex items-center justify-between px-3 py-2">
+                                <span className="uppercase text-[9px] font-black text-orange-900">Resultado Sessão</span>
+                                <span className={`text-xs font-black ${cycle1Profit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                                    {currencySymbol} {formatMoney(cycle1Profit)}
+                                </span>
                             </div>
                         </div>
                     </div>
