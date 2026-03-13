@@ -2026,7 +2026,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
     const [bank, setBank] = useState(1000);
     const [stopPercent, setStopPercent] = useState(10);
     const [exchangeRate, setExchangeRate] = useState(5.0);
-    const [cycle1, setCycle1] = useState({ e1: 0, e2: 0, s1: 0, s2: 0 });
+    const [sessionEntries, setSessionEntries] = useState<number[]>([0]);
     const [deposits, setDeposits] = useState<any[]>(Array(10).fill({ date: '', value: 0 }));
     const [withdrawals, setWithdrawals] = useState<any[]>(Array(10).fill({ date: '', value: 0 }));
 
@@ -2086,7 +2086,18 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
         setBank(savedBank ? Number(savedBank) : (activeBrokerage?.initialBalance || 1000));
         setStopPercent(savedStop ? Number(savedStop) : 10);
         setExchangeRate(savedExchange ? Number(savedExchange) : 5.0);
-        setCycle1(savedCycle1 ? JSON.parse(savedCycle1) : { e1: 0, e2: 0, s1: 0, s2: 0 });
+        
+        if (savedCycle1) {
+            const parsed = JSON.parse(savedCycle1);
+            if (Array.isArray(parsed)) {
+                setSessionEntries(parsed);
+            } else {
+                setSessionEntries([parsed.e1 || 0, parsed.e2 || 0, parsed.s1 || 0, parsed.s2 || 0]);
+            }
+        } else {
+            setSessionEntries([0]);
+        }
+
         setDeposits(savedDeposits ? JSON.parse(savedDeposits) : Array(10).fill({ date: '', value: 0 }));
         setWithdrawals(savedWithdrawals ? JSON.parse(savedWithdrawals) : Array(10).fill({ date: '', value: 0 }));
     }, [activeBrokerage?.id, selectedMonth]);
@@ -2117,36 +2128,14 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
         // If it's a new day (no trades yet), reset the bank to yesterday's closing balance
         if (!todayRecord) {
             setBank(yesterdayBalance);
-            setCycle1({ e1: 0, e2: 0, s1: 0, s2: 0 });
+            setSessionEntries([0]);
         }
 
         const trades = todayRecord?.trades || [];
-        const firstTrade = trades[0];
-        const secondTrade = trades[1];
-        const thirdTrade = trades[2];
-        const fourthTrade = trades[3];
-
-        setCycle1(prev => {
-            const next = { ...prev, e1: 0, e2: 0, s1: 0, s2: 0 };
-            if (firstTrade) {
-                next.e1 = firstTrade.entryValue;
-                if (secondTrade) {
-                    // Heuristic: if 2nd trade > 1st, it's likely a Soros (S1)
-                    if (secondTrade.entryValue > firstTrade.entryValue) {
-                        next.s1 = secondTrade.entryValue;
-                        if (thirdTrade) next.e2 = thirdTrade.entryValue;
-                        if (fourthTrade) next.s2 = fourthTrade.entryValue;
-                    } else {
-                        next.e2 = secondTrade.entryValue;
-                        if (thirdTrade) {
-                            if (thirdTrade.entryValue > secondTrade.entryValue) next.s1 = thirdTrade.entryValue;
-                            else if (fourthTrade) next.s2 = fourthTrade.entryValue;
-                        }
-                    }
-                }
-            }
-            // Check all fields to ensure we don't skip an update when a trade is deleted
-            if (prev.e1 === next.e1 && prev.e2 === next.e2 && prev.s1 === next.s1 && prev.s2 === next.s2) return prev;
+        setSessionEntries(prev => {
+            const next = trades.map((t: any) => t.entryValue);
+            if (next.length === 0) return [0];
+            if (next[next.length - 1] !== 0) return [...next, 0];
             return next;
         });
 
@@ -2213,10 +2202,10 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
         localStorage.setItem(getStorageKey('bank'), bank.toString());
         localStorage.setItem(getStorageKey('stop'), stopPercent.toString());
         localStorage.setItem(getStorageKey('exchange'), exchangeRate.toString());
-        localStorage.setItem(getStorageKey('cycle1'), JSON.stringify(cycle1));
+        localStorage.setItem(getStorageKey('cycle1'), JSON.stringify(sessionEntries));
         localStorage.setItem(getStorageKey('deposits'), JSON.stringify(deposits));
         localStorage.setItem(getStorageKey('withdrawals'), JSON.stringify(withdrawals));
-    }, [daysData, bank, stopPercent, exchangeRate, cycle1, deposits, withdrawals]);
+    }, [daysData, bank, stopPercent, exchangeRate, sessionEntries, deposits, withdrawals]);
 
     const updateDay = (id: number, field: string, value: any) => {
         setDaysData((prev: any[]) => prev.map((d: any) => d.id === id ? { ...d, [field]: value } : d));
@@ -2236,7 +2225,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
     const totalLosses = monthRecords.reduce((acc: number, r: any) => acc + (r.lossCount || 0), 0);
     const currentBank = bank + totalProfit;
 
-    const cycle1Profit = (Number(cycle1.e1) || 0) + (Number(cycle1.e2) || 0) + (Number(cycle1.s1) || 0) + (Number(cycle1.s2) || 0);
+    const sessionProfit = sessionEntries.reduce((acc: number, val: number) => acc + (Number(val) || 0), 0);
 
     const totalDeposits = deposits.reduce((acc: number, d: any) => acc + (Number(d.value) || 0), 0);
     const totalWithdrawals = withdrawals.reduce((acc: number, d: any) => acc + (Number(d.value) || 0), 0);
@@ -2385,30 +2374,33 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     <div className="space-y-1">
                         <div className="bg-orange-500 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Sessão</div>
                         <div className="border-x border-b border-black rounded-b-lg overflow-hidden shadow-sm">
-                            <div className="grid grid-cols-4 bg-orange-50 text-[8px] font-black uppercase text-orange-800 border-b border-black">
-                                <div className="border-r border-black py-1 text-center">Entrada 01</div>
-                                <div className="border-r border-black py-1 text-center">Entrada 02</div>
-                                <div className="border-r border-black py-1 text-center">Soros 01</div>
-                                <div className="py-1 text-center">Soros 02</div>
-                            </div>
-                            <div className="grid grid-cols-4 bg-white border-b border-black">
-                                <div className="border-r border-black">
-                                    <input type="number" value={cycle1.e1} onChange={e => setCycle1({...cycle1, e1: Number(e.target.value)})} className="w-full h-8 outline-none text-center text-[10px] font-black" />
-                                </div>
-                                <div className="border-r border-black">
-                                    <input type="number" value={cycle1.e2} onChange={e => setCycle1({...cycle1, e2: Number(e.target.value)})} className="w-full h-8 outline-none text-center text-[10px] font-black" />
-                                </div>
-                                <div className="border-r border-black">
-                                    <input type="number" value={cycle1.s1} onChange={e => setCycle1({...cycle1, s1: Number(e.target.value)})} className="w-full h-8 outline-none text-center text-[10px] font-black" />
-                                </div>
-                                <div>
-                                    <input type="number" value={cycle1.s2} onChange={e => setCycle1({...cycle1, s2: Number(e.target.value)})} className="w-full h-8 outline-none text-center text-[10px] font-black" />
-                                </div>
+                            <div className="flex overflow-x-auto custom-scrollbar bg-white border-b border-black">
+                                {sessionEntries.map((val, idx) => (
+                                    <div key={idx} className="min-w-[70px] flex-1 border-r border-black last:border-r-0">
+                                        <div className="bg-orange-50 text-[7px] font-black uppercase text-orange-800 border-b border-black py-1 text-center whitespace-nowrap px-1">
+                                            Entrada {String(idx + 1).padStart(2, '0')}
+                                        </div>
+                                        <input 
+                                            type="number" 
+                                            value={val || ''} 
+                                            onChange={e => {
+                                                const newVal = Number(e.target.value);
+                                                const newEntries = [...sessionEntries];
+                                                newEntries[idx] = newVal;
+                                                if (idx === sessionEntries.length - 1 && newVal !== 0) {
+                                                    newEntries.push(0);
+                                                }
+                                                setSessionEntries(newEntries);
+                                            }} 
+                                            className="w-full h-8 outline-none text-center text-[10px] font-black" 
+                                        />
+                                    </div>
+                                ))}
                             </div>
                             <div className="bg-orange-100 flex items-center justify-between px-3 py-2">
                                 <span className="uppercase text-[9px] font-black text-orange-900">Resultado Sessão</span>
-                                <span className={`text-xs font-black ${cycle1Profit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                                    {currencySymbol} {formatMoney(cycle1Profit)}
+                                <span className={`text-xs font-black ${sessionProfit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                                    {currencySymbol} {formatMoney(sessionProfit)}
                                 </span>
                             </div>
                         </div>
