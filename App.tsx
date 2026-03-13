@@ -167,6 +167,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             2. Identificar possíveis reversões ou figuras gráficas (padrões).
             3. Identificar suportes, resistências e zonas intermediárias.
             4. Recomendar operações a favor da tendência, priorizando rompimentos.
+            5. IDENTIFICAR O TEMPO RESTANTE DA VELA ATUAL (CANDLE TIMER).
 
             Retorne um JSON com:
             1. asset: Par de moedas.
@@ -178,10 +179,10 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             7. precision: ALTA, MEDIA ou BAIXA.
             8. volume: ALTO, MEDIO ou BAIXO.
             9. timeframe: M1, M5, etc.
-            10. entryTime: Horário sugerido de entrada (ex: ${timeString}).`;
+            10. candleRemainingSeconds: Segundos restantes na vela atual (número).`;
 
             const config = {
-                systemInstruction: "Você é um analista sênior de Price Action especializado em Opções Binárias. Sua metodologia foca em identificar tendências, figuras gráficas, zonas de suporte/resistência e operar a favor da tendência com foco em rompimentos. Retorne APENAS JSON.",
+                systemInstruction: "Você é um analista sênior de Price Action especializado em Opções Binárias. Sua metodologia foca em identificar tendências, figuras gráficas, zonas de suporte/resistência e operar a favor da tendência com foco em rompimentos. Identifique o tempo restante da vela no gráfico. Retorne APENAS JSON.",
                 temperature: 0.2,
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -196,9 +197,9 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                         precision: { type: Type.STRING },
                         volume: { type: Type.STRING },
                         timeframe: { type: Type.STRING },
-                        entryTime: { type: Type.STRING }
+                        candleRemainingSeconds: { type: Type.NUMBER }
                     },
-                    required: ['asset', 'recommendation', 'confidence', 'reasoning', 'expiration', 'trend', 'precision', 'volume', 'timeframe', 'entryTime']
+                    required: ['asset', 'recommendation', 'confidence', 'reasoning', 'expiration', 'trend', 'precision', 'volume', 'timeframe', 'candleRemainingSeconds']
                 }
             };
 
@@ -221,6 +222,17 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             if (!response.text) throw new Error("Resposta inválida da IA.");
             
             const result = JSON.parse(response.text.trim());
+            
+            // Calculate entry time based on user rules
+            const entryDate = new Date(now);
+            if (result.candleRemainingSeconds <= 30) {
+                entryDate.setMinutes(now.getMinutes() + 2);
+            } else {
+                entryDate.setMinutes(now.getMinutes() + 1);
+            }
+            entryDate.setSeconds(0, 0);
+            result.entryTime = entryDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
             setProgress(p => ({ ...p, result: 100 }));
             await new Promise(r => setTimeout(r, 500));
             setAnalysisResult(result);
@@ -234,6 +246,34 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             setIsAnalyzing(false);
         }
     };
+
+    const [countdown, setCountdown] = useState<number | null>(null);
+
+    useEffect(() => {
+        let timer: any;
+        if (analysisResult && analysisResult.recommendation !== 'AGUARDAR') {
+            timer = setInterval(() => {
+                const now = new Date();
+                const [hour, minute] = analysisResult.entryTime.split(':').map(Number);
+                const target = new Date();
+                target.setHours(hour, minute, 0, 0);
+                
+                if (target.getTime() < now.getTime() - 30000) {
+                    target.setDate(target.getDate() + 1);
+                }
+                
+                const diff = Math.floor((target.getTime() - now.getTime()) / 1000);
+                if (diff > 0) {
+                    setCountdown(diff);
+                } else {
+                    setCountdown(null);
+                }
+            }, 1000);
+        } else {
+            setCountdown(null);
+        }
+        return () => clearInterval(timer);
+    }, [analysisResult]);
 
     if (isAnalyzing) {
         return (
@@ -328,11 +368,11 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     <div className="flex items-center justify-center gap-2">
                         <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
                         <h4 className="text-4xl font-black text-blue-500 tracking-tighter uppercase">
-                            {analysisResult.recommendation === 'AGUARDAR' ? 'AGUARDE' : 'ENTRE AGORA'}
+                            {analysisResult.recommendation === 'AGUARDAR' ? 'AGUARDE' : (countdown !== null ? `ENTRADA EM ${countdown}s` : 'ENTRE AGORA')}
                         </h4>
                     </div>
                     <p className="text-xs font-bold text-blue-400/60">
-                        {analysisResult.recommendation === 'AGUARDAR' ? 'Aguardando melhor momento...' : 'Momento ideal para entrar!'}
+                        {analysisResult.recommendation === 'AGUARDAR' ? 'Aguardando melhor momento...' : (countdown !== null ? 'Prepare sua entrada...' : 'Momento ideal para entrar!')}
                     </p>
                     <p className="text-[10px] font-bold text-slate-500 mt-2">Entrar às <span className="text-white">{analysisResult.entryTime}</span></p>
                 </div>
@@ -2354,9 +2394,9 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                         </div>
                     </div>
 
-                    {/* GESTÃO DE ENTRADAS CICLO 01 */}
+                    {/* SESSÃO 01 */}
                     <div className="space-y-1">
-                        <div className="bg-orange-500 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Gestão de Entradas Ciclo 01</div>
+                        <div className="bg-orange-500 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Sessão 01</div>
                         <div className="border border-black text-[10px] font-bold rounded-b-lg overflow-hidden">
                             <div className="flex border-b border-black">
                                 <div className="w-1/2 bg-orange-50 p-2 border-r border-black text-orange-800">Entrada 01</div>
@@ -2387,9 +2427,9 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                         </div>
                     </div>
 
-                    {/* GESTÃO DE ENTRADAS CICLO 02 */}
+                    {/* SESSÃO 02 */}
                     <div className="space-y-1">
-                        <div className="bg-orange-500 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Gestão de Entradas Ciclo 02</div>
+                        <div className="bg-orange-500 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Sessão 02</div>
                         <div className="border border-black text-[10px] font-bold rounded-b-lg overflow-hidden">
                             <div className="flex border-b border-black">
                                 <div className="w-1/2 bg-orange-50 p-2 border-r border-black text-orange-800">Entrada 01</div>
@@ -2421,62 +2461,8 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     </div>
                 </div>
 
-                {/* CICLOS WIN/LOSS */}
-                <div className="col-span-3 grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                        <div className="bg-slate-800 text-white font-black text-center py-1.5 uppercase text-[9px] border border-black rounded-t-lg">Primeiro Ciclo</div>
-                        <div className="grid grid-cols-2 border border-black text-[8px] font-black uppercase text-center bg-slate-200 text-black">
-                            <div className="border-r border-black py-1">Win</div>
-                            <div className="py-1">Loss</div>
-                        </div>
-                        <div className="max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
-                            {daysData.map((d: any) => (
-                                <div key={d.id} className="grid grid-cols-2 border-x border-b border-black h-6">
-                                    <div 
-                                        onClick={() => updateDay(d.id, 'winCycle1', !d.winCycle1)}
-                                        className={`border-r border-black cursor-pointer transition-all flex items-center justify-center ${d.winCycle1 ? 'bg-emerald-500' : 'bg-white hover:bg-emerald-50'}`}
-                                    >
-                                        {d.winCycle1 && <CheckIcon className="w-4 h-4 text-white" />}
-                                    </div>
-                                    <div 
-                                        onClick={() => updateDay(d.id, 'lossCycle1', !d.lossCycle1)}
-                                        className={`cursor-pointer transition-all flex items-center justify-center ${d.lossCycle1 ? 'bg-red-500' : 'bg-white hover:bg-red-50'}`}
-                                    >
-                                        {d.lossCycle1 && <div className="w-3 h-0.5 bg-white rounded-full" />}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="space-y-1">
-                        <div className="bg-slate-800 text-white font-black text-center py-1.5 uppercase text-[9px] border border-black rounded-t-lg">Segundo Ciclo</div>
-                        <div className="grid grid-cols-2 border border-black text-[8px] font-black uppercase text-center bg-slate-200 text-black">
-                            <div className="border-r border-black py-1">Win</div>
-                            <div className="py-1">Loss</div>
-                        </div>
-                        <div className="max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
-                            {daysData.map((d: any) => (
-                                <div key={d.id} className="grid grid-cols-2 border-x border-b border-black h-6">
-                                    <div 
-                                        onClick={() => updateDay(d.id, 'winCycle2', !d.winCycle2)}
-                                        className={`border-r border-black cursor-pointer transition-all flex items-center justify-center ${d.winCycle2 ? 'bg-emerald-500' : 'bg-white hover:bg-emerald-50'}`}
-                                    >
-                                        {d.winCycle2 && <CheckIcon className="w-4 h-4 text-white" />}
-                                    </div>
-                                    <div 
-                                        onClick={() => updateDay(d.id, 'lossCycle2', !d.lossCycle2)}
-                                        className={`cursor-pointer transition-all flex items-center justify-center ${d.lossCycle2 ? 'bg-red-500' : 'bg-white hover:bg-red-50'}`}
-                                    >
-                                        {d.lossCycle2 && <div className="w-3 h-0.5 bg-white rounded-full" />}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
                 {/* RIGHT COLUMN */}
-                <div className="col-span-3 space-y-4">
+                <div className="col-span-6 space-y-4">
                     {/* PLACAR MENSAL */}
                     <div className="space-y-1">
                         <div className="bg-slate-800 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Gestão de Placar Mensal</div>
@@ -2499,14 +2485,6 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                             <span className={`text-3xl font-black ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                 {totalProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(totalProfit)}
                             </span>
-                        </div>
-                    </div>
-
-                    {/* RELOGIO */}
-                    <div className="space-y-1">
-                        <div className="bg-blue-600 text-black font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Relógio Operacional</div>
-                        <div className="bg-blue-50 text-blue-800 border border-black h-20 flex items-center justify-center font-black text-2xl rounded-b-lg shadow-sm">
-                            {new Date().toLocaleTimeString('pt-BR')}
                         </div>
                     </div>
 
@@ -2544,9 +2522,9 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                     </div>
                                 ))}
                             </div>
-                            <div className="flex bg-emerald-50 border border-black text-[9px] font-black p-2 rounded-b-lg">
-                                <div className="flex-1 text-emerald-900">Total</div>
-                                <div className="text-emerald-700">{currencySymbol} {formatMoney(totalDeposits)}</div>
+                            <div className="flex flex-col bg-emerald-50 border border-black text-[9px] font-black p-2 rounded-b-lg text-center">
+                                <div className="text-emerald-900 uppercase tracking-tighter">Total</div>
+                                <div className="text-emerald-700 text-xs">{currencySymbol} {formatMoney(totalDeposits)}</div>
                             </div>
                         </div>
                         <div className="space-y-1">
@@ -2581,9 +2559,9 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                     </div>
                                 ))}
                             </div>
-                            <div className="flex bg-red-50 border border-black text-[9px] font-black p-2 rounded-b-lg">
-                                <div className="flex-1 text-red-900">Total</div>
-                                <div className="text-red-700">{currencySymbol} {formatMoney(totalWithdrawals)}</div>
+                            <div className="flex flex-col bg-red-50 border border-black text-[9px] font-black p-2 rounded-b-lg text-center">
+                                <div className="text-red-900 uppercase tracking-tighter">Total</div>
+                                <div className="text-red-700 text-xs">{currencySymbol} {formatMoney(totalWithdrawals)}</div>
                             </div>
                         </div>
                     </div>

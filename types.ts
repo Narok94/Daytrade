@@ -66,6 +66,7 @@ export interface AIAnalysisResult {
     volume: string;
     timeframe: string;
     entryTime: string;
+    candleRemainingSeconds: number;
 }
 
 export type AppRecord = DailyRecord | TransactionRecord;
