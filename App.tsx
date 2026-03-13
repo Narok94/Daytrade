@@ -82,21 +82,21 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 5, initialDelay =
 
 const useThemeClasses = (isDarkMode: boolean) => {
     return useMemo(() => ({
-        bg: isDarkMode ? 'bg-slate-950' : 'bg-slate-50',
-        text: isDarkMode ? 'text-slate-50' : 'text-slate-900',
-        textMuted: isDarkMode ? 'text-slate-400' : 'text-slate-500',
-        card: isDarkMode ? 'bg-slate-900/40 border-slate-800/50 backdrop-blur-sm' : 'bg-white border-slate-200 shadow-sm',
-        input: isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-700' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400',
-        border: isDarkMode ? 'border-slate-800' : 'border-slate-200',
-        sidebar: isDarkMode ? 'bg-slate-950 border-r border-slate-800' : 'bg-white border-r border-slate-200',
-        header: isDarkMode ? 'bg-slate-950/80 backdrop-blur-md' : 'bg-white/80 backdrop-blur-md',
-        navActive: isDarkMode ? 'bg-indigo-500/10 text-indigo-400' : 'bg-indigo-50 text-indigo-600',
-        navInactive: isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50',
+        bg: isDarkMode ? 'bg-slate-950' : 'bg-zinc-100',
+        text: isDarkMode ? 'text-slate-50' : 'text-zinc-900',
+        textMuted: isDarkMode ? 'text-slate-400' : 'text-zinc-500',
+        card: isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-zinc-50 border-zinc-200 shadow-sm',
+        input: isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-700' : 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400',
+        border: isDarkMode ? 'border-slate-800' : 'border-zinc-200',
+        sidebar: isDarkMode ? 'bg-slate-950 border-r border-slate-800' : 'bg-zinc-50 border-r border-zinc-200',
+        header: isDarkMode ? 'bg-slate-950' : 'bg-zinc-50',
+        navActive: isDarkMode ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-600',
+        navInactive: isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50',
     }), [isDarkMode]);
 };
 
-// --- AI Analysis Panel (Sniper Assertivo v5) ---
-const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
+// --- AI Analysis Panel (Advanced Analysis v2) ---
+const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDate, activeBrokerage }) => {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult | null>(null);
@@ -108,6 +108,11 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         patterns: 0,
         result: 0
     });
+
+    const dateStr = getLocalDateString(selectedDate);
+    const dailyRecord = records.find((r: any) => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.id === dateStr);
+    const trades = dailyRecord?.trades || [];
+    const netProfit = dailyRecord?.netProfitUSD || 0;
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -129,7 +134,6 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         setError(null);
         setShowDetailed(false);
         
-        // Simulate progress for UI
         const simulateProgress = async () => {
             setProgress(p => ({ ...p, upload: 100 }));
             await new Promise(r => setTimeout(r, 800));
@@ -148,10 +152,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
 
         try {
             const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
-            
-            if (!apiKey) {
-                throw new Error("Chave de API não encontrada. Configure a GEMINI_API_KEY.");
-            }
+            if (!apiKey) throw new Error("Chave de API não encontrada.");
 
             const ai = new GoogleGenAI({ apiKey });
             const compressed = await compressImage(selectedImage, 1000);
@@ -211,7 +212,6 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                     config
                 }));
             } catch (flashErr) {
-                console.warn("Flash model failed, trying Pro model...", flashErr);
                 response = await withRetry(() => ai.models.generateContent({
                     model: 'gemini-3.1-pro-preview',
                     contents: { parts: [{ inlineData: { mimeType: 'image/jpeg', data: base64Data } }, { text: prompt }] },
@@ -220,10 +220,8 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             }
 
             if (!response.text) throw new Error("Resposta inválida da IA.");
-            
             const result = JSON.parse(response.text.trim());
             
-            // Calculate entry time based on user rules
             const entryDate = new Date(now);
             if (result.candleRemainingSeconds <= 30) {
                 entryDate.setMinutes(now.getMinutes() + 2);
@@ -238,10 +236,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
             setAnalysisResult(result);
         } catch (err: any) {
             console.error("AI Analysis Error:", err);
-            let userMessage = "Erro na análise. Tente novamente.";
-            if (err.message?.includes('429')) userMessage = "Muitas solicitações. Aguarde um momento.";
-            if (err.message?.includes('API key')) userMessage = "Erro na chave de API. Verifique as configurações.";
-            setError(userMessage);
+            setError("Erro na análise. Tente novamente.");
         } finally {
             setIsAnalyzing(false);
         }
@@ -257,17 +252,10 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
                 const [hour, minute] = analysisResult.entryTime.split(':').map(Number);
                 const target = new Date();
                 target.setHours(hour, minute, 0, 0);
-                
-                if (target.getTime() < now.getTime() - 30000) {
-                    target.setDate(target.getDate() + 1);
-                }
-                
+                if (target.getTime() < now.getTime() - 30000) target.setDate(target.getDate() + 1);
                 const diff = Math.floor((target.getTime() - now.getTime()) / 1000);
-                if (diff > 0) {
-                    setCountdown(diff);
-                } else {
-                    setCountdown(null);
-                }
+                if (diff > 0) setCountdown(diff);
+                else setCountdown(null);
             }, 1000);
         } else {
             setCountdown(null);
@@ -275,67 +263,67 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
         return () => clearInterval(timer);
     }, [analysisResult]);
 
+    // Session Table Component
+    const SessionTable = () => (
+        <div className="w-full overflow-hidden rounded-xl border-2 border-black shadow-lg mb-6">
+            <div className="bg-[#f97316] py-2 text-center border-b-2 border-black">
+                <span className="text-white font-black uppercase tracking-widest text-sm">Sessão</span>
+            </div>
+            <div className="bg-[#f5f5f0]">
+                {Array.from({ length: Math.max(6, trades.length) }).map((_, idx) => {
+                    const trade = trades[idx];
+                    const profit = trade ? (trade.result === 'win' ? trade.entryValue * (trade.payoutPercentage / 100) : -trade.entryValue) : null;
+                    return (
+                        <div key={idx} className="grid grid-cols-[1fr_2fr] border-b border-black/20 last:border-b-0">
+                            <div className="py-2 px-4 border-r border-black/20 text-[10px] font-black uppercase text-[#f97316] flex items-center justify-center">
+                                Entrada {String(idx + 1).padStart(2, '0')}
+                            </div>
+                            <div className="py-2 px-4 bg-white text-center font-black text-black flex items-center justify-center min-h-[40px]">
+                                {profit !== null ? formatMoney(profit).replace('R$', '').trim() : ''}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+            <div className="bg-[#f5f5f0] grid grid-cols-[1fr_1fr] border-t-2 border-black p-3">
+                <span className="text-[10px] font-black uppercase text-[#f97316]">Resultado Sessão</span>
+                <span className="text-right font-black text-[#065f46]">{formatMoney(netProfit)}</span>
+            </div>
+        </div>
+    );
+
     if (isAnalyzing) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[600px] p-6 space-y-12 bg-black text-white">
+            <div className="flex flex-col items-center justify-center min-h-[600px] p-6 space-y-12 bg-[#0a0a0a] text-white">
                 <div className="relative">
-                    <div className="w-24 h-24 rounded-full border-4 border-slate-800 flex items-center justify-center relative z-10 bg-black">
-                        <CpuChipIcon className="w-12 h-12 text-indigo-500 animate-pulse" />
+                    <div className="w-24 h-24 rounded-2xl border-2 border-orange-500/30 flex items-center justify-center relative z-10 bg-[#111]">
+                        <CpuChipIcon className="w-12 h-12 text-orange-500 animate-pulse" />
                     </div>
-                    <div className="absolute inset-0 border-4 border-indigo-500 rounded-full animate-ping opacity-20" />
-                    <div className="absolute -inset-4 border border-indigo-500/20 rounded-full animate-[spin_10s_linear_infinite]" />
+                    <div className="absolute inset-0 border-2 border-orange-500 rounded-2xl animate-ping opacity-20" />
                 </div>
 
-                <div className="text-center space-y-2">
-                    <h2 className="text-4xl font-black tracking-tighter">Analisando gráfico...</h2>
-                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Processando com inteligência artificial</p>
+                <div className="text-center space-y-1">
+                    <h2 className="text-3xl font-black tracking-tight text-orange-500">PROCESSANDO...</h2>
+                    <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px]">Análise Técnica Avançada</p>
                 </div>
 
-                <div className="w-full max-w-md space-y-6">
-                    <div className="space-y-2">
-                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                            <span className="flex items-center gap-2"><PhotoIcon className="w-4 h-4 text-indigo-400" /> Carregando Imagem</span>
-                            <span className="text-indigo-400">{progress.upload}%</span>
+                <div className="w-full max-w-xs space-y-4">
+                    {[
+                        { label: 'Imagem', val: progress.upload, color: 'bg-orange-500' },
+                        { label: 'Dados', val: progress.data, color: 'bg-orange-600' },
+                        { label: 'Padrões', val: progress.patterns, color: 'bg-orange-700' },
+                        { label: 'Final', val: progress.result, color: 'bg-orange-400' }
+                    ].map((p, i) => (
+                        <div key={i} className="space-y-1.5">
+                            <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-400">
+                                <span>{p.label}</span>
+                                <span>{p.val}%</span>
+                            </div>
+                            <div className="h-1 bg-slate-900 rounded-full overflow-hidden">
+                                <div className={`h-full ${p.color} transition-all duration-500`} style={{ width: `${p.val}%` }} />
+                            </div>
                         </div>
-                        <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
-                            <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${progress.upload}%` }} />
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                            <span className="flex items-center gap-2"><CpuChipIcon className="w-4 h-4 text-purple-400" /> Processando Dados</span>
-                            <span className="text-purple-400">{progress.data}%</span>
-                        </div>
-                        <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500" style={{ width: `${progress.data}%` }} />
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                            <span className="flex items-center gap-2"><SparklesIcon className="w-4 h-4 text-green-400" /> Analisando Padrões</span>
-                            <span className="text-green-400">{progress.patterns}%</span>
-                        </div>
-                        <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
-                            <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${progress.patterns}%` }} />
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                            <span className="flex items-center gap-2"><CheckCircleIcon className="w-4 h-4 text-orange-400" /> Gerando Resultado</span>
-                            <span className="text-orange-400">{progress.result}%</span>
-                        </div>
-                        <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
-                            <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${progress.result}%` }} />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="px-6 py-3 bg-slate-900/50 border border-slate-800 rounded-full flex items-center gap-3">
-                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
-                    <span className="text-xs font-bold text-slate-300">Processando dados...</span>
+                    ))}
                 </div>
             </div>
         );
@@ -343,176 +331,126 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode }) => {
 
     if (analysisResult) {
         return (
-            <div className="max-w-md mx-auto p-4 space-y-4 bg-black min-h-screen text-white">
-                <div className="flex items-center justify-between px-2">
-                    <h2 className="text-xl font-black">Resultado da Análise</h2>
-                    <button onClick={() => setAnalysisResult(null)} className="p-2 bg-slate-900 rounded-full"><XMarkIcon className="w-5 h-5" /></button>
+            <div className="max-w-md mx-auto p-4 space-y-6 bg-[#0a0a0a] min-h-screen text-white">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-orange-500 rounded-full" />
+                        <h2 className="text-lg font-black uppercase tracking-tight">Relatório IA</h2>
+                    </div>
+                    <button onClick={() => setAnalysisResult(null)} className="p-1.5 bg-slate-900 rounded-lg"><XMarkIcon className="w-4 h-4" /></button>
                 </div>
 
-                {/* Asset Card */}
-                <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-3xl flex items-center gap-4">
-                    <div className="w-12 h-12 bg-purple-600 rounded-2xl flex items-center justify-center">
-                        <ChartBarIcon className="w-6 h-6" />
+                <SessionTable />
+
+                {/* Main Signal Card */}
+                <div className="bg-[#111] border border-slate-800 rounded-2xl overflow-hidden">
+                    <div className="bg-orange-500 px-4 py-2 flex justify-between items-center">
+                        <span className="text-[10px] font-black uppercase text-white tracking-widest">{analysisResult.asset}</span>
+                        <span className="text-[10px] font-black uppercase text-white/80">{analysisResult.timeframe}</span>
                     </div>
-                    <div className="flex-1">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Sinal Gerado</p>
-                        <div className="flex items-center gap-2">
-                            <h3 className="text-xl font-black tracking-tight">{analysisResult.asset}</h3>
-                            <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-[8px] font-black rounded-md">IA</span>
+                    <div className="p-6 text-center space-y-4">
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Recomendação</p>
+                            <h3 className={`text-5xl font-black tracking-tighter ${
+                                analysisResult.recommendation === 'CALL' ? 'text-emerald-500' : 
+                                analysisResult.recommendation === 'PUT' ? 'text-rose-500' : 'text-slate-400'
+                            }`}>
+                                {analysisResult.recommendation === 'CALL' ? 'COMPRA' : analysisResult.recommendation === 'PUT' ? 'VENDA' : 'AGUARDAR'}
+                            </h3>
+                        </div>
+
+                        <div className="py-4 border-y border-slate-800/50">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Horário de Entrada</p>
+                            <p className="text-3xl font-black text-white">{analysisResult.entryTime}</p>
+                            {countdown !== null && (
+                                <p className="text-xs font-bold text-orange-500 mt-2 animate-pulse">ENTRE EM {countdown}s</p>
+                            )}
+                        </div>
+
+                        <div className="flex justify-around pt-2">
+                            <div className="text-center">
+                                <p className="text-[8px] font-black text-slate-500 uppercase">Confiança</p>
+                                <p className="text-lg font-black text-orange-500">{analysisResult.confidence}%</p>
+                            </div>
+                            <div className="text-center">
+                                <p className="text-[8px] font-black text-slate-500 uppercase">Tendência</p>
+                                <p className="text-lg font-black text-white">{analysisResult.trend}</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Timer Card */}
-                <div className="p-6 bg-slate-900/30 border border-indigo-500/20 rounded-3xl text-center space-y-1">
-                    <div className="flex items-center justify-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
-                        <h4 className="text-4xl font-black text-indigo-500 tracking-tighter uppercase">
-                            {analysisResult.recommendation === 'AGUARDAR' ? 'AGUARDE' : (countdown !== null ? `ENTRADA EM ${countdown}s` : 'ENTRE AGORA')}
-                        </h4>
-                    </div>
-                    <p className="text-xs font-bold text-indigo-400/60">
-                        {analysisResult.recommendation === 'AGUARDAR' ? 'Aguardando melhor momento...' : (countdown !== null ? 'Prepare sua entrada...' : 'Momento ideal para entrar!')}
-                    </p>
-                    <p className="text-[10px] font-bold text-slate-500 mt-2">Entrar às <span className="text-white">{analysisResult.entryTime}</span></p>
-                </div>
-
-                {/* Action Button */}
-                <button className={`w-full py-6 rounded-3xl flex items-center justify-center gap-3 shadow-2xl transition-transform active:scale-95 ${
-                    analysisResult.recommendation === 'CALL' ? 'bg-green-500 shadow-green-500/20' : 
-                    analysisResult.recommendation === 'PUT' ? 'bg-red-500 shadow-red-500/20' : 'bg-slate-800'
-                }`}>
-                    {analysisResult.recommendation === 'CALL' ? <ArrowUpIcon className="w-8 h-8" /> : <ArrowDownIcon className="w-8 h-8" />}
-                    <span className="text-2xl font-black tracking-widest">{analysisResult.recommendation === 'CALL' ? 'COMPRA' : analysisResult.recommendation === 'PUT' ? 'VENDA' : 'AGUARDAR'}</span>
-                </button>
-
-                {/* Confidence */}
-                <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-3xl space-y-3">
-                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                        <span>Confiança</span>
-                        <span>{analysisResult.confidence}%</span>
-                    </div>
-                    <div className="h-2.5 bg-slate-950 rounded-full overflow-hidden">
-                        <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${analysisResult.confidence}%` }} />
-                    </div>
-                </div>
-
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-3xl space-y-1">
-                        <div className="flex items-center gap-2 text-[8px] font-black text-green-500 uppercase">
-                            <ArrowUpIcon className="w-3 h-3" /> Tendência
-                        </div>
-                        <p className="text-sm font-black uppercase">{analysisResult.trend}</p>
-                    </div>
-                    <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-3xl space-y-1">
-                        <div className="flex items-center gap-2 text-[8px] font-black text-orange-500 uppercase">
-                            <ExclamationTriangleIcon className="w-3 h-3" /> Precisão
-                        </div>
-                        <p className="text-sm font-black uppercase">{analysisResult.precision}</p>
-                    </div>
-                    <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-3xl space-y-1">
-                        <div className="flex items-center gap-2 text-[8px] font-black text-yellow-500 uppercase">
-                            <BoltIcon className="w-3 h-3" /> Volume
-                        </div>
-                        <p className="text-sm font-black uppercase">{analysisResult.volume}</p>
-                    </div>
-                    <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-3xl space-y-1">
-                        <div className="flex items-center gap-2 text-[8px] font-black text-indigo-500 uppercase">
-                            <ClockIcon className="w-3 h-3" /> Time Frame
-                        </div>
-                        <p className="text-sm font-black uppercase">{analysisResult.timeframe}</p>
-                    </div>
-                </div>
-
-                {/* Detailed Analysis */}
-                <div className="border border-slate-800 rounded-3xl overflow-hidden">
+                {/* Details */}
+                <div className="space-y-3">
                     <button 
                         onClick={() => setShowDetailed(!showDetailed)}
-                        className="w-full p-4 flex items-center justify-between bg-slate-900/30 hover:bg-slate-900/50 transition-colors"
+                        className="w-full p-4 bg-[#111] border border-slate-800 rounded-xl flex items-center justify-between"
                     >
-                        <div className="flex items-center gap-3">
-                            <PlayIcon className="w-5 h-5 text-indigo-500" />
-                            <span className="text-xs font-black uppercase tracking-widest">Análise Detalhada</span>
-                        </div>
-                        <ChevronDownIcon className={`w-5 h-5 transition-transform ${showDetailed ? 'rotate-180' : ''}`} />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Justificativa Técnica</span>
+                        <ChevronDownIcon className={`w-4 h-4 transition-transform ${showDetailed ? 'rotate-180' : ''}`} />
                     </button>
                     {showDetailed && (
-                        <div className="p-5 bg-slate-950/50 text-xs font-medium text-slate-300 leading-relaxed">
+                        <div className="p-4 bg-slate-900/30 rounded-xl text-[11px] text-slate-400 leading-relaxed italic">
                             {analysisResult.reasoning}
                         </div>
                     )}
                 </div>
 
                 <button 
-                    onClick={() => {
-                        setAnalysisResult(null);
-                        setSelectedImage(null);
-                    }}
-                    className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 rounded-3xl flex items-center justify-center gap-3 font-black text-sm transition-colors"
+                    onClick={() => { setAnalysisResult(null); setSelectedImage(null); }}
+                    className="w-full py-4 bg-orange-600 hover:bg-orange-500 rounded-xl font-black text-xs uppercase tracking-widest transition-colors"
                 >
-                    <CameraIcon className="w-5 h-5" /> Nova Análise
+                    Nova Análise
                 </button>
             </div>
         );
     }
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-2xl mx-auto">
+        <div className="p-4 md:p-8 space-y-6 max-w-2xl mx-auto bg-[#0a0a0a] min-h-screen">
+            <SessionTable />
+
             {!selectedImage ? (
-                <div className="space-y-8">
-                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-[40px] p-12 bg-slate-950/20 space-y-6">
-                        <div className="w-24 h-24 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-500 shadow-2xl shadow-indigo-500/10">
-                            <CameraIcon className="w-12 h-12" />
+                <div className="space-y-6">
+                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl p-12 bg-[#111]/50 space-y-6">
+                        <div className="w-20 h-20 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500">
+                            <PhotoIcon className="w-10 h-10" />
                         </div>
-                        <div className="text-center space-y-2">
-                            <h3 className="text-2xl font-black tracking-tight">Enviar Gráfico</h3>
-                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Escolha como deseja enviar</p>
+                        <div className="text-center space-y-1">
+                            <h3 className="text-xl font-black uppercase tracking-tight">Análise de Gráfico</h3>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Envie um print do seu gráfico</p>
                         </div>
                         
-                        <div className="w-full space-y-3">
-                            <label className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 rounded-2xl flex items-center justify-center gap-3 font-black text-sm cursor-pointer transition-colors">
-                                <CameraIcon className="w-5 h-5" /> Tirar Foto
+                        <div className="w-full grid grid-cols-2 gap-3">
+                            <label className="py-4 bg-orange-600 hover:bg-orange-500 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase cursor-pointer transition-colors">
+                                <CameraIcon className="w-5 h-5" /> Câmera
                                 <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                             </label>
-                            <label className="w-full py-4 bg-slate-800 hover:bg-slate-700 rounded-2xl flex items-center justify-center gap-3 font-black text-sm cursor-pointer transition-colors">
-                                <PhotoIcon className="w-5 h-5" /> Escolher da Galeria
+                            <label className="py-4 bg-slate-800 hover:bg-slate-700 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase cursor-pointer transition-colors">
+                                <PhotoIcon className="w-5 h-5" /> Galeria
                                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                             </label>
                         </div>
-                        
-                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Ou arraste e solte o arquivo aqui</p>
                     </div>
-                    
-                    <button disabled className="w-full py-5 bg-indigo-600/20 text-indigo-500/50 rounded-3xl flex items-center justify-center gap-3 font-black text-lg cursor-not-allowed">
-                        <CpuChipIcon className="w-6 h-6" /> Analisar Gráfico
-                    </button>
                 </div>
             ) : (
                 <div className="space-y-6">
-                    <div className="relative aspect-video rounded-[40px] overflow-hidden border-2 border-indigo-500/30 shadow-2xl bg-black group">
+                    <div className="relative aspect-video rounded-2xl overflow-hidden border border-orange-500/30 bg-black">
                         <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
                         <button 
                             onClick={() => setSelectedImage(null)}
-                            className="absolute top-4 right-4 p-2 bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-red-500 transition-colors"
+                            className="absolute top-3 right-3 p-1.5 bg-black/60 backdrop-blur-md rounded-lg text-white hover:bg-red-500 transition-colors"
                         >
-                            <XMarkIcon className="w-5 h-5" />
+                            <XMarkIcon className="w-4 h-4" />
                         </button>
                     </div>
                     
                     <button 
                         onClick={runAIAnalysis}
-                        className="w-full py-6 bg-indigo-600 hover:bg-indigo-500 shadow-xl shadow-indigo-600/20 rounded-[35px] flex items-center justify-center gap-4 font-black text-xl transition-all active:scale-95"
+                        className="w-full py-5 bg-orange-600 hover:bg-orange-500 rounded-xl flex items-center justify-center gap-3 font-black text-sm uppercase tracking-widest transition-all active:scale-95"
                     >
-                        <CpuChipIcon className="w-8 h-8" /> Analisar Gráfico
+                        <CpuChipIcon className="w-6 h-6" /> Iniciar Análise
                     </button>
-
-                    {error && (
-                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-400 text-xs font-bold">
-                            <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0" />
-                            {error}
-                        </div>
-                    )}
                 </div>
             )}
         </div>
@@ -776,7 +714,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     }, [brokerages, records]);
 
     const theme = useThemeClasses(isDarkMode);
-    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>;
+    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" /></div>;
 
     const dateStr = getLocalDateString(selectedDate);
     const brokerageRecords = records.filter(r => r.brokerageId === activeBrokerage?.id);
@@ -849,67 +787,92 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         <div className={`flex h-screen overflow-hidden overflow-x-hidden ${theme.bg} ${theme.text}`}>
             {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
             <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
-                <div className={`h-24 flex-none flex items-center justify-center border-b ${theme.border} ${theme.header} relative overflow-hidden`}>
+                <div className={`h-20 flex-none flex items-center justify-center border-b ${theme.border} ${theme.header} relative overflow-hidden`}>
                     <div className="flex flex-col items-center relative z-10">
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                                <TrendingUpIcon className="w-5 h-5 text-white" />
-                            </div>
-                            <span className="font-black text-indigo-600 dark:text-indigo-400 text-2xl tracking-tighter">B-OPT</span>
-                        </div>
-                        <span className="text-[7px] font-black uppercase tracking-[0.4em] text-slate-400 mt-2">Professional Trading Suite</span>
+                        <span className="font-black italic text-teal-400 text-3xl tracking-tighter leading-none">HRK</span>
+                        <span className="text-[6px] font-black uppercase tracking-[0.3em] text-teal-500/40 mt-1">Binary Options Control</span>
+                    </div>
+                    {/* Subtle background decorations */}
+                    <div className="absolute right-4 bottom-2 flex items-end gap-[2px] opacity-10">
+                        <div className="w-[2px] h-3 bg-green-500" />
+                        <div className="w-[2px] h-5 bg-red-500" />
+                        <div className="w-[2px] h-4 bg-green-500" />
+                    </div>
+                    <div className="absolute left-4 top-2 flex items-start gap-[2px] opacity-10">
+                        <div className="w-[2px] h-4 bg-red-500" />
+                        <div className="w-[2px] h-2 bg-green-500" />
+                        <div className="w-[2px] h-3 bg-red-500" />
                     </div>
                 </div>
-                <nav className="flex-1 p-6 space-y-1.5 overflow-y-auto custom-scrollbar">
-                    <div className="px-4 py-3 mb-4 rounded-2xl bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Live Market</span>
+                <nav className="flex-1 p-4 space-y-1">
+                    <div className="px-4 py-2 mb-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-[0.2em] text-teal-500/40">
+                            <div className="w-1 h-1 rounded-full bg-teal-500" />
+                            Trading Mode: M1 / OTC
                         </div>
-                        <span className="px-1.5 py-0.5 rounded bg-indigo-500/10 text-[7px] font-black text-indigo-500 uppercase">Pro</span>
+                        <div className="px-1 py-0.5 rounded bg-teal-500/10 text-[6px] font-black text-teal-500/50 uppercase">Binary</div>
                     </div>
-                    <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
-                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
-                    <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Juros Compostos</button>
-                    <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Extrato</button>
-                    <button onClick={() => {setActiveTab('history'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all ${activeTab === 'history' ? theme.navActive : theme.navInactive}`}><ListBulletIcon className="w-5 h-5" />Histórico</button>
-                    <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
-                    <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
-                    <button onClick={() => {setActiveTab('management-sheet'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all ${activeTab === 'management-sheet' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Planilha Gestão</button>
-                    <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Configurações</button>
+                    <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
+                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
+                    <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Juros Compostos</button>
+                    <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Extrato</button>
+                    <button onClick={() => {setActiveTab('history'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'history' ? theme.navActive : theme.navInactive}`}><ListBulletIcon className="w-5 h-5" />Histórico</button>
+                    <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
+                    <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
+                    <button onClick={() => {setActiveTab('management-sheet'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'management-sheet' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Planilha Gestão</button>
+                    <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Configurações</button>
                 </nav>
-                <div className="p-6 border-t border-slate-200 dark:border-slate-800">
-                    <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3.5 text-rose-500 font-bold hover:bg-rose-500/10 rounded-2xl transition-all"><LogoutIcon className="w-5 h-5" />Sair</button>
+                <div className="p-4 border-t border-slate-800/50">
+                    <div className="flex items-center justify-between px-4 mb-4 opacity-20">
+                        <div className="flex items-center gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                            <span className="text-[7px] font-black uppercase tracking-widest">Call</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <span className="text-[7px] font-black uppercase tracking-widest">Put</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                        </div>
+                    </div>
+                    <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 font-bold hover:bg-red-500/10 rounded-2xl"><LogoutIcon className="w-5 h-5" />Sair</button>
                 </div>
             </aside>
             <main className="flex-1 flex flex-col overflow-hidden">
-                <header className={`h-24 flex-none flex items-center justify-between px-6 md:px-10 border-b ${theme.border} ${theme.header}`}>
-                    <div className="flex items-center gap-6">
-                        <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-500"><MenuIcon className="w-6 h-6" /></button>
-                        <div className="hidden lg:flex items-center gap-3 px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-black uppercase tracking-widest text-indigo-500">
-                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                            System: Operational
+                <header className={`h-20 flex-none flex items-center justify-between px-6 md:px-8 border-b ${theme.border} ${theme.header}`}>
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-6 h-6" /></button>
+                        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/30 border border-slate-800/50 text-[8px] font-black uppercase tracking-widest text-teal-400/60">
+                            <div className="w-1 h-1 rounded-full bg-teal-400 animate-pulse" />
+                            Market: Active
                         </div>
                         <SavingStatusIndicator status={savingStatus} />
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                            <span className="text-[10px] font-black uppercase text-slate-400">Brokerage</span>
+                        <div className="flex items-center gap-1 md:gap-2 ml-1 md:ml-4 max-w-[100px] md:max-w-none">
                             <select 
                                 value={activeBrokerageId || ''} 
                                 onChange={(e) => setActiveBrokerageId(e.target.value)}
-                                className={`text-xs font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 cursor-pointer truncate ${theme.text}`}
+                                className={`text-[9px] md:text-xs font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 cursor-pointer truncate ${theme.text}`}
                             >
                                 {brokerages.map(b => (
                                     <option key={b.id} value={b.id} className={isDarkMode ? 'bg-slate-900' : 'bg-white'}>{b.name}</option>
                                 ))}
                             </select>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-indigo-500 transition-all">
-                                {isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+                    </div>
+                    <div className="flex items-center gap-1 md:gap-3 overflow-hidden justify-end">
+                        <div className="flex items-center gap-1 md:gap-4 overflow-x-auto no-scrollbar py-1">
+                            {brokerageBalances.map((b, i) => (
+                                <div key={i} className={`flex flex-col items-end px-1.5 md:px-3 py-0.5 md:py-1 rounded-md md:rounded-xl border shrink-0 ${isDarkMode ? 'bg-slate-900/40 border-slate-800/50' : 'bg-zinc-200/50 border-zinc-300/50'}`}>
+                                    <span className="text-[5px] md:text-[8px] font-black uppercase opacity-40 leading-none">{b.name}</span>
+                                    <span className={`text-[8px] md:text-xs font-bold leading-tight ${b.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                        {b.currency === 'USD' ? '$' : 'R$'} {formatMoney(b.balance)}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-1 md:gap-3 shrink-0">
+                            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1 md:p-2 text-slate-400 hover:text-teal-400 transition-colors">
+                                {isDarkMode ? <SunIcon className="w-3.5 h-3.5 md:w-5 md:h-5" /> : <MoonIcon className="w-3.5 h-3.5 md:w-5 md:h-5" />}
                             </button>
-                            <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-black text-xs shadow-lg shadow-indigo-500/20">
+                            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-teal-500 flex items-center justify-center text-slate-950 font-black text-[9px] md:text-xs shadow-lg shadow-teal-500/20">
                                 {user.username.slice(0, 2).toUpperCase()}
                             </div>
                         </div>
@@ -938,7 +901,15 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             dailyGoalTarget={activeDailyGoal} 
                         />
                     )}
-                    {activeTab === 'ai-analysis' && <AIAnalysisPanel theme={theme} isDarkMode={isDarkMode} />}
+                    {activeTab === 'ai-analysis' && (
+                        <AIAnalysisPanel 
+                            theme={theme} 
+                            isDarkMode={isDarkMode} 
+                            records={records}
+                            selectedDate={selectedDate}
+                            activeBrokerage={activeBrokerage}
+                        />
+                    )}
                     {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
                     {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
                     {activeTab === 'history' && <HistoryPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} addBulkTrades={addBulkTrades} />}
@@ -1034,7 +1005,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     const kpis = [
         { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-green-500' },
         { label: 'Lucro Diário', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol} ${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-green-500' : 'text-red-500' },
-        { label: 'Meta Diária', val: `${currencySymbol}${formatMoney(dailyGoalTarget)}`, subVal: `${Math.min(100, dailyGoalPercent).toFixed(0)}% Alcançado`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-green-500' : 'text-indigo-400' },
+        { label: 'Meta Diária', val: `${currencySymbol}${formatMoney(dailyGoalTarget)}`, subVal: `${Math.min(100, dailyGoalPercent).toFixed(0)}% Alcançado`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-green-500' : 'text-blue-400' },
         { label: 'Win Rate', val: `${winRate}%`, icon: TrophyIcon, color: 'text-purple-400' },
     ];
 
@@ -1066,7 +1037,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                         <button 
                                             onClick={handleSoros}
                                             title="Calcular Soros (Última entrada + lucro)"
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[8px] font-black uppercase rounded-lg transition-all active:scale-95 shadow-sm"
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[8px] font-black uppercase rounded-lg transition-all active:scale-95 shadow-sm"
                                         >
                                             Soros
                                         </button>
@@ -1097,42 +1068,42 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                     </div>
 
                     <div className={`p-6 rounded-3xl border ${theme.card}`}>
-                        <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><ArrowPathIcon className="w-5 h-5 text-indigo-500" /> Movimentação de Banca</h3>
+                        <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><ArrowPathIcon className="w-5 h-5 text-blue-500" /> Movimentação de Banca</h3>
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Tipo</label>
-                                    <select value={transType} onChange={e => setTransType(e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-indigo-500 outline-none font-bold ${theme.input}`}>
+                                    <select value={transType} onChange={e => setTransType(e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-blue-500 outline-none font-bold ${theme.input}`}>
                                         <option value="deposit">Depósito</option>
                                         <option value="withdrawal">Saque</option>
                                     </select>
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor</label>
-                                    <input type="number" value={transAmount} onChange={e => setTransAmount(e.target.value)} placeholder="0.00" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-indigo-500 outline-none font-bold ${theme.input}`} />
+                                    <input type="number" value={transAmount} onChange={e => setTransAmount(e.target.value)} placeholder="0.00" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-blue-500 outline-none font-bold ${theme.input}`} />
                                 </div>
                             </div>
-                            <button onClick={handleTransaction} className="w-full h-12 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95">Confirmar Lançamento</button>
+                            <button onClick={handleTransaction} className="w-full h-12 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95">Confirmar Lançamento</button>
                         </div>
                     </div>
                 </div>
 
                 <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60 text-indigo-400"><ListBulletIcon className="w-5 h-5" /> Histórico do Dia</h3>
+                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60 text-blue-400"><ListBulletIcon className="w-5 h-5" /> Histórico do Dia</h3>
                     <div className="flex-1 overflow-y-auto max-h-[500px] pr-2 custom-scrollbar">
                         <div className="space-y-2">
                             {/* Transactions first */}
                             {transactionsForSelectedDay.map((trans: any) => (
-                                <div key={trans.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-indigo-950/20 border-indigo-800/30' : 'bg-indigo-50 border-indigo-200/50'}`}>
+                                <div key={trans.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-blue-950/20 border-blue-800/30' : 'bg-blue-50 border-blue-200/50'}`}>
                                     <div className="flex items-center gap-3">
-                                        <div className={`w-2 h-8 rounded-full ${trans.recordType === 'deposit' ? 'bg-indigo-500' : 'bg-orange-500'}`} />
+                                        <div className={`w-2 h-8 rounded-full ${trans.recordType === 'deposit' ? 'bg-blue-500' : 'bg-orange-500'}`} />
                                         <div>
                                             <p className="text-[10px] font-black uppercase text-slate-500 leading-none">{new Date(trans.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                                             <p className="text-sm font-bold">{trans.recordType === 'deposit' ? 'Depósito' : 'Saque'}</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className={`text-sm font-black ${trans.recordType === 'deposit' ? 'text-indigo-500' : 'text-orange-500'}`}>
+                                        <p className={`text-sm font-black ${trans.recordType === 'deposit' ? 'text-blue-500' : 'text-orange-500'}`}>
                                             {trans.recordType === 'deposit' ? '+' : '-'}{currencySymbol} {formatMoney(trans.amountUSD)}
                                         </p>
                                         <button onClick={() => deleteTransaction(trans.id)} className="text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button>
@@ -1328,7 +1299,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                     </td>
                                     <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
                                     <td className="py-4 px-3 opacity-60">{row.metaPercent}%</td>
-                                    <td className="py-4 px-3 font-black text-indigo-400">{currencySymbol} {formatMoney(row.targetProfit)}</td>
+                                    <td className="py-4 px-3 font-black text-blue-400">{currencySymbol} {formatMoney(row.targetProfit)}</td>
                                     <td className="py-4 px-3">
                                         <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' ? 'bg-green-500/20 text-green-500' : row.status === 'STOP-LOSS' ? 'bg-red-500/20 text-red-500' : 'bg-slate-500/20 text-slate-500'}`}>
                                             {row.status}
@@ -1422,7 +1393,7 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
         <div className={`p-1.5 md:p-3 rounded-xl border ${theme.card} w-full max-w-xl mx-auto`}>
             <div className="flex items-center justify-between mb-3">
                 <button onClick={prevMonth} className="p-1 hover:bg-slate-800/50 rounded-md transition-colors"><ChevronLeftIcon className="w-3.5 h-3.5" /></button>
-                <h3 className="text-xs md:text-sm font-black uppercase tracking-widest text-indigo-400">{monthName}</h3>
+                <h3 className="text-xs md:text-sm font-black uppercase tracking-widest text-teal-400">{monthName}</h3>
                 <button onClick={nextMonth} className="p-1 hover:bg-slate-800/50 rounded-md transition-colors"><ChevronRightIcon className="w-3.5 h-3.5" /></button>
             </div>
 
@@ -1438,7 +1409,7 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
                     const isToday = getLocalDateString() === dateId;
 
                     return (
-                        <div key={dateId} className={`aspect-square rounded-md md:rounded-lg border ${isDarkMode ? 'border-slate-800/50' : 'border-zinc-200'} flex flex-col items-center justify-center p-0.5 relative transition-all hover:scale-105 cursor-default ${isToday ? 'ring-1 ring-indigo-500/50' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-green-500/10' : 'bg-red-500/10') : ''}`}>
+                        <div key={dateId} className={`aspect-square rounded-md md:rounded-lg border ${isDarkMode ? 'border-slate-800/50' : 'border-zinc-200'} flex flex-col items-center justify-center p-0.5 relative transition-all hover:scale-105 cursor-default ${isToday ? 'ring-1 ring-teal-500/50' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-green-500/10' : 'bg-red-500/10') : ''}`}>
                             <span className="text-[8px] md:text-[10px] font-black opacity-40 mb-0.5">{day}</span>
                             {profit !== undefined && (
                                 <span className={`text-[5px] md:text-[8px] font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
@@ -1616,7 +1587,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                     </div>
                     <button 
                         onClick={() => setIsTextModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:opacity-50"
                     >
                         {isImporting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <DocumentTextIcon className="w-4 h-4" />}
                         {isImporting ? 'Processando...' : 'Importar Texto'}
@@ -1632,7 +1603,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                         <button
                             key={mode}
                             onClick={() => setViewMode(mode)}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${viewMode === mode ? 'bg-indigo-500 text-slate-950 shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${viewMode === mode ? 'bg-teal-500 text-slate-950 shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
                             {mode === 'calendar' ? 'Calendário' : mode === 'daily' ? 'Diário' : mode === 'weekly' ? 'Semanal' : 'Mensal'}
                         </button>
@@ -1702,7 +1673,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                             <div>
                                 <h3 className={`text-xl font-black ${theme.text}`}>Importar Histórico</h3>
                                 <p className={`text-xs ${theme.textMuted}`}>Cole o texto do seu histórico de operações abaixo.</p>
-                                <p className="text-[10px] text-indigo-500 font-bold mt-1 uppercase tracking-tighter">Dica: Se der erro de demanda, tente importar em partes menores.</p>
+                                <p className="text-[10px] text-teal-500 font-bold mt-1 uppercase tracking-tighter">Dica: Se der erro de demanda, tente importar em partes menores.</p>
                             </div>
                             <button onClick={() => setIsTextModalOpen(false)} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
                                 <TrashIcon className="w-5 h-5 text-slate-500" />
@@ -1732,7 +1703,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                             <button
                                 onClick={handleTextImport}
                                 disabled={isImporting || !importText.trim()}
-                                className="flex-1 py-4 bg-indigo-500 hover:bg-indigo-400 text-slate-950 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                className="flex-1 py-4 bg-teal-500 hover:bg-teal-400 text-slate-950 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-teal-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                             >
                                 {isImporting && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
                                 {isImporting ? (retryCount > 0 ? `Tentativa ${retryCount + 1}...` : 'Processando...') : 'Confirmar Importação'}
@@ -1878,7 +1849,7 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
                             <div className="h-12" />
                         )}
                     </div>
-                    <button onClick={addGoal} className="w-full h-12 bg-indigo-500 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest">Adicionar Meta</button>
+                    <button onClick={addGoal} className="w-full h-12 bg-teal-500 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest">Adicionar Meta</button>
                 </div>
                 
                 <div className="space-y-4">
@@ -1895,8 +1866,8 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
                                     <button onClick={() => deleteGoal(goal.id)} className="text-red-500/50 hover:text-red-500"><TrashIcon className="w-5 h-5" /></button>
                                 </div>
                                 <div className="space-y-2">
-                                    <div className="flex justify-between text-[10px] font-black uppercase"><span className="text-slate-500">{label}</span><span className={percentage >= 100 ? 'text-green-500' : 'text-indigo-400'}>{percentage.toFixed(1)}%</span></div>
-                                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden"><div className={`h-full transition-all duration-500 ${percentage >= 100 ? 'bg-green-500' : 'bg-indigo-500'}`} style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }} /></div>
+                                    <div className="flex justify-between text-[10px] font-black uppercase"><span className="text-slate-500">{label}</span><span className={percentage >= 100 ? 'text-green-500' : 'text-blue-400'}>{percentage.toFixed(1)}%</span></div>
+                                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden"><div className={`h-full transition-all duration-500 ${percentage >= 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }} /></div>
                                 </div>
                             </div>
                         );
@@ -1947,7 +1918,7 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                         onChange={e => setNewBrokerageName(e.target.value)}
                         className={`h-10 px-4 rounded-xl border text-xs font-bold outline-none ${theme.input}`}
                     />
-                    <button onClick={addNewBrokerage} className="h-10 px-4 bg-indigo-500 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest">Nova</button>
+                    <button onClick={addNewBrokerage} className="h-10 px-4 bg-teal-500 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest">Nova</button>
                 </div>
             </div>
             
@@ -1980,7 +1951,7 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                 <div className="flex flex-col md:flex-row gap-4">
                     <button onClick={onReset} className="flex-1 px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all">Limpar Histórico de Operações</button>
                     {trashCount > 0 && (
-                        <button onClick={onRestore} className="flex-1 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2">
+                        <button onClick={onRestore} className="flex-1 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2">
                             <ArrowPathIcon className="w-4 h-4" /> Restaurar da Lixeira ({trashCount})
                         </button>
                     )}
@@ -2087,10 +2058,10 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
 
     const yesterdayBalance = useMemo(() => {
         if (!records || !activeBrokerage) return activeBrokerage?.initialBalance || 0;
-        const selectedDateStr = getLocalDateString(selectedDate);
+        const todayStr = getLocalDateString();
         const pastRecords = records.filter((r: any) => 
             r.brokerageId === activeBrokerage.id && 
-            r.id < selectedDateStr
+            r.id < todayStr
         );
         const profit = pastRecords.reduce((sum: number, r: any) => {
             if (r.recordType === 'day') return sum + r.netProfitUSD;
@@ -2099,32 +2070,28 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
             return sum;
         }, 0);
         return (activeBrokerage?.initialBalance || 0) + profit;
-    }, [records, activeBrokerage?.id, selectedDate]);
+    }, [records, activeBrokerage?.id]);
 
     // Sync with App Records
     useEffect(() => {
         if (!records || !activeBrokerage) return;
 
-        const selectedDateStr = getLocalDateString(selectedDate);
         const todayStr = getLocalDateString();
-        const dayRecord = records.find((r: any) => r.recordType === 'day' && r.id === selectedDateStr && r.brokerageId === activeBrokerage.id);
+        const todayRecord = records.find((r: any) => r.recordType === 'day' && r.id === todayStr && r.brokerageId === activeBrokerage.id);
         
-        // If it's a day with no trades yet, reset the bank to its starting balance for that day
-        if (!dayRecord) {
+        // If it's a new day (no trades yet), reset the bank to yesterday's closing balance
+        if (!todayRecord) {
             setBank(yesterdayBalance);
             setSessionEntries([0]);
-        } else {
-            const trades = dayRecord.trades || [];
-            setSessionEntries(() => {
-                const next = trades.map((t: any) => {
-                    if (t.result === 'win') return t.entryValue * (t.payoutPercentage / 100);
-                    return -t.entryValue;
-                });
-                if (next.length === 0) return [0];
-                if (next[next.length - 1] !== 0) return [...next, 0];
-                return next;
-            });
         }
+
+        const trades = todayRecord?.trades || [];
+        setSessionEntries(prev => {
+            const next = trades.map((t: any) => t.entryValue);
+            if (next.length === 0) return [0];
+            if (next[next.length - 1] !== 0) return [...next, 0];
+            return next;
+        });
 
         setDaysData(prev => prev.map(day => {
             const [d, m] = day.date.split('/');
@@ -2180,7 +2147,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
             return newWits;
         });
 
-    }, [records, activeBrokerage?.id, selectedMonth, selectedDate]);
+    }, [records, activeBrokerage?.id, selectedMonth]);
 
     // Save data
     useEffect(() => {
@@ -2232,7 +2199,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
             <div className="flex items-center justify-between mb-4 bg-white p-4 rounded-2xl border border-black/10 shadow-sm">
                 <div>
                     <h2 className="text-xl font-black uppercase tracking-tighter text-black flex items-center gap-2">
-                        <DocumentTextIcon className="w-6 h-6 text-indigo-600" />
+                        <DocumentTextIcon className="w-6 h-6 text-blue-600" />
                         Planilha de Gerenciamento
                     </h2>
                     <p className="text-black/60 text-xs font-bold uppercase tracking-widest mt-1">
@@ -2246,7 +2213,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                             type="date" 
                             value={getLocalDateString(selectedDate)} 
                             onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))}
-                            className="bg-slate-100 border border-black/20 rounded-xl px-4 py-2 text-xs font-black uppercase outline-none focus:border-indigo-500 transition-all"
+                            className="bg-slate-100 border border-black/20 rounded-xl px-4 py-2 text-xs font-black uppercase outline-none focus:border-blue-500 transition-all"
                         />
                     </div>
                     <div className="flex flex-col">
@@ -2254,7 +2221,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                         <select 
                             value={selectedMonth}
                             onChange={(e) => setSelectedMonth(e.target.value)}
-                            className="bg-slate-100 border border-black/20 rounded-xl px-4 py-2 text-xs font-black uppercase outline-none focus:border-indigo-500 transition-all"
+                            className="bg-slate-100 border border-black/20 rounded-xl px-4 py-2 text-xs font-black uppercase outline-none focus:border-blue-500 transition-all"
                         >
                             {months.map(m => (
                                 <option key={m} value={m}>{m}</option>
@@ -2263,7 +2230,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     </div>
                     <button 
                         onClick={() => setSelectedDate(new Date())}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-indigo-500 transition-all shadow-sm mt-3"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-blue-500 transition-all shadow-sm mt-3"
                     >
                         Hoje
                     </button>
@@ -2289,20 +2256,20 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
 
             <div className="grid grid-cols-12 gap-2 w-full">
                 {/* GESTÃO MENSAL */}
-                <div className="col-span-5 space-y-3">
-                    <div className="bg-indigo-600 text-white font-black text-center py-2 uppercase text-xs rounded-xl shadow-sm">Gestão Mensal</div>
-                    <div className="grid grid-cols-5 gap-0 rounded-t-xl overflow-hidden border-x border-t border-slate-200 dark:border-slate-800 text-[9px] font-black uppercase text-center bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400">
-                        <div className="py-2 border-r border-slate-200 dark:border-slate-800">RF</div>
-                        <div className="py-2 border-r border-slate-200 dark:border-slate-800">Data</div>
-                        <div className="py-2 border-r border-slate-200 dark:border-slate-800">Payout</div>
-                        <div className="py-2 border-r border-slate-200 dark:border-slate-800">Entradas</div>
-                        <div className="py-2">Lucro/Prej</div>
+                <div className="col-span-5 space-y-1">
+                    <div className="bg-blue-600 text-white font-black text-center py-1.5 uppercase text-xs border border-black rounded-t-lg">Gestão Mensal</div>
+                    <div className="grid grid-cols-5 gap-0 border border-black text-[9px] font-black uppercase text-center bg-slate-800 text-white">
+                        <div className="border-r border-black py-1">RF</div>
+                        <div className="border-r border-black py-1">Data</div>
+                        <div className="border-r border-black py-1">Payout</div>
+                        <div className="border-r border-black py-1">Entradas</div>
+                        <div className="py-1">Lucro/Prej</div>
                     </div>
-                    <div className="max-h-[700px] overflow-y-auto border-x border-b border-slate-200 dark:border-slate-800 rounded-b-xl custom-scrollbar bg-white dark:bg-slate-950/20">
+                    <div className="max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
                         {daysData.map((d: any, idx: number) => (
-                            <div key={d.id} className={`grid grid-cols-5 gap-0 border-b border-slate-200 dark:border-slate-800 last:border-b-0 text-[10px] transition-colors hover:bg-indigo-50/30 dark:hover:bg-indigo-500/5 ${getLocalDateString(selectedDate).endsWith(String(d.id).padStart(2, '0')) ? 'bg-indigo-500/10' : ''}`}>
+                            <div key={d.id} className={`grid grid-cols-5 gap-0 border-x border-b border-black text-[10px] transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${getLocalDateString(selectedDate).endsWith(String(d.id).padStart(2, '0')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}>
                                 <div 
-                                    className={`border-r border-slate-200 dark:border-slate-800 font-bold text-center py-2 relative cursor-pointer transition-colors ${getLocalDateString(selectedDate).endsWith(String(d.id).padStart(2, '0')) ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+                                    className="border-r border-black bg-yellow-400 text-black font-bold text-center py-1 relative cursor-pointer hover:bg-yellow-500 transition-colors"
                                     onClick={() => {
                                         const [year, month] = selectedMonth.split('-');
                                         const newDate = new Date(Number(year), Number(month) - 1, d.id, 12, 0, 0);
@@ -2312,37 +2279,37 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                     {d.id}
                                     {d.hasSoros && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-emerald-500 rounded-bl-sm" title="Soros realizado" />}
                                 </div>
-                                <div className="border-r border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">
+                                <div className="border-r border-black text-black">
                                     <input 
                                         type="text" 
                                         value={d.date} 
                                         onChange={e => updateDay(d.id, 'date', e.target.value)}
-                                        className="w-full bg-transparent text-center outline-none font-medium py-2 focus:bg-indigo-500/5 transition-colors"
+                                        className="w-full bg-transparent text-center outline-none font-medium py-1 focus:bg-white transition-colors"
                                     />
                                 </div>
-                                <div className="border-r border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">
+                                <div className="border-r border-black bg-blue-50/30 text-black">
                                     <input 
                                         type="text" 
                                         value={d.payout + '%'} 
                                         onChange={e => updateDay(d.id, 'payout', e.target.value.replace('%', ''))}
-                                        className="w-full bg-transparent text-center outline-none py-2 focus:bg-indigo-500/5 transition-colors"
+                                        className="w-full bg-transparent text-center outline-none py-1 focus:bg-white transition-colors"
                                     />
                                 </div>
-                                <div className="border-r border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">
+                                <div className="border-r border-black bg-blue-100/20 text-black">
                                     <input 
                                         type="number" 
                                         value={d.tradeCount || 0} 
                                         readOnly
-                                        className="w-full bg-transparent text-center outline-none font-bold py-2"
+                                        className="w-full bg-transparent text-center outline-none font-bold py-1 focus:bg-white transition-colors"
                                     />
                                 </div>
-                                <div className={`text-center py-2 font-black transition-colors ${d.result > 0 ? 'text-emerald-500' : d.result < 0 ? 'text-rose-500' : 'text-slate-400'}`}>
+                                <div className={`text-center py-1 font-black transition-colors ${d.result > 0 ? 'bg-green-100/50 text-green-700' : d.result < 0 ? 'bg-red-100/50 text-red-700' : 'bg-slate-100/50 text-slate-400'}`}>
                                     <input 
                                         type="number" 
                                         step="0.01"
                                         value={d.result !== undefined && d.result !== '' ? Number(d.result).toFixed(2) : ''} 
                                         onChange={e => updateDay(d.id, 'result', e.target.value)}
-                                        className="w-full bg-transparent text-center outline-none py-0 focus:bg-indigo-500/5 transition-colors"
+                                        className="w-full bg-transparent text-center outline-none py-0 focus:bg-white/50 transition-colors"
                                     />
                                 </div>
                             </div>
@@ -2353,44 +2320,44 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                 {/* MIDDLE COLUMN */}
                 <div className="col-span-3 space-y-4">
                     {/* BANCA CARDS */}
-                    <div className="grid grid-cols-1 gap-3">
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm flex flex-col">
-                            <div className="bg-indigo-600 text-white font-black text-[9px] uppercase py-1.5 text-center">Banca Inicial</div>
-                            <div className="text-slate-900 dark:text-white font-black text-2xl py-3 text-center">{currencySymbol} {formatMoney(bank)}</div>
+                    <div className="grid grid-cols-1 gap-2">
+                        <div className="bg-white border border-black rounded-xl overflow-hidden shadow-sm flex flex-col">
+                            <div className="bg-blue-600 text-white font-black text-[9px] uppercase py-1 text-center border-b border-black">Banca Inicial</div>
+                            <div className="text-black font-black text-xl py-2 text-center">{currencySymbol} {formatMoney(bank)}</div>
                         </div>
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm flex flex-col">
-                            <div className="bg-emerald-600 text-white font-black text-[9px] uppercase py-1.5 text-center">Banca Atualizada</div>
-                            <div className="text-emerald-500 font-black text-2xl py-3 text-center">{currencySymbol} {formatMoney(currentBank)}</div>
+                        <div className="bg-white border border-black rounded-xl overflow-hidden shadow-sm flex flex-col">
+                            <div className="bg-emerald-600 text-white font-black text-[9px] uppercase py-1 text-center border-b border-black">Banca Atualizada</div>
+                            <div className="text-emerald-600 font-black text-xl py-2 text-center">{currencySymbol} {formatMoney(currentBank)}</div>
                         </div>
                     </div>
 
                     {/* GESTÃO DE CAPITAL */}
-                    <div className="space-y-2">
-                        <div className="bg-slate-800 dark:bg-slate-900 text-white font-black text-center py-2 uppercase text-[10px] rounded-xl">Risco e Stop</div>
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl space-y-4 shadow-sm">
+                    <div className="space-y-1">
+                        <div className="bg-slate-800 text-white font-black text-center py-1.5 uppercase text-xs border border-black rounded-t-lg">Configuração de Risco</div>
+                        <div className="bg-white border border-black p-3 rounded-b-lg space-y-3 shadow-sm">
                             <div className="flex items-center justify-between">
                                 <span className="text-[10px] font-black uppercase text-slate-500">Banca Base</span>
-                                <input type="number" value={bank} onChange={e => setBank(Number(e.target.value))} className="w-24 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-1.5 text-right font-black outline-none focus:ring-2 focus:ring-indigo-500/20" />
+                                <input type="number" value={bank} onChange={e => setBank(Number(e.target.value))} className="w-24 bg-slate-100 border border-black/10 rounded px-2 py-1 text-right font-black outline-none focus:border-blue-500" />
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-[10px] font-black uppercase text-slate-500">Stop Diário %</span>
-                                <input type="number" value={stopPercent} onChange={e => setStopPercent(Number(e.target.value))} className="w-24 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-1.5 text-right font-black outline-none focus:ring-2 focus:ring-indigo-500/20" />
+                                <input type="number" value={stopPercent} onChange={e => setStopPercent(Number(e.target.value))} className="w-24 bg-slate-100 border border-black/10 rounded px-2 py-1 text-right font-black outline-none focus:border-blue-500" />
                             </div>
-                            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase text-indigo-500">Valor do Stop</span>
-                                <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">{currencySymbol} {formatMoney(bank * (stopPercent / 100))}</span>
+                            <div className="pt-2 border-t border-black/5 flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase text-blue-600">Valor do Stop</span>
+                                <span className="text-sm font-black text-blue-700">{currencySymbol} {formatMoney(bank * (stopPercent / 100))}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* SESSÃO */}
-                    <div className="space-y-2">
-                        <div className="bg-indigo-600 text-white font-black text-center py-2 uppercase text-[10px] rounded-xl">Sessão do Dia</div>
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-                            <div className="grid grid-cols-1 max-h-[300px] overflow-y-auto custom-scrollbar">
+                    <div className="space-y-1">
+                        <div className="bg-orange-500 text-white font-black text-center py-1.5 uppercase text-[10px] border border-black rounded-t-lg">Sessão</div>
+                        <div className="border-x border-b border-black rounded-b-lg overflow-hidden shadow-sm">
+                            <div className="grid grid-cols-1 bg-white border-b border-black max-h-[250px] overflow-y-auto custom-scrollbar">
                                 {sessionEntries.map((val, idx) => (
-                                    <div key={idx} className="flex border-b border-slate-100 dark:border-slate-800 last:border-b-0">
-                                        <div className="bg-slate-50 dark:bg-slate-950 w-24 text-[8px] font-black uppercase text-slate-500 border-r border-slate-100 dark:border-slate-800 py-2.5 flex items-center justify-center">
+                                    <div key={idx} className="flex border-b border-black last:border-b-0">
+                                        <div className="bg-orange-50 w-24 text-[7px] font-black uppercase text-orange-800 border-r border-black py-2 flex items-center justify-center">
                                             Entrada {String(idx + 1).padStart(2, '0')}
                                         </div>
                                         <input 
@@ -2405,24 +2372,16 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                                 }
                                                 setSessionEntries(newEntries);
                                             }} 
-                                            className="flex-1 h-10 bg-transparent outline-none text-center text-xs font-black text-slate-700 dark:text-slate-300 focus:bg-indigo-500/5" 
+                                            className="flex-1 h-8 outline-none text-center text-[10px] font-black" 
                                         />
                                     </div>
                                 ))}
                             </div>
-                            <div className="bg-indigo-50 dark:bg-indigo-500/10 flex flex-col gap-1 px-4 py-3 border-t border-slate-100 dark:border-slate-800">
-                                <div className="flex items-center justify-between">
-                                    <span className="uppercase text-[8px] font-black text-slate-500">Soma Entradas</span>
-                                    <span className="text-[10px] font-black text-slate-700 dark:text-slate-300">
-                                        {currencySymbol} {formatMoney(sessionProfit)}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="uppercase text-[9px] font-black text-indigo-600 dark:text-indigo-400">Lucro do Dia</span>
-                                    <span className={`text-sm font-black ${daysData.find(d => getLocalDateString(selectedDate).endsWith(String(d.id).padStart(2, '0')))?.result >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                        {currencySymbol} {formatMoney(daysData.find(d => getLocalDateString(selectedDate).endsWith(String(d.id).padStart(2, '0')))?.result || 0)}
-                                    </span>
-                                </div>
+                            <div className="bg-orange-100 flex items-center justify-between px-3 py-2">
+                                <span className="uppercase text-[9px] font-black text-orange-900">Resultado Sessão</span>
+                                <span className={`text-xs font-black ${sessionProfit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                                    {currencySymbol} {formatMoney(sessionProfit)}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -2461,7 +2420,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     <div className="grid grid-cols-2 gap-2">
                         <div className="bg-white border border-black p-3 rounded-xl shadow-sm flex flex-col items-center justify-center">
                             <span className="text-[8px] font-black uppercase text-slate-500">Assertividade</span>
-                            <span className="text-lg font-black text-indigo-600">
+                            <span className="text-lg font-black text-blue-600">
                                 {totalWins + totalLosses > 0 ? ((totalWins / (totalWins + totalLosses)) * 100).toFixed(1) : '0'}%
                             </span>
                         </div>
