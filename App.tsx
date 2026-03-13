@@ -2426,7 +2426,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
 
                     {/* LUCRO MENSAL */}
                     <div className="space-y-1">
-                        <div className="bg-slate-900 text-white font-black text-center py-2 uppercase text-[10px] border border-black rounded-t-2xl">Resultado Financeiro</div>
+                        <div className="bg-slate-900 text-white font-black text-center py-2 uppercase text-[10px] border border-black rounded-t-2xl">Resultado do Mês</div>
                         <div className="bg-white border-x border-b border-black h-28 flex flex-col items-center justify-center rounded-b-2xl shadow-md relative overflow-hidden">
                             <div className={`absolute inset-0 opacity-5 ${totalProfit >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`} />
                             <span className="text-[10px] font-black uppercase text-slate-400 mb-1 relative z-10">Lucro Líquido Mensal</span>
