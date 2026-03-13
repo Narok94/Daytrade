@@ -969,7 +969,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {activeTab === 'history' && <HistoryPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} addBulkTrades={addBulkTrades} />}
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
-                    {activeTab === 'management-sheet' && <ManagementSheetPanel theme={theme} activeBrokerage={activeBrokerage} isDarkMode={isDarkMode} records={records} />}
+                    {activeTab === 'management-sheet' && <ManagementSheetPanel theme={theme} activeBrokerage={activeBrokerage} isDarkMode={isDarkMode} records={records} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />}
                 {activeTab === 'settings' && (
                     <SettingsPanel 
                         theme={theme} 
@@ -2015,10 +2015,18 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
     );
 };
 
-const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMode, records }) => {
+const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMode, records, selectedDate, setSelectedDate }) => {
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-    const [selectedMonth, setSelectedMonth] = useState(() => getLocalMonthString());
+    const [selectedMonth, setSelectedMonth] = useState(() => getLocalMonthString(selectedDate));
     
+    // Sync selectedMonth with selectedDate
+    useEffect(() => {
+        const dateMonth = getLocalMonthString(selectedDate);
+        if (dateMonth !== selectedMonth) {
+            setSelectedMonth(dateMonth);
+        }
+    }, [selectedDate]);
+
     // Storage keys based on brokerage and month
     const getStorageKey = (suffix: string) => `ms_${activeBrokerage?.id || 'default'}_${selectedMonth}_${suffix}`;
 
@@ -2253,15 +2261,33 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     </p>
                 </div>
                 <div className="flex gap-3 items-center">
-                    <select 
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value)}
-                        className="bg-slate-100 border border-black/20 rounded-xl px-4 py-2 text-xs font-black uppercase outline-none focus:border-blue-500 transition-all"
+                    <div className="flex flex-col">
+                        <label className="text-[8px] font-black uppercase text-slate-500 ml-1 mb-0.5">Dia Selecionado</label>
+                        <input 
+                            type="date" 
+                            value={getLocalDateString(selectedDate)} 
+                            onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))}
+                            className="bg-slate-100 border border-black/20 rounded-xl px-4 py-2 text-xs font-black uppercase outline-none focus:border-blue-500 transition-all"
+                        />
+                    </div>
+                    <div className="flex flex-col">
+                        <label className="text-[8px] font-black uppercase text-slate-500 ml-1 mb-0.5">Mês de Referência</label>
+                        <select 
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            className="bg-slate-100 border border-black/20 rounded-xl px-4 py-2 text-xs font-black uppercase outline-none focus:border-blue-500 transition-all"
+                        >
+                            {months.map(m => (
+                                <option key={m} value={m}>{m}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <button 
+                        onClick={() => setSelectedDate(new Date())}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-blue-500 transition-all shadow-sm mt-3"
                     >
-                        {months.map(m => (
-                            <option key={m} value={m}>{m}</option>
-                        ))}
-                    </select>
+                        Hoje
+                    </button>
                     <button 
                         onClick={() => {
                             if(confirm('Deseja resetar os dados deste mês para esta corretora?')) {
@@ -2275,7 +2301,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                 window.location.reload();
                             }
                         }}
-                        className="px-4 py-2 bg-red-500/10 text-red-600 rounded-xl text-[10px] font-black uppercase hover:bg-red-500/20 transition-all"
+                        className="px-4 py-2 bg-red-500/10 text-red-600 rounded-xl text-[10px] font-black uppercase hover:bg-red-500/20 transition-all mt-3"
                     >
                         Resetar Mês
                     </button>
@@ -2295,8 +2321,15 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     </div>
                     <div className="max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
                         {daysData.map((d: any, idx: number) => (
-                            <div key={d.id} className={`grid grid-cols-5 gap-0 border-x border-b border-black text-[10px] transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                                <div className="border-r border-black bg-yellow-400 text-black font-bold text-center py-1 relative">
+                            <div key={d.id} className={`grid grid-cols-5 gap-0 border-x border-b border-black text-[10px] transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${getLocalDateString(selectedDate).endsWith(String(d.id).padStart(2, '0')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}>
+                                <div 
+                                    className="border-r border-black bg-yellow-400 text-black font-bold text-center py-1 relative cursor-pointer hover:bg-yellow-500 transition-colors"
+                                    onClick={() => {
+                                        const [year, month] = selectedMonth.split('-');
+                                        const newDate = new Date(Number(year), Number(month) - 1, d.id, 12, 0, 0);
+                                        setSelectedDate(newDate);
+                                    }}
+                                >
                                     {d.id}
                                     {d.hasSoros && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-emerald-500 rounded-bl-sm" title="Soros realizado" />}
                                 </div>
