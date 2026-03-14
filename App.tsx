@@ -95,7 +95,7 @@ const useThemeClasses = (isDarkMode: boolean) => {
     }), [isDarkMode]);
 };
 
-// --- AI Analysis Panel (Advanced Analysis v2) ---
+// --- AI Analysis Panel (Advanced Analysis v3 - Tech Edition) ---
 const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDate, activeBrokerage }) => {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -263,64 +263,36 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
         return () => clearInterval(timer);
     }, [analysisResult]);
 
-    // Session Table Component
-    const SessionTable = () => (
-        <div className="w-full overflow-hidden rounded-xl border-2 border-black shadow-lg mb-6">
-            <div className="bg-[#f97316] py-2 text-center border-b-2 border-black">
-                <span className="text-white font-black uppercase tracking-widest text-sm">Sessão</span>
-            </div>
-            <div className="bg-[#f5f5f0]">
-                {Array.from({ length: Math.max(6, trades.length) }).map((_, idx) => {
-                    const trade = trades[idx];
-                    const profit = trade ? (trade.result === 'win' ? trade.entryValue * (trade.payoutPercentage / 100) : -trade.entryValue) : null;
-                    return (
-                        <div key={idx} className="grid grid-cols-[1fr_2fr] border-b border-black/20 last:border-b-0">
-                            <div className="py-2 px-4 border-r border-black/20 text-[10px] font-black uppercase text-[#f97316] flex items-center justify-center">
-                                Entrada {String(idx + 1).padStart(2, '0')}
-                            </div>
-                            <div className="py-2 px-4 bg-white text-center font-black text-black flex items-center justify-center min-h-[40px]">
-                                {profit !== null ? formatMoney(profit).replace('R$', '').trim() : ''}
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-            <div className="bg-[#f5f5f0] grid grid-cols-[1fr_1fr] border-t-2 border-black p-3">
-                <span className="text-[10px] font-black uppercase text-[#f97316]">Resultado Sessão</span>
-                <span className="text-right font-black text-[#065f46]">{formatMoney(netProfit)}</span>
-            </div>
-        </div>
-    );
-
     if (isAnalyzing) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[600px] p-6 space-y-12 bg-[#0a0a0a] text-white">
+            <div className="flex flex-col items-center justify-center min-h-[600px] p-6 space-y-12 bg-[#050505] text-white font-mono">
                 <div className="relative">
-                    <div className="w-24 h-24 rounded-2xl border-2 border-orange-500/30 flex items-center justify-center relative z-10 bg-[#111]">
-                        <CpuChipIcon className="w-12 h-12 text-orange-500 animate-pulse" />
+                    <div className="w-24 h-24 rounded-full border border-emerald-500/30 flex items-center justify-center relative z-10 bg-[#0a0a0a]">
+                        <CpuChipIcon className="w-12 h-12 text-emerald-500 animate-pulse" />
                     </div>
-                    <div className="absolute inset-0 border-2 border-orange-500 rounded-2xl animate-ping opacity-20" />
+                    <div className="absolute inset-0 border border-emerald-500 rounded-full animate-ping opacity-20" />
+                    <div className="absolute -inset-4 border border-emerald-500/10 rounded-full animate-spin-slow" />
                 </div>
 
-                <div className="text-center space-y-1">
-                    <h2 className="text-3xl font-black tracking-tight text-orange-500">PROCESSANDO...</h2>
-                    <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px]">Análise Técnica Avançada</p>
+                <div className="text-center space-y-2">
+                    <h2 className="text-2xl font-black tracking-[0.3em] text-emerald-500">SYSTEM_SCANNING</h2>
+                    <p className="text-emerald-500/40 font-bold uppercase tracking-widest text-[8px]">Neural Network Processing v3.0</p>
                 </div>
 
-                <div className="w-full max-w-xs space-y-4">
+                <div className="w-full max-w-xs space-y-6">
                     {[
-                        { label: 'Imagem', val: progress.upload, color: 'bg-orange-500' },
-                        { label: 'Dados', val: progress.data, color: 'bg-orange-600' },
-                        { label: 'Padrões', val: progress.patterns, color: 'bg-orange-700' },
-                        { label: 'Final', val: progress.result, color: 'bg-orange-400' }
+                        { label: 'IMAGE_LOAD', val: progress.upload, color: 'bg-emerald-500' },
+                        { label: 'DATA_EXTRACT', val: progress.data, color: 'bg-emerald-600' },
+                        { label: 'PATTERN_RECOGNITION', val: progress.patterns, color: 'bg-emerald-700' },
+                        { label: 'FINAL_COMPUTE', val: progress.result, color: 'bg-emerald-400' }
                     ].map((p, i) => (
-                        <div key={i} className="space-y-1.5">
-                            <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-400">
+                        <div key={i} className="space-y-2">
+                            <div className="flex justify-between text-[7px] font-black uppercase tracking-widest text-emerald-500/60">
                                 <span>{p.label}</span>
                                 <span>{p.val}%</span>
                             </div>
-                            <div className="h-1 bg-slate-900 rounded-full overflow-hidden">
-                                <div className={`h-full ${p.color} transition-all duration-500`} style={{ width: `${p.val}%` }} />
+                            <div className="h-1 bg-emerald-950 rounded-full overflow-hidden border border-emerald-500/20">
+                                <div className={`h-full ${p.color} transition-all duration-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]`} style={{ width: `${p.val}%` }} />
                             </div>
                         </div>
                     ))}
@@ -331,66 +303,82 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
 
     if (analysisResult) {
         return (
-            <div className="max-w-md mx-auto p-4 space-y-6 bg-[#0a0a0a] min-h-screen text-white">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-orange-500 rounded-full" />
-                        <h2 className="text-lg font-black uppercase tracking-tight">Relatório IA</h2>
+            <div className="max-w-md mx-auto p-4 space-y-6 bg-[#050505] min-h-screen text-white font-mono">
+                <div className="flex items-center justify-between border-b border-emerald-500/20 pb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-emerald-500">ANALYSIS_COMPLETED</h2>
                     </div>
-                    <button onClick={() => setAnalysisResult(null)} className="p-1.5 bg-slate-900 rounded-lg"><XMarkIcon className="w-4 h-4" /></button>
+                    <button onClick={() => setAnalysisResult(null)} className="p-2 bg-emerald-950/50 border border-emerald-500/30 rounded-lg text-emerald-500 hover:bg-emerald-500 hover:text-black transition-all">
+                        <XMarkIcon className="w-4 h-4" />
+                    </button>
                 </div>
 
-                <SessionTable />
-
-                {/* Main Signal Card */}
-                <div className="bg-[#111] border border-slate-800 rounded-2xl overflow-hidden">
-                    <div className="bg-orange-500 px-4 py-2 flex justify-between items-center">
-                        <span className="text-[10px] font-black uppercase text-white tracking-widest">{analysisResult.asset}</span>
-                        <span className="text-[10px] font-black uppercase text-white/80">{analysisResult.timeframe}</span>
+                {/* Main Signal Card - Instrument Style */}
+                <div className="bg-[#0a0a0a] border border-emerald-500/30 rounded-3xl overflow-hidden shadow-[0_0_30px_rgba(16,185,129,0.05)]">
+                    <div className="bg-emerald-500/10 border-b border-emerald-500/30 px-6 py-3 flex justify-between items-center">
+                        <span className="text-[9px] font-black uppercase text-emerald-500 tracking-[0.2em]">{analysisResult.asset}</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-black uppercase text-emerald-500/60">{analysisResult.timeframe}</span>
+                            <div className="w-1 h-1 bg-emerald-500 rounded-full" />
+                        </div>
                     </div>
-                    <div className="p-6 text-center space-y-4">
-                        <div className="space-y-1">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Recomendação</p>
-                            <h3 className={`text-5xl font-black tracking-tighter ${
-                                analysisResult.recommendation === 'CALL' ? 'text-emerald-500' : 
-                                analysisResult.recommendation === 'PUT' ? 'text-rose-500' : 'text-slate-400'
+                    
+                    <div className="p-8 text-center space-y-8">
+                        <div className="space-y-2">
+                            <p className="text-[8px] font-bold text-emerald-500/40 uppercase tracking-[0.3em]">SIGNAL_TYPE</p>
+                            <h3 className={`text-6xl font-black tracking-tighter ${
+                                analysisResult.recommendation === 'CALL' ? 'text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.3)]' : 
+                                analysisResult.recommendation === 'PUT' ? 'text-rose-500 drop-shadow-[0_0_15px_rgba(244,63,94,0.3)]' : 'text-slate-600'
                             }`}>
-                                {analysisResult.recommendation === 'CALL' ? 'COMPRA' : analysisResult.recommendation === 'PUT' ? 'VENDA' : 'AGUARDAR'}
+                                {analysisResult.recommendation === 'CALL' ? 'BUY' : analysisResult.recommendation === 'PUT' ? 'SELL' : 'WAIT'}
                             </h3>
                         </div>
 
-                        <div className="py-4 border-y border-slate-800/50">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Horário de Entrada</p>
-                            <p className="text-3xl font-black text-white">{analysisResult.entryTime}</p>
+                        <div className="py-6 border-y border-emerald-500/10 relative">
+                            <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 border-l border-t border-emerald-500/30" />
+                            <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-2 border-r border-b border-emerald-500/30" />
+                            
+                            <p className="text-[8px] font-bold text-emerald-500/40 uppercase tracking-[0.3em] mb-2">ENTRY_WINDOW</p>
+                            <p className="text-4xl font-black text-white tracking-widest">{analysisResult.entryTime}</p>
                             {countdown !== null && (
-                                <p className="text-xs font-bold text-orange-500 mt-2 animate-pulse">ENTRE EM {countdown}s</p>
+                                <div className="mt-4 flex flex-col items-center gap-1">
+                                    <p className="text-[10px] font-black text-emerald-400 animate-pulse">EXECUTE_IN: {countdown}S</p>
+                                    <div className="w-32 h-0.5 bg-emerald-950 rounded-full overflow-hidden">
+                                        <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${(countdown / 60) * 100}%` }} />
+                                    </div>
+                                </div>
                             )}
                         </div>
 
-                        <div className="flex justify-around pt-2">
-                            <div className="text-center">
-                                <p className="text-[8px] font-black text-slate-500 uppercase">Confiança</p>
-                                <p className="text-lg font-black text-orange-500">{analysisResult.confidence}%</p>
+                        <div className="grid grid-cols-2 gap-4 pt-2">
+                            <div className="bg-emerald-950/20 border border-emerald-500/10 p-3 rounded-2xl">
+                                <p className="text-[7px] font-black text-emerald-500/40 uppercase tracking-widest mb-1">CONFIDENCE</p>
+                                <p className="text-xl font-black text-emerald-400">{analysisResult.confidence}%</p>
                             </div>
-                            <div className="text-center">
-                                <p className="text-[8px] font-black text-slate-500 uppercase">Tendência</p>
-                                <p className="text-lg font-black text-white">{analysisResult.trend}</p>
+                            <div className="bg-emerald-950/20 border border-emerald-500/10 p-3 rounded-2xl">
+                                <p className="text-[7px] font-black text-emerald-500/40 uppercase tracking-widest mb-1">TREND_BIAS</p>
+                                <p className="text-xl font-black text-white">{analysisResult.trend}</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Details */}
+                {/* Technical Logs */}
                 <div className="space-y-3">
                     <button 
                         onClick={() => setShowDetailed(!showDetailed)}
-                        className="w-full p-4 bg-[#111] border border-slate-800 rounded-xl flex items-center justify-between"
+                        className="w-full p-4 bg-[#0a0a0a] border border-emerald-500/20 rounded-2xl flex items-center justify-between hover:bg-emerald-950/20 transition-all"
                     >
-                        <span className="text-[10px] font-black uppercase tracking-widest">Justificativa Técnica</span>
-                        <ChevronDownIcon className={`w-4 h-4 transition-transform ${showDetailed ? 'rotate-180' : ''}`} />
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-500/60">TECHNICAL_LOGS</span>
+                        <ChevronDownIcon className={`w-4 h-4 text-emerald-500/60 transition-transform ${showDetailed ? 'rotate-180' : ''}`} />
                     </button>
                     {showDetailed && (
-                        <div className="p-4 bg-slate-900/30 rounded-xl text-[11px] text-slate-400 leading-relaxed italic">
+                        <div className="p-5 bg-emerald-950/10 border border-emerald-500/10 rounded-2xl text-[10px] text-emerald-500/70 leading-relaxed font-medium">
+                            <div className="flex gap-2 mb-2">
+                                <span className="text-emerald-500 font-bold">[INFO]</span>
+                                <span>Processing market patterns...</span>
+                            </div>
                             {analysisResult.reasoning}
                         </div>
                     )}
@@ -398,64 +386,76 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
 
                 <button 
                     onClick={() => { setAnalysisResult(null); setSelectedImage(null); }}
-                    className="w-full py-4 bg-orange-600 hover:bg-orange-500 rounded-xl font-black text-xs uppercase tracking-widest transition-colors"
+                    className="w-full py-5 bg-emerald-600 hover:bg-emerald-500 text-black rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] active:scale-[0.98]"
                 >
-                    Nova Análise
+                    NEW_SCAN
                 </button>
             </div>
         );
     }
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-2xl mx-auto bg-[#0a0a0a] min-h-screen">
-            <SessionTable />
-
+        <div className="p-4 md:p-8 space-y-8 max-w-2xl mx-auto bg-[#050505] min-h-screen font-mono">
             {!selectedImage ? (
-                <div className="space-y-6">
-                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl p-12 bg-[#111]/50 space-y-6">
-                        <div className="w-20 h-20 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500">
-                            <PhotoIcon className="w-10 h-10" />
-                        </div>
-                        <div className="text-center space-y-1">
-                            <h3 className="text-xl font-black uppercase tracking-tight">Análise de Gráfico</h3>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Envie um print do seu gráfico</p>
+                <div className="space-y-8">
+                    <div className="flex flex-col items-center justify-center border border-emerald-500/20 rounded-[2.5rem] p-12 bg-[#0a0a0a] space-y-8 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
+                        
+                        <div className="w-24 h-24 rounded-3xl bg-emerald-500/5 border border-emerald-500/20 flex items-center justify-center text-emerald-500 shadow-[0_0_40px_rgba(16,185,129,0.05)]">
+                            <PhotoIcon className="w-12 h-12" />
                         </div>
                         
-                        <div className="w-full grid grid-cols-2 gap-3">
-                            <label className="py-4 bg-orange-600 hover:bg-orange-500 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase cursor-pointer transition-colors">
-                                <CameraIcon className="w-5 h-5" /> Câmera
+                        <div className="text-center space-y-3">
+                            <h3 className="text-2xl font-black uppercase tracking-[0.2em] text-emerald-500">MARKET_VISION_AI</h3>
+                            <p className="text-[9px] font-bold text-emerald-500/40 uppercase tracking-[0.4em]">Input Chart Data for Neural Analysis</p>
+                        </div>
+                        
+                        <div className="w-full grid grid-cols-2 gap-4">
+                            <label className="py-5 bg-emerald-600 hover:bg-emerald-500 text-black rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[9px] uppercase tracking-widest cursor-pointer transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                                <CameraIcon className="w-6 h-6" /> CAMERA_MODE
                                 <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                             </label>
-                            <label className="py-4 bg-slate-800 hover:bg-slate-700 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase cursor-pointer transition-colors">
-                                <PhotoIcon className="w-5 h-5" /> Galeria
+                            <label className="py-5 bg-emerald-950/50 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-900/50 rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[9px] uppercase tracking-widest cursor-pointer transition-all">
+                                <PhotoIcon className="w-6 h-6" /> GALLERY_MODE
                                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                             </label>
                         </div>
                     </div>
+
+                    <div className="p-6 border border-emerald-500/10 rounded-3xl bg-emerald-950/5">
+                        <div className="flex items-start gap-4">
+                            <InformationCircleIcon className="w-5 h-5 text-emerald-500/40 shrink-0 mt-0.5" />
+                            <p className="text-[9px] text-emerald-500/40 leading-relaxed uppercase tracking-widest font-bold">
+                                For optimal results, ensure the chart shows clear price action, candle timer, and at least 30-50 periods of history.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             ) : (
-                <div className="space-y-6">
-                    <div className="relative aspect-video rounded-2xl overflow-hidden border border-orange-500/30 bg-black">
+                <div className="space-y-8">
+                    <div className="relative aspect-video rounded-[2rem] overflow-hidden border border-emerald-500/30 bg-black shadow-[0_0_50px_rgba(16,185,129,0.1)]">
                         <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
                         <button 
                             onClick={() => setSelectedImage(null)}
-                            className="absolute top-3 right-3 p-1.5 bg-black/60 backdrop-blur-md rounded-lg text-white hover:bg-red-500 transition-colors"
+                            className="absolute top-4 right-4 p-2 bg-black/80 backdrop-blur-md border border-white/10 rounded-xl text-white hover:bg-rose-600 hover:border-rose-500 transition-all"
                         >
-                            <XMarkIcon className="w-4 h-4" />
+                            <XMarkIcon className="w-5 h-5" />
                         </button>
                     </div>
                     
                     <button 
                         onClick={runAIAnalysis}
-                        className="w-full py-5 bg-orange-600 hover:bg-orange-500 rounded-xl flex items-center justify-center gap-3 font-black text-sm uppercase tracking-widest transition-all active:scale-95"
+                        className="w-full py-6 bg-emerald-600 hover:bg-emerald-500 text-black rounded-2xl flex items-center justify-center gap-4 font-black text-sm uppercase tracking-[0.4em] transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)] active:scale-[0.97]"
                     >
-                        <CpuChipIcon className="w-6 h-6" /> Iniciar Análise
+                        <CpuChipIcon className="w-7 h-7" /> START_ANALYSIS
                     </button>
                 </div>
             )}
         </div>
     );
 };
+
 
 // --- App Root Logic ---
 const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout }) => {
@@ -2076,18 +2076,18 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
     useEffect(() => {
         if (!records || !activeBrokerage) return;
 
-        const todayStr = getLocalDateString();
-        const todayRecord = records.find((r: any) => r.recordType === 'day' && r.id === todayStr && r.brokerageId === activeBrokerage.id);
+        const dateKey = getLocalDateString(selectedDate);
+        const dayRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateKey && r.brokerageId === activeBrokerage.id);
         
         // If it's a new day (no trades yet), reset the bank to yesterday's closing balance
-        if (!todayRecord) {
+        if (!dayRecord) {
             setBank(yesterdayBalance);
             setSessionEntries([0]);
         }
 
-        const trades = todayRecord?.trades || [];
+        const trades = dayRecord?.trades || [];
         setSessionEntries(prev => {
-            const next = trades.map((t: any) => t.entryValue);
+            const next = trades.map((t: any) => t.result === 'win' ? t.entryValue * (t.payoutPercentage / 100) : -t.entryValue);
             if (next.length === 0) return [0];
             if (next[next.length - 1] !== 0) return [...next, 0];
             return next;
@@ -2107,7 +2107,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                 return {
                     ...day,
                     tradeCount: trades.length,
-                    payout: firstTrade?.payoutPercentage || (dateStr === todayStr ? activeBrokerage.payoutPercentage : day.payout),
+                    payout: firstTrade?.payoutPercentage || (dateStr === dateKey ? activeBrokerage.payoutPercentage : day.payout),
                     result: record.netProfitUSD,
                     winCycle1: trades.some((t: any) => t.result === 'win'),
                     lossCycle1: trades.some((t: any) => t.result === 'loss'),
@@ -2123,7 +2123,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                 winCycle1: false,
                 lossCycle1: false,
                 hasSoros: false,
-                payout: dateStr === todayStr ? activeBrokerage.payoutPercentage : day.payout
+                payout: dateStr === dateKey ? activeBrokerage.payoutPercentage : day.payout
             };
         }));
 
@@ -2358,22 +2358,25 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                 {sessionEntries.map((val, idx) => (
                                     <div key={idx} className="flex border-b border-black last:border-b-0">
                                         <div className="bg-orange-50 w-24 text-[7px] font-black uppercase text-orange-800 border-r border-black py-2 flex items-center justify-center">
-                                            Entrada {String(idx + 1).padStart(2, '0')}
+                                            Trade {String(idx + 1).padStart(2, '0')}
                                         </div>
-                                        <input 
-                                            type="number" 
-                                            value={val || ''} 
-                                            onChange={e => {
-                                                const newVal = Number(e.target.value);
-                                                const newEntries = [...sessionEntries];
-                                                newEntries[idx] = newVal;
-                                                if (idx === sessionEntries.length - 1 && newVal !== 0) {
-                                                    newEntries.push(0);
-                                                }
-                                                setSessionEntries(newEntries);
-                                            }} 
-                                            className="flex-1 h-8 outline-none text-center text-[10px] font-black" 
-                                        />
+                                        <div className="flex-1 flex items-center">
+                                            <span className="pl-3 text-[10px] font-black text-slate-400">{currencySymbol}</span>
+                                            <input 
+                                                type="number" 
+                                                value={val || ''} 
+                                                onChange={e => {
+                                                    const newVal = Number(e.target.value);
+                                                    const newEntries = [...sessionEntries];
+                                                    newEntries[idx] = newVal;
+                                                    if (idx === sessionEntries.length - 1 && newVal !== 0) {
+                                                        newEntries.push(0);
+                                                    }
+                                                    setSessionEntries(newEntries);
+                                                }} 
+                                                className={`flex-1 h-8 outline-none text-center text-[10px] font-black ${val > 0 ? 'text-emerald-600' : val < 0 ? 'text-red-600' : 'text-slate-900'}`} 
+                                            />
+                                        </div>
                                     </div>
                                 ))}
                             </div>
