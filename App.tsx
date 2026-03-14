@@ -265,36 +265,36 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
 
     if (isAnalyzing) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[600px] p-6 space-y-12 bg-[#0a0a0a] text-white">
+            <div className="flex flex-col items-center justify-center min-h-[600px] p-6 space-y-12 bg-[#0f172a] text-white">
                 <div className="relative">
-                    <div className="w-24 h-24 rounded-2xl border-2 border-orange-500/30 flex items-center justify-center relative z-10 bg-[#111]">
-                        <CpuChipIcon className="w-12 h-12 text-orange-500 animate-pulse" />
+                    <div className="w-24 h-24 rounded-2xl border-2 border-[#00FF00]/30 flex items-center justify-center relative z-10 bg-[#1e293b]">
+                        <CpuChipIcon className="w-12 h-12 text-[#00FF00] animate-pulse" />
                         {/* Neural Scan Line */}
                         <div className="absolute inset-0 overflow-hidden rounded-2xl">
-                            <div className="w-full h-0.5 bg-orange-500/40 absolute top-0 animate-scan" />
+                            <div className="w-full h-0.5 bg-[#00FF00]/40 absolute top-0 animate-scan" />
                         </div>
                     </div>
-                    <div className="absolute inset-0 border-2 border-orange-500 rounded-2xl animate-ping opacity-20" />
+                    <div className="absolute inset-0 border-2 border-[#00FF00] rounded-2xl animate-ping opacity-20" />
                 </div>
 
                 <div className="text-center space-y-1">
-                    <h2 className="text-3xl font-black tracking-tight text-orange-500 uppercase">Processando...</h2>
-                    <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px]">Análise de Mercado em Tempo Real</p>
+                    <h2 className="text-3xl font-black tracking-tight text-[#00FF00] uppercase">Processando...</h2>
+                    <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">Análise de Mercado em Tempo Real</p>
                 </div>
 
                 <div className="w-full max-w-xs space-y-4">
                     {[
-                        { label: 'UPLOAD_IMAGE', val: progress.upload, color: 'bg-orange-500' },
-                        { label: 'EXTRACT_DATA', val: progress.data, color: 'bg-orange-600' },
-                        { label: 'PATTERN_MATCH', val: progress.patterns, color: 'bg-orange-700' },
-                        { label: 'FINAL_COMPUTE', val: progress.result, color: 'bg-orange-400' }
+                        { label: 'UPLOAD_IMAGE', val: progress.upload, color: 'bg-[#00FF00]' },
+                        { label: 'EXTRACT_DATA', val: progress.data, color: 'bg-[#00FF00]/80' },
+                        { label: 'PATTERN_MATCH', val: progress.patterns, color: 'bg-[#00FF00]/60' },
+                        { label: 'FINAL_COMPUTE', val: progress.result, color: 'bg-[#00FF00]/40' }
                     ].map((p, i) => (
                         <div key={i} className="space-y-1.5">
                             <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-400">
                                 <span>{p.label}</span>
                                 <span>{p.val}%</span>
                             </div>
-                            <div className="h-1 bg-slate-900 rounded-full overflow-hidden">
+                            <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
                                 <div className={`h-full ${p.color} transition-all duration-500`} style={{ width: `${p.val}%` }} />
                             </div>
                         </div>
@@ -306,32 +306,32 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
 
     if (analysisResult) {
         return (
-            <div className="max-w-md mx-auto p-4 space-y-6 bg-[#0a0a0a] min-h-screen text-white">
+            <div className="max-w-md mx-auto p-4 space-y-6 bg-[#0f172a] min-h-screen text-white">
                 <div className="flex items-center justify-between border-b border-white/10 pb-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
-                        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-orange-500">Análise Concluída</h2>
+                        <div className="w-2 h-2 bg-[#00FF00] rounded-full animate-pulse shadow-[0_0_8px_rgba(0,255,0,0.8)]" />
+                        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[#00FF00]">Análise Concluída</h2>
                     </div>
-                    <button onClick={() => setAnalysisResult(null)} className="p-2 bg-slate-900 rounded-lg text-slate-400 hover:text-white transition-colors">
+                    <button onClick={() => setAnalysisResult(null)} className="p-2 bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
                         <XMarkIcon className="w-4 h-4" />
                     </button>
                 </div>
 
                 {/* Main Signal Card */}
-                <div className="bg-[#111] border border-orange-500/20 rounded-3xl overflow-hidden shadow-2xl">
-                    <div className="bg-orange-500 px-6 py-3 flex justify-between items-center">
-                        <span className="text-[10px] font-black uppercase text-white tracking-widest">{analysisResult.asset}</span>
+                <div className="bg-[#1e293b] border border-[#00FF00]/20 rounded-3xl overflow-hidden shadow-2xl">
+                    <div className="bg-[#00FF00] px-6 py-3 flex justify-between items-center">
+                        <span className="text-[10px] font-black uppercase text-[#0f172a] tracking-widest">{analysisResult.asset}</span>
                         <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black uppercase text-white/80">{analysisResult.timeframe}</span>
-                            <div className="w-1 h-1 bg-white rounded-full" />
+                            <span className="text-[10px] font-black uppercase text-[#0f172a]/80">{analysisResult.timeframe}</span>
+                            <div className="w-1 h-1 bg-[#0f172a] rounded-full" />
                         </div>
                     </div>
                     
                     <div className="p-8 text-center space-y-8">
                         <div className="space-y-2">
-                            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Recomendação</p>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Recomendação</p>
                             <h3 className={`text-6xl font-black tracking-tighter ${
-                                analysisResult.recommendation === 'CALL' ? 'text-emerald-500' : 
+                                analysisResult.recommendation === 'CALL' ? 'text-[#00FF00]' : 
                                 analysisResult.recommendation === 'PUT' ? 'text-rose-500' : 'text-slate-400'
                             }`}>
                                 {analysisResult.recommendation === 'CALL' ? 'COMPRA' : analysisResult.recommendation === 'PUT' ? 'VENDA' : 'AGUARDAR'}
@@ -339,13 +339,13 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                         </div>
 
                         <div className="py-6 border-y border-white/5">
-                            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2">Horário de Entrada</p>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Horário de Entrada</p>
                             <p className="text-4xl font-black text-white tracking-widest">{analysisResult.entryTime}</p>
                             {countdown !== null && (
                                 <div className="mt-4 flex flex-col items-center gap-1">
-                                    <p className="text-[10px] font-black text-orange-500 animate-pulse">ENTRE EM: {countdown}S</p>
-                                    <div className="w-32 h-1 bg-slate-900 rounded-full overflow-hidden">
-                                        <div className="h-full bg-orange-500 transition-all duration-1000" style={{ width: `${(countdown / 60) * 100}%` }} />
+                                    <p className="text-[10px] font-black text-[#00FF00] animate-pulse">ENTRE EM: {countdown}S</p>
+                                    <div className="w-32 h-1 bg-slate-800 rounded-full overflow-hidden">
+                                        <div className="h-full bg-[#00FF00] transition-all duration-1000" style={{ width: `${(countdown / 60) * 100}%` }} />
                                     </div>
                                 </div>
                             )}
@@ -354,7 +354,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-slate-900/50 p-3 rounded-2xl border border-white/5">
                                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Confiança</p>
-                                <p className="text-xl font-black text-orange-500">{analysisResult.confidence}%</p>
+                                <p className="text-xl font-black text-[#00FF00]">{analysisResult.confidence}%</p>
                             </div>
                             <div className="bg-slate-900/50 p-3 rounded-2xl border border-white/5">
                                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Tendência</p>
@@ -368,7 +368,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                 <div className="space-y-3">
                     <button 
                         onClick={() => setShowDetailed(!showDetailed)}
-                        className="w-full p-4 bg-[#111] border border-white/5 rounded-2xl flex items-center justify-between hover:bg-slate-900/50 transition-all"
+                        className="w-full p-4 bg-[#1e293b] border border-white/5 rounded-2xl flex items-center justify-between hover:bg-slate-900/50 transition-all"
                     >
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Logs Técnicos</span>
                         <ChevronDownIcon className={`w-4 h-4 text-slate-500 transition-transform ${showDetailed ? 'rotate-180' : ''}`} />
@@ -376,7 +376,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                     {showDetailed && (
                         <div className="p-5 bg-slate-900/30 rounded-2xl text-[11px] text-slate-400 leading-relaxed font-medium border border-white/5">
                             <div className="flex gap-2 mb-2">
-                                <span className="text-orange-500 font-bold">[INFO]</span>
+                                <span className="text-[#00FF00] font-bold">[INFO]</span>
                                 <span>Processando padrões de mercado...</span>
                             </div>
                             {analysisResult.reasoning}
@@ -386,7 +386,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
 
                 <button 
                     onClick={() => { setAnalysisResult(null); setSelectedImage(null); }}
-                    className="w-full py-5 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-[0.98]"
+                    className="w-full py-5 bg-[#00FF00] hover:brightness-110 text-[#0f172a] rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-[0.98]"
                 >
                     Nova Análise
                 </button>
@@ -395,23 +395,23 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
     }
 
     return (
-        <div className="p-4 md:p-8 space-y-8 max-w-2xl mx-auto bg-[#0a0a0a] min-h-screen">
+        <div className="p-4 md:p-8 space-y-8 max-w-2xl mx-auto bg-[#0f172a] min-h-screen">
             {!selectedImage ? (
                 <div className="space-y-8">
-                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 rounded-[2.5rem] p-12 bg-[#111]/50 space-y-8 relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-orange-500/20 to-transparent" />
+                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 rounded-[2.5rem] p-12 bg-[#1e293b]/50 space-y-8 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#00FF00]/20 to-transparent" />
                         
-                        <div className="w-24 h-24 rounded-3xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500 shadow-2xl">
+                        <div className="w-24 h-24 rounded-3xl bg-[#00FF00]/10 border border-[#00FF00]/20 flex items-center justify-center text-[#00FF00] shadow-2xl">
                             <PhotoIcon className="w-12 h-12" />
                         </div>
                         
-                        <div className="text-center space-y-3">
+                        <div className="text-center space-y-3 text-white">
                             <h3 className="text-2xl font-black uppercase tracking-tight">Análise de Gráfico</h3>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Envie um print do seu gráfico para análise IA</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Envie um print do seu gráfico para análise IA</p>
                         </div>
                         
                         <div className="w-full grid grid-cols-2 gap-4">
-                            <label className="py-5 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase cursor-pointer transition-all shadow-lg">
+                            <label className="py-5 bg-[#00FF00] hover:brightness-110 text-[#0f172a] rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase cursor-pointer transition-all shadow-lg">
                                 <CameraIcon className="w-6 h-6" /> Câmera
                                 <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                             </label>
@@ -424,7 +424,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
 
                     <div className="p-6 border border-white/5 rounded-3xl bg-slate-900/20">
                         <div className="flex items-start gap-4">
-                            <InformationCircleIcon className="w-5 h-5 text-orange-500/40 shrink-0 mt-0.5" />
+                            <InformationCircleIcon className="w-5 h-5 text-[#00FF00]/40 shrink-0 mt-0.5" />
                             <p className="text-[10px] text-slate-500 leading-relaxed uppercase tracking-widest font-bold">
                                 Para melhores resultados, certifique-se de que o gráfico mostre claramente o preço, o timer da vela e pelo menos 30-50 períodos de histórico.
                             </p>
@@ -433,9 +433,9 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                 </div>
             ) : (
                 <div className="space-y-8">
-                    <div className="relative aspect-video rounded-[2rem] overflow-hidden border border-orange-500/30 bg-black shadow-2xl">
+                    <div className="relative aspect-video rounded-[2rem] overflow-hidden border border-[#00FF00]/30 bg-[#1e293b] shadow-2xl">
                         <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a]/60 to-transparent pointer-events-none" />
                         <button 
                             onClick={() => setSelectedImage(null)}
                             className="absolute top-4 right-4 p-2 bg-black/80 backdrop-blur-md rounded-xl text-white hover:bg-rose-600 transition-all"
@@ -446,7 +446,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                     
                     <button 
                         onClick={runAIAnalysis}
-                        className="w-full py-6 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl flex items-center justify-center gap-4 font-black text-sm uppercase tracking-widest transition-all shadow-xl active:scale-[0.97]"
+                        className="w-full py-6 bg-[#00FF00] hover:brightness-110 text-[#0f172a] rounded-2xl flex items-center justify-center gap-4 font-black text-sm uppercase tracking-widest transition-all shadow-xl active:scale-[0.97]"
                     >
                         <CpuChipIcon className="w-7 h-7" /> Iniciar Análise IA
                     </button>
