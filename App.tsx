@@ -82,16 +82,16 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 5, initialDelay =
 
 const useThemeClasses = (isDarkMode: boolean) => {
     return useMemo(() => ({
-        bg: isDarkMode ? 'bg-slate-950' : 'bg-zinc-100',
+        bg: isDarkMode ? 'bg-[#0f172a]' : 'bg-zinc-100',
         text: isDarkMode ? 'text-slate-50' : 'text-zinc-900',
         textMuted: isDarkMode ? 'text-slate-400' : 'text-zinc-500',
-        card: isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-zinc-50 border-zinc-200 shadow-sm',
-        input: isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-700' : 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400',
-        border: isDarkMode ? 'border-slate-800' : 'border-zinc-200',
-        sidebar: isDarkMode ? 'bg-slate-950 border-r border-slate-800' : 'bg-zinc-50 border-r border-zinc-200',
-        header: isDarkMode ? 'bg-slate-950' : 'bg-zinc-50',
-        navActive: isDarkMode ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-600',
-        navInactive: isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50',
+        card: isDarkMode ? 'bg-[#1e293b]/50 border-white/5' : 'bg-zinc-50 border-zinc-200 shadow-sm',
+        input: isDarkMode ? 'bg-[#0f172a] border-white/10 text-white placeholder-slate-700' : 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400',
+        border: isDarkMode ? 'border-white/10' : 'border-zinc-200',
+        sidebar: isDarkMode ? 'bg-[#0f172a] border-r border-white/10' : 'bg-zinc-50 border-r border-zinc-200',
+        header: isDarkMode ? 'bg-[#0f172a]' : 'bg-zinc-50',
+        navActive: isDarkMode ? 'bg-[#00FF00]/10 text-[#00FF00]' : 'bg-green-50 text-green-600',
+        navInactive: isDarkMode ? 'text-slate-400 hover:text-[#00FF00] hover:bg-[#00FF00]/5' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50',
     }), [isDarkMode]);
 };
 
@@ -162,29 +162,33 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
             const timeString = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
             const prompt = `HORÁRIO ATUAL: ${timeString}. 
-            ANÁLISE OBRIGATÓRIA M1:
-            Analise o gráfico seguindo estas prioridades:
-            1. Identificar a tendência predominante.
-            2. Identificar possíveis reversões ou figuras gráficas (padrões).
-            3. Identificar suportes, resistências e zonas intermediárias.
-            4. Recomendar operações a favor da tendência, priorizando rompimentos.
-            5. IDENTIFICAR O TEMPO RESTANTE DA VELA ATUAL (CANDLE TIMER).
+            ANÁLISE TÉCNICA AVANÇADA (PRICE ACTION + INDICADORES):
+            Você é um robô de alta precisão para Opções Binárias (M1).
+            Analise o print do gráfico e identifique:
+            1. TENDÊNCIA: Analise as últimas 20-30 velas.
+            2. PADRÕES DE VELA: Martelo, Engolfo, Doji, Estrela da Manhã/Noite.
+            3. ZONAS S/R: Identifique suportes e resistências fortes onde o preço está chegando.
+            4. INDICADORES: Se visíveis, analise RSI (sobrecompra/sobrevenda), Médias Móveis e Volume.
+            5. CANDLE TIMER: Localize o cronômetro da vela atual no gráfico.
+
+            OBJETIVO: Fornecer um sinal de ALTA PRECISÃO para a PRÓXIMA VELA (M1).
+            Se o mercado estiver lateral ou sem padrão claro, recomende AGUARDAR.
 
             Retorne um JSON com:
-            1. asset: Par de moedas.
-            2. recommendation: CALL, PUT ou AGUARDAR.
-            3. confidence: 0-100.
-            4. reasoning: Explicação técnica baseada em tendência, suportes/resistências e rompimentos.
-            5. expiration: Tempo de expiração (ex: M1).
+            1. asset: Par de moedas (ex: EUR/USD).
+            2. recommendation: CALL (Compra), PUT (Venda) ou AGUARDAR.
+            3. confidence: 0-100 (Apenas envie sinais acima de 85%).
+            4. reasoning: Explicação técnica curta (ex: "Rompimento de resistência com volume alto + Engolfo de alta").
+            5. expiration: M1.
             6. trend: ALTA, BAIXA ou LATERAL.
             7. precision: ALTA, MEDIA ou BAIXA.
             8. volume: ALTO, MEDIO ou BAIXO.
-            9. timeframe: M1, M5, etc.
-            10. candleRemainingSeconds: Segundos restantes na vela atual (número).`;
+            9. timeframe: M1.
+            10. candleRemainingSeconds: Segundos exatos que faltam para a vela atual fechar.`;
 
             const config = {
-                systemInstruction: "Você é um analista sênior de Price Action especializado em Opções Binárias. Sua metodologia foca em identificar tendências, figuras gráficas, zonas de suporte/resistência e operar a favor da tendência com foco em rompimentos. Identifique o tempo restante da vela no gráfico. Retorne APENAS JSON.",
-                temperature: 0.2,
+                systemInstruction: "Você é um robô analista sênior de Price Action e Fluxo de Ordens para Opções Binárias. Sua missão é analisar o gráfico em M1 e fornecer sinais de alta probabilidade para a PRÓXIMA VELA. Foque em: 1. Rompimentos de S/R confirmados por volume. 2. Padrões de reversão em zonas de exaustão. 3. Continuidade de tendência forte. Identifique com precisão o tempo restante da vela atual para sincronizar a entrada. Retorne APENAS JSON.",
+                temperature: 0.1,
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.OBJECT,
@@ -223,7 +227,9 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
             const result = JSON.parse(response.text.trim());
             
             const entryDate = new Date(now);
-            if (result.candleRemainingSeconds <= 30) {
+            // Se faltar menos de 15 segundos, pegamos a vela seguinte à próxima para dar tempo do usuário agir
+            // Caso contrário, pegamos a próxima vela imediata
+            if (result.candleRemainingSeconds < 15) {
                 entryDate.setMinutes(now.getMinutes() + 2);
             } else {
                 entryDate.setMinutes(now.getMinutes() + 1);
@@ -352,11 +358,11 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-slate-900/50 p-3 rounded-2xl border border-white/5">
+                            <div className="bg-[#1e293b] p-3 rounded-2xl border border-white/5">
                                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Confiança</p>
                                 <p className="text-xl font-black text-[#00FF00]">{analysisResult.confidence}%</p>
                             </div>
-                            <div className="bg-slate-900/50 p-3 rounded-2xl border border-white/5">
+                            <div className="bg-[#1e293b] p-3 rounded-2xl border border-white/5">
                                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Tendência</p>
                                 <p className="text-xl font-black text-white">{analysisResult.trend}</p>
                             </div>
@@ -415,7 +421,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                                 <CameraIcon className="w-6 h-6" /> Câmera
                                 <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                             </label>
-                            <label className="py-5 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase cursor-pointer transition-all">
+                            <label className="py-5 bg-[#1e293b] hover:bg-slate-700 text-white rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase cursor-pointer transition-all border border-white/5">
                                 <PhotoIcon className="w-6 h-6" /> Galeria
                                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                             </label>
@@ -714,7 +720,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     }, [brokerages, records]);
 
     const theme = useThemeClasses(isDarkMode);
-    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" /></div>;
+    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-[#00FF00] border-t-transparent rounded-full animate-spin" /></div>;
 
     const dateStr = getLocalDateString(selectedDate);
     const brokerageRecords = records.filter(r => r.brokerageId === activeBrokerage?.id);
@@ -789,8 +795,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
                 <div className={`h-20 flex-none flex items-center justify-center border-b ${theme.border} ${theme.header} relative overflow-hidden`}>
                     <div className="flex flex-col items-center relative z-10">
-                        <span className="font-black italic text-teal-400 text-3xl tracking-tighter leading-none">HRK</span>
-                        <span className="text-[6px] font-black uppercase tracking-[0.3em] text-teal-500/40 mt-1">Binary Options Control</span>
+                        <span className="font-black italic text-[#00FF00] text-3xl tracking-tighter leading-none">HRK</span>
+                        <span className="text-[6px] font-black uppercase tracking-[0.3em] text-[#00FF00]/40 mt-1">Binary Options Control</span>
                     </div>
                     {/* Subtle background decorations */}
                     <div className="absolute right-4 bottom-2 flex items-end gap-[2px] opacity-10">
@@ -806,14 +812,14 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 </div>
                 <nav className="flex-1 p-4 space-y-1">
                     <div className="px-4 py-2 mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-[0.2em] text-teal-500/40">
-                            <div className="w-1 h-1 rounded-full bg-teal-500" />
+                        <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-[0.2em] text-[#00FF00]/40">
+                            <div className="w-1 h-1 rounded-full bg-[#00FF00]" />
                             Trading Mode: M1 / OTC
                         </div>
-                        <div className="px-1 py-0.5 rounded bg-teal-500/10 text-[6px] font-black text-teal-500/50 uppercase">Binary</div>
+                        <div className="px-1 py-0.5 rounded bg-[#00FF00]/10 text-[6px] font-black text-[#00FF00]/50 uppercase">Binary</div>
                     </div>
                     <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
-                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'ai-analysis' ? theme.navActive : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
+                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'ai-analysis' ? 'bg-[#00FF00]/10 text-[#00FF00]' : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
                     <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Juros Compostos</button>
                     <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Extrato</button>
                     <button onClick={() => {setActiveTab('history'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'history' ? theme.navActive : theme.navInactive}`}><ListBulletIcon className="w-5 h-5" />Histórico</button>
@@ -840,8 +846,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 <header className={`h-20 flex-none flex items-center justify-between px-6 md:px-8 border-b ${theme.border} ${theme.header}`}>
                     <div className="flex items-center gap-4">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-6 h-6" /></button>
-                        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/30 border border-slate-800/50 text-[8px] font-black uppercase tracking-widest text-teal-400/60">
-                            <div className="w-1 h-1 rounded-full bg-teal-400 animate-pulse" />
+                        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e293b]/30 border border-white/5 text-[8px] font-black uppercase tracking-widest text-[#00FF00]/60">
+                            <div className="w-1 h-1 rounded-full bg-[#00FF00] animate-pulse" />
                             Market: Active
                         </div>
                         <SavingStatusIndicator status={savingStatus} />
@@ -869,10 +875,10 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             ))}
                         </div>
                         <div className="flex items-center gap-1 md:gap-3 shrink-0">
-                            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1 md:p-2 text-slate-400 hover:text-teal-400 transition-colors">
+                            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1 md:p-2 text-slate-400 hover:text-[#00FF00] transition-colors">
                                 {isDarkMode ? <SunIcon className="w-3.5 h-3.5 md:w-5 md:h-5" /> : <MoonIcon className="w-3.5 h-3.5 md:w-5 md:h-5" />}
                             </button>
-                            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-teal-500 flex items-center justify-center text-slate-950 font-black text-[9px] md:text-xs shadow-lg shadow-teal-500/20">
+                            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-[#00FF00] flex items-center justify-center text-[#0f172a] font-black text-[9px] md:text-xs shadow-lg shadow-[#00FF00]/20">
                                 {user.username.slice(0, 2).toUpperCase()}
                             </div>
                         </div>
@@ -1393,7 +1399,7 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
         <div className={`p-1.5 md:p-3 rounded-xl border ${theme.card} w-full max-w-xl mx-auto`}>
             <div className="flex items-center justify-between mb-3">
                 <button onClick={prevMonth} className="p-1 hover:bg-slate-800/50 rounded-md transition-colors"><ChevronLeftIcon className="w-3.5 h-3.5" /></button>
-                <h3 className="text-xs md:text-sm font-black uppercase tracking-widest text-teal-400">{monthName}</h3>
+                <h3 className="text-xs md:text-sm font-black uppercase tracking-widest text-[#00FF00]">{monthName}</h3>
                 <button onClick={nextMonth} className="p-1 hover:bg-slate-800/50 rounded-md transition-colors"><ChevronRightIcon className="w-3.5 h-3.5" /></button>
             </div>
 
@@ -1603,7 +1609,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                         <button
                             key={mode}
                             onClick={() => setViewMode(mode)}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${viewMode === mode ? 'bg-teal-500 text-slate-950 shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${viewMode === mode ? 'bg-[#00FF00] text-[#0f172a] shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
                             {mode === 'calendar' ? 'Calendário' : mode === 'daily' ? 'Diário' : mode === 'weekly' ? 'Semanal' : 'Mensal'}
                         </button>
@@ -1703,7 +1709,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                             <button
                                 onClick={handleTextImport}
                                 disabled={isImporting || !importText.trim()}
-                                className="flex-1 py-4 bg-teal-500 hover:bg-teal-400 text-slate-950 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-teal-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                className="flex-1 py-4 bg-[#00FF00] hover:brightness-110 text-[#0f172a] rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-[#00FF00]/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                             >
                                 {isImporting && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
                                 {isImporting ? (retryCount > 0 ? `Tentativa ${retryCount + 1}...` : 'Processando...') : 'Confirmar Importação'}
@@ -1849,7 +1855,7 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
                             <div className="h-12" />
                         )}
                     </div>
-                    <button onClick={addGoal} className="w-full h-12 bg-teal-500 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest">Adicionar Meta</button>
+                    <button onClick={addGoal} className="w-full h-12 bg-[#00FF00] text-[#0f172a] font-black rounded-xl uppercase text-[10px] tracking-widest">Adicionar Meta</button>
                 </div>
                 
                 <div className="space-y-4">
@@ -1918,7 +1924,7 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                         onChange={e => setNewBrokerageName(e.target.value)}
                         className={`h-10 px-4 rounded-xl border text-xs font-bold outline-none ${theme.input}`}
                     />
-                    <button onClick={addNewBrokerage} className="h-10 px-4 bg-teal-500 text-slate-950 font-black rounded-xl uppercase text-[10px] tracking-widest">Nova</button>
+                    <button onClick={addNewBrokerage} className="h-10 px-4 bg-[#00FF00] text-[#0f172a] font-black rounded-xl uppercase text-[10px] tracking-widest">Nova</button>
                 </div>
             </div>
             
