@@ -248,7 +248,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                 </div>
                 
                 <div className="mt-12 text-center">
-                    <p className="text-slate-600 text-[10px] font-bold tracking-[0.3em] uppercase">SINCRONIZADO COM VERCEL POSTGRES</p>
                 </div>
             </div>
         </div>
