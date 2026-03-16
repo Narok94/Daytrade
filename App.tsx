@@ -2047,7 +2047,13 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
         }
 
         const currentInitialBalance = activeBrokerage?.initialBalance || 1000;
-        setBank(savedBank ? Number(savedBank) : currentInitialBalance);
+        // Sync with brokerage initial balance if it changed in settings or if no bank is saved for this month
+        if (prevInitialBalanceRef.current !== currentInitialBalance || !savedBank) {
+            setBank(currentInitialBalance);
+            localStorage.setItem(getStorageKey('bank'), String(currentInitialBalance));
+        } else {
+            setBank(Number(savedBank));
+        }
         prevInitialBalanceRef.current = currentInitialBalance;
 
         setStopPercent(savedStop ? Number(savedStop) : 10);
