@@ -165,30 +165,31 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
             ANÁLISE TÉCNICA AVANÇADA (PRICE ACTION + INDICADORES):
             Você é um robô de alta precisão para Opções Binárias (M1).
             Analise o print do gráfico e identifique:
-            1. TENDÊNCIA: Analise as últimas 20-30 velas.
+            1. TENDÊNCIA: Analise as últimas 20-30 velas. Seja decisivo se houver uma tendência clara.
             2. PADRÕES DE VELA: Martelo, Engolfo, Doji, Estrela da Manhã/Noite.
-            3. ZONAS S/R: Identifique suportes e resistências fortes onde o preço está chegando.
-            4. INDICADORES: Se visíveis, analise RSI (sobrecompra/sobrevenda), Médias Móveis e Volume.
-            5. CANDLE TIMER: Localize o cronômetro da vela atual no gráfico.
+            3. ZONAS S/R: Identifique suportes e resistências fortes.
+            4. INDICADORES: RSI, Médias Móveis e Volume.
+            5. CANDLE TIMER: Localize o cronômetro da vela atual.
 
-            OBJETIVO: Fornecer um sinal de ALTA PRECISÃO para a PRÓXIMA VELA (M1).
-            Se o mercado estiver lateral ou sem padrão claro, recomende AGUARDAR.
+            OBJETIVO: Fornecer um sinal para a PRÓXIMA VELA (M1).
+            Evite "AGUARDAR" a menos que o gráfico esteja extremamente confuso ou sem volatilidade. 
+            Se houver uma probabilidade razoável (>70%), forneça o sinal de CALL ou PUT.
 
             Retorne um JSON com:
-            1. asset: Par de moedas (ex: EUR/USD).
-            2. recommendation: CALL (Compra), PUT (Venda) ou AGUARDAR.
-            3. confidence: 0-100 (Apenas envie sinais acima de 85%).
-            4. reasoning: Explicação técnica curta (ex: "Rompimento de resistência com volume alto + Engolfo de alta").
+            1. asset: Par de moedas.
+            2. recommendation: CALL, PUT ou AGUARDAR.
+            3. confidence: 0-100.
+            4. reasoning: Explicação técnica curta e direta.
             5. expiration: M1.
             6. trend: ALTA, BAIXA ou LATERAL.
             7. precision: ALTA, MEDIA ou BAIXA.
             8. volume: ALTO, MEDIO ou BAIXO.
             9. timeframe: M1.
-            10. candleRemainingSeconds: Segundos exatos que faltam para a vela atual fechar.`;
+            10. candleRemainingSeconds: Segundos para fechar a vela atual.`;
 
             const config = {
-                systemInstruction: "Você é um robô analista sênior de Price Action e Fluxo de Ordens para Opções Binárias. Sua missão é analisar o gráfico em M1 e fornecer sinais de alta probabilidade para a PRÓXIMA VELA. Foque em: 1. Rompimentos de S/R confirmados por volume. 2. Padrões de reversão em zonas de exaustão. 3. Continuidade de tendência forte. Identifique com precisão o tempo restante da vela atual para sincronizar a entrada. Retorne APENAS JSON.",
-                temperature: 0.1,
+                systemInstruction: "Você é um robô analista sênior de Price Action. Sua missão é ser assertivo e encontrar oportunidades de entrada em M1. Não seja excessivamente conservador; se houver um padrão técnico claro (tendência, rompimento ou reversão), forneça o sinal de CALL ou PUT. Retorne APENAS JSON.",
+                temperature: 0.4,
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.OBJECT,
