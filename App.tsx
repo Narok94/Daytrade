@@ -162,44 +162,42 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
             const timeString = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
             const prompt = `HORÁRIO ATUAL: ${timeString}. 
-            ANÁLISE TÉCNICA AVANÇADA (PRICE ACTION + INDICADORES):
-            Você é um robô de alta precisão para Opções Binárias (M1).
-            Analise o print do gráfico e identifique:
-            1. TENDÊNCIA: Analise as últimas 20-30 velas. Seja decisivo se houver uma tendência clara.
-            2. PADRÕES DE VELA: Martelo, Engolfo, Doji, Estrela da Manhã/Noite.
-            3. ZONAS S/R: Identifique suportes e resistências fortes.
-            4. INDICADORES: RSI, Médias Móveis e Volume.
-            5. CANDLE TIMER: Localize o cronômetro da vela atual.
+            VOCÊ É UM ROBÔ AGRESSIVO DE SINAIS (M1).
+            Sua tarefa é encontrar uma entrada de COMPRA (CALL) ou VENDA (PUT) AGORA.
+            
+            Analise o gráfico:
+            1. TENDÊNCIA: Identifique a direção imediata.
+            2. VELAS: Procure por força (velas grandes) ou exaustão (pavios longos).
+            3. SUPORTE/RESISTÊNCIA: Onde o preço vai bater e voltar ou romper?
 
-            OBJETIVO: Fornecer um sinal para a PRÓXIMA VELA (M1).
-            Evite "AGUARDAR" a menos que o gráfico esteja extremamente confuso ou sem volatilidade. 
-            Se houver uma probabilidade razoável (>70%), forneça o sinal de CALL ou PUT.
+            REGRA DE OURO: Você DEVE fornecer um sinal de CALL ou PUT. 
+            Não hesite. Se houver o mínimo de tendência ou padrão, escolha CALL ou PUT.
 
             Retorne um JSON com:
             1. asset: Par de moedas.
-            2. recommendation: CALL, PUT ou AGUARDAR.
+            2. recommendation: CALL ou PUT.
             3. confidence: 0-100.
-            4. reasoning: Explicação técnica curta e direta.
+            4. reasoning: Justificativa técnica rápida.
             5. expiration: M1.
-            6. trend: ALTA, BAIXA ou LATERAL.
-            7. precision: ALTA, MEDIA ou BAIXA.
-            8. volume: ALTO, MEDIO ou BAIXO.
+            6. trend: ALTA ou BAIXA.
+            7. precision: ALTA ou MEDIA.
+            8. volume: ALTO ou MEDIO.
             9. timeframe: M1.
             10. candleRemainingSeconds: Segundos para fechar a vela atual.`;
 
             const config = {
-                systemInstruction: "Você é um robô analista sênior de Price Action. Sua missão é ser assertivo e encontrar oportunidades de entrada em M1. Não seja excessivamente conservador; se houver um padrão técnico claro (tendência, rompimento ou reversão), forneça o sinal de CALL ou PUT. Retorne APENAS JSON.",
-                temperature: 0.4,
+                systemInstruction: "Você é um especialista em escalpamento agressivo em M1. Sua função é dar sinais constantes de CALL ou PUT. Não tenha medo de errar, foque em encontrar a direção provável da próxima vela. Se o gráfico tem uma leve inclinação para cima, dê CALL. Se tem uma leve inclinação para baixo, dê PUT. NUNCA recomende aguardar. Retorne APENAS JSON.",
+                temperature: 0.8,
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.OBJECT,
                     properties: {
                         asset: { type: Type.STRING },
-                        recommendation: { type: Type.STRING, enum: ['CALL', 'PUT', 'AGUARDAR'] },
+                        recommendation: { type: Type.STRING, enum: ['CALL', 'PUT'] },
                         confidence: { type: Type.NUMBER },
                         reasoning: { type: Type.STRING },
                         expiration: { type: Type.STRING },
-                        trend: { type: Type.STRING },
+                        trend: { type: Type.STRING, enum: ['ALTA', 'BAIXA'] },
                         precision: { type: Type.STRING },
                         volume: { type: Type.STRING },
                         timeframe: { type: Type.STRING },
@@ -1165,13 +1163,14 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
 // ... Omitted other panels as they remain the same as previous logic ...
 const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records }) => {
     const theme = useThemeClasses(isDarkMode);
-    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
     
     const [projMetaPercent, setProjMetaPercent] = useState(10);
     const [projStopPercent, setProjStopPercent] = useState(3);
     const [projEntryPercent, setProjEntryPercent] = useState(1);
 
     const tableData = useMemo(() => {
+        if (!activeBrokerage) return [];
         const rows = [];
         const sortedRealRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0).sort((a: DailyRecord, b: DailyRecord) => a.id.localeCompare(b.id));
         let startDate = sortedRealRecords.length > 0 ? new Date(sortedRealRecords[0].id + 'T12:00:00') : new Date();
@@ -1249,7 +1248,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             ...row,
             diaTrade: index + 1
         }));
-    }, [records, activeBrokerage.initialBalance, projMetaPercent, projStopPercent, projEntryPercent]);
+    }, [records, activeBrokerage?.id, activeBrokerage?.initialBalance, projMetaPercent, projStopPercent, projEntryPercent]);
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
@@ -1971,6 +1970,7 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
 const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMode, records, selectedDate, setSelectedDate }) => {
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
     const [selectedMonth, setSelectedMonth] = useState(() => getLocalMonthString(selectedDate));
+    const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
     
     // Sync selectedMonth with selectedDate
     useEffect(() => {
@@ -1990,6 +1990,8 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
     const [sessionEntries, setSessionEntries] = useState<number[]>([0]);
     const [deposits, setDeposits] = useState<any[]>(Array(10).fill({ date: '', value: 0 }));
     const [withdrawals, setWithdrawals] = useState<any[]>(Array(10).fill({ date: '', value: 0 }));
+
+    const prevInitialBalanceRef = useRef(activeBrokerage?.initialBalance);
 
     // Load data when brokerage or month changes
     useEffect(() => {
@@ -2044,7 +2046,10 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
             setDaysData(initialDays);
         }
 
-        setBank(savedBank ? Number(savedBank) : (activeBrokerage?.initialBalance || 1000));
+        const currentInitialBalance = activeBrokerage?.initialBalance || 1000;
+        setBank(savedBank ? Number(savedBank) : currentInitialBalance);
+        prevInitialBalanceRef.current = currentInitialBalance;
+
         setStopPercent(savedStop ? Number(savedStop) : 10);
         setExchangeRate(savedExchange ? Number(savedExchange) : 5.0);
         
@@ -2061,7 +2066,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
 
         setDeposits(savedDeposits ? JSON.parse(savedDeposits) : Array(10).fill({ date: '', value: 0 }));
         setWithdrawals(savedWithdrawals ? JSON.parse(savedWithdrawals) : Array(10).fill({ date: '', value: 0 }));
-    }, [activeBrokerage?.id, selectedMonth]);
+    }, [activeBrokerage?.id, activeBrokerage?.initialBalance, selectedMonth]);
 
     const yesterdayBalance = useMemo(() => {
         if (!records || !activeBrokerage) return activeBrokerage?.initialBalance || 0;
@@ -2077,7 +2082,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
             return sum;
         }, 0);
         return (activeBrokerage?.initialBalance || 0) + profit;
-    }, [records, activeBrokerage?.id]);
+    }, [records, activeBrokerage?.id, activeBrokerage?.initialBalance]);
 
     // Sync with App Records
     useEffect(() => {
@@ -2235,6 +2240,23 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                             ))}
                         </select>
                     </div>
+                    <div className="flex flex-col">
+                        <label className="text-[8px] font-black uppercase text-slate-500 ml-1 mb-0.5">Visualização</label>
+                        <div className="flex bg-slate-100 border border-black/20 rounded-xl p-1">
+                            <button 
+                                onClick={() => setViewMode('daily')}
+                                className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all ${viewMode === 'daily' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-blue-600'}`}
+                            >
+                                Diária
+                            </button>
+                            <button 
+                                onClick={() => setViewMode('monthly')}
+                                className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all ${viewMode === 'monthly' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-blue-600'}`}
+                            >
+                                Mensal
+                            </button>
+                        </div>
+                    </div>
                     <button 
                         onClick={() => setSelectedDate(new Date())}
                         className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-blue-500 transition-all shadow-sm mt-3"
@@ -2262,70 +2284,121 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
             </div>
 
             <div className="grid grid-cols-12 gap-2 w-full">
-                {/* GESTÃO MENSAL */}
-                <div className="col-span-5 space-y-1">
-                    <div className="bg-blue-600 text-white font-black text-center py-1.5 uppercase text-xs border border-black rounded-t-lg">Gestão Mensal</div>
-                    <div className="grid grid-cols-5 gap-0 border border-black text-[9px] font-black uppercase text-center bg-slate-800 text-white">
-                        <div className="border-r border-black py-1">RF</div>
-                        <div className="border-r border-black py-1">Data</div>
-                        <div className="border-r border-black py-1">Payout</div>
-                        <div className="border-r border-black py-1">Entradas</div>
-                        <div className="py-1">Lucro/Prej</div>
+                {/* GESTÃO TABLE */}
+                <div className="col-span-6 space-y-1">
+                    <div className="bg-blue-600 text-white font-black text-center py-1.5 uppercase text-xs border border-black rounded-t-lg">
+                        {viewMode === 'daily' ? 'Gestão Diária' : 'Gestão Mensal'}
                     </div>
-                    <div className="max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
-                        {daysData.map((d: any, idx: number) => (
-                            <div key={d.id} className={`grid grid-cols-5 gap-0 border-x border-b border-black text-[10px] transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${getLocalDateString(selectedDate).endsWith(String(d.id).padStart(2, '0')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}>
-                                <div 
-                                    className="border-r border-black bg-yellow-400 text-black font-bold text-center py-1 relative cursor-pointer hover:bg-yellow-500 transition-colors"
-                                    onClick={() => {
-                                        const [year, month] = selectedMonth.split('-');
-                                        const newDate = new Date(Number(year), Number(month) - 1, d.id, 12, 0, 0);
-                                        setSelectedDate(newDate);
-                                    }}
-                                >
-                                    {d.id}
-                                    {d.hasSoros && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-emerald-500 rounded-bl-sm" title="Soros realizado" />}
-                                </div>
-                                <div className="border-r border-black text-black">
-                                    <input 
-                                        type="text" 
-                                        value={d.date} 
-                                        onChange={e => updateDay(d.id, 'date', e.target.value)}
-                                        className="w-full bg-transparent text-center outline-none font-medium py-1 focus:bg-white transition-colors"
-                                    />
-                                </div>
-                                <div className="border-r border-black bg-blue-50/30 text-black">
-                                    <input 
-                                        type="text" 
-                                        value={d.payout + '%'} 
-                                        onChange={e => updateDay(d.id, 'payout', e.target.value.replace('%', ''))}
-                                        className="w-full bg-transparent text-center outline-none py-1 focus:bg-white transition-colors"
-                                    />
-                                </div>
-                                <div className="border-r border-black bg-blue-100/20 text-black">
-                                    <input 
-                                        type="number" 
-                                        value={d.tradeCount || 0} 
-                                        readOnly
-                                        className="w-full bg-transparent text-center outline-none font-bold py-1 focus:bg-white transition-colors"
-                                    />
-                                </div>
-                                <div className={`text-center py-1 font-black transition-colors ${d.result > 0 ? 'bg-green-100/50 text-green-700' : d.result < 0 ? 'bg-red-100/50 text-red-700' : 'bg-slate-100/50 text-slate-400'}`}>
-                                    <input 
-                                        type="number" 
-                                        step="0.01"
-                                        value={d.result !== undefined && d.result !== '' ? Number(d.result).toFixed(2) : ''} 
-                                        onChange={e => updateDay(d.id, 'result', e.target.value)}
-                                        className="w-full bg-transparent text-center outline-none py-0 focus:bg-white/50 transition-colors"
-                                    />
-                                </div>
+                    
+                    {viewMode === 'monthly' ? (
+                        <>
+                            <div className="grid grid-cols-5 gap-0 border border-black text-[9px] font-black uppercase text-center bg-slate-800 text-white">
+                                <div className="border-r border-black py-1">RF</div>
+                                <div className="border-r border-black py-1">Data</div>
+                                <div className="border-r border-black py-1">Payout</div>
+                                <div className="border-r border-black py-1">Entradas</div>
+                                <div className="py-1">Lucro/Prej</div>
                             </div>
-                        ))}
-                    </div>
+                            <div className="max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
+                                {daysData.map((d: any, idx: number) => (
+                                    <div key={d.id} className={`grid grid-cols-5 gap-0 border-x border-b border-black text-[10px] transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${getLocalDateString(selectedDate).endsWith(String(d.id).padStart(2, '0')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}>
+                                        <div 
+                                            className="border-r border-black bg-yellow-400 text-black font-bold text-center py-1 relative cursor-pointer hover:bg-yellow-500 transition-colors"
+                                            onClick={() => {
+                                                const [year, month] = selectedMonth.split('-');
+                                                const newDate = new Date(Number(year), Number(month) - 1, d.id, 12, 0, 0);
+                                                setSelectedDate(newDate);
+                                            }}
+                                        >
+                                            {d.id}
+                                            {d.hasSoros && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-emerald-500 rounded-bl-sm" title="Soros realizado" />}
+                                        </div>
+                                        <div className="border-r border-black text-black">
+                                            <input 
+                                                type="text" 
+                                                value={d.date} 
+                                                onChange={e => updateDay(d.id, 'date', e.target.value)}
+                                                className="w-full bg-transparent text-center outline-none font-medium py-1 focus:bg-white transition-colors"
+                                            />
+                                        </div>
+                                        <div className="border-r border-black bg-blue-50/30 text-black">
+                                            <input 
+                                                type="text" 
+                                                value={d.payout + '%'} 
+                                                onChange={e => updateDay(d.id, 'payout', e.target.value.replace('%', ''))}
+                                                className="w-full bg-transparent text-center outline-none py-1 focus:bg-white transition-colors"
+                                            />
+                                        </div>
+                                        <div className="border-r border-black bg-blue-100/20 text-black">
+                                            <input 
+                                                type="number" 
+                                                value={d.tradeCount || 0} 
+                                                readOnly
+                                                className="w-full bg-transparent text-center outline-none font-bold py-1 focus:bg-white transition-colors"
+                                            />
+                                        </div>
+                                        <div className={`text-center py-1 font-black transition-colors ${d.result > 0 ? 'bg-green-100/50 text-green-700' : d.result < 0 ? 'bg-red-100/50 text-red-700' : 'bg-slate-100/50 text-slate-400'}`}>
+                                            <input 
+                                                type="number" 
+                                                step="0.01"
+                                                value={d.result !== undefined && d.result !== '' ? Number(d.result).toFixed(2) : ''} 
+                                                onChange={e => updateDay(d.id, 'result', e.target.value)}
+                                                className="w-full bg-transparent text-center outline-none py-0 focus:bg-white/50 transition-colors"
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-5 gap-0 border border-black text-[9px] font-black uppercase text-center bg-slate-800 text-white">
+                                <div className="border-r border-black py-1">Entrada</div>
+                                <div className="border-r border-black py-1">Data/Hora</div>
+                                <div className="border-r border-black py-1">Payout</div>
+                                <div className="border-r border-black py-1">Resultado</div>
+                                <div className="py-1">Lucro/Prej</div>
+                            </div>
+                            <div className="max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
+                                {(() => {
+                                    const dateKey = getLocalDateString(selectedDate);
+                                    const dayRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateKey && r.brokerageId === activeBrokerage.id);
+                                    const trades = dayRecord?.trades || [];
+                                    
+                                    if (trades.length === 0) {
+                                        return <div className="py-10 text-center text-slate-400 font-bold uppercase text-[10px]">Nenhuma entrada registrada hoje</div>;
+                                    }
+
+                                    return trades.map((t: any, idx: number) => {
+                                        const profit = t.result === 'win' ? (t.entryValue * (t.payoutPercentage / 100)) : -t.entryValue;
+                                        return (
+                                            <div key={t.id || idx} className={`grid grid-cols-5 gap-0 border-x border-b border-black text-[10px] transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                                                <div className="border-r border-black bg-yellow-400 text-black font-bold text-center py-2">
+                                                    {idx + 1}
+                                                </div>
+                                                <div className="border-r border-black text-black text-center py-2 font-medium">
+                                                    {t.timestamp ? new Date(t.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                                </div>
+                                                <div className="border-r border-black bg-blue-50/30 text-black text-center py-2 font-bold">
+                                                    {t.payoutPercentage}%
+                                                </div>
+                                                <div className={`border-r border-black text-center py-2 font-black uppercase ${t.result === 'win' ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {t.result}
+                                                </div>
+                                                <div className={`text-center py-2 font-black ${profit > 0 ? 'bg-green-100/50 text-green-700' : 'bg-red-100/50 text-red-700'}`}>
+                                                    {currencySymbol} {formatMoney(profit)}
+                                                </div>
+                                            </div>
+                                        );
+                                    });
+                                })()}
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 {/* MIDDLE COLUMN */}
-                <div className="col-span-3 space-y-4">
+                <div className="col-span-2 space-y-4">
                     {/* BANCA CARDS */}
                     <div className="grid grid-cols-1 gap-2">
                         <div className="bg-white border border-black rounded-xl overflow-hidden shadow-sm flex flex-col">
@@ -2343,7 +2416,20 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                         <div className="bg-slate-800 text-white font-black text-center py-1.5 uppercase text-xs border border-black rounded-t-lg">Configuração de Risco</div>
                         <div className="bg-white border border-black p-3 rounded-b-lg space-y-3 shadow-sm">
                             <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase text-slate-500">Banca Base</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black uppercase text-slate-500">Banca Base</span>
+                                    <button 
+                                        onClick={() => {
+                                            const val = activeBrokerage?.initialBalance || 0;
+                                            setBank(val);
+                                            localStorage.setItem(getStorageKey('bank'), val.toString());
+                                        }}
+                                        title="Sincronizar com Saldo Inicial da Corretora"
+                                        className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                    >
+                                        <ArrowPathIcon className="w-3 h-3" />
+                                    </button>
+                                </div>
                                 <input type="number" value={bank} onChange={e => setBank(Number(e.target.value))} className="w-24 bg-slate-100 border border-black/10 rounded px-2 py-1 text-right font-black outline-none focus:border-blue-500" />
                             </div>
                             <div className="flex items-center justify-between">
@@ -2353,50 +2439,6 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                             <div className="pt-2 border-t border-black/5 flex items-center justify-between">
                                 <span className="text-[10px] font-black uppercase text-blue-600">Valor do Stop</span>
                                 <span className="text-sm font-black text-blue-700">{currencySymbol} {formatMoney(bank * (stopPercent / 100))}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* SESSÃO */}
-                    <div className="space-y-0 border-2 border-black rounded-xl overflow-hidden shadow-lg">
-                        <div className="bg-[#f97316] text-white font-black text-center py-2.5 uppercase text-xs tracking-[0.2em]">
-                            Sessão - {selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                        </div>
-                        <div className="bg-[#f5f5f0]">
-                            <div className="grid grid-cols-1 max-h-[300px] overflow-y-auto custom-scrollbar">
-                                {Array.from({ length: Math.max(6, sessionEntries.length) }).map((_, idx) => {
-                                    const val = sessionEntries[idx];
-                                    return (
-                                        <div key={idx} className="flex border-b border-black/10 last:border-b-0">
-                                            <div className="bg-[#f5f5f0] w-28 text-[9px] font-black uppercase text-[#f97316] border-r border-black/10 py-3 flex items-center justify-center tracking-widest">
-                                                Entrada {String(idx + 1).padStart(2, '0')}
-                                            </div>
-                                            <div className="flex-1 flex items-center bg-white">
-                                                <input 
-                                                    type="number" 
-                                                    value={val || ''} 
-                                                    onChange={e => {
-                                                        const newVal = Number(e.target.value);
-                                                        const newEntries = [...sessionEntries];
-                                                        newEntries[idx] = newVal;
-                                                        if (idx === sessionEntries.length - 1 && newVal !== 0) {
-                                                            newEntries.push(0);
-                                                        }
-                                                        setSessionEntries(newEntries);
-                                                    }} 
-                                                    className={`w-full h-10 outline-none text-center text-xs font-black ${val > 0 ? 'text-[#065f46]' : val < 0 ? 'text-red-600' : 'text-slate-400'}`} 
-                                                    placeholder="0,00"
-                                                />
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <div className="bg-[#f5f5f0] border-t-2 border-black flex items-center justify-between px-4 py-3">
-                                <span className="uppercase text-[10px] font-black text-[#f97316] tracking-widest">Resultado Sessão</span>
-                                <span className={`text-lg font-black ${sessionProfit >= 0 ? 'text-[#065f46]' : 'text-red-700'}`}>
-                                    {formatMoney(sessionProfit)}
-                                </span>
                             </div>
                         </div>
                     </div>
