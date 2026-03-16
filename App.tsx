@@ -2093,6 +2093,38 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
         return (activeBrokerage?.initialBalance || 0) + profit;
     }, [records, activeBrokerage?.id, activeBrokerage?.initialBalance]);
 
+    const balanceBeforeSelectedDay = useMemo(() => {
+        if (!records || !activeBrokerage) return activeBrokerage?.initialBalance || 0;
+        const selectedDateStr = getLocalDateString(selectedDate);
+        const pastRecords = records.filter((r: any) => 
+            r.brokerageId === activeBrokerage.id && 
+            r.id < selectedDateStr
+        );
+        const profit = pastRecords.reduce((sum: number, r: any) => {
+            if (r.recordType === 'day') return sum + (r.netProfitUSD || 0);
+            if (r.recordType === 'deposit') return sum + (r.amountUSD || 0);
+            if (r.recordType === 'withdrawal') return sum - (r.amountUSD || 0);
+            return sum;
+        }, 0);
+        return (activeBrokerage?.initialBalance || 0) + profit;
+    }, [records, activeBrokerage?.id, activeBrokerage?.initialBalance, selectedDate]);
+
+    const balanceAtStartOfMonth = useMemo(() => {
+        if (!records || !activeBrokerage) return activeBrokerage?.initialBalance || 0;
+        const firstDayOfMonth = `${selectedMonth}-01`;
+        const pastRecords = records.filter((r: any) => 
+            r.brokerageId === activeBrokerage.id && 
+            r.id < firstDayOfMonth
+        );
+        const profit = pastRecords.reduce((sum: number, r: any) => {
+            if (r.recordType === 'day') return sum + (r.netProfitUSD || 0);
+            if (r.recordType === 'deposit') return sum + (r.amountUSD || 0);
+            if (r.recordType === 'withdrawal') return sum - (r.amountUSD || 0);
+            return sum;
+        }, 0);
+        return (activeBrokerage?.initialBalance || 0) + profit;
+    }, [records, activeBrokerage?.id, activeBrokerage?.initialBalance, selectedMonth]);
+
     // Sync with App Records
     useEffect(() => {
         if (!records || !activeBrokerage) return;
@@ -2100,9 +2132,9 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
         const dateKey = getLocalDateString(selectedDate);
         const dayRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateKey && r.brokerageId === activeBrokerage.id);
         
-        // If it's a new day (no trades yet), reset the bank to yesterday's closing balance
+        // If it's a new day (no trades yet), reset the bank to the balance before this day
         if (!dayRecord) {
-            setBank(yesterdayBalance);
+            setBank(balanceBeforeSelectedDay);
             setSessionEntries([0]);
         }
 
@@ -2195,10 +2227,34 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
         );
     }, [records, activeBrokerage?.id, selectedMonth]);
 
+    const selectedDateKey = getLocalDateString(selectedDate);
+    const selectedDayNum = selectedDate.getDate();
+
     const totalProfit = daysData.reduce((acc: number, d: any) => acc + (Number(d.result) || 0), 0);
     const totalWins = monthRecords.reduce((acc: number, r: any) => acc + (r.winCount || 0), 0);
     const totalLosses = monthRecords.reduce((acc: number, r: any) => acc + (r.lossCount || 0), 0);
-    const currentBank = bank + totalProfit;
+
+    // Profit up to the selected day (inclusive)
+    const profitUntilSelectedDay = daysData
+        .filter((d: any) => d.id <= selectedDayNum)
+        .reduce((acc: number, d: any) => acc + (Number(d.result) || 0), 0);
+
+    const selectedDayRecords = monthRecords.filter((r: any) => r.id === selectedDateKey);
+    
+    const displayProfit = viewMode === 'daily' 
+        ? (daysData.find((d: any) => d.id === selectedDayNum)?.result || 0)
+        : totalProfit;
+
+    const displayWins = viewMode === 'daily'
+        ? selectedDayRecords.reduce((acc: number, r: any) => acc + (r.winCount || 0), 0)
+        : totalWins;
+
+    const displayLosses = viewMode === 'daily'
+        ? selectedDayRecords.reduce((acc: number, r: any) => acc + (r.lossCount || 0), 0)
+        : totalLosses;
+
+    const displayInitialBank = viewMode === 'daily' ? balanceBeforeSelectedDay : balanceAtStartOfMonth;
+    const displayCurrentBank = viewMode === 'daily' ? balanceBeforeSelectedDay + displayProfit : balanceAtStartOfMonth + totalProfit;
 
     const sessionProfit = sessionEntries.reduce((acc: number, val: number) => acc + (Number(val) || 0), 0);
 
@@ -2403,11 +2459,11 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     <div className="grid grid-cols-1 gap-2">
                         <div className="bg-white border border-black rounded-xl overflow-hidden shadow-sm flex flex-col">
                             <div className="bg-blue-600 text-white font-black text-[9px] uppercase py-1 text-center border-b border-black">Banca Inicial</div>
-                            <div className="text-black font-black text-xl py-2 text-center">{currencySymbol} {formatMoney(bank)}</div>
+                            <div className="text-black font-black text-xl py-2 text-center">{currencySymbol} {formatMoney(displayInitialBank)}</div>
                         </div>
                         <div className="bg-white border border-black rounded-xl overflow-hidden shadow-sm flex flex-col">
                             <div className="bg-green-600 text-white font-black text-[9px] uppercase py-1 text-center border-b border-black">Banca Atualizada</div>
-                            <div className="text-green-600 font-black text-xl py-2 text-center">{currencySymbol} {formatMoney(currentBank)}</div>
+                            <div className="text-green-600 font-black text-xl py-2 text-center">{currencySymbol} {formatMoney(displayCurrentBank)}</div>
                         </div>
                     </div>
 
@@ -2433,11 +2489,15 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                 <input type="number" value={bank} onChange={e => setBank(Number(e.target.value))} className="w-24 bg-slate-100 border border-black/10 rounded px-2 py-1 text-right font-black outline-none focus:border-blue-500" />
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase text-slate-500">Stop Diário %</span>
+                                <span className="text-[10px] font-black uppercase text-slate-500">
+                                    {viewMode === 'daily' ? 'Stop Diário %' : 'Stop Mensal %'}
+                                </span>
                                 <input type="number" value={stopPercent} onChange={e => setStopPercent(Number(e.target.value))} className="w-24 bg-slate-100 border border-black/10 rounded px-2 py-1 text-right font-black outline-none focus:border-blue-500" />
                             </div>
                             <div className="pt-2 border-t border-black/5 flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase text-blue-600">Valor do Stop</span>
+                                <span className="text-[10px] font-black uppercase text-blue-600">
+                                    {viewMode === 'daily' ? 'Valor do Stop' : 'Valor do Stop Mensal'}
+                                </span>
                                 <span className="text-sm font-black text-blue-700">{currencySymbol} {formatMoney(bank * (stopPercent / 100))}</span>
                             </div>
                         </div>
@@ -2446,29 +2506,35 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
 
                 {/* RIGHT COLUMN - SUMMARY */}
                 <div className="col-span-4 space-y-4">
-                    {/* PLACAR MENSAL */}
+                    {/* PLACAR */}
                     <div className="space-y-1">
-                        <div className="bg-slate-900 text-white font-black text-center py-2 uppercase text-[10px] border border-black rounded-t-2xl">Placar do Dia</div>
+                        <div className="bg-slate-900 text-white font-black text-center py-2 uppercase text-[10px] border border-black rounded-t-2xl">
+                            {viewMode === 'daily' ? 'Placar do Dia' : 'Placar do Mês'}
+                        </div>
                         <div className="grid grid-cols-2 border-x border-b border-black h-28 rounded-b-2xl overflow-hidden shadow-md">
                             <div className="bg-green-500 text-white flex flex-col items-center justify-center border-r border-black group hover:bg-green-600 transition-colors">
                                 <span className="text-[11px] font-black uppercase tracking-widest opacity-70 mb-1">Vitórias</span>
-                                <span className="text-5xl font-black drop-shadow-sm">{totalWins}</span>
+                                <span className="text-5xl font-black drop-shadow-sm">{displayWins}</span>
                             </div>
                             <div className="bg-red-500 text-white flex flex-col items-center justify-center group hover:bg-red-600 transition-colors">
                                 <span className="text-[11px] font-black uppercase tracking-widest opacity-70 mb-1">Derrotas</span>
-                                <span className="text-5xl font-black drop-shadow-sm">{totalLosses}</span>
+                                <span className="text-5xl font-black drop-shadow-sm">{displayLosses}</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* LUCRO MENSAL */}
+                    {/* RESULTADO */}
                     <div className="space-y-1">
-                        <div className="bg-slate-900 text-white font-black text-center py-2 uppercase text-[10px] border border-black rounded-t-2xl">Resultado do Mês</div>
+                        <div className="bg-slate-900 text-white font-black text-center py-2 uppercase text-[10px] border border-black rounded-t-2xl">
+                            {viewMode === 'daily' ? 'Resultado do Dia' : 'Resultado do Mês'}
+                        </div>
                         <div className="bg-white border-x border-b border-black h-28 flex flex-col items-center justify-center rounded-b-2xl shadow-md relative overflow-hidden">
-                            <div className={`absolute inset-0 opacity-5 ${totalProfit >= 0 ? 'bg-green-500' : 'bg-red-500'}`} />
-                            <span className="text-[10px] font-black uppercase text-slate-400 mb-1 relative z-10">Lucro Líquido Mensal</span>
-                            <span className={`text-4xl font-black relative z-10 ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {totalProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(totalProfit)}
+                            <div className={`absolute inset-0 opacity-5 ${displayProfit >= 0 ? 'bg-green-500' : 'bg-red-500'}`} />
+                            <span className="text-[10px] font-black uppercase text-slate-400 mb-1 relative z-10">
+                                {viewMode === 'daily' ? 'Lucro Líquido Diário' : 'Lucro Líquido Mensal'}
+                            </span>
+                            <span className={`text-4xl font-black relative z-10 ${displayProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {displayProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(displayProfit)}
                             </span>
                         </div>
                     </div>
@@ -2478,12 +2544,12 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                         <div className="bg-white border border-black p-3 rounded-xl shadow-sm flex flex-col items-center justify-center">
                             <span className="text-[8px] font-black uppercase text-slate-500">Assertividade</span>
                             <span className="text-lg font-black text-blue-600">
-                                {totalWins + totalLosses > 0 ? ((totalWins / (totalWins + totalLosses)) * 100).toFixed(1) : '0'}%
+                                {displayWins + displayLosses > 0 ? ((displayWins / (displayWins + displayLosses)) * 100).toFixed(1) : '0'}%
                             </span>
                         </div>
                         <div className="bg-white border border-black p-3 rounded-xl shadow-sm flex flex-col items-center justify-center">
                             <span className="text-[8px] font-black uppercase text-slate-500">Total Trades</span>
-                            <span className="text-lg font-black text-slate-800">{totalWins + totalLosses}</span>
+                            <span className="text-lg font-black text-slate-800">{displayWins + displayLosses}</span>
                         </div>
                     </div>
                 </div>
