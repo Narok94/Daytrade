@@ -90,8 +90,8 @@ const useThemeClasses = (isDarkMode: boolean) => {
         border: isDarkMode ? 'border-white/10' : 'border-zinc-200',
         sidebar: isDarkMode ? 'bg-[#0f172a] border-r border-white/10' : 'bg-zinc-50 border-r border-zinc-200',
         header: isDarkMode ? 'bg-[#0f172a]' : 'bg-zinc-50',
-        navActive: isDarkMode ? 'bg-[#00FF00]/10 text-[#00FF00]' : 'bg-green-50 text-green-600',
-        navInactive: isDarkMode ? 'text-slate-400 hover:text-[#00FF00] hover:bg-[#00FF00]/5' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50',
+        navActive: isDarkMode ? 'bg-[#6366f1]/10 text-[#6366f1]' : 'bg-indigo-50 text-indigo-600',
+        navInactive: isDarkMode ? 'text-slate-400 hover:text-[#6366f1] hover:bg-[#6366f1]/5' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50',
     }), [isDarkMode]);
 };
 
@@ -272,27 +272,27 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
         return (
             <div className="flex flex-col items-center justify-center min-h-[600px] p-6 space-y-12 bg-[#0f172a] text-white">
                 <div className="relative">
-                    <div className="w-24 h-24 rounded-2xl border-2 border-[#00FF00]/30 flex items-center justify-center relative z-10 bg-[#1e293b]">
-                        <CpuChipIcon className="w-12 h-12 text-[#00FF00] animate-pulse" />
+                    <div className="w-24 h-24 rounded-2xl border-2 border-[#6366f1]/30 flex items-center justify-center relative z-10 bg-[#1e293b]">
+                        <CpuChipIcon className="w-12 h-12 text-[#6366f1] animate-pulse" />
                         {/* Neural Scan Line */}
                         <div className="absolute inset-0 overflow-hidden rounded-2xl">
-                            <div className="w-full h-0.5 bg-[#00FF00]/40 absolute top-0 animate-scan" />
+                            <div className="w-full h-0.5 bg-[#6366f1]/40 absolute top-0 animate-scan" />
                         </div>
                     </div>
-                    <div className="absolute inset-0 border-2 border-[#00FF00] rounded-2xl animate-ping opacity-20" />
+                    <div className="absolute inset-0 border-2 border-[#6366f1] rounded-2xl animate-ping opacity-20" />
                 </div>
 
                 <div className="text-center space-y-1">
-                    <h2 className="text-3xl font-black tracking-tight text-[#00FF00] uppercase">Processando...</h2>
+                    <h2 className="text-3xl font-black tracking-tight text-[#6366f1] uppercase">Processando...</h2>
                     <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">Análise de Mercado em Tempo Real</p>
                 </div>
 
                 <div className="w-full max-w-xs space-y-4">
                     {[
-                        { label: 'UPLOAD_IMAGE', val: progress.upload, color: 'bg-[#00FF00]' },
-                        { label: 'EXTRACT_DATA', val: progress.data, color: 'bg-[#00FF00]/80' },
-                        { label: 'PATTERN_MATCH', val: progress.patterns, color: 'bg-[#00FF00]/60' },
-                        { label: 'FINAL_COMPUTE', val: progress.result, color: 'bg-[#00FF00]/40' }
+                        { label: 'UPLOAD_IMAGE', val: progress.upload, color: 'bg-[#6366f1]' },
+                        { label: 'EXTRACT_DATA', val: progress.data, color: 'bg-[#6366f1]/80' },
+                        { label: 'PATTERN_MATCH', val: progress.patterns, color: 'bg-[#6366f1]/60' },
+                        { label: 'FINAL_COMPUTE', val: progress.result, color: 'bg-[#6366f1]/40' }
                     ].map((p, i) => (
                         <div key={i} className="space-y-1.5">
                             <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-400">
@@ -314,8 +314,8 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
             <div className="max-w-md mx-auto p-4 space-y-6 bg-[#0f172a] min-h-screen text-white">
                 <div className="flex items-center justify-between border-b border-white/10 pb-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 bg-[#00FF00] rounded-full animate-pulse shadow-[0_0_8px_rgba(0,255,0,0.8)]" />
-                        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[#00FF00]">Análise Concluída</h2>
+                        <div className="w-2 h-2 bg-[#6366f1] rounded-full animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
+                        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[#6366f1]">Análise Concluída</h2>
                     </div>
                     <button onClick={() => setAnalysisResult(null)} className="p-2 bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
                         <XMarkIcon className="w-4 h-4" />
@@ -323,9 +323,9 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                 </div>
 
                 {/* Main Signal Card */}
-                <div className="bg-[#1e293b] border border-[#00FF00]/20 rounded-3xl overflow-hidden shadow-2xl">
-                    <div className="bg-[#00FF00] px-6 py-3 flex justify-between items-center">
-                        <span className="text-[10px] font-black uppercase text-[#0f172a] tracking-widest">{analysisResult.asset}</span>
+                <div className="bg-[#1e293b] border border-[#6366f1]/20 rounded-3xl overflow-hidden shadow-2xl">
+                    <div className="bg-[#6366f1] px-6 py-3 flex justify-between items-center">
+                        <span className="text-[10px] font-black uppercase text-white tracking-widest">{analysisResult.asset}</span>
                         <div className="flex items-center gap-2">
                             <span className="text-[10px] font-black uppercase text-[#0f172a]/80">{analysisResult.timeframe}</span>
                             <div className="w-1 h-1 bg-[#0f172a] rounded-full" />
@@ -336,7 +336,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                         <div className="space-y-2">
                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Recomendação</p>
                             <h3 className={`text-6xl font-black tracking-tighter ${
-                                analysisResult.recommendation === 'CALL' ? 'text-[#00FF00]' : 
+                                analysisResult.recommendation === 'CALL' ? 'text-[#6366f1]' : 
                                 analysisResult.recommendation === 'PUT' ? 'text-rose-500' : 'text-slate-400'
                             }`}>
                                 {analysisResult.recommendation === 'CALL' ? 'COMPRA' : analysisResult.recommendation === 'PUT' ? 'VENDA' : 'AGUARDAR'}
@@ -348,9 +348,9 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                             <p className="text-4xl font-black text-white tracking-widest">{analysisResult.entryTime}</p>
                             {countdown !== null && (
                                 <div className="mt-4 flex flex-col items-center gap-1">
-                                    <p className="text-[10px] font-black text-[#00FF00] animate-pulse">ENTRE EM: {countdown}S</p>
+                                    <p className="text-[10px] font-black text-[#6366f1] animate-pulse">ENTRE EM: {countdown}S</p>
                                     <div className="w-32 h-1 bg-slate-800 rounded-full overflow-hidden">
-                                        <div className="h-full bg-[#00FF00] transition-all duration-1000" style={{ width: `${(countdown / 60) * 100}%` }} />
+                                        <div className="h-full bg-[#6366f1] transition-all duration-1000" style={{ width: `${(countdown / 60) * 100}%` }} />
                                     </div>
                                 </div>
                             )}
@@ -359,7 +359,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-[#1e293b] p-3 rounded-2xl border border-white/5">
                                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Confiança</p>
-                                <p className="text-xl font-black text-[#00FF00]">{analysisResult.confidence}%</p>
+                                <p className="text-xl font-black text-[#6366f1]">{analysisResult.confidence}%</p>
                             </div>
                             <div className="bg-[#1e293b] p-3 rounded-2xl border border-white/5">
                                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Tendência</p>
@@ -381,7 +381,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                     {showDetailed && (
                         <div className="p-5 bg-slate-900/30 rounded-2xl text-[11px] text-slate-400 leading-relaxed font-medium border border-white/5">
                             <div className="flex gap-2 mb-2">
-                                <span className="text-[#00FF00] font-bold">[INFO]</span>
+                                <span className="text-[#6366f1] font-bold">[INFO]</span>
                                 <span>Processando padrões de mercado...</span>
                             </div>
                             {analysisResult.reasoning}
@@ -391,7 +391,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
 
                 <button 
                     onClick={() => { setAnalysisResult(null); setSelectedImage(null); }}
-                    className="w-full py-5 bg-[#00FF00] hover:brightness-110 text-[#0f172a] rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-[0.98]"
+                    className="w-full py-5 bg-gradient-to-br from-indigo-600 to-purple-700 hover:brightness-110 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-[0.98]"
                 >
                     Nova Análise
                 </button>
@@ -404,9 +404,9 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
             {!selectedImage ? (
                 <div className="space-y-8">
                     <div className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 rounded-[2.5rem] p-12 bg-[#1e293b]/50 space-y-8 relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#00FF00]/20 to-transparent" />
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#6366f1]/20 to-transparent" />
                         
-                        <div className="w-24 h-24 rounded-3xl bg-[#00FF00]/10 border border-[#00FF00]/20 flex items-center justify-center text-[#00FF00] shadow-2xl">
+                        <div className="w-24 h-24 rounded-3xl bg-[#6366f1]/10 border border-[#6366f1]/20 flex items-center justify-center text-[#6366f1] shadow-2xl">
                             <PhotoIcon className="w-12 h-12" />
                         </div>
                         
@@ -416,7 +416,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                         </div>
                         
                         <div className="w-full grid grid-cols-2 gap-4">
-                            <label className="py-5 bg-[#00FF00] hover:brightness-110 text-[#0f172a] rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase cursor-pointer transition-all shadow-lg">
+                            <label className="py-5 bg-gradient-to-br from-indigo-600 to-purple-700 hover:brightness-110 text-white rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase cursor-pointer transition-all shadow-lg">
                                 <CameraIcon className="w-6 h-6" /> Câmera
                                 <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                             </label>
@@ -429,7 +429,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
 
                     <div className="p-6 border border-white/5 rounded-3xl bg-slate-900/20">
                         <div className="flex items-start gap-4">
-                            <InformationCircleIcon className="w-5 h-5 text-[#00FF00]/40 shrink-0 mt-0.5" />
+                            <InformationCircleIcon className="w-5 h-5 text-[#6366f1]/40 shrink-0 mt-0.5" />
                             <p className="text-[10px] text-slate-500 leading-relaxed uppercase tracking-widest font-bold">
                                 Para melhores resultados, certifique-se de que o gráfico mostre claramente o preço, o timer da vela e pelo menos 30-50 períodos de histórico.
                             </p>
@@ -438,7 +438,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                 </div>
             ) : (
                 <div className="space-y-8">
-                    <div className="relative aspect-video rounded-[2rem] overflow-hidden border border-[#00FF00]/30 bg-[#1e293b] shadow-2xl">
+                    <div className="relative aspect-video rounded-[2rem] overflow-hidden border border-[#6366f1]/30 bg-[#1e293b] shadow-2xl">
                         <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
                         <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a]/60 to-transparent pointer-events-none" />
                         <button 
@@ -451,7 +451,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                     
                     <button 
                         onClick={runAIAnalysis}
-                        className="w-full py-6 bg-[#00FF00] hover:brightness-110 text-[#0f172a] rounded-2xl flex items-center justify-center gap-4 font-black text-sm uppercase tracking-widest transition-all shadow-xl active:scale-[0.97]"
+                        className="w-full py-6 bg-gradient-to-br from-indigo-600 to-purple-700 hover:brightness-110 text-white rounded-2xl flex items-center justify-center gap-4 font-black text-sm uppercase tracking-widest transition-all shadow-xl active:scale-[0.97]"
                     >
                         <CpuChipIcon className="w-7 h-7" /> Iniciar Análise IA
                     </button>
@@ -719,7 +719,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     }, [brokerages, records]);
 
     const theme = useThemeClasses(isDarkMode);
-    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-[#00FF00] border-t-transparent rounded-full animate-spin" /></div>;
+    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-[#6366f1] border-t-transparent rounded-full animate-spin" /></div>;
 
     const dateStr = getLocalDateString(selectedDate);
     const brokerageRecords = records.filter(r => r.brokerageId === activeBrokerage?.id);
@@ -794,31 +794,31 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
                 <div className={`h-20 flex-none flex items-center justify-center border-b ${theme.border} ${theme.header} relative overflow-hidden`}>
                     <div className="flex flex-col items-center relative z-10">
-                        <span className="font-black italic text-[#00FF00] text-3xl tracking-tighter leading-none">HRK</span>
-                        <span className="text-[6px] font-black uppercase tracking-[0.3em] text-[#00FF00]/40 mt-1">Binary Options Control</span>
+                        <span className="font-black italic text-[#6366f1] text-3xl tracking-tighter leading-none">HRK</span>
+                        <span className="text-[6px] font-black uppercase tracking-[0.3em] text-[#6366f1]/40 mt-1">Binary Options Control</span>
                     </div>
                     {/* Subtle background decorations */}
                     <div className="absolute right-4 bottom-2 flex items-end gap-[2px] opacity-10">
-                        <div className="w-[2px] h-3 bg-green-500" />
+                        <div className="w-[2px] h-3 bg-indigo-500" />
                         <div className="w-[2px] h-5 bg-red-500" />
-                        <div className="w-[2px] h-4 bg-green-500" />
+                        <div className="w-[2px] h-4 bg-indigo-500" />
                     </div>
                     <div className="absolute left-4 top-2 flex items-start gap-[2px] opacity-10">
                         <div className="w-[2px] h-4 bg-red-500" />
-                        <div className="w-[2px] h-2 bg-green-500" />
+                        <div className="w-[2px] h-2 bg-indigo-500" />
                         <div className="w-[2px] h-3 bg-red-500" />
                     </div>
                 </div>
                 <nav className="flex-1 p-4 space-y-1">
                     <div className="px-4 py-2 mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-[0.2em] text-[#00FF00]/40">
-                            <div className="w-1 h-1 rounded-full bg-[#00FF00]" />
+                        <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-[0.2em] text-[#6366f1]/40">
+                            <div className="w-1 h-1 rounded-full bg-[#6366f1]" />
                             Trading Mode: M1 / OTC
                         </div>
-                        <div className="px-1 py-0.5 rounded bg-[#00FF00]/10 text-[6px] font-black text-[#00FF00]/50 uppercase">Binary</div>
+                        <div className="px-1 py-0.5 rounded bg-[#6366f1]/10 text-[6px] font-black text-[#6366f1]/50 uppercase">Binary</div>
                     </div>
                     <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
-                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'ai-analysis' ? 'bg-[#00FF00]/10 text-[#00FF00]' : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
+                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'ai-analysis' ? 'bg-[#6366f1]/10 text-[#6366f1]' : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
                     <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Juros Compostos</button>
                     <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Extrato</button>
                     <button onClick={() => {setActiveTab('history'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'history' ? theme.navActive : theme.navInactive}`}><ListBulletIcon className="w-5 h-5" />Histórico</button>
@@ -830,7 +830,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 <div className="p-4 border-t border-slate-800/50">
                     <div className="flex items-center justify-between px-4 mb-4 opacity-20">
                         <div className="flex items-center gap-1">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                             <span className="text-[7px] font-black uppercase tracking-widest">Call</span>
                         </div>
                         <div className="flex items-center gap-1">
@@ -845,8 +845,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 <header className={`h-20 flex-none flex items-center justify-between px-6 md:px-8 border-b ${theme.border} ${theme.header}`}>
                     <div className="flex items-center gap-4">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-6 h-6" /></button>
-                        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e293b]/30 border border-white/5 text-[8px] font-black uppercase tracking-widest text-[#00FF00]/60">
-                            <div className="w-1 h-1 rounded-full bg-[#00FF00] animate-pulse" />
+                        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e293b]/30 border border-white/5 text-[8px] font-black uppercase tracking-widest text-[#6366f1]/60">
+                            <div className="w-1 h-1 rounded-full bg-[#6366f1] animate-pulse" />
                             Market: Active
                         </div>
                         <SavingStatusIndicator status={savingStatus} />
@@ -867,17 +867,17 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             {brokerageBalances.map((b, i) => (
                                 <div key={i} className={`flex flex-col items-end px-1.5 md:px-3 py-0.5 md:py-1 rounded-md md:rounded-xl border shrink-0 ${isDarkMode ? 'bg-slate-900/40 border-slate-800/50' : 'bg-zinc-200/50 border-zinc-300/50'}`}>
                                     <span className="text-[5px] md:text-[8px] font-black uppercase opacity-40 leading-none">{b.name}</span>
-                                    <span className={`text-[8px] md:text-xs font-bold leading-tight ${b.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    <span className={`text-[8px] md:text-xs font-bold leading-tight ${b.balance >= 0 ? 'text-indigo-500' : 'text-red-500'}`}>
                                         {b.currency === 'USD' ? '$' : 'R$'} {formatMoney(b.balance)}
                                     </span>
                                 </div>
                             ))}
                         </div>
                         <div className="flex items-center gap-1 md:gap-3 shrink-0">
-                            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1 md:p-2 text-slate-400 hover:text-[#00FF00] transition-colors">
+                            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1 md:p-2 text-slate-400 hover:text-[#6366f1] transition-colors">
                                 {isDarkMode ? <SunIcon className="w-3.5 h-3.5 md:w-5 md:h-5" /> : <MoonIcon className="w-3.5 h-3.5 md:w-5 md:h-5" />}
                             </button>
-                            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-[#00FF00] flex items-center justify-center text-[#0f172a] font-black text-[9px] md:text-xs shadow-lg shadow-[#00FF00]/20">
+                            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-[#6366f1] flex items-center justify-center text-white font-black text-[9px] md:text-xs shadow-lg shadow-[#6366f1]/20">
                                 {user.username.slice(0, 2).toUpperCase()}
                             </div>
                         </div>
@@ -939,7 +939,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
 const SavingStatusIndicator: React.FC<{status: string}> = ({status}) => {
     if (status === 'saving') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500"><ArrowPathIcon className="w-3 h-3 animate-spin" /> Salvando...</div>;
-    if (status === 'saved') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-green-500"><CheckIcon className="w-3 h-3" /> Sincronizado</div>;
+    if (status === 'saved') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-indigo-500"><CheckIcon className="w-3 h-3" /> Sincronizado</div>;
     return null;
 };
 
@@ -1008,9 +1008,9 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     const stopLossReached = activeBrokerage.stopLossTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.lossCount >= activeBrokerage.stopLossTrades;
 
     const kpis = [
-        { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-green-500' },
-        { label: 'Lucro Diário', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol} ${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-green-500' : 'text-red-500' },
-        { label: 'Meta Diária', val: `${currencySymbol}${formatMoney(dailyGoalTarget)}`, subVal: `${Math.min(100, dailyGoalPercent).toFixed(0)}% Alcançado`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-green-500' : 'text-blue-400' },
+        { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-indigo-500' },
+        { label: 'Lucro Diário', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol} ${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-indigo-500' : 'text-red-500' },
+        { label: 'Meta Diária', val: `${currencySymbol}${formatMoney(dailyGoalTarget)}`, subVal: `${Math.min(100, dailyGoalPercent).toFixed(0)}% Alcançado`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-indigo-500' : 'text-blue-400' },
         { label: 'Win Rate', val: `${winRate}%`, icon: TrophyIcon, color: 'text-purple-400' },
     ];
 
@@ -1032,13 +1032,13 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div className="space-y-6">
                     <div className={`p-6 rounded-3xl border ${theme.card}`}>
-                        <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-green-500" /> Nova Operação</h3>
+                        <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-indigo-500" /> Nova Operação</h3>
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor</label>
                                     <div className="relative">
-                                        <input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
+                                        <input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-indigo-500 outline-none font-bold ${theme.input}`} />
                                         <button 
                                             onClick={handleSoros}
                                             title="Calcular Soros (Última entrada + lucro)"
@@ -1051,22 +1051,22 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout</label>
                                     <div className="relative">
-                                        <input type="number" value={customPayout} onChange={e => handlePayoutChange(e.target.value)} className={`w-full h-12 px-4 pr-8 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
+                                        <input type="number" value={customPayout} onChange={e => handlePayoutChange(e.target.value)} className={`w-full h-12 px-4 pr-8 rounded-xl border focus:ring-1 focus:ring-indigo-500 outline-none font-bold ${theme.input}`} />
                                         <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-bold">%</span>
                                     </div>
                                 </div>
-                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
+                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-indigo-500 outline-none font-bold ${theme.input}`} /></div>
                             </div>
                             <div className="flex justify-between items-center px-1">
                                 <p className="text-[8px] font-black uppercase tracking-widest text-red-500/40">
                                     Risco: <span className="text-red-500/60">{currencySymbol} {formatMoney(estimatedLoss)}</span>
                                 </p>
-                                <p className="text-[9px] font-black uppercase tracking-widest text-green-500/40">
-                                    Estimativa de Ganho: <span className="text-green-500/80">{currencySymbol} {formatMoney(estimatedProfit)}</span>
+                                <p className="text-[9px] font-black uppercase tracking-widest text-indigo-500/40">
+                                    Estimativa de Ganho: <span className="text-indigo-500/80">{currencySymbol} {formatMoney(estimatedProfit)}</span>
                                 </p>
                             </div>
                             <div className="grid grid-cols-2 gap-4 pt-1">
-                                <button onClick={() => handleQuickAdd('win')} disabled={stopWinReached || stopLossReached} className="h-14 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">WIN</button>
+                                <button onClick={() => handleQuickAdd('win')} disabled={stopWinReached || stopLossReached} className="h-14 bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">WIN</button>
                                 <button onClick={() => handleQuickAdd('loss')} disabled={stopWinReached || stopLossReached} className="h-14 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">LOSS</button>
                             </div>
                         </div>
@@ -1123,7 +1123,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                     return (
                                         <div key={trade.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-slate-950/50 border-slate-800/50' : 'bg-slate-50 border-slate-200/50'}`}>
                                             <div className="flex items-center gap-3">
-                                                <div className={`w-2 h-8 rounded-full ${trade.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                                <div className={`w-2 h-8 rounded-full ${trade.result === 'win' ? 'bg-indigo-500' : 'bg-red-500'}`} />
                                                 <div>
                                                     <p className="text-[10px] font-black uppercase text-slate-500 leading-none">
                                                         {new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
@@ -1131,12 +1131,12 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                                     </p>
                                                     <p className="text-sm font-bold">
                                                         {trade.result === 'win' ? 'Vitória' : 'Derrota'}
-                                                        {trade.isSoros && <span className="ml-2 text-[8px] bg-emerald-500/20 text-emerald-500 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter">Soros</span>}
+                                                        {trade.isSoros && <span className="ml-2 text-[8px] bg-indigo-500/20 text-indigo-500 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter">Soros</span>}
                                                     </p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <p className={`text-sm font-black ${tradeProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                                <p className={`text-sm font-black ${tradeProfit >= 0 ? 'text-indigo-500' : 'text-red-500'}`}>
                                                     {tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}
                                                 </p>
                                                 <button onClick={() => deleteTrade(trade.id, selectedDateString)} className="text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button>
@@ -1307,7 +1307,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                     <td className="py-4 px-3 opacity-60">{row.metaPercent}%</td>
                                     <td className="py-4 px-3 font-black text-blue-400">{currencySymbol} {formatMoney(row.targetProfit)}</td>
                                     <td className="py-4 px-3">
-                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' ? 'bg-green-500/20 text-green-500' : row.status === 'STOP-LOSS' ? 'bg-red-500/20 text-red-500' : 'bg-slate-500/20 text-slate-500'}`}>
+                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' ? 'bg-indigo-500/20 text-indigo-500' : row.status === 'STOP-LOSS' ? 'bg-red-500/20 text-red-500' : 'bg-slate-500/20 text-slate-500'}`}>
                                             {row.status}
                                         </span>
                                     </td>
@@ -1335,7 +1335,7 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
                     <div key={record.id} className={`p-6 rounded-3xl border ${theme.card}`}>
                         <div className="flex justify-between items-center mb-4">
                             <h4 className="font-black text-sm uppercase tracking-wider">{new Date(record.id + 'T12:00:00').toLocaleDateString('pt-BR')}</h4>
-                            <div className="text-right"><p className={`text-sm font-black ${record.netProfitUSD >= 0 ? 'text-green-500' : 'text-red-500'}`}>{record.netProfitUSD >= 0 ? '+' : ''}{currencySymbol} {formatMoney(record.netProfitUSD)}</p></div>
+                            <div className="text-right"><p className={`text-sm font-black ${record.netProfitUSD >= 0 ? 'text-indigo-500' : 'text-red-500'}`}>{record.netProfitUSD >= 0 ? '+' : ''}{currencySymbol} {formatMoney(record.netProfitUSD)}</p></div>
                         </div>
                         <div className="space-y-2">
                             {record.trades.map((trade) => {
@@ -1343,16 +1343,16 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
                                 return (
                                     <div key={trade.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-slate-950/50 border-slate-800/50' : 'bg-slate-50 border-slate-200/50'}`}>
                                         <div className="flex items-center gap-3">
-                                            <div className={`w-2 h-8 rounded-full ${trade.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                            <div className={`w-2 h-8 rounded-full ${trade.result === 'win' ? 'bg-indigo-500' : 'bg-red-500'}`} />
                                             <div>
                                                 <p className="text-[10px] font-black uppercase text-slate-500 leading-none">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                                                 <p className="text-sm font-bold">
                                                     {trade.result === 'win' ? 'Vitória' : 'Derrota'}
-                                                    {trade.isSoros && <span className="ml-2 text-[8px] bg-emerald-500/20 text-emerald-500 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter">Soros</span>}
+                                                    {trade.isSoros && <span className="ml-2 text-[8px] bg-indigo-500/20 text-indigo-500 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter">Soros</span>}
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className="text-right"><p className={`text-sm font-black ${tradeProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}</p><button onClick={() => deleteTrade(trade.id, record.id)} className="text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button></div>
+                                        <div className="text-right"><p className={`text-sm font-black ${tradeProfit >= 0 ? 'text-indigo-500' : 'text-red-500'}`}>{tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}</p><button onClick={() => deleteTrade(trade.id, record.id)} className="text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button></div>
                                     </div>
                                 );
                             })}
@@ -1399,7 +1399,7 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
         <div className={`p-1.5 md:p-3 rounded-xl border ${theme.card} w-full max-w-xl mx-auto`}>
             <div className="flex items-center justify-between mb-3">
                 <button onClick={prevMonth} className="p-1 hover:bg-slate-800/50 rounded-md transition-colors"><ChevronLeftIcon className="w-3.5 h-3.5" /></button>
-                <h3 className="text-xs md:text-sm font-black uppercase tracking-widest text-[#00FF00]">{monthName}</h3>
+                <h3 className="text-xs md:text-sm font-black uppercase tracking-widest text-[#6366f1]">{monthName}</h3>
                 <button onClick={nextMonth} className="p-1 hover:bg-slate-800/50 rounded-md transition-colors"><ChevronRightIcon className="w-3.5 h-3.5" /></button>
             </div>
 
@@ -1415,10 +1415,10 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
                     const isToday = getLocalDateString() === dateId;
 
                     return (
-                        <div key={dateId} className={`aspect-square rounded-md md:rounded-lg border ${isDarkMode ? 'border-slate-800/50' : 'border-zinc-200'} flex flex-col items-center justify-center p-0.5 relative transition-all hover:scale-105 cursor-default ${isToday ? 'ring-1 ring-teal-500/50' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-green-500/10' : 'bg-red-500/10') : ''}`}>
+                        <div key={dateId} className={`aspect-square rounded-md md:rounded-lg border ${isDarkMode ? 'border-slate-800/50' : 'border-zinc-200'} flex flex-col items-center justify-center p-0.5 relative transition-all hover:scale-105 cursor-default ${isToday ? 'ring-1 ring-teal-500/50' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-indigo-500/10' : 'bg-red-500/10') : ''}`}>
                             <span className="text-[8px] md:text-[10px] font-black opacity-40 mb-0.5">{day}</span>
                             {profit !== undefined && (
-                                <span className={`text-[5px] md:text-[8px] font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                <span className={`text-[5px] md:text-[8px] font-black ${profit >= 0 ? 'text-indigo-500' : 'text-red-500'}`}>
                                     {profit >= 0 ? '+' : ''}{formatMoney(profit)}
                                 </span>
                             )}
@@ -1427,7 +1427,7 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
                 })}
             </div>
             <div className="mt-3 flex justify-center gap-3 text-[8px] font-black uppercase tracking-widest opacity-40">
-                <div className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-green-500" /> Lucro</div>
+                <div className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-indigo-500" /> Lucro</div>
                 <div className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-red-500" /> Prejuízo</div>
             </div>
         </div>
@@ -1609,7 +1609,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                         <button
                             key={mode}
                             onClick={() => setViewMode(mode)}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${viewMode === mode ? 'bg-[#00FF00] text-[#0f172a] shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${viewMode === mode ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
                             {mode === 'calendar' ? 'Calendário' : mode === 'daily' ? 'Diário' : mode === 'weekly' ? 'Semanal' : 'Mensal'}
                         </button>
@@ -1623,7 +1623,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                 ) : stats.length > 0 ? stats.map((item: any) => (
                     <div key={item.id} className={`p-6 rounded-3xl border ${theme.card} flex flex-col md:flex-row md:items-center justify-between gap-6`}>
                         <div className="flex items-center gap-4">
-                            <div className={`p-3 rounded-2xl ${item.profit >= 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                            <div className={`p-3 rounded-2xl ${item.profit >= 0 ? 'bg-indigo-500/10 text-indigo-500' : 'bg-red-500/10 text-red-500'}`}>
                                 {item.profit >= 0 ? <TrendingUpIcon className="w-6 h-6" /> : <TrendingDownIcon className="w-6 h-6" />}
                             </div>
                             <div>
@@ -1635,14 +1635,14 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
                             <div>
                                 <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Resultado</p>
-                                <p className={`text-lg font-black ${item.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                <p className={`text-lg font-black ${item.profit >= 0 ? 'text-indigo-500' : 'text-red-500'}`}>
                                     {item.profit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(item.profit)}
                                 </p>
                             </div>
                             <div>
                                 <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Win / Loss %</p>
                                 <p className="text-lg font-black">
-                                    <span className="text-green-500">{item.winRate.toFixed(0)}%</span>
+                                    <span className="text-indigo-500">{item.winRate.toFixed(0)}%</span>
                                     <span className="mx-1 opacity-20">/</span>
                                     <span className="text-red-500">{(100 - item.winRate).toFixed(0)}%</span>
                                 </p>
@@ -1650,7 +1650,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                             <div>
                                 <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Wins / Losses</p>
                                 <p className="text-lg font-black">
-                                    <span className="text-green-500">{item.wins}</span>
+                                    <span className="text-indigo-500">{item.wins}</span>
                                     <span className="mx-1 opacity-20">/</span>
                                     <span className="text-red-500">{item.losses}</span>
                                 </p>
@@ -1658,7 +1658,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                             <div className="hidden md:block">
                                 <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Performance</p>
                                 <div className="w-24 h-2 bg-slate-800 rounded-full overflow-hidden mt-2">
-                                    <div className="h-full bg-green-500" style={{ width: `${item.winRate}%` }} />
+                                    <div className="h-full bg-indigo-500" style={{ width: `${item.winRate}%` }} />
                                 </div>
                             </div>
                         </div>
@@ -1709,7 +1709,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                             <button
                                 onClick={handleTextImport}
                                 disabled={isImporting || !importText.trim()}
-                                className="flex-1 py-4 bg-[#00FF00] hover:brightness-110 text-[#0f172a] rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-[#00FF00]/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                className="flex-1 py-4 bg-[#6366f1] hover:brightness-110 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-[#6366f1]/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                             >
                                 {isImporting && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
                                 {isImporting ? (retryCount > 0 ? `Tentativa ${retryCount + 1}...` : 'Processando...') : 'Confirmar Importação'}
@@ -1761,7 +1761,7 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
                     {results.map(r => (
                         <div key={r.level} className="flex items-center justify-between p-4 rounded-2xl bg-slate-950/20 border border-slate-800/50">
                             <div><p className="text-[10px] font-black uppercase text-slate-500">Nível {r.level}</p><p className="text-sm font-bold">Entrada: {currencySymbol} {formatMoney(r.entry)}</p></div>
-                            <div className="text-right"><p className="text-[10px] font-black uppercase text-green-500">Lucro Estimado</p><p className="text-sm font-black text-green-500">+{currencySymbol} {formatMoney(r.profit)}</p></div>
+                            <div className="text-right"><p className="text-[10px] font-black uppercase text-indigo-500">Lucro Estimado</p><p className="text-sm font-black text-indigo-500">+{currencySymbol} {formatMoney(r.profit)}</p></div>
                         </div>
                     ))}
                 </div>
@@ -1855,7 +1855,7 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
                             <div className="h-12" />
                         )}
                     </div>
-                    <button onClick={addGoal} className="w-full h-12 bg-[#00FF00] text-[#0f172a] font-black rounded-xl uppercase text-[10px] tracking-widest">Adicionar Meta</button>
+                    <button onClick={addGoal} className="w-full h-12 bg-[#6366f1] text-white font-black rounded-xl uppercase text-[10px] tracking-widest">Adicionar Meta</button>
                 </div>
                 
                 <div className="space-y-4">
@@ -1872,8 +1872,8 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
                                     <button onClick={() => deleteGoal(goal.id)} className="text-red-500/50 hover:text-red-500"><TrashIcon className="w-5 h-5" /></button>
                                 </div>
                                 <div className="space-y-2">
-                                    <div className="flex justify-between text-[10px] font-black uppercase"><span className="text-slate-500">{label}</span><span className={percentage >= 100 ? 'text-green-500' : 'text-blue-400'}>{percentage.toFixed(1)}%</span></div>
-                                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden"><div className={`h-full transition-all duration-500 ${percentage >= 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }} /></div>
+                                    <div className="flex justify-between text-[10px] font-black uppercase"><span className="text-slate-500">{label}</span><span className={percentage >= 100 ? 'text-indigo-500' : 'text-blue-400'}>{percentage.toFixed(1)}%</span></div>
+                                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden"><div className={`h-full transition-all duration-500 ${percentage >= 100 ? 'bg-indigo-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }} /></div>
                                 </div>
                             </div>
                         );
@@ -1924,7 +1924,7 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                         onChange={e => setNewBrokerageName(e.target.value)}
                         className={`h-10 px-4 rounded-xl border text-xs font-bold outline-none ${theme.input}`}
                     />
-                    <button onClick={addNewBrokerage} className="h-10 px-4 bg-[#00FF00] text-[#0f172a] font-black rounded-xl uppercase text-[10px] tracking-widest">Nova</button>
+                    <button onClick={addNewBrokerage} className="h-10 px-4 bg-[#6366f1] text-white font-black rounded-xl uppercase text-[10px] tracking-widest">Nova</button>
                 </div>
             </div>
             
@@ -2320,7 +2320,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                             }}
                                         >
                                             {d.id}
-                                            {d.hasSoros && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-emerald-500 rounded-bl-sm" title="Soros realizado" />}
+                                            {d.hasSoros && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-indigo-500 rounded-bl-sm" title="Soros realizado" />}
                                         </div>
                                         <div className="border-r border-black text-black">
                                             <input 
@@ -2346,7 +2346,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                                 className="w-full bg-transparent text-center outline-none font-bold py-1 focus:bg-white transition-colors"
                                             />
                                         </div>
-                                        <div className={`text-center py-1 font-black transition-colors ${d.result > 0 ? 'bg-green-100/50 text-green-700' : d.result < 0 ? 'bg-red-100/50 text-red-700' : 'bg-slate-100/50 text-slate-400'}`}>
+                                        <div className={`text-center py-1 font-black transition-colors ${d.result > 0 ? 'bg-indigo-100/50 text-indigo-700' : d.result < 0 ? 'bg-red-100/50 text-red-700' : 'bg-slate-100/50 text-slate-400'}`}>
                                             <input 
                                                 type="number" 
                                                 step="0.01"
@@ -2391,10 +2391,10 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                                 <div className="border-r border-black bg-blue-50/30 text-black text-center py-2 font-bold">
                                                     {t.payoutPercentage}%
                                                 </div>
-                                                <div className={`border-r border-black text-center py-2 font-black uppercase ${t.result === 'win' ? 'text-green-600' : 'text-red-600'}`}>
+                                                <div className={`border-r border-black text-center py-2 font-black uppercase ${t.result === 'win' ? 'text-indigo-600' : 'text-red-600'}`}>
                                                     {t.result}
                                                 </div>
-                                                <div className={`text-center py-2 font-black ${profit > 0 ? 'bg-green-100/50 text-green-700' : 'bg-red-100/50 text-red-700'}`}>
+                                                <div className={`text-center py-2 font-black ${profit > 0 ? 'bg-indigo-100/50 text-indigo-700' : 'bg-red-100/50 text-red-700'}`}>
                                                     {currencySymbol} {formatMoney(profit)}
                                                 </div>
                                             </div>
@@ -2415,8 +2415,8 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                             <div className="text-black font-black text-xl py-2 text-center">{currencySymbol} {formatMoney(bank)}</div>
                         </div>
                         <div className="bg-white border border-black rounded-xl overflow-hidden shadow-sm flex flex-col">
-                            <div className="bg-emerald-600 text-white font-black text-[9px] uppercase py-1 text-center border-b border-black">Banca Atualizada</div>
-                            <div className="text-emerald-600 font-black text-xl py-2 text-center">{currencySymbol} {formatMoney(currentBank)}</div>
+                            <div className="bg-indigo-600 text-white font-black text-[9px] uppercase py-1 text-center border-b border-black">Banca Atualizada</div>
+                            <div className="text-indigo-600 font-black text-xl py-2 text-center">{currencySymbol} {formatMoney(currentBank)}</div>
                         </div>
                     </div>
 
@@ -2459,7 +2459,7 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     <div className="space-y-1">
                         <div className="bg-slate-900 text-white font-black text-center py-2 uppercase text-[10px] border border-black rounded-t-2xl">Placar Mensal</div>
                         <div className="grid grid-cols-2 border-x border-b border-black h-28 rounded-b-2xl overflow-hidden shadow-md">
-                            <div className="bg-emerald-500 text-white flex flex-col items-center justify-center border-r border-black group hover:bg-emerald-600 transition-colors">
+                            <div className="bg-indigo-500 text-white flex flex-col items-center justify-center border-r border-black group hover:bg-indigo-600 transition-colors">
                                 <span className="text-[11px] font-black uppercase tracking-widest opacity-70 mb-1">Vitórias</span>
                                 <span className="text-5xl font-black drop-shadow-sm">{totalWins}</span>
                             </div>
@@ -2474,9 +2474,9 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     <div className="space-y-1">
                         <div className="bg-slate-900 text-white font-black text-center py-2 uppercase text-[10px] border border-black rounded-t-2xl">Resultado do Mês</div>
                         <div className="bg-white border-x border-b border-black h-28 flex flex-col items-center justify-center rounded-b-2xl shadow-md relative overflow-hidden">
-                            <div className={`absolute inset-0 opacity-5 ${totalProfit >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                            <div className={`absolute inset-0 opacity-5 ${totalProfit >= 0 ? 'bg-indigo-500' : 'bg-red-500'}`} />
                             <span className="text-[10px] font-black uppercase text-slate-400 mb-1 relative z-10">Lucro Líquido Mensal</span>
-                            <span className={`text-4xl font-black relative z-10 ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            <span className={`text-4xl font-black relative z-10 ${totalProfit >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>
                                 {totalProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(totalProfit)}
                             </span>
                         </div>
