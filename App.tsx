@@ -1991,7 +1991,8 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
     const [deposits, setDeposits] = useState<any[]>(Array(10).fill({ date: '', value: 0 }));
     const [withdrawals, setWithdrawals] = useState<any[]>(Array(10).fill({ date: '', value: 0 }));
 
-    const prevInitialBalanceRef = useRef(activeBrokerage?.initialBalance);
+    // Track the last synced initial balance to detect changes even when component remounts
+    const lastSyncedKey = `ms_${activeBrokerage?.id || 'default'}_last_synced_bal`;
 
     // Load data when brokerage or month changes
     useEffect(() => {
@@ -2047,14 +2048,16 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
         }
 
         const currentInitialBalance = activeBrokerage?.initialBalance || 1000;
+        const lastSyncedBal = localStorage.getItem(lastSyncedKey);
+
         // Sync with brokerage initial balance if it changed in settings or if no bank is saved for this month
-        if (prevInitialBalanceRef.current !== currentInitialBalance || !savedBank) {
+        if (lastSyncedBal !== String(currentInitialBalance) || !savedBank) {
             setBank(currentInitialBalance);
             localStorage.setItem(getStorageKey('bank'), String(currentInitialBalance));
+            localStorage.setItem(lastSyncedKey, String(currentInitialBalance));
         } else {
             setBank(Number(savedBank));
         }
-        prevInitialBalanceRef.current = currentInitialBalance;
 
         setStopPercent(savedStop ? Number(savedStop) : 10);
         setExchangeRate(savedExchange ? Number(savedExchange) : 5.0);

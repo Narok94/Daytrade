@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserIcon, LockClosedIcon } from './icons';
+import { motion } from 'framer-motion';
 
 interface LoginProps {
     onLogin: (username: string, password: string, rememberMe: boolean) => Promise<boolean>;
@@ -48,21 +49,81 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
         <div className="min-h-screen w-full flex items-center justify-center p-6 bg-[#050a1f] relative overflow-hidden font-sans">
             {/* Background Decorative Elements - Network/Constellation Effect */}
             <div className="absolute inset-0 opacity-20 pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"></div>
-                <div className="absolute top-1/3 left-1/2 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"></div>
-                <div className="absolute top-2/3 left-1/3 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"></div>
-                <div className="absolute top-1/2 left-3/4 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"></div>
-                <div className="absolute top-3/4 left-1/2 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"></div>
-                <div className="absolute top-1/2 left-1/4 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"></div>
+                <motion.div 
+                    animate={{ 
+                        y: [0, -20, 0],
+                        opacity: [0.2, 0.5, 0.2]
+                    }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute top-1/4 left-1/4 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"
+                ></motion.div>
+                <motion.div 
+                    animate={{ 
+                        y: [0, 20, 0],
+                        opacity: [0.2, 0.6, 0.2]
+                    }}
+                    transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                    className="absolute top-1/3 left-1/2 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"
+                ></motion.div>
+                <motion.div 
+                    animate={{ 
+                        x: [0, 15, 0],
+                        opacity: [0.2, 0.4, 0.2]
+                    }}
+                    transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+                    className="absolute top-2/3 left-1/3 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"
+                ></motion.div>
+                <motion.div 
+                    animate={{ 
+                        scale: [1, 1.5, 1],
+                        opacity: [0.2, 0.7, 0.2]
+                    }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute top-1/2 left-3/4 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"
+                ></motion.div>
+                <motion.div 
+                    animate={{ 
+                        y: [0, -15, 0],
+                        x: [0, 10, 0],
+                        opacity: [0.2, 0.5, 0.2]
+                    }}
+                    transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                    className="absolute top-3/4 left-1/2 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"
+                ></motion.div>
+                <motion.div 
+                    animate={{ 
+                        opacity: [0.1, 0.3, 0.1]
+                    }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+                    className="absolute top-1/2 left-1/4 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"
+                ></motion.div>
                 
                 <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-                    <line x1="25%" y1="25%" x2="50%" y2="33%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" />
-                    <line x1="50%" y1="33%" x2="75%" y2="50%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" />
-                    <line x1="75%" y1="50%" x2="50%" y2="75%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" />
-                    <line x1="50%" y1="75%" x2="33%" y2="66%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" />
-                    <line x1="33%" y1="66%" x2="25%" y2="25%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" />
-                    <line x1="25%" y1="25%" x2="25%" y2="50%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" />
-                    <line x1="25%" y1="50%" x2="33%" y2="66%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" />
+                    <motion.line 
+                        animate={{ opacity: [0.05, 0.2, 0.05] }}
+                        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+                        x1="25%" y1="25%" x2="50%" y2="33%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" 
+                    />
+                    <motion.line 
+                        animate={{ opacity: [0.05, 0.2, 0.05] }}
+                        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                        x1="50%" y1="33%" x2="75%" y2="50%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" 
+                    />
+                    <motion.line 
+                        animate={{ opacity: [0.05, 0.2, 0.05] }}
+                        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+                        x1="75%" y1="50%" x2="50%" y2="75%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" 
+                    />
+                    <motion.line 
+                        animate={{ opacity: [0.05, 0.2, 0.05] }}
+                        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                        x1="50%" y1="75%" x2="33%" y2="66%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" 
+                    />
+                    <motion.line 
+                        animate={{ opacity: [0.05, 0.2, 0.05] }}
+                        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+                        x1="33%" y1="66%" x2="25%" y2="25%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" 
+                    />
                 </svg>
             </div>
 
