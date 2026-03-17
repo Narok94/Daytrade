@@ -966,7 +966,19 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
     const [isLoading, setIsLoading] = useState(true);
     const [resettingUserId, setResettingUserId] = useState<number | null>(null);
     const [newPassword, setNewPassword] = useState('');
+    const [registrationKeyword, setRegistrationKeyword] = useState('');
+    const [isUpdatingKeyword, setIsUpdatingKeyword] = useState(false);
     const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+
+    const fetchSystemSettings = async () => {
+        try {
+            const res = await fetch(`/api/admin/get-system-settings?adminId=${adminId}`);
+            const data = await res.json();
+            if (data.registration_keyword) setRegistrationKeyword(data.registration_keyword);
+        } catch (error) {
+            console.error('Error fetching system settings:', error);
+        }
+    };
 
     const fetchUsers = async () => {
         setIsLoading(true);
@@ -983,7 +995,33 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
 
     useEffect(() => {
         fetchUsers();
+        fetchSystemSettings();
     }, [adminId]);
+
+    const updateRegistrationKeyword = async () => {
+        if (!registrationKeyword) {
+            setMessage({ text: 'A palavra-chave não pode ser vazia', type: 'error' });
+            return;
+        }
+        setIsUpdatingKeyword(true);
+        try {
+            const res = await fetch('/api/admin/update-system-settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminId, key: 'registration_keyword', value: registrationKeyword })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setMessage({ text: 'Palavra-chave atualizada com sucesso', type: 'success' });
+            } else {
+                setMessage({ text: data.error, type: 'error' });
+            }
+        } catch (error) {
+            setMessage({ text: 'Erro ao atualizar palavra-chave', type: 'error' });
+        } finally {
+            setIsUpdatingKeyword(false);
+        }
+    };
 
     const togglePause = async (targetUserId: number, currentPaused: boolean) => {
         try {
@@ -1048,9 +1086,40 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
                 </div>
             )}
 
-            <div className={`rounded-3xl border ${theme.border} ${theme.card} overflow-hidden shadow-2xl shadow-black/20`}>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <div className={`lg:col-span-1 p-6 rounded-3xl border ${theme.border} ${theme.card} shadow-xl`}>
+                    <h3 className="text-sm font-black uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <KeyIcon className="w-4 h-4 text-amber-500" />
+                        Convite de Novos Membros
+                    </h3>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">
+                        Defina a palavra-chave obrigatória para o registro de novos usuários.
+                    </p>
+                    <div className="space-y-4">
+                        <div className="relative group">
+                            <input
+                                type="text"
+                                value={registrationKeyword}
+                                onChange={(e) => setRegistrationKeyword(e.target.value)}
+                                placeholder="Palavra-chave"
+                                className={`w-full h-12 px-4 rounded-xl border outline-none font-bold text-sm ${theme.input}`}
+                            />
+                        </div>
+                        <button
+                            onClick={updateRegistrationKeyword}
+                            disabled={isUpdatingKeyword}
+                            className="w-full h-12 bg-[#6366f1] hover:bg-[#6366f1]/80 text-white font-bold rounded-xl uppercase text-[10px] tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {isUpdatingKeyword ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
+                            Atualizar Palavra-Chave
+                        </button>
+                    </div>
+                </div>
+
+                <div className="lg:col-span-2">
+                    <div className={`rounded-3xl border ${theme.border} ${theme.card} overflow-hidden shadow-2xl shadow-black/20`}>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className={`border-b ${theme.border} bg-black/5`}>
                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest opacity-40">Usuário</th>
@@ -1108,6 +1177,8 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
                     </table>
                 </div>
             </div>
+        </div>
+    </div>
 
             {resettingUserId && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
@@ -2150,7 +2221,7 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div><h2 className="text-xl lg:text-2xl font-black">Configurações de Banca</h2><p className={`text-[10px] lg:text-xs ${theme.textMuted}`}>Gestão de capital e limites de risco.</p></div>
+                <div><h2 className="text-xl lg:text-2xl font-black">Configurações da Corretora</h2><p className={`text-[10px] lg:text-xs ${theme.textMuted}`}>Gestão de capital e limites de risco.</p></div>
                 <div className="flex gap-2 w-full sm:w-auto">
                     <input 
                         type="text" 
@@ -2166,11 +2237,14 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
             <div className={`p-4 md:p-8 rounded-3xl border ${theme.card} space-y-8`}>
                 <section className="space-y-6">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                        <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60">Parâmetros de {brokerage.name}</h3>
+                        <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">
+                            <LayoutGridIcon className="w-4 h-4 text-[#6366f1]" />
+                            Parâmetros de {brokerage.name}
+                        </h3>
                         <button onClick={() => deleteBrokerage(brokerage.id)} className="text-red-500 text-[10px] font-black uppercase tracking-widest hover:underline">Excluir Corretora</button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Nome da Banca</label><input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} /></div>
+                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Corretora</label><input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} /></div>
                         <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Moeda</label><select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`}><option value="USD">Dólar ($)</option><option value="BRL">Real (R$)</option></select></div>
                         <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Saldo Inicial</label><input type="number" value={brokerage.initialBalance} onChange={e => updateBrokerage('initialBalance', parseFloat(e.target.value) || 0)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} /></div>
                         <div className="space-y-1">
@@ -2183,7 +2257,10 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                     </div>
                 </section>
                 <section className="space-y-6 pt-8 border-t border-slate-800/10">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60">Meta Diária</h3>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">
+                        <TargetIcon className="w-4 h-4 text-emerald-500" />
+                        Meta Diária
+                    </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-500 uppercase">Modo da Meta</label>
@@ -2213,8 +2290,21 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                     </div>
                 </section>
                 <section className="space-y-6 pt-8 border-t border-slate-800/10">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60">Preferências de Exibição</h3>
-                    <div className="flex items-center justify-between p-4 bg-slate-100/50 rounded-2xl border border-black/5">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">
+                        <ExclamationTriangleIcon className="w-4 h-4 text-red-500" />
+                        Bloqueio Operacional (Stop)
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Gain (Wins)</label><input type="number" value={brokerage.stopGainTrades} onChange={e => updateBrokerage('stopGainTrades', parseInt(e.target.value) || 0)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} /></div>
+                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Loss (Losses)</label><input type="number" value={brokerage.stopLossTrades} onChange={e => updateBrokerage('stopLossTrades', parseInt(e.target.value) || 0)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} /></div>
+                    </div>
+                </section>
+                <section className="space-y-6 pt-8 border-t border-slate-800/10">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">
+                        <SparklesIcon className="w-4 h-4 text-amber-500" />
+                        Preferências de Exibição
+                    </h3>
+                    <div className={`flex items-center justify-between p-4 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800/50' : 'bg-slate-100/50 border-black/5'}`}>
                         <div className="flex items-center gap-3">
                             <div className={`p-2 rounded-xl ${isDarkMode ? 'bg-slate-800 text-amber-400' : 'bg-white text-blue-600 shadow-sm'}`}>
                                 {isDarkMode ? <MoonIcon className="w-5 h-5" /> : <SunIcon className="w-5 h-5" />}
@@ -2230,13 +2320,6 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                         >
                             <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${isDarkMode ? 'left-7' : 'left-1'}`} />
                         </button>
-                    </div>
-                </section>
-                <section className="space-y-6 pt-8 border-t border-slate-800/10">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60">Bloqueio Operacional (Stop)</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Gain (Wins)</label><input type="number" value={brokerage.stopGainTrades} onChange={e => updateBrokerage('stopGainTrades', parseInt(e.target.value) || 0)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} /></div>
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Loss (Losses)</label><input type="number" value={brokerage.stopLossTrades} onChange={e => updateBrokerage('stopLossTrades', parseInt(e.target.value) || 0)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} /></div>
                     </div>
                 </section>
                 <div className="flex flex-col md:flex-row gap-3 md:gap-4">

@@ -47,6 +47,19 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
         );
     `);
 
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS system_settings (
+            key VARCHAR(50) PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+    `);
+
+    // Initialize default registration keyword if not exists
+    const { rows: keywordExists } = await client.query("SELECT 1 FROM system_settings WHERE key = 'registration_keyword'");
+    if (keywordExists.length === 0) {
+        await client.query("INSERT INTO system_settings (key, value) VALUES ('registration_keyword', 'HRK2026')");
+    }
+
     // 2. CHECK & ADD ALL POTENTIALLY MISSING COLUMNS
     const { rows: columnsResult } = await client.query(`
         SELECT column_name FROM information_schema.columns
@@ -129,11 +142,11 @@ export default async function handler(
 
     const client = await db.connect();
     try {
-        const { username, password } = req.body;
+        const { username, password, keyword } = req.body;
         const lowerUsername = username?.toLowerCase();
 
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Usuário e senha são obrigatórios.' });
+        if (!username || !password || !keyword) {
+            return res.status(400).json({ error: 'Usuário, senha e palavra-chave são obrigatórios.' });
         }
         if (password.length < 4) {
             return res.status(400).json({ error: 'A senha deve ter pelo menos 4 caracteres.' });
@@ -141,6 +154,14 @@ export default async function handler(
 
         // Garante que as tabelas existam e migra se necessário
         await ensureTablesAndMigrate(client);
+
+        // Check keyword
+        const { rows: systemSettings } = await client.query("SELECT value FROM system_settings WHERE key = 'registration_keyword'");
+        const validKeyword = systemSettings[0]?.value || 'HRK2026';
+
+        if (keyword !== validKeyword) {
+            return res.status(403).json({ error: 'Palavra-chave de convite inválida.' });
+        }
 
         // Check if user already exists
         const { rows: existingUsers } = await client.query('SELECT * FROM users WHERE username = $1', [lowerUsername]);

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 
 interface LoginProps {
     onLogin: (username: string, password: string, rememberMe: boolean) => Promise<boolean>;
-    onRegister: (username: string, password: string) => Promise<void>;
+    onRegister: (username: string, password: string, keyword: string) => Promise<void>;
     error: string;
     setError: (error: string) => void;
 }
@@ -13,6 +13,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [keyword, setKeyword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
     const [isRegistering, setIsRegistering] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -28,7 +29,12 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                     setIsLoading(false);
                     return;
                 }
-                await onRegister(username, password);
+                if (!keyword) {
+                    setError('A palavra-chave de convite é obrigatória.');
+                    setIsLoading(false);
+                    return;
+                }
+                await onRegister(username, password, keyword);
             } else {
                 await onLogin(username, password, rememberMe);
             }
@@ -42,6 +48,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
         setUsername('');
         setPassword('');
         setConfirmPassword('');
+        setKeyword('');
         setError('');
     };
 
@@ -180,19 +187,36 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                         </div>
                         
                         {isRegistering && (
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <LockClosedIcon className="w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                            <>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        <LockClosedIcon className="w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                                    </div>
+                                    <input
+                                        type="password"
+                                        placeholder="Confirmar Senha"
+                                        value={confirmPassword}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
+                                        className="w-full h-14 pl-12 pr-4 rounded-2xl bg-[#1e293b]/30 border border-white/5 text-white placeholder-slate-500 outline-none focus:border-indigo-500/50 focus:bg-[#1e293b]/50 transition-all"
+                                        required
+                                    />
                                 </div>
-                                <input
-                                    type="password"
-                                    placeholder="Confirmar Senha"
-                                    value={confirmPassword}
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
-                                    className="w-full h-14 pl-12 pr-4 rounded-2xl bg-[#1e293b]/30 border border-white/5 text-white placeholder-slate-500 outline-none focus:border-indigo-500/50 focus:bg-[#1e293b]/50 transition-all"
-                                    required
-                                />
-                            </div>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        <svg className="w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                        </svg>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="Palavra-Chave de Convite"
+                                        value={keyword}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKeyword(e.target.value)}
+                                        className="w-full h-14 pl-12 pr-4 rounded-2xl bg-[#1e293b]/30 border border-white/5 text-white placeholder-slate-500 outline-none focus:border-indigo-500/50 focus:bg-[#1e293b]/50 transition-all"
+                                        required
+                                    />
+                                </div>
+                            </>
                         )}
 
                         {!isRegistering && (
