@@ -270,10 +270,10 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
 
     if (isAnalyzing) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[600px] p-6 space-y-12 bg-[#0f172a] text-white">
+            <div className="flex flex-col items-center justify-center min-h-[500px] lg:min-h-[600px] p-4 lg:p-6 space-y-8 lg:space-y-12 bg-[#0f172a] text-white">
                 <div className="relative">
-                    <div className="w-24 h-24 rounded-2xl border-2 border-[#6366f1]/30 flex items-center justify-center relative z-10 bg-[#1e293b]">
-                        <CpuChipIcon className="w-12 h-12 text-[#6366f1] animate-pulse" />
+                    <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-2xl border-2 border-[#6366f1]/30 flex items-center justify-center relative z-10 bg-[#1e293b]">
+                        <CpuChipIcon className="w-10 h-10 lg:w-12 lg:h-12 text-[#6366f1] animate-pulse" />
                         {/* Neural Scan Line */}
                         <div className="absolute inset-0 overflow-hidden rounded-2xl">
                             <div className="w-full h-0.5 bg-[#6366f1]/40 absolute top-0 animate-scan" />
@@ -283,8 +283,8 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                 </div>
 
                 <div className="text-center space-y-1">
-                    <h2 className="text-3xl font-black tracking-tight text-[#6366f1] uppercase">Processando...</h2>
-                    <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">Análise de Mercado em Tempo Real</p>
+                    <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-[#6366f1] uppercase">Processando...</h2>
+                    <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[8px] lg:text-[10px]">Análise de Mercado em Tempo Real</p>
                 </div>
 
                 <div className="w-full max-w-xs space-y-4">
@@ -842,19 +842,19 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 </div>
             </aside>
             <main className="flex-1 flex flex-col overflow-hidden">
-                <header className={`h-20 flex-none flex items-center justify-between px-6 md:px-8 border-b ${theme.border} ${theme.header}`}>
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-6 h-6" /></button>
+                <header className={`h-16 md:h-20 flex-none flex items-center justify-between px-4 md:px-8 border-b ${theme.border} ${theme.header}`}>
+                    <div className="flex items-center gap-2 md:gap-4">
+                        <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-5 h-5" /></button>
                         <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e293b]/30 border border-white/5 text-[8px] font-black uppercase tracking-widest text-[#6366f1]/60">
                             <div className="w-1 h-1 rounded-full bg-[#6366f1] animate-pulse" />
                             Market: Active
                         </div>
                         <SavingStatusIndicator status={savingStatus} />
-                        <div className="flex items-center gap-1 md:gap-2 ml-1 md:ml-4 max-w-[100px] md:max-w-none">
+                        <div className="flex items-center gap-1 md:gap-2 ml-1 md:ml-4 max-w-[80px] md:max-w-none">
                             <select 
                                 value={activeBrokerageId || ''} 
                                 onChange={(e) => setActiveBrokerageId(e.target.value)}
-                                className={`text-[9px] md:text-xs font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 cursor-pointer truncate ${theme.text}`}
+                                className={`text-[8px] md:text-xs font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 cursor-pointer truncate ${theme.text}`}
                             >
                                 {brokerages.map(b => (
                                     <option key={b.id} value={b.id} className={isDarkMode ? 'bg-slate-900' : 'bg-white'}>{b.name}</option>
@@ -863,11 +863,11 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                         </div>
                     </div>
                     <div className="flex items-center gap-1 md:gap-3 overflow-hidden justify-end">
-                        <div className="flex items-center gap-1 md:gap-4 overflow-x-auto no-scrollbar py-1">
+                        <div className="flex items-center gap-1 md:gap-4 overflow-x-auto no-scrollbar py-1 max-w-[120px] sm:max-w-none">
                             {brokerageBalances.map((b, i) => (
                                 <div key={i} className={`flex flex-col items-end px-1.5 md:px-3 py-0.5 md:py-1 rounded-md md:rounded-xl border shrink-0 ${isDarkMode ? 'bg-slate-900/40 border-slate-800/50' : 'bg-zinc-200/50 border-zinc-300/50'}`}>
                                     <span className="text-[5px] md:text-[8px] font-black uppercase opacity-40 leading-none">{b.name}</span>
-                                    <span className={`text-[8px] md:text-xs font-bold leading-tight ${b.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    <span className={`text-[7px] md:text-xs font-bold leading-tight ${b.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                         {b.currency === 'USD' ? '$' : 'R$'} {formatMoney(b.balance)}
                                     </span>
                                 </div>
@@ -877,7 +877,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1 md:p-2 text-slate-400 hover:text-[#6366f1] transition-colors">
                                 {isDarkMode ? <SunIcon className="w-3.5 h-3.5 md:w-5 md:h-5" /> : <MoonIcon className="w-3.5 h-3.5 md:w-5 md:h-5" />}
                             </button>
-                            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-[#6366f1] flex items-center justify-center text-white font-black text-[9px] md:text-xs shadow-lg shadow-[#6366f1]/20">
+                            <div className="w-6 h-6 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-[#6366f1] flex items-center justify-center text-white font-black text-[8px] md:text-xs shadow-lg shadow-[#6366f1]/20">
                                 {user.username.slice(0, 2).toUpperCase()}
                             </div>
                         </div>
@@ -1017,8 +1017,8 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
-                <div><h2 className={`text-2xl font-black ${theme.text}`}>Dashboard de Gestão</h2><p className={theme.textMuted}>Controle operacional em tempo real.</p></div>
-                <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
+                <div><h2 className={`text-xl lg:text-2xl font-black ${theme.text}`}>Dashboard de Gestão</h2><p className={`text-[10px] lg:text-xs ${theme.textMuted}`}>Controle operacional em tempo real.</p></div>
+                <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`w-full md:w-auto border rounded-xl px-4 py-2.5 text-xs lg:text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
                 {kpis.map((kpi, i) => (
@@ -1254,69 +1254,71 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div>
-                    <h2 className={`text-2xl font-black ${theme.text}`}>Planejamento de Juros Compostos</h2>
-                    <p className={`${theme.textMuted} text-xs mt-1 font-bold`}>Projeção baseada no histórico real e metas futuras.</p>
+                    <h2 className={`text-xl lg:text-2xl font-black ${theme.text}`}>Planejamento de Juros Compostos</h2>
+                    <p className={`${theme.textMuted} text-[10px] lg:text-xs mt-1 font-bold`}>Projeção baseada no histórico real e metas futuras.</p>
                 </div>
             </div>
 
             <div className={`rounded-3xl border overflow-hidden shadow-2xl ${theme.card}`}>
-                <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-center border-collapse min-w-[1000px]">
-                        <thead>
-                            <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Data</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Capital</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span>Meta</span>
-                                        <div className="flex items-center gap-1">
-                                            <input type="number" value={projMetaPercent} onChange={e => setProjMetaPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
-                                            <span className="opacity-30">%</span>
+                <div className="overflow-x-auto no-scrollbar">
+                    <div className="min-w-[800px]">
+                        <table className="w-full text-center border-collapse">
+                            <thead>
+                                <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
+                                    <th className="py-5 px-3 border-b border-slate-800/20">Data</th>
+                                    <th className="py-5 px-3 border-b border-slate-800/20">Capital</th>
+                                    <th className="py-5 px-3 border-b border-slate-800/20">
+                                        <div className="flex flex-col items-center gap-1">
+                                            <span>Meta</span>
+                                            <div className="flex items-center gap-1">
+                                                <input type="number" value={projMetaPercent} onChange={e => setProjMetaPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
+                                                <span className="opacity-30">%</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                </th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Lucro</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">Status</th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span>Stop</span>
-                                        <div className="flex items-center gap-1">
-                                            <input type="number" value={projStopPercent} onChange={e => setProjStopPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
-                                            <span className="opacity-30">%</span>
+                                    </th>
+                                    <th className="py-5 px-3 border-b border-slate-800/20">Lucro</th>
+                                    <th className="py-5 px-3 border-b border-slate-800/20">Status</th>
+                                    <th className="py-5 px-3 border-b border-slate-800/20">
+                                        <div className="flex flex-col items-center gap-1">
+                                            <span>Stop</span>
+                                            <div className="flex items-center gap-1">
+                                                <input type="number" value={projStopPercent} onChange={e => setProjStopPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
+                                                <span className="opacity-30">%</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                </th>
-                                <th className="py-5 px-3 border-b border-slate-800/20">
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span>Entrada</span>
-                                        <div className="flex items-center gap-1">
-                                            <input type="number" value={projEntryPercent} onChange={e => setProjEntryPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
-                                            <span className="opacity-30">%</span>
+                                    </th>
+                                    <th className="py-5 px-3 border-b border-slate-800/20">
+                                        <div className="flex flex-col items-center gap-1">
+                                            <span>Entrada</span>
+                                            <div className="flex items-center gap-1">
+                                                <input type="number" value={projEntryPercent} onChange={e => setProjEntryPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
+                                                <span className="opacity-30">%</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/10">
-                            {tableData.map((row) => (
-                                <tr key={row.dateId} className={`text-sm font-bold hover:bg-slate-800/5 transition-colors ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : row.status === 'STOP-LOSS' ? 'bg-red-500/5' : ''}`}>
-                                    <td className="py-4 px-3 text-[10px] uppercase font-black opacity-60">
-                                        {row.hasOperation ? row.dateDisplay : ''}
-                                    </td>
-                                    <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
-                                    <td className="py-4 px-3 opacity-60">{row.metaPercent}%</td>
-                                    <td className="py-4 px-3 font-black text-blue-400">{currencySymbol} {formatMoney(row.targetProfit)}</td>
-                                    <td className="py-4 px-3">
-                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' ? 'bg-green-500/20 text-green-500' : row.status === 'STOP-LOSS' ? 'bg-red-500/20 text-red-500' : 'bg-slate-500/20 text-slate-500'}`}>
-                                            {row.status}
-                                        </span>
-                                    </td>
-                                    <td className="py-4 px-3 text-red-500/80">{currencySymbol} {formatMoney(row.stopValue)}</td>
-                                    <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.entryValue)}</td>
+                                    </th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/10">
+                                {tableData.map((row) => (
+                                    <tr key={row.dateId} className={`text-sm font-bold hover:bg-slate-800/5 transition-colors ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : row.status === 'STOP-LOSS' ? 'bg-red-500/5' : ''}`}>
+                                        <td className="py-4 px-3 text-[10px] uppercase font-black opacity-60">
+                                            {row.hasOperation ? row.dateDisplay : ''}
+                                        </td>
+                                        <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
+                                        <td className="py-4 px-3 opacity-60">{row.metaPercent}%</td>
+                                        <td className="py-4 px-3 font-black text-blue-400">{currencySymbol} {formatMoney(row.targetProfit)}</td>
+                                        <td className="py-4 px-3">
+                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' ? 'bg-green-500/20 text-green-500' : row.status === 'STOP-LOSS' ? 'bg-red-500/20 text-red-500' : 'bg-slate-500/20 text-slate-500'}`}>
+                                                {row.status}
+                                            </span>
+                                        </td>
+                                        <td className="py-4 px-3 text-red-500/80">{currencySymbol} {formatMoney(row.stopValue)}</td>
+                                        <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.entryValue)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1329,30 +1331,30 @@ const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, dele
     const dayRecords = records.filter((r: any) => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0).sort((a: any, b: any) => b.id.localeCompare(a.id));
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div><h2 className={`text-2xl font-black ${theme.text}`}>Extrato de Operações</h2><p className={theme.textMuted}>Histórico completo de performance.</p></div>
+            <div><h2 className={`text-xl lg:text-2xl font-black ${theme.text}`}>Extrato de Operações</h2><p className={`text-[10px] lg:text-xs ${theme.textMuted}`}>Histórico completo de performance.</p></div>
             <div className="space-y-4">
                 {dayRecords.length > 0 ? dayRecords.map((record: DailyRecord) => (
-                    <div key={record.id} className={`p-6 rounded-3xl border ${theme.card}`}>
+                    <div key={record.id} className={`p-4 lg:p-6 rounded-3xl border ${theme.card}`}>
                         <div className="flex justify-between items-center mb-4">
-                            <h4 className="font-black text-sm uppercase tracking-wider">{new Date(record.id + 'T12:00:00').toLocaleDateString('pt-BR')}</h4>
-                            <div className="text-right"><p className={`text-sm font-black ${record.netProfitUSD >= 0 ? 'text-green-500' : 'text-red-500'}`}>{record.netProfitUSD >= 0 ? '+' : ''}{currencySymbol} {formatMoney(record.netProfitUSD)}</p></div>
+                            <h4 className="font-black text-xs lg:text-sm uppercase tracking-wider">{new Date(record.id + 'T12:00:00').toLocaleDateString('pt-BR')}</h4>
+                            <div className="text-right"><p className={`text-xs lg:text-sm font-black ${record.netProfitUSD >= 0 ? 'text-green-500' : 'text-red-500'}`}>{record.netProfitUSD >= 0 ? '+' : ''}{currencySymbol} {formatMoney(record.netProfitUSD)}</p></div>
                         </div>
                         <div className="space-y-2">
                             {record.trades.map((trade) => {
                                 const tradeProfit = trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)) : -trade.entryValue;
                                 return (
-                                    <div key={trade.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-slate-950/50 border-slate-800/50' : 'bg-slate-50 border-slate-200/50'}`}>
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-2 h-8 rounded-full ${trade.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                    <div key={trade.id} className={`flex items-center justify-between p-2 lg:p-3 rounded-2xl border ${isDarkMode ? 'bg-slate-950/50 border-slate-800/50' : 'bg-slate-50 border-slate-200/50'}`}>
+                                        <div className="flex items-center gap-2 lg:gap-3">
+                                            <div className={`w-1.5 lg:w-2 h-6 lg:h-8 rounded-full ${trade.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} />
                                             <div>
-                                                <p className="text-[10px] font-black uppercase text-slate-500 leading-none">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                                                <p className="text-sm font-bold">
+                                                <p className="text-[8px] lg:text-[10px] font-black uppercase text-slate-500 leading-none">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                                                <p className="text-xs lg:text-sm font-bold">
                                                     {trade.result === 'win' ? 'Vitória' : 'Derrota'}
-                                                    {trade.isSoros && <span className="ml-2 text-[8px] bg-green-500/20 text-green-500 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter">Soros</span>}
+                                                    {trade.isSoros && <span className="ml-1 text-[7px] bg-green-500/20 text-green-500 px-1 py-0.5 rounded-md font-black uppercase tracking-tighter">Soros</span>}
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className="text-right"><p className={`text-sm font-black ${tradeProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}</p><button onClick={() => deleteTrade(trade.id, record.id)} className="text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button></div>
+                                        <div className="text-right"><p className={`text-xs lg:text-sm font-black ${tradeProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}</p><button onClick={() => deleteTrade(trade.id, record.id)} className="text-[8px] lg:text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button></div>
                                     </div>
                                 );
                             })}
@@ -1586,14 +1588,14 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
     return (
         <div className="p-2 md:p-4 space-y-4 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-3">
-                <div className="flex justify-between w-full md:w-auto items-center gap-4">
+                <div className="flex flex-col sm:flex-row justify-between w-full md:w-auto items-start sm:items-center gap-4">
                     <div>
                         <h2 className={`text-xl md:text-2xl font-black ${theme.text}`}>Histórico de Performance</h2>
                         <p className={`text-[10px] md:text-xs ${theme.textMuted}`}>Análise detalhada por períodos.</p>
                     </div>
                     <button 
                         onClick={() => setIsTextModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:opacity-50 w-full sm:w-auto justify-center"
                     >
                         {isImporting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <DocumentTextIcon className="w-4 h-4" />}
                         {isImporting ? 'Processando...' : 'Importar Texto'}
@@ -1604,12 +1606,12 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                         <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider">{importError}</p>
                     </div>
                 )}
-                <div className="flex p-1 rounded-2xl bg-slate-900 border border-slate-800 overflow-x-auto no-scrollbar">
+                <div className="flex p-1 rounded-2xl bg-slate-900 border border-slate-800 overflow-x-auto no-scrollbar w-full md:w-auto">
                     {(['calendar', 'daily', 'weekly', 'monthly'] as const).map((mode) => (
                         <button
                             key={mode}
                             onClick={() => setViewMode(mode)}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${viewMode === mode ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`flex-1 md:flex-none px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${viewMode === mode ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
                             {mode === 'calendar' ? 'Calendário' : mode === 'daily' ? 'Diário' : mode === 'weekly' ? 'Semanal' : 'Mensal'}
                         </button>
@@ -1621,27 +1623,27 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                 {viewMode === 'calendar' ? (
                     <CalendarHistory isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />
                 ) : stats.length > 0 ? stats.map((item: any) => (
-                    <div key={item.id} className={`p-6 rounded-3xl border ${theme.card} flex flex-col md:flex-row md:items-center justify-between gap-6`}>
+                    <div key={item.id} className={`p-4 md:p-6 rounded-3xl border ${theme.card} flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6`}>
                         <div className="flex items-center gap-4">
-                            <div className={`p-3 rounded-2xl ${item.profit >= 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                                {item.profit >= 0 ? <TrendingUpIcon className="w-6 h-6" /> : <TrendingDownIcon className="w-6 h-6" />}
+                            <div className={`p-2 md:p-3 rounded-2xl ${item.profit >= 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                                {item.profit >= 0 ? <TrendingUpIcon className="w-5 h-5 md:w-6 md:h-6" /> : <TrendingDownIcon className="w-5 h-5 md:w-6 md:h-6" />}
                             </div>
                             <div>
-                                <h4 className="font-black text-lg leading-none mb-1">{item.label}</h4>
-                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">{item.total} Operações Realizadas</p>
+                                <h4 className="font-black text-base md:text-lg leading-none mb-1">{item.label}</h4>
+                                <p className="text-[8px] md:text-[10px] font-black uppercase text-slate-500 tracking-widest">{item.total} Operações Realizadas</p>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-12">
                             <div>
-                                <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Resultado</p>
-                                <p className={`text-lg font-black ${item.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                <p className="text-[8px] lg:text-[9px] font-black uppercase text-slate-500 mb-1">Resultado</p>
+                                <p className={`text-sm md:text-base lg:text-lg font-black ${item.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                     {item.profit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(item.profit)}
                                 </p>
                             </div>
                             <div>
-                                <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Win / Loss %</p>
-                                <p className="text-lg font-black">
+                                <p className="text-[8px] lg:text-[9px] font-black uppercase text-slate-500 mb-1">Win / Loss %</p>
+                                <p className="text-sm md:text-base lg:text-lg font-black">
                                     <span className="text-green-500">{item.winRate.toFixed(0)}%</span>
                                     <span className="mx-1 opacity-20">/</span>
                                     <span className="text-red-500">{(100 - item.winRate).toFixed(0)}%</span>
@@ -1744,9 +1746,9 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
     const results = calculateSoros();
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
-            <div><h2 className="text-2xl font-black">Calculadora de Soros</h2><p className={theme.textMuted}>Planejamento de alavancagem progressiva.</p></div>
-            <div className={`p-8 rounded-3xl border ${theme.card} space-y-6`}>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div><h2 className="text-xl lg:text-2xl font-black">Calculadora de Soros</h2><p className={`text-[10px] lg:text-xs ${theme.textMuted}`}>Planejamento de alavancagem progressiva.</p></div>
+            <div className={`p-4 lg:p-8 rounded-3xl border ${theme.card} space-y-6`}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
                     <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Valor Inicial</label><input type="number" value={initialValue} onChange={e => setInitialValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-500 uppercase">Payout</label>
@@ -1757,11 +1759,11 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
                     </div>
                     <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Níveis</label><input type="number" value={levels} onChange={e => setLevels(e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2 lg:space-y-3">
                     {results.map(r => (
-                        <div key={r.level} className="flex items-center justify-between p-4 rounded-2xl bg-slate-950/20 border border-slate-800/50">
-                            <div><p className="text-[10px] font-black uppercase text-slate-500">Nível {r.level}</p><p className="text-sm font-bold">Entrada: {currencySymbol} {formatMoney(r.entry)}</p></div>
-                            <div className="text-right"><p className="text-[10px] font-black uppercase text-green-500">Lucro Estimado</p><p className="text-sm font-black text-green-500">+{currencySymbol} {formatMoney(r.profit)}</p></div>
+                        <div key={r.level} className="flex items-center justify-between p-3 lg:p-4 rounded-2xl bg-slate-950/20 border border-slate-800/50">
+                            <div><p className="text-[8px] lg:text-[10px] font-black uppercase text-slate-500">Nível {r.level}</p><p className="text-xs lg:text-sm font-bold">Entrada: {currencySymbol} {formatMoney(r.entry)}</p></div>
+                            <div className="text-right"><p className="text-[8px] lg:text-[10px] font-black uppercase text-green-500">Lucro Estimado</p><p className="text-xs lg:text-sm font-black text-green-500">+{currencySymbol} {formatMoney(r.profit)}</p></div>
                         </div>
                     ))}
                 </div>
@@ -1836,8 +1838,8 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
-            <div><h2 className="text-2xl font-black">Metas Financeiras</h2><p className={theme.textMuted}>Acompanhamento de objetivos a longo prazo.</p></div>
-            <div className={`p-8 rounded-3xl border ${theme.card} space-y-8`}>
+            <div><h2 className="text-xl lg:text-2xl font-black">Metas Financeiras</h2><p className={`text-[10px] lg:text-xs ${theme.textMuted}`}>Acompanhamento de objetivos a longo prazo.</p></div>
+            <div className={`p-4 lg:p-8 rounded-3xl border ${theme.card} space-y-8`}>
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <input type="text" placeholder="Nome da Meta" value={newGoalName} onChange={e => setNewGoalName(e.target.value)} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} />
@@ -1914,34 +1916,34 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
 
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
-            <div className="flex justify-between items-center">
-                <div><h2 className="text-2xl font-black">Configurações de Banca</h2><p className={theme.textMuted}>Gestão de capital e limites de risco.</p></div>
-                <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div><h2 className="text-xl lg:text-2xl font-black">Configurações de Banca</h2><p className={`text-[10px] lg:text-xs ${theme.textMuted}`}>Gestão de capital e limites de risco.</p></div>
+                <div className="flex gap-2 w-full sm:w-auto">
                     <input 
                         type="text" 
-                        placeholder="Nome da Nova Corretora" 
+                        placeholder="Nova Corretora" 
                         value={newBrokerageName}
                         onChange={e => setNewBrokerageName(e.target.value)}
-                        className={`h-10 px-4 rounded-xl border text-xs font-bold outline-none ${theme.input}`}
+                        className={`flex-1 h-10 px-4 rounded-xl border text-xs font-bold outline-none ${theme.input}`}
                     />
                     <button onClick={addNewBrokerage} className="h-10 px-4 bg-[#6366f1] text-white font-black rounded-xl uppercase text-[10px] tracking-widest">Nova</button>
                 </div>
             </div>
             
-            <div className={`p-8 rounded-3xl border ${theme.card} space-y-8`}>
+            <div className={`p-4 md:p-8 rounded-3xl border ${theme.card} space-y-8`}>
                 <section className="space-y-6">
-                    <div className="flex justify-between items-center">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                         <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60">Parâmetros de {brokerage.name}</h3>
                         <button onClick={() => deleteBrokerage(brokerage.id)} className="text-red-500 text-[10px] font-black uppercase tracking-widest hover:underline">Excluir Corretora</button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Nome da Banca</label><input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Moeda</label><select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`}><option value="USD">Dólar ($)</option><option value="BRL">Real (R$)</option></select></div>
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Saldo Inicial</label><input type="number" value={brokerage.initialBalance} onChange={e => updateBrokerage('initialBalance', parseFloat(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Nome da Banca</label><input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} /></div>
+                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Moeda</label><select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`}><option value="USD">Dólar ($)</option><option value="BRL">Real (R$)</option></select></div>
+                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Saldo Inicial</label><input type="number" value={brokerage.initialBalance} onChange={e => updateBrokerage('initialBalance', parseFloat(e.target.value) || 0)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} /></div>
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-500 uppercase">Payout Padrão</label>
                             <div className="relative">
-                                <input type="number" value={brokerage.payoutPercentage} onChange={e => updateBrokerage('payoutPercentage', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 pr-8 rounded-xl border outline-none font-bold ${theme.input}`} />
+                                <input type="number" value={brokerage.payoutPercentage} onChange={e => updateBrokerage('payoutPercentage', parseInt(e.target.value) || 0)} className={`w-full h-11 md:h-12 px-4 pr-8 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} />
                                 <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-bold">%</span>
                             </div>
                         </div>
@@ -1949,16 +1951,16 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                 </section>
                 <section className="space-y-6 pt-8 border-t border-slate-800/10">
                     <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60">Bloqueio Operacional (Stop)</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Gain (Wins)</label><input type="number" value={brokerage.stopGainTrades} onChange={e => updateBrokerage('stopGainTrades', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Loss (Losses)</label><input type="number" value={brokerage.stopLossTrades} onChange={e => updateBrokerage('stopLossTrades', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Gain (Wins)</label><input type="number" value={brokerage.stopGainTrades} onChange={e => updateBrokerage('stopGainTrades', parseInt(e.target.value) || 0)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} /></div>
+                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Loss (Losses)</label><input type="number" value={brokerage.stopLossTrades} onChange={e => updateBrokerage('stopLossTrades', parseInt(e.target.value) || 0)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} /></div>
                     </div>
                 </section>
-                <div className="flex flex-col md:flex-row gap-4">
-                    <button onClick={onReset} className="flex-1 px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all">Limpar Histórico de Operações</button>
+                <div className="flex flex-col md:flex-row gap-3 md:gap-4">
+                    <button onClick={onReset} className="flex-1 px-6 py-3 md:px-8 md:py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all">Limpar Histórico</button>
                     {trashCount > 0 && (
-                        <button onClick={onRestore} className="flex-1 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2">
-                            <ArrowPathIcon className="w-4 h-4" /> Restaurar da Lixeira ({trashCount})
+                        <button onClick={onRestore} className="flex-1 px-6 py-3 md:px-8 md:py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2">
+                            <ArrowPathIcon className="w-4 h-4" /> Restaurar ({trashCount})
                         </button>
                     )}
                 </div>
@@ -2273,197 +2275,205 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
 
     return (
         <div className="p-1 md:p-2 space-y-2 w-full mx-auto text-black text-[11px]">
-            <div className="flex items-center justify-between mb-4 bg-white p-4 rounded-2xl border border-black/10 shadow-sm">
-                <div>
-                    <h2 className="text-xl font-black uppercase tracking-tighter text-black flex items-center gap-2">
-                        <DocumentTextIcon className="w-6 h-6 text-blue-600" />
-                        Planilha de Gerenciamento
-                    </h2>
-                    <p className="text-black/60 text-xs font-bold uppercase tracking-widest mt-1">
-                        {activeBrokerage?.name} • {selectedMonth}
-                    </p>
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-4 bg-white p-3 md:p-4 rounded-2xl border border-black/10 shadow-sm gap-4">
+                <div className="flex items-center gap-3">
+                    <DocumentTextIcon className="w-6 h-6 md:w-8 md:h-8 text-blue-600 shrink-0" />
+                    <div>
+                        <h2 className="text-base md:text-lg lg:text-xl font-black uppercase tracking-tighter text-black leading-tight">
+                            Planilha de Gerenciamento
+                        </h2>
+                        <p className="text-black/60 text-[8px] md:text-[10px] lg:text-xs font-bold uppercase tracking-widest mt-0.5">
+                            {activeBrokerage?.name} • {selectedMonth}
+                        </p>
+                    </div>
                 </div>
-                <div className="flex gap-3 items-center">
-                    <div className="flex flex-col">
+                <div className="flex flex-wrap gap-2 md:gap-3 items-end w-full lg:w-auto">
+                    <div className="flex flex-col flex-1 lg:flex-none min-w-[120px]">
                         <label className="text-[8px] font-black uppercase text-slate-500 ml-1 mb-0.5">Dia Selecionado</label>
                         <input 
                             type="date" 
                             value={getLocalDateString(selectedDate)} 
                             onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))}
-                            className="bg-slate-100 border border-black/20 rounded-xl px-4 py-2 text-xs font-black uppercase outline-none focus:border-blue-500 transition-all"
+                            className="bg-slate-100 border border-black/20 rounded-xl px-3 py-2 text-[10px] lg:text-xs font-black uppercase outline-none focus:border-blue-500 transition-all w-full"
                         />
                     </div>
-                    <div className="flex flex-col">
+                    <div className="flex flex-col flex-1 lg:flex-none min-w-[120px]">
                         <label className="text-[8px] font-black uppercase text-slate-500 ml-1 mb-0.5">Mês de Referência</label>
                         <select 
                             value={selectedMonth}
                             onChange={(e) => setSelectedMonth(e.target.value)}
-                            className="bg-slate-100 border border-black/20 rounded-xl px-4 py-2 text-xs font-black uppercase outline-none focus:border-blue-500 transition-all"
+                            className="bg-slate-100 border border-black/20 rounded-xl px-3 py-2 text-[10px] lg:text-xs font-black uppercase outline-none focus:border-blue-500 transition-all w-full"
                         >
                             {months.map(m => (
                                 <option key={m} value={m}>{m}</option>
                             ))}
                         </select>
                     </div>
-                    <div className="flex flex-col">
+                    <div className="flex flex-col w-full lg:w-auto">
                         <label className="text-[8px] font-black uppercase text-slate-500 ml-1 mb-0.5">Visualização</label>
                         <div className="flex bg-slate-100 border border-black/20 rounded-xl p-1">
                             <button 
                                 onClick={() => setViewMode('daily')}
-                                className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all ${viewMode === 'daily' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-blue-600'}`}
+                                className={`flex-1 lg:flex-none px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all ${viewMode === 'daily' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-blue-600'}`}
                             >
                                 Diária
                             </button>
                             <button 
                                 onClick={() => setViewMode('monthly')}
-                                className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all ${viewMode === 'monthly' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-blue-600'}`}
+                                className={`flex-1 lg:flex-none px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all ${viewMode === 'monthly' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-blue-600'}`}
                             >
                                 Mensal
                             </button>
                         </div>
                     </div>
-                    <button 
-                        onClick={() => setSelectedDate(new Date())}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-blue-500 transition-all shadow-sm mt-3"
-                    >
-                        Hoje
-                    </button>
-                    <button 
-                        onClick={() => {
-                            if(confirm('Deseja resetar os dados deste mês para esta corretora?')) {
-                                localStorage.removeItem(getStorageKey('days'));
-                                localStorage.removeItem(getStorageKey('bank'));
-                                localStorage.removeItem(getStorageKey('stop'));
-                                localStorage.removeItem(getStorageKey('exchange'));
-                                localStorage.removeItem(getStorageKey('cycle1'));
-                                localStorage.removeItem(getStorageKey('deposits'));
-                                localStorage.removeItem(getStorageKey('withdrawals'));
-                                window.location.reload();
-                            }
-                        }}
-                        className="px-4 py-2 bg-red-500/10 text-red-600 rounded-xl text-[10px] font-black uppercase hover:bg-red-500/20 transition-all mt-3"
-                    >
-                        Resetar Mês
-                    </button>
+                    <div className="flex gap-2 w-full lg:w-auto">
+                        <button 
+                            onClick={() => setSelectedDate(new Date())}
+                            className="flex-1 lg:flex-none px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-blue-500 transition-all shadow-sm"
+                        >
+                            Hoje
+                        </button>
+                        <button 
+                            onClick={() => {
+                                if(confirm('Deseja resetar os dados deste mês para esta corretora?')) {
+                                    localStorage.removeItem(getStorageKey('days'));
+                                    localStorage.removeItem(getStorageKey('bank'));
+                                    localStorage.removeItem(getStorageKey('stop'));
+                                    localStorage.removeItem(getStorageKey('exchange'));
+                                    localStorage.removeItem(getStorageKey('cycle1'));
+                                    localStorage.removeItem(getStorageKey('deposits'));
+                                    localStorage.removeItem(getStorageKey('withdrawals'));
+                                    window.location.reload();
+                                }
+                            }}
+                            className="flex-1 lg:flex-none px-4 py-2 bg-red-500/10 text-red-600 rounded-xl text-[10px] font-black uppercase hover:bg-red-500/20 transition-all"
+                        >
+                            Resetar
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-12 gap-2 w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 w-full">
                 {/* GESTÃO TABLE */}
-                <div className="col-span-6 space-y-1">
+                <div className="col-span-1 lg:col-span-6 space-y-1">
                     <div className="bg-blue-600 text-white font-black text-center py-1.5 uppercase text-xs border border-black rounded-t-lg">
                         {viewMode === 'daily' ? 'Gestão Diária' : 'Gestão Mensal'}
                     </div>
                     
                     {viewMode === 'monthly' ? (
-                        <>
-                            <div className="grid grid-cols-4 gap-0 border border-black text-[9px] font-black uppercase text-center bg-slate-800 text-white">
-                                <div className="border-r border-black py-1">RF</div>
-                                <div className="border-r border-black py-1">Data</div>
-                                <div className="border-r border-black py-1">Entradas</div>
-                                <div className="py-1">Lucro/Prej</div>
-                            </div>
-                            <div className="max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
-                                {daysData.map((d: any, idx: number) => (
-                                    <div key={d.id} className={`grid grid-cols-4 gap-0 border-x border-b border-black text-[10px] transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${getLocalDateString(selectedDate).endsWith(String(d.id).padStart(2, '0')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}>
-                                        <div 
-                                            className="border-r border-black bg-yellow-400 text-black font-bold text-center py-1 relative cursor-pointer hover:bg-yellow-500 transition-colors"
-                                            onClick={() => {
-                                                const [year, month] = selectedMonth.split('-');
-                                                const newDate = new Date(Number(year), Number(month) - 1, d.id, 12, 0, 0);
-                                                setSelectedDate(newDate);
-                                            }}
-                                        >
-                                            {d.id}
-                                            {d.hasSoros && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-green-500 rounded-bl-sm" title="Soros realizado" />}
-                                        </div>
-                                        <div className="border-r border-black text-black">
-                                            <input 
-                                                type="text" 
-                                                value={d.date} 
-                                                onChange={e => updateDay(d.id, 'date', e.target.value)}
-                                                className="w-full bg-transparent text-center outline-none font-medium py-1 focus:bg-white transition-colors"
-                                            />
-                                        </div>
-                                        <div className="border-r border-black bg-blue-100/20 text-black">
-                                            <input 
-                                                type="number" 
-                                                value={d.tradeCount || 0} 
-                                                readOnly
-                                                className="w-full bg-transparent text-center outline-none font-bold py-1 focus:bg-white transition-colors"
-                                            />
-                                        </div>
-                                        <div className={`text-center py-1 font-black transition-colors ${d.result > 0 ? 'bg-green-100/50 text-green-700' : d.result < 0 ? 'bg-red-100/50 text-red-700' : 'bg-slate-100/50 text-slate-400'}`}>
-                                            <input 
-                                                type="number" 
-                                                step="0.01"
-                                                value={d.result !== undefined && d.result !== '' ? Number(d.result).toFixed(2) : ''} 
-                                                onChange={e => updateDay(d.id, 'result', e.target.value)}
-                                                className="w-full bg-transparent text-center outline-none py-0 focus:bg-white/50 transition-colors"
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div className="grid grid-cols-5 gap-0 border border-black text-[9px] font-black uppercase text-center bg-slate-800 text-white">
-                                <div className="border-r border-black py-1">Entrada</div>
-                                <div className="border-r border-black py-1">Data/Hora</div>
-                                <div className="border-r border-black py-1">Payout</div>
-                                <div className="border-r border-black py-1">Resultado</div>
-                                <div className="py-1">Lucro/Prej</div>
-                            </div>
-                            <div className="max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
-                                {(() => {
-                                    const dateKey = getLocalDateString(selectedDate);
-                                    const dayRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateKey && r.brokerageId === activeBrokerage.id);
-                                    const trades = dayRecord?.trades || [];
-                                    
-                                    if (trades.length === 0) {
-                                        return <div className="py-10 text-center text-slate-400 font-bold uppercase text-[10px]">Nenhuma entrada registrada hoje</div>;
-                                    }
-
-                                    return trades.map((t: any, idx: number) => {
-                                        const profit = t.result === 'win' ? (t.entryValue * (t.payoutPercentage / 100)) : -t.entryValue;
-                                        return (
-                                            <div key={t.id || idx} className={`grid grid-cols-5 gap-0 border-x border-b border-black text-[10px] transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                                                <div className="border-r border-black bg-yellow-400 text-black font-bold text-center py-2">
-                                                    {idx + 1}
-                                                </div>
-                                                <div className="border-r border-black text-black text-center py-2 font-medium">
-                                                    {t.timestamp ? new Date(t.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-'}
-                                                </div>
-                                                <div className="border-r border-black bg-blue-50/30 text-black text-center py-2 font-bold">
-                                                    {t.payoutPercentage}%
-                                                </div>
-                                                <div className={`border-r border-black text-center py-2 font-black uppercase ${t.result === 'win' ? 'text-green-600' : 'text-red-600'}`}>
-                                                    {t.result}
-                                                </div>
-                                                <div className={`text-center py-2 font-black ${profit > 0 ? 'bg-green-100/50 text-green-700' : 'bg-red-100/50 text-red-700'}`}>
-                                                    {currencySymbol} {formatMoney(profit)}
-                                                </div>
+                        <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
+                            <div className="min-w-[300px]">
+                                <div className="grid grid-cols-4 gap-0 border border-black text-[9px] font-black uppercase text-center bg-slate-800 text-white">
+                                    <div className="border-r border-black py-1">RF</div>
+                                    <div className="border-r border-black py-1">Data</div>
+                                    <div className="border-r border-black py-1">Entradas</div>
+                                    <div className="py-1">Lucro/Prej</div>
+                                </div>
+                                <div className="max-h-[400px] lg:max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
+                                    {daysData.map((d: any, idx: number) => (
+                                        <div key={d.id} className={`grid grid-cols-4 gap-0 border-x border-b border-black text-[10px] transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${getLocalDateString(selectedDate).endsWith(String(d.id).padStart(2, '0')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}>
+                                            <div 
+                                                className="border-r border-black bg-yellow-400 text-black font-bold text-center py-1 relative cursor-pointer hover:bg-yellow-500 transition-colors"
+                                                onClick={() => {
+                                                    const [year, month] = selectedMonth.split('-');
+                                                    const newDate = new Date(Number(year), Number(month) - 1, d.id, 12, 0, 0);
+                                                    setSelectedDate(newDate);
+                                                }}
+                                            >
+                                                {d.id}
+                                                {d.hasSoros && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-green-500 rounded-bl-sm" title="Soros realizado" />}
                                             </div>
-                                        );
-                                    });
-                                })()}
+                                            <div className="border-r border-black text-black">
+                                                <input 
+                                                    type="text" 
+                                                    value={d.date} 
+                                                    onChange={e => updateDay(d.id, 'date', e.target.value)}
+                                                    className="w-full bg-transparent text-center outline-none font-medium py-1 focus:bg-white transition-colors"
+                                                />
+                                            </div>
+                                            <div className="border-r border-black bg-blue-100/20 text-black">
+                                                <input 
+                                                    type="number" 
+                                                    value={d.tradeCount || 0} 
+                                                    readOnly
+                                                    className="w-full bg-transparent text-center outline-none font-bold py-1 focus:bg-white transition-colors"
+                                                />
+                                            </div>
+                                            <div className={`text-center py-1 font-black transition-colors ${d.result > 0 ? 'bg-green-100/50 text-green-700' : d.result < 0 ? 'bg-red-100/50 text-red-700' : 'bg-slate-100/50 text-slate-400'}`}>
+                                                <input 
+                                                    type="number" 
+                                                    step="0.01"
+                                                    value={d.result !== undefined && d.result !== '' ? Number(d.result).toFixed(2) : ''} 
+                                                    onChange={e => updateDay(d.id, 'result', e.target.value)}
+                                                    className="w-full bg-transparent text-center outline-none py-0 focus:bg-white/50 transition-colors"
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        </>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
+                            <div className="min-w-[400px]">
+                                <div className="grid grid-cols-5 gap-0 border border-black text-[9px] font-black uppercase text-center bg-slate-800 text-white">
+                                    <div className="border-r border-black py-1">Entrada</div>
+                                    <div className="border-r border-black py-1">Data/Hora</div>
+                                    <div className="border-r border-black py-1">Payout</div>
+                                    <div className="border-r border-black py-1">Resultado</div>
+                                    <div className="py-1">Lucro/Prej</div>
+                                </div>
+                                <div className="max-h-[400px] lg:max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
+                                    {(() => {
+                                        const dateKey = getLocalDateString(selectedDate);
+                                        const dayRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateKey && r.brokerageId === activeBrokerage.id);
+                                        const trades = dayRecord?.trades || [];
+                                        
+                                        if (trades.length === 0) {
+                                            return <div className="py-10 text-center text-slate-400 font-bold uppercase text-[10px]">Nenhuma entrada registrada hoje</div>;
+                                        }
+
+                                        return trades.map((t: any, idx: number) => {
+                                            const profit = t.result === 'win' ? (t.entryValue * (t.payoutPercentage / 100)) : -t.entryValue;
+                                            return (
+                                                <div key={t.id || idx} className={`grid grid-cols-5 gap-0 border-x border-b border-black text-[10px] transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                                                    <div className="border-r border-black bg-yellow-400 text-black font-bold text-center py-2">
+                                                        {idx + 1}
+                                                    </div>
+                                                    <div className="border-r border-black text-black text-center py-2 font-medium">
+                                                        {t.timestamp ? new Date(t.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                                    </div>
+                                                    <div className="border-r border-black bg-blue-50/30 text-black text-center py-2 font-bold">
+                                                        {t.payoutPercentage}%
+                                                    </div>
+                                                    <div className={`border-r border-black text-center py-2 font-black uppercase ${t.result === 'win' ? 'text-green-600' : 'text-red-600'}`}>
+                                                        {t.result}
+                                                    </div>
+                                                    <div className={`text-center py-2 font-black ${profit > 0 ? 'bg-green-100/50 text-green-700' : 'bg-red-100/50 text-red-700'}`}>
+                                                        {currencySymbol} {formatMoney(profit)}
+                                                    </div>
+                                                </div>
+                                            );
+                                        });
+                                    })()}
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
 
                 {/* MIDDLE COLUMN */}
-                <div className="col-span-2 space-y-4">
+                <div className="col-span-1 lg:col-span-2 space-y-4">
                     {/* BANCA CARDS */}
-                    <div className="grid grid-cols-1 gap-2">
+                    <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
                         <div className="bg-white border border-black rounded-xl overflow-hidden shadow-sm flex flex-col">
                             <div className="bg-blue-600 text-white font-black text-[9px] uppercase py-1 text-center border-b border-black">Banca Inicial</div>
-                            <div className="text-black font-black text-xl py-2 text-center">{currencySymbol} {formatMoney(displayInitialBank)}</div>
+                            <div className="text-black font-black text-lg lg:text-xl py-2 text-center">{currencySymbol} {formatMoney(displayInitialBank)}</div>
                         </div>
                         <div className="bg-white border border-black rounded-xl overflow-hidden shadow-sm flex flex-col">
                             <div className="bg-green-600 text-white font-black text-[9px] uppercase py-1 text-center border-b border-black">Banca Atualizada</div>
-                            <div className="text-green-600 font-black text-xl py-2 text-center">{currencySymbol} {formatMoney(displayCurrentBank)}</div>
+                            <div className="text-green-600 font-black text-lg lg:text-xl py-2 text-center">{currencySymbol} {formatMoney(displayCurrentBank)}</div>
                         </div>
                     </div>
 
@@ -2486,13 +2496,13 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                         <ArrowPathIcon className="w-3 h-3" />
                                     </button>
                                 </div>
-                                <input type="number" value={bank} onChange={e => setBank(Number(e.target.value))} className="w-24 bg-slate-100 border border-black/10 rounded px-2 py-1 text-right font-black outline-none focus:border-blue-500" />
+                                <input type="number" value={bank} onChange={e => setBank(Number(e.target.value))} className="w-20 lg:w-24 bg-slate-100 border border-black/10 rounded px-2 py-1 text-right font-black outline-none focus:border-blue-500" />
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-[10px] font-black uppercase text-slate-500">
                                     {viewMode === 'daily' ? 'Stop Diário %' : 'Stop Mensal %'}
                                 </span>
-                                <input type="number" value={stopPercent} onChange={e => setStopPercent(Number(e.target.value))} className="w-24 bg-slate-100 border border-black/10 rounded px-2 py-1 text-right font-black outline-none focus:border-blue-500" />
+                                <input type="number" value={stopPercent} onChange={e => setStopPercent(Number(e.target.value))} className="w-20 lg:w-24 bg-slate-100 border border-black/10 rounded px-2 py-1 text-right font-black outline-none focus:border-blue-500" />
                             </div>
                             <div className="pt-2 border-t border-black/5 flex items-center justify-between">
                                 <span className="text-[10px] font-black uppercase text-blue-600">
