@@ -759,7 +759,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     if (activeBrokerage?.dailyGoalValue && activeBrokerage.dailyGoalValue > 0) {
         if (activeBrokerage.dailyGoalMode === 'percentage') {
-            activeDailyGoal = (activeBrokerage.initialBalance * (activeBrokerage.dailyGoalValue / 100));
+            activeDailyGoal = (startBalDashboard * (activeBrokerage.dailyGoalValue / 100));
         } else {
             activeDailyGoal = activeBrokerage.dailyGoalValue;
         }
@@ -789,7 +789,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         const remainingDaysEstimate = Math.max(1, 22 - monthRecords.length); 
         activeDailyGoal = Math.max(0, remainingToTarget) / remainingDaysEstimate;
     } else {
-        activeDailyGoal = (activeBrokerage?.initialBalance * 0.03 || 1);
+        activeDailyGoal = (startBalDashboard * 0.03 || 1);
     }
 
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
