@@ -498,8 +498,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         const startBal = sortedDays.length > 0 ? sortedDays[0].endBalanceUSD : (activeBrokerage?.initialBalance || 0);
         const dailyRecordForSelectedDay = records.find((r): r is DailyRecord => r.id === dateKey && r.recordType === 'day');
         const currentBalance = dailyRecordForSelectedDay?.endBalanceUSD ?? startBal;
-        const suggestedValue = activeBrokerage.entryMode === 'fixed' ? activeBrokerage.entryValue : currentBalance * (activeBrokerage.entryValue / 100);
-        setCustomEntryValue(String(suggestedValue.toFixed(2)));
+        const suggestedValue = activeBrokerage.entryValue;
+        setCustomEntryValue(String(suggestedValue));
         setCustomPayout(String(activeBrokerage.payoutPercentage));
     }, [activeBrokerage, records, selectedDate]);
 
@@ -953,8 +953,21 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     const [transAmount, setTransAmount] = useState('');
     const [transType, setTransType] = useState<'deposit' | 'withdrawal'>('deposit');
     const [isNextTradeSoros, setIsNextTradeSoros] = useState(false);
+    const [entryMode, setEntryMode] = useState<'fixed' | 'percentage'>(activeBrokerage.entryMode);
+
+    useEffect(() => {
+        setEntryMode(activeBrokerage.entryMode);
+    }, [activeBrokerage.entryMode]);
+
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     
+    const currentProfit = dailyRecordForSelectedDay?.netProfitUSD ?? 0;
+    const currentBalance = currentBalanceForDashboard;
+
+    const entryValueNum = entryMode === 'fixed' 
+        ? (parseFloat(customEntryValue) || 0)
+        : (currentBalance * ((parseFloat(customEntryValue) || 0) / 100));
+
     const handlePayoutChange = (val: string) => {
         setCustomPayout(val);
         const num = parseFloat(val);
@@ -964,11 +977,10 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     };
 
     const handleQuickAdd = (type: 'win' | 'loss') => {
-         const entryValue = parseFloat(customEntryValue) || 0;
          const payout = parseFloat(customPayout) || 0;
          const qty = parseInt(quantity) || 1;
-         if (type === 'win') addRecord(qty, 0, entryValue, payout, isNextTradeSoros);
-         else addRecord(0, qty, entryValue, payout, isNextTradeSoros);
+         if (type === 'win') addRecord(qty, 0, entryValueNum, payout, isNextTradeSoros);
+         else addRecord(0, qty, entryValueNum, payout, isNextTradeSoros);
          setQuantity('1');
          setIsNextTradeSoros(false);
     };
@@ -991,14 +1003,11 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
         setIsNextTradeSoros(true);
     };
 
-    const currentProfit = dailyRecordForSelectedDay?.netProfitUSD ?? 0;
-    const currentBalance = currentBalanceForDashboard;
     const winRate = ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0)) > 0 
         ? (((dailyRecordForSelectedDay?.winCount || 0) / ((dailyRecordForSelectedDay?.winCount || 0) + (dailyRecordForSelectedDay?.lossCount || 0))) * 100).toFixed(1) : '0.0';
     
     const dailyGoalPercent = dailyGoalTarget > 0 ? (currentProfit / dailyGoalTarget) * 100 : 0;
 
-    const entryValueNum = parseFloat(customEntryValue) || 0;
     const payoutNum = parseFloat(customPayout) || 0;
     const qtyNum = parseInt(quantity) || 1;
     const estimatedProfit = entryValueNum * (payoutNum / 100) * qtyNum;
@@ -1032,13 +1041,38 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div className="space-y-6">
                     <div className={`p-6 rounded-3xl border ${theme.card}`}>
-                        <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-green-500" /> Nova Operação</h3>
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="font-black flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-green-500" /> Nova Operação</h3>
+                            <div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/5">
+                                <button 
+                                    onClick={() => {
+                                        setEntryMode('fixed');
+                                        setCustomEntryValue(activeBrokerage.entryValue.toString());
+                                    }}
+                                    className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${entryMode === 'fixed' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    Fixo
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        setEntryMode('percentage');
+                                        setCustomEntryValue(activeBrokerage.entryValue.toString());
+                                    }}
+                                    className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${entryMode === 'percentage' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    % Banca
+                                </button>
+                            </div>
+                        </div>
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor</label>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1">
+                                        {entryMode === 'fixed' ? 'Valor' : 'Porcentagem'}
+                                    </label>
                                     <div className="relative">
-                                        <input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
+                                        <input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input} ${entryMode === 'percentage' ? 'pr-8' : ''}`} />
+                                        {entryMode === 'percentage' && <span className="absolute right-12 top-1/2 -translate-y-1/2 opacity-30 font-bold">%</span>}
                                         <button 
                                             onClick={handleSoros}
                                             title="Calcular Soros (Última entrada + lucro)"
@@ -1047,6 +1081,11 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                             Soros
                                         </button>
                                     </div>
+                                    {entryMode === 'percentage' && (
+                                        <p className="text-[8px] font-bold text-slate-500 mt-1 ml-1">
+                                            = {currencySymbol} {formatMoney(entryValueNum)}
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout</label>
