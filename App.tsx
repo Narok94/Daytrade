@@ -820,7 +820,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
                     <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'ai-analysis' ? 'bg-[#6366f1]/10 text-[#6366f1]' : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
                     <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Juros Compostos</button>
-                    <button onClick={() => {setActiveTab('report'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'report' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Extrato</button>
                     <button onClick={() => {setActiveTab('history'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'history' ? theme.navActive : theme.navInactive}`}><ListBulletIcon className="w-5 h-5" />Histórico</button>
                     <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
                     <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
@@ -916,7 +915,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                         />
                     )}
                     {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
-                    {activeTab === 'report' && <ReportPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} deleteTrade={deleteTrade} />}
                     {activeTab === 'history' && <HistoryPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} addBulkTrades={addBulkTrades} />}
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
@@ -1062,6 +1060,13 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                 >
                                     % Banca
                                 </button>
+                                <button 
+                                    onClick={handleSoros}
+                                    title="Calcular Soros (Última entrada + lucro)"
+                                    className="px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all bg-blue-600 hover:bg-blue-500 text-white shadow-lg ml-1 active:scale-95"
+                                >
+                                    Soros
+                                </button>
                             </div>
                         </div>
                         <div className="space-y-4">
@@ -1072,14 +1077,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                     </label>
                                     <div className="relative">
                                         <input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input} ${entryMode === 'percentage' ? 'pr-8' : ''}`} />
-                                        {entryMode === 'percentage' && <span className="absolute right-12 top-1/2 -translate-y-1/2 opacity-30 font-bold">%</span>}
-                                        <button 
-                                            onClick={handleSoros}
-                                            title="Calcular Soros (Última entrada + lucro)"
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[8px] font-black uppercase rounded-lg transition-all active:scale-95 shadow-sm"
-                                        >
-                                            Soros
-                                        </button>
+                                        {entryMode === 'percentage' && <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-bold">%</span>}
                                     </div>
                                     {entryMode === 'percentage' && (
                                         <p className="text-[8px] font-bold text-slate-500 mt-1 ml-1">
@@ -1359,47 +1357,6 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                         </table>
                     </div>
                 </div>
-            </div>
-        </div>
-    );
-};
-
-const ReportPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, deleteTrade }) => {
-    const theme = useThemeClasses(isDarkMode);
-    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
-    const dayRecords = records.filter((r: any) => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0).sort((a: any, b: any) => b.id.localeCompare(a.id));
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div><h2 className={`text-xl lg:text-2xl font-black ${theme.text}`}>Extrato de Operações</h2><p className={`text-[10px] lg:text-xs ${theme.textMuted}`}>Histórico completo de performance.</p></div>
-            <div className="space-y-4">
-                {dayRecords.length > 0 ? dayRecords.map((record: DailyRecord) => (
-                    <div key={record.id} className={`p-4 lg:p-6 rounded-3xl border ${theme.card}`}>
-                        <div className="flex justify-between items-center mb-4">
-                            <h4 className="font-black text-xs lg:text-sm uppercase tracking-wider">{new Date(record.id + 'T12:00:00').toLocaleDateString('pt-BR')}</h4>
-                            <div className="text-right"><p className={`text-xs lg:text-sm font-black ${record.netProfitUSD >= 0 ? 'text-green-500' : 'text-red-500'}`}>{record.netProfitUSD >= 0 ? '+' : ''}{currencySymbol} {formatMoney(record.netProfitUSD)}</p></div>
-                        </div>
-                        <div className="space-y-2">
-                            {record.trades.map((trade) => {
-                                const tradeProfit = trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)) : -trade.entryValue;
-                                return (
-                                    <div key={trade.id} className={`flex items-center justify-between p-2 lg:p-3 rounded-2xl border ${isDarkMode ? 'bg-slate-950/50 border-slate-800/50' : 'bg-slate-50 border-slate-200/50'}`}>
-                                        <div className="flex items-center gap-2 lg:gap-3">
-                                            <div className={`w-1.5 lg:w-2 h-6 lg:h-8 rounded-full ${trade.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} />
-                                            <div>
-                                                <p className="text-[8px] lg:text-[10px] font-black uppercase text-slate-500 leading-none">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                                                <p className="text-xs lg:text-sm font-bold">
-                                                    {trade.result === 'win' ? 'Vitória' : 'Derrota'}
-                                                    {trade.isSoros && <span className="ml-1 text-[7px] bg-green-500/20 text-green-500 px-1 py-0.5 rounded-md font-black uppercase tracking-tighter">Soros</span>}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right"><p className={`text-xs lg:text-sm font-black ${tradeProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}</p><button onClick={() => deleteTrade(trade.id, record.id)} className="text-[8px] lg:text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button></div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )) : <div className="py-20 text-center opacity-30"><InformationCircleIcon className="w-12 h-12 mx-auto mb-4" /><p className="text-xs font-black uppercase">Nenhuma operação encontrada</p></div>}
             </div>
         </div>
     );
