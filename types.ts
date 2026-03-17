@@ -9,6 +9,8 @@ export interface Brokerage {
   stopGainTrades: number;
   stopLossTrades: number;
   currency: 'BRL' | 'USD';
+  dailyGoalMode: 'percentage' | 'fixed';
+  dailyGoalValue: number;
 }
 
 export interface Trade {

@@ -86,7 +86,7 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
             if (brokerages.length > 0 && brokerages[0].id) {
                 brokerageIdToUse = brokerages[0].id;
             } else {
-                const defaultBrokerage: Brokerage = { id: randomUUID(), name: 'Gestão Principal', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' };
+                const defaultBrokerage: Brokerage = { id: randomUUID(), name: 'Gestão Principal', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD', dailyGoalMode: 'percentage', dailyGoalValue: 3 };
                 brokerageIdToUse = defaultBrokerage.id;
                 const goals = settings.goals || [];
                 const newSettings = { brokerages: [defaultBrokerage], goals };

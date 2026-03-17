@@ -70,7 +70,7 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
     if (userId) {
         const { rows: settingsExist } = await client.query(`SELECT 1 FROM user_settings WHERE user_id = $1`, [userId]);
         if (settingsExist.length === 0) {
-             const defaultBrokerage: Brokerage = { id: randomUUID(), name: 'Gestão Principal', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' };
+             const defaultBrokerage: Brokerage = { id: randomUUID(), name: 'Gestão Principal', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD', dailyGoalMode: 'percentage', dailyGoalValue: 3 };
              const initialSettings = { brokerages: [defaultBrokerage], goals: [] };
              await client.query(
                 `INSERT INTO user_settings (user_id, settings_json) VALUES ($1, $2)

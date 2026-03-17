@@ -553,7 +553,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             const response = await fetch(`/api/get-data?userId=${user.id}&_=${Date.now()}`);
             if (response.ok) {
                 const data = await response.json();
-                const loadedBrokerages = data.brokerages?.length ? data.brokerages : [{ id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD' }];
+                const loadedBrokerages = data.brokerages?.length ? data.brokerages : [{ id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD', dailyGoalMode: 'percentage', dailyGoalValue: 3 }];
                 const recalibratedRecords = recalibrateAll(data.records || [], loadedBrokerages);
                 setBrokerages(loadedBrokerages); 
                 setRecords(recalibratedRecords); 
@@ -757,7 +757,13 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     
     let activeDailyGoal = 0;
 
-    if (customGoal && customGoal.deadline) {
+    if (activeBrokerage?.dailyGoalValue && activeBrokerage.dailyGoalValue > 0) {
+        if (activeBrokerage.dailyGoalMode === 'percentage') {
+            activeDailyGoal = (activeBrokerage.initialBalance * (activeBrokerage.dailyGoalValue / 100));
+        } else {
+            activeDailyGoal = activeBrokerage.dailyGoalValue;
+        }
+    } else if (customGoal && customGoal.deadline) {
         const startStr = getLocalDateString(new Date(customGoal.createdAt));
         const currentProfit = dailyBrokerageRecords
             .filter((r: DailyRecord) => r.id >= startStr && r.id <= customGoal.deadline!)
@@ -1873,6 +1879,21 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
                                     <div className="flex justify-between text-[10px] font-black uppercase"><span className="text-slate-500">{label}</span><span className={percentage >= 100 ? 'text-green-500' : 'text-blue-400'}>{percentage.toFixed(1)}%</span></div>
                                     <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden"><div className={`h-full transition-all duration-500 ${percentage >= 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }} /></div>
                                 </div>
+                                
+                                <div className="grid grid-cols-3 gap-2 pt-4 border-t border-slate-800/50">
+                                    <div className="text-center">
+                                        <p className="text-[7px] font-black uppercase text-slate-500 mb-1">Meta Diária</p>
+                                        <p className="text-[10px] font-bold text-blue-400">{currencySymbol} {formatMoney(goal.targetAmount / (goal.type === 'monthly' ? 22 : goal.type === 'weekly' ? 5 : 30))}</p>
+                                    </div>
+                                    <div className="text-center border-x border-slate-800/50">
+                                        <p className="text-[7px] font-black uppercase text-slate-500 mb-1">Meta Semanal</p>
+                                        <p className="text-[10px] font-bold text-blue-400">{currencySymbol} {formatMoney(goal.type === 'weekly' ? goal.targetAmount : goal.targetAmount / (goal.type === 'monthly' ? 4 : 4))}</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-[7px] font-black uppercase text-slate-500 mb-1">Meta Mensal</p>
+                                        <p className="text-[10px] font-bold text-blue-400">{currencySymbol} {formatMoney(goal.type === 'monthly' ? goal.targetAmount : goal.targetAmount * (goal.type === 'weekly' ? 4 : 1))}</p>
+                                    </div>
+                                </div>
                             </div>
                         );
                     })}
@@ -1900,7 +1921,9 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
             payoutPercentage: 80,
             stopGainTrades: 3,
             stopLossTrades: 2,
-            currency: 'USD'
+            currency: 'USD',
+            dailyGoalMode: 'percentage',
+            dailyGoalValue: 3
         };
         setBrokerages((prev: Brokerage[]) => [...prev, newB]);
         setNewBrokerageName('');
@@ -1941,6 +1964,36 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                             <div className="relative">
                                 <input type="number" value={brokerage.payoutPercentage} onChange={e => updateBrokerage('payoutPercentage', parseInt(e.target.value) || 0)} className={`w-full h-11 md:h-12 px-4 pr-8 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} />
                                 <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-bold">%</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <section className="space-y-6 pt-8 border-t border-slate-800/10">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60">Meta Diária</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Modo da Meta</label>
+                            <select 
+                                value={brokerage.dailyGoalMode || 'percentage'} 
+                                onChange={e => updateBrokerage('dailyGoalMode', e.target.value as any)} 
+                                className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`}
+                            >
+                                <option value="percentage">Porcentagem (%)</option>
+                                <option value="fixed">Valor Fixo ({brokerage.currency === 'USD' ? '$' : 'R$'})</option>
+                            </select>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Valor da Meta</label>
+                            <div className="relative">
+                                <input 
+                                    type="number" 
+                                    value={brokerage.dailyGoalValue || 0} 
+                                    onChange={e => updateBrokerage('dailyGoalValue', parseFloat(e.target.value) || 0)} 
+                                    className={`w-full h-11 md:h-12 px-4 pr-8 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} 
+                                />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-bold">
+                                    {brokerage.dailyGoalMode === 'fixed' ? (brokerage.currency === 'USD' ? '$' : 'R$') : '%'}
+                                </span>
                             </div>
                         </div>
                     </div>
