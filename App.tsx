@@ -54,15 +54,6 @@ const getLocalMonthString = (date: Date = new Date()) => {
     return `${year}-${month}`;
 };
 
-const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-    const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-    const headers = {
-        ...options.headers,
-        'Authorization': token ? `Bearer ${token}` : '',
-    };
-    return fetch(url, { ...options, headers });
-};
-
 async function withRetry<T>(fn: () => Promise<T>, maxRetries = 5, initialDelay = 2000, onRetry?: (attempt: number) => void): Promise<T> {
     let lastError: any;
     for (let i = 0; i < maxRetries; i++) {
@@ -559,7 +550,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const response = await fetchWithAuth(`/api/get-data?userId=${user.id}&_=${Date.now()}`);
+            const response = await fetch(`/api/get-data?userId=${user.id}&_=${Date.now()}`);
             if (response.ok) {
                 const data = await response.json();
                 const loadedBrokerages = data.brokerages?.length ? data.brokerages : [{ id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD', dailyGoalMode: 'percentage', dailyGoalValue: 3 }];
@@ -583,7 +574,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         setSavingStatus('saving');
         try {
             const payload = { userId: latestDataRef.current.userId, brokerages: latestDataRef.current.brokerages, records: latestDataRef.current.records, goals: latestDataRef.current.goals };
-            const response = await fetchWithAuth('/api/save-data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const response = await fetch('/api/save-data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (response.ok) { setSavingStatus('saved'); setTimeout(() => setSavingStatus('idle'), 2000); }
         } catch (error: any) { setSavingStatus('error'); }
     }, []);
@@ -981,7 +972,7 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
 
     const fetchSystemSettings = async () => {
         try {
-            const res = await fetchWithAuth(`/api/admin/get-system-settings?adminId=${adminId}`);
+            const res = await fetch(`/api/admin/get-system-settings?adminId=${adminId}`);
             const data = await res.json();
             if (data.registration_keyword) setRegistrationKeyword(data.registration_keyword);
         } catch (error) {
@@ -992,7 +983,7 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
     const fetchUsers = async () => {
         setIsLoading(true);
         try {
-            const res = await fetchWithAuth(`/api/admin/get-users?adminId=${adminId}`);
+            const res = await fetch(`/api/admin/get-users?adminId=${adminId}`);
             const data = await res.json();
             if (data.users) setUsers(data.users);
         } catch (error) {
@@ -1014,7 +1005,7 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
         }
         setIsUpdatingKeyword(true);
         try {
-            const res = await fetchWithAuth('/api/admin/update-system-settings', {
+            const res = await fetch('/api/admin/update-system-settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ adminId, key: 'registration_keyword', value: registrationKeyword })
@@ -1034,7 +1025,7 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
 
     const togglePause = async (targetUserId: number, currentPaused: boolean) => {
         try {
-            const res = await fetchWithAuth('/api/admin/toggle-pause', {
+            const res = await fetch('/api/admin/toggle-pause', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ adminId, targetUserId, isPaused: !currentPaused })
@@ -1057,7 +1048,7 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
             return;
         }
         try {
-            const res = await fetchWithAuth('/api/admin/reset-password', {
+            const res = await fetch('/api/admin/reset-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ adminId, targetUserId, newPassword })
