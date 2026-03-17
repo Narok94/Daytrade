@@ -14,7 +14,7 @@ import {
     ChevronLeftIcon, ChevronRightIcon, PhotoIcon,
     SparklesIcon, CheckCircleIcon, XMarkIcon, ArrowUpIcon, ArrowDownIcon,
     ExclamationTriangleIcon, BoltIcon, ClockIcon, PlayIcon, CameraIcon,
-    ChevronDownIcon
+    ChevronDownIcon, UsersIcon, PauseIcon, KeyIcon
 } from './components/icons';
 
 // --- Helper Functions ---
@@ -830,6 +830,9 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
                     <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
                     <button onClick={() => {setActiveTab('management-sheet'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'management-sheet' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Planilha Gestão</button>
+                    {user.isAdmin && (
+                        <button onClick={() => {setActiveTab('admin'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'admin' ? theme.navActive : theme.navInactive}`}><UsersIcon className="w-5 h-5" />Admin Panel</button>
+                    )}
                     <button onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'settings' ? theme.navActive : theme.navInactive}`}><SettingsIcon className="w-5 h-5" />Configurações</button>
                 </nav>
                 <div className="p-4 border-t border-slate-800/50">
@@ -925,6 +928,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'management-sheet' && <ManagementSheetPanel theme={theme} activeBrokerage={activeBrokerage} isDarkMode={isDarkMode} records={records} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />}
+                    {activeTab === 'admin' && user.isAdmin && <AdminPanel theme={theme} adminId={user.id} />}
                 {activeTab === 'settings' && (
                     <SettingsPanel 
                         theme={theme} 
@@ -945,6 +949,199 @@ const SavingStatusIndicator: React.FC<{status: string}> = ({status}) => {
     if (status === 'saving') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500"><ArrowPathIcon className="w-3 h-3 animate-spin" /> Salvando...</div>;
     if (status === 'saved') return <div className="flex items-center gap-2 text-[10px] font-black uppercase text-green-500"><CheckIcon className="w-3 h-3" /> Sincronizado</div>;
     return null;
+};
+
+const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId }) => {
+    const [users, setUsers] = useState<User[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [resettingUserId, setResettingUserId] = useState<number | null>(null);
+    const [newPassword, setNewPassword] = useState('');
+    const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+
+    const fetchUsers = async () => {
+        setIsLoading(true);
+        try {
+            const res = await fetch(`/api/admin/get-users?adminId=${adminId}`);
+            const data = await res.json();
+            if (data.users) setUsers(data.users);
+        } catch (error) {
+            console.error('Error fetching users:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchUsers();
+    }, [adminId]);
+
+    const togglePause = async (targetUserId: number, currentPaused: boolean) => {
+        try {
+            const res = await fetch('/api/admin/toggle-pause', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminId, targetUserId, isPaused: !currentPaused })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setUsers(users.map(u => u.id === targetUserId ? { ...u, isPaused: !currentPaused } : u));
+                setMessage({ text: data.message, type: 'success' });
+            } else {
+                setMessage({ text: data.error, type: 'error' });
+            }
+        } catch (error) {
+            setMessage({ text: 'Erro ao alterar status', type: 'error' });
+        }
+    };
+
+    const handleResetPassword = async (targetUserId: number) => {
+        if (!newPassword || newPassword.length < 4) {
+            setMessage({ text: 'Senha deve ter pelo menos 4 caracteres', type: 'error' });
+            return;
+        }
+        try {
+            const res = await fetch('/api/admin/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminId, targetUserId, newPassword })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setMessage({ text: data.message, type: 'success' });
+                setResettingUserId(null);
+                setNewPassword('');
+            } else {
+                setMessage({ text: data.error, type: 'error' });
+            }
+        } catch (error) {
+            setMessage({ text: 'Erro ao resetar senha', type: 'error' });
+        }
+    };
+
+    return (
+        <div className="p-4 md:p-8 max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h2 className="text-2xl md:text-3xl font-black italic tracking-tight">Painel Admin</h2>
+                    <p className="text-xs md:text-sm opacity-50 font-medium">Gerenciamento de usuários e sistema</p>
+                </div>
+                <button onClick={fetchUsers} className="p-2 rounded-xl bg-[#6366f1]/10 text-[#6366f1] hover:bg-[#6366f1]/20 transition-all">
+                    <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+                </button>
+            </div>
+
+            {message && (
+                <div className={`mb-6 p-4 rounded-2xl flex items-center gap-3 animate-in zoom-in-95 duration-300 ${message.type === 'success' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                    {message.type === 'success' ? <CheckCircleIcon className="w-5 h-5" /> : <ExclamationTriangleIcon className="w-5 h-5" />}
+                    <span className="text-sm font-bold">{message.text}</span>
+                    <button onClick={() => setMessage(null)} className="ml-auto opacity-50 hover:opacity-100"><XMarkIcon className="w-4 h-4" /></button>
+                </div>
+            )}
+
+            <div className={`rounded-3xl border ${theme.border} ${theme.card} overflow-hidden shadow-2xl shadow-black/20`}>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className={`border-b ${theme.border} bg-black/5`}>
+                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest opacity-40">Usuário</th>
+                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest opacity-40">Status</th>
+                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest opacity-40">Role</th>
+                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest opacity-40">Criado em</th>
+                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest opacity-40 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/30">
+                            {users.map(u => (
+                                <tr key={u.id} className="hover:bg-black/5 transition-colors">
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-xl bg-[#6366f1]/10 flex items-center justify-center text-[#6366f1] font-black text-xs">
+                                                {u.username.slice(0, 2).toUpperCase()}
+                                            </div>
+                                            <span className="font-bold">{u.username}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter ${u.isPaused ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
+                                            {u.isPaused ? 'Pausado' : 'Ativo'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter ${u.isAdmin ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-500/10 text-slate-500'}`}>
+                                            {u.isAdmin ? 'Admin' : 'User'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-xs opacity-50 font-medium">
+                                        {new Date((u as any).createdAt).toLocaleDateString('pt-BR')}
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button 
+                                                onClick={() => togglePause(u.id, !!u.isPaused)}
+                                                title={u.isPaused ? 'Despausar' : 'Pausar'}
+                                                className={`p-2 rounded-xl transition-all ${u.isPaused ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20' : 'bg-red-500/10 text-red-500 hover:bg-red-500/20'}`}
+                                            >
+                                                {u.isPaused ? <PlayIcon className="w-4 h-4" /> : <PauseIcon className="w-4 h-4" />}
+                                            </button>
+                                            <button 
+                                                onClick={() => setResettingUserId(u.id)}
+                                                title="Resetar Senha"
+                                                className="p-2 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-all"
+                                            >
+                                                <KeyIcon className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {resettingUserId && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className={`w-full max-w-md p-8 rounded-[2rem] border ${theme.border} ${theme.card} shadow-2xl animate-in zoom-in-95 duration-300`}>
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                                <KeyIcon className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-black italic">Resetar Senha</h3>
+                                <p className="text-xs opacity-50 font-medium">Defina uma nova senha para o usuário</p>
+                            </div>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-2">Nova Senha</label>
+                                <input 
+                                    type="password" 
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    placeholder="Mínimo 4 caracteres"
+                                    className={`w-full px-4 py-3 rounded-2xl border ${theme.border} bg-black/5 focus:ring-2 focus:ring-amber-500/50 outline-none transition-all font-bold`}
+                                />
+                            </div>
+                            <div className="flex gap-3 pt-4">
+                                <button 
+                                    onClick={() => {setResettingUserId(null); setNewPassword('');}}
+                                    className={`flex-1 py-3 rounded-2xl font-bold opacity-50 hover:opacity-100 transition-all ${theme.text}`}
+                                >
+                                    Cancelar
+                                </button>
+                                <button 
+                                    onClick={() => handleResetPassword(resettingUserId)}
+                                    className="flex-1 py-3 rounded-2xl bg-amber-500 text-white font-black shadow-lg shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                >
+                                    Confirmar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };
 
 // Sub-components like DashboardPanel, CompoundInterestPanel, etc., should be defined correctly here if not in separate files.

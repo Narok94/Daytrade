@@ -11,8 +11,21 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
             id SERIAL PRIMARY KEY,
             username VARCHAR(50) UNIQUE NOT NULL,
             password_hash VARCHAR(255) NOT NULL,
+            is_admin BOOLEAN DEFAULT FALSE,
+            is_paused BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMPTZ DEFAULT NOW()
         );
+    `);
+
+    // Ensure columns exist if table was already created
+    await client.query(`
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS is_paused BOOLEAN DEFAULT FALSE;
+    `);
+
+    // Set Henrique as admin
+    await client.query(`
+        UPDATE users SET is_admin = TRUE WHERE username = 'Henrique';
     `);
     await client.query(`
         CREATE TABLE IF NOT EXISTS operacoes_daytrade (
