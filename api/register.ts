@@ -25,7 +25,7 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
 
     // Set Henrique as admin
     await client.query(`
-        UPDATE users SET is_admin = TRUE WHERE username = 'Henrique';
+        UPDATE users SET is_admin = TRUE WHERE LOWER(username) = 'henrique';
     `);
     await client.query(`
         CREATE TABLE IF NOT EXISTS operacoes_daytrade (

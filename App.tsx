@@ -882,11 +882,26 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             ))}
                         </div>
                         <div className="flex items-center gap-1 md:gap-3 shrink-0">
+                            <button 
+                                onClick={onLogout}
+                                className="p-1.5 md:p-2.5 bg-red-500/10 text-red-500 rounded-lg md:rounded-xl hover:bg-red-500/20 transition-all flex items-center gap-1.5"
+                                title="Sair"
+                            >
+                                <LogoutIcon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                <span className="hidden sm:inline text-[8px] md:text-[10px] font-black uppercase tracking-widest">Sair</span>
+                            </button>
                             <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1 md:p-2 text-slate-400 hover:text-[#6366f1] transition-colors">
                                 {isDarkMode ? <SunIcon className="w-3.5 h-3.5 md:w-5 md:h-5" /> : <MoonIcon className="w-3.5 h-3.5 md:w-5 md:h-5" />}
                             </button>
-                            <div className="w-6 h-6 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-[#6366f1] flex items-center justify-center text-white font-black text-[8px] md:text-xs shadow-lg shadow-[#6366f1]/20">
-                                {user.username.slice(0, 2).toUpperCase()}
+                            <div className="relative group">
+                                <div className="w-6 h-6 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-[#6366f1] flex items-center justify-center text-white font-black text-[8px] md:text-xs shadow-lg shadow-[#6366f1]/20">
+                                    {user.username.slice(0, 2).toUpperCase()}
+                                </div>
+                                {user.isAdmin && (
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-amber-500 rounded-full border-2 border-[#0f172a] flex items-center justify-center" title="Administrador">
+                                        <SparklesIcon className="w-1.5 h-1.5 md:w-2 md:h-2 text-white" />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -937,6 +952,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                         onReset={handleReset} 
                         trashCount={trash.length}
                         onRestore={restoreTrash}
+                        onSave={saveData}
                     />
                 )}
                 </div>
@@ -2100,11 +2116,18 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
     );
 };
 
-const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset, trashCount, onRestore }) => {
+const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset, trashCount, onRestore, onSave }) => {
     const [newBrokerageName, setNewBrokerageName] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
     
     const updateBrokerage = (field: keyof Brokerage, value: any) => {
         setBrokerages((prev: Brokerage[]) => prev.map((b) => b.id === brokerage.id ? { ...b, [field]: value } : b));
+    };
+
+    const handleManualSave = async () => {
+        setIsSaving(true);
+        await onSave();
+        setTimeout(() => setIsSaving(false), 1000);
     };
 
     const addNewBrokerage = () => {
@@ -2203,6 +2226,13 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                     </div>
                 </section>
                 <div className="flex flex-col md:flex-row gap-3 md:gap-4">
+                    <button 
+                        onClick={handleManualSave} 
+                        className={`flex-1 px-6 py-3 md:px-8 md:py-4 bg-green-600 hover:bg-green-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2 ${isSaving ? 'opacity-70' : ''}`}
+                    >
+                        {isSaving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+                        {isSaving ? 'Salvando...' : 'Salvar Configurações'}
+                    </button>
                     <button onClick={onReset} className="flex-1 px-6 py-3 md:px-8 md:py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all">Limpar Histórico</button>
                     {trashCount > 0 && (
                         <button onClick={onRestore} className="flex-1 px-6 py-3 md:px-8 md:py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2">
