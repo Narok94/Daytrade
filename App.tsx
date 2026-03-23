@@ -564,19 +564,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 if (localTrash) {
                     try { setTrash(JSON.parse(localTrash)); } catch(e) {}
                 }
-            } else {
-                // If fetch fails, ensure we have at least one brokerage
-                setBrokerages([{ id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD', dailyGoalMode: 'percentage', dailyGoalValue: 3 }]);
-                setRecords([]);
-                setGoals([]);
             }
-        } catch (e) { 
-            console.error(e); 
-            // If fetch fails, ensure we have at least one brokerage
-            setBrokerages([{ id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD', dailyGoalMode: 'percentage', dailyGoalValue: 3 }]);
-            setRecords([]);
-            setGoals([]);
-        } finally { setIsLoading(false); }
+        } catch (e) { console.error(e); } finally { setIsLoading(false); }
     }, [user.id, recalibrateAll]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
@@ -910,7 +899,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     </div>
                 </header>
                 <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
-                    {activeTab === 'dashboard' && activeBrokerage && (
+                    {activeTab === 'dashboard' && (
                         <DashboardPanel 
                             activeBrokerage={activeBrokerage} 
                             updateBrokerageSetting={updateBrokerageSetting}
@@ -932,7 +921,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             dailyGoalTarget={activeDailyGoal} 
                         />
                     )}
-                    {activeTab === 'ai-analysis' && activeBrokerage && (
+                    {activeTab === 'ai-analysis' && (
                         <AIAnalysisPanel 
                             theme={theme} 
                             isDarkMode={isDarkMode} 
@@ -941,11 +930,11 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             activeBrokerage={activeBrokerage}
                         />
                     )}
-                    {activeTab === 'compound' && activeBrokerage && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
-                    {activeTab === 'history' && activeBrokerage && <HistoryPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} addBulkTrades={addBulkTrades} />}
-                    {activeTab === 'soros' && activeBrokerage && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
-                    {activeTab === 'goals' && activeBrokerage && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
-                    {activeTab === 'management-sheet' && activeBrokerage && <ManagementSheetPanel theme={theme} activeBrokerage={activeBrokerage} isDarkMode={isDarkMode} records={records} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />}
+                    {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
+                    {activeTab === 'history' && <HistoryPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} addBulkTrades={addBulkTrades} />}
+                    {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
+                    {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
+                    {activeTab === 'management-sheet' && <ManagementSheetPanel theme={theme} activeBrokerage={activeBrokerage} isDarkMode={isDarkMode} records={records} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />}
                     {activeTab === 'admin' && user.isAdmin && <AdminPanel theme={theme} adminId={user.id} />}
                 {activeTab === 'settings' && (
                     <SettingsPanel 
@@ -1246,13 +1235,11 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     const [transAmount, setTransAmount] = useState('');
     const [transType, setTransType] = useState<'deposit' | 'withdrawal'>('deposit');
     const [isNextTradeSoros, setIsNextTradeSoros] = useState(false);
-    const [entryMode, setEntryMode] = useState<'fixed' | 'percentage'>(activeBrokerage?.entryMode || 'percentage');
+    const [entryMode, setEntryMode] = useState<'fixed' | 'percentage'>(activeBrokerage.entryMode);
 
     useEffect(() => {
-        if (activeBrokerage?.entryMode) {
-            setEntryMode(activeBrokerage.entryMode);
-        }
-    }, [activeBrokerage?.entryMode]);
+        setEntryMode(activeBrokerage.entryMode);
+    }, [activeBrokerage.entryMode]);
 
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     
