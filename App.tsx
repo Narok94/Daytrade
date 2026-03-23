@@ -22,6 +22,46 @@ import {
 // --- Helper Functions ---
 const formatMoney = (val: number) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
+    constructor(props: any) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+    static getDerivedStateFromError(error: any) {
+        return { hasError: true, error };
+    }
+    componentDidCatch(error: any, errorInfo: any) {
+        console.error("ErrorBoundary caught an error", error, errorInfo);
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="h-screen flex flex-col items-center justify-center bg-[#0f172a] text-white p-8 text-center">
+                    <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mb-6">
+                        <ExclamationTriangleIcon className="w-10 h-10 text-red-500" />
+                    </div>
+                    <h1 className="text-3xl font-black italic mb-4">OPS! ALGO DEU ERRADO</h1>
+                    <p className="text-slate-400 max-w-md mb-8">
+                        Ocorreu um erro inesperado no sistema. Nossa equipe de IA já foi notificada.
+                    </p>
+                    <div className="bg-black/40 p-4 rounded-xl border border-white/5 mb-8 w-full max-w-lg text-left overflow-auto max-h-40">
+                        <code className="text-[10px] text-rose-400 font-mono">
+                            {this.state.error?.toString()}
+                        </code>
+                    </div>
+                    <button 
+                        onClick={() => window.location.reload()}
+                        className="px-8 py-3 bg-indigo-500 hover:bg-indigo-600 rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20"
+                    >
+                        Recarregar Sistema
+                    </button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
+
 const compressImage = (dataUrl: string, maxWidth = 1200): Promise<string> => {
     return new Promise((resolve) => {
         const img = new Image();
@@ -567,6 +607,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     useEffect(() => { latestDataRef.current = { userId: user.id, brokerages, records, goals }; }, [user.id, brokerages, records, goals]);
     
     const activeBrokerage = useMemo(() => {
+        if (!brokerages || brokerages.length === 0) return null;
         return brokerages.find(b => b.id === activeBrokerageId) || brokerages[0];
     }, [brokerages, activeBrokerageId]);
 
@@ -806,6 +847,17 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const theme = useThemeClasses(isDarkMode);
     if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-[#6366f1] border-t-transparent rounded-full animate-spin" /></div>;
 
+    if (!activeBrokerage) {
+        return (
+            <div className={`h-screen flex flex-col items-center justify-center ${theme.bg} ${theme.text} p-4 text-center`}>
+                <ExclamationTriangleIcon className="w-12 h-12 text-amber-500 mb-4" />
+                <h2 className="text-xl font-bold mb-2">Nenhuma corretora encontrada</h2>
+                <p className="text-sm opacity-60 mb-6">Não foi possível carregar os dados do seu perfil.</p>
+                <button onClick={() => fetchData()} className="px-6 py-2 bg-indigo-500 rounded-xl font-bold">Tentar Novamente</button>
+            </div>
+        );
+    }
+
     const dateStr = getLocalDateString(selectedDate);
     const brokerageRecords = records.filter(r => r.brokerageId === activeBrokerage?.id);
     
@@ -880,7 +932,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
 
     return (
-        <div className={`flex h-screen overflow-hidden overflow-x-hidden ${theme.bg} ${theme.text}`}>
+        <ErrorBoundary>
+            <div className={`flex h-screen overflow-hidden overflow-x-hidden ${theme.bg} ${theme.text}`}>
             {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
             <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 border-r border-white/5 shadow-[20px_0_50px_rgba(0,0,0,0.3)]`}>
                 <div className={`h-24 flex-none flex items-center justify-center border-b border-white/5 ${theme.header} relative overflow-hidden group`}>
@@ -1103,6 +1156,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 </div>
             </main>
         </div>
+        </ErrorBoundary>
     );
 };
 
@@ -1386,13 +1440,15 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     const [transAmount, setTransAmount] = useState('');
     const [transType, setTransType] = useState<'deposit' | 'withdrawal'>('deposit');
     const [isNextTradeSoros, setIsNextTradeSoros] = useState(false);
-    const [entryMode, setEntryMode] = useState<'fixed' | 'percentage'>(activeBrokerage.entryMode);
+    const [entryMode, setEntryMode] = useState<'fixed' | 'percentage'>(activeBrokerage?.entryMode || 'percentage');
 
     useEffect(() => {
-        setEntryMode(activeBrokerage.entryMode);
-    }, [activeBrokerage.entryMode]);
+        if (activeBrokerage) {
+            setEntryMode(activeBrokerage.entryMode);
+        }
+    }, [activeBrokerage?.entryMode]);
 
-    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
+    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
     
     const currentProfit = dailyRecordForSelectedDay?.netProfitUSD ?? 0;
     const currentBalance = currentBalanceForDashboard;
@@ -1404,7 +1460,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     const handlePayoutChange = (val: string) => {
         setCustomPayout(val);
         const num = parseFloat(val);
-        if (!isNaN(num)) {
+        if (!isNaN(num) && activeBrokerage) {
             updateBrokerageSetting(activeBrokerage.id, 'payoutPercentage', num);
         }
     };
@@ -1446,8 +1502,8 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     const estimatedProfit = entryValueNum * (payoutNum / 100) * qtyNum;
     const estimatedLoss = entryValueNum * qtyNum;
 
-    const stopWinReached = activeBrokerage.stopGainTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.winCount >= activeBrokerage.stopGainTrades;
-    const stopLossReached = activeBrokerage.stopLossTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.lossCount >= activeBrokerage.stopLossTrades;
+    const stopWinReached = activeBrokerage?.stopGainTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.winCount >= activeBrokerage.stopGainTrades;
+    const stopLossReached = activeBrokerage?.stopLossTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.lossCount >= activeBrokerage.stopLossTrades;
 
     const kpis = [
         { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-green-500' },
