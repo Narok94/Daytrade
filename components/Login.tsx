@@ -76,7 +76,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                     style={{
                         backgroundImage: `linear-gradient(to right, #6366f1 1px, transparent 1px), linear-gradient(to bottom, #6366f1 1px, transparent 1px)`,
                         backgroundSize: '40px 40px',
-                        maskImage: 'radial-gradient(ellipse at center, black, transparent 80%)'
+                        maskImage: 'radial-gradient(ellipse at center, black, transparent 80%)',
+                        WebkitMaskImage: 'radial-gradient(ellipse at center, black, transparent 80%)'
                     }}
                 ></div>
                 
