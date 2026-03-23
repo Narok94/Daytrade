@@ -564,8 +564,19 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 if (localTrash) {
                     try { setTrash(JSON.parse(localTrash)); } catch(e) {}
                 }
+            } else {
+                // If fetch fails, ensure we have at least one brokerage
+                setBrokerages([{ id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD', dailyGoalMode: 'percentage', dailyGoalValue: 3 }]);
+                setRecords([]);
+                setGoals([]);
             }
-        } catch (e) { console.error(e); } finally { setIsLoading(false); }
+        } catch (e) { 
+            console.error(e); 
+            // If fetch fails, ensure we have at least one brokerage
+            setBrokerages([{ id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD', dailyGoalMode: 'percentage', dailyGoalValue: 3 }]);
+            setRecords([]);
+            setGoals([]);
+        } finally { setIsLoading(false); }
     }, [user.id, recalibrateAll]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
@@ -899,7 +910,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     </div>
                 </header>
                 <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
-                    {activeTab === 'dashboard' && (
+                    {activeTab === 'dashboard' && activeBrokerage && (
                         <DashboardPanel 
                             activeBrokerage={activeBrokerage} 
                             updateBrokerageSetting={updateBrokerageSetting}
@@ -921,7 +932,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             dailyGoalTarget={activeDailyGoal} 
                         />
                     )}
-                    {activeTab === 'ai-analysis' && (
+                    {activeTab === 'ai-analysis' && activeBrokerage && (
                         <AIAnalysisPanel 
                             theme={theme} 
                             isDarkMode={isDarkMode} 
@@ -930,11 +941,11 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             activeBrokerage={activeBrokerage}
                         />
                     )}
-                    {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
-                    {activeTab === 'history' && <HistoryPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} addBulkTrades={addBulkTrades} />}
-                    {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
-                    {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
-                    {activeTab === 'management-sheet' && <ManagementSheetPanel theme={theme} activeBrokerage={activeBrokerage} isDarkMode={isDarkMode} records={records} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />}
+                    {activeTab === 'compound' && activeBrokerage && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
+                    {activeTab === 'history' && activeBrokerage && <HistoryPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} addBulkTrades={addBulkTrades} />}
+                    {activeTab === 'soros' && activeBrokerage && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
+                    {activeTab === 'goals' && activeBrokerage && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
+                    {activeTab === 'management-sheet' && activeBrokerage && <ManagementSheetPanel theme={theme} activeBrokerage={activeBrokerage} isDarkMode={isDarkMode} records={records} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />}
                     {activeTab === 'admin' && user.isAdmin && <AdminPanel theme={theme} adminId={user.id} />}
                 {activeTab === 'settings' && (
                     <SettingsPanel 
@@ -1235,11 +1246,13 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     const [transAmount, setTransAmount] = useState('');
     const [transType, setTransType] = useState<'deposit' | 'withdrawal'>('deposit');
     const [isNextTradeSoros, setIsNextTradeSoros] = useState(false);
-    const [entryMode, setEntryMode] = useState<'fixed' | 'percentage'>(activeBrokerage.entryMode);
+    const [entryMode, setEntryMode] = useState<'fixed' | 'percentage'>(activeBrokerage?.entryMode || 'percentage');
 
     useEffect(() => {
-        setEntryMode(activeBrokerage.entryMode);
-    }, [activeBrokerage.entryMode]);
+        if (activeBrokerage?.entryMode) {
+            setEntryMode(activeBrokerage.entryMode);
+        }
+    }, [activeBrokerage?.entryMode]);
 
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     
@@ -1534,12 +1547,17 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                 hasOperation = true;
             } else {
                 isProjection = true; 
-                // Simular 3 wins e 0 loss conforme solicitado para qualquer dia sem operação
-                const payout = activeBrokerage?.payoutPercentage || 80;
-                profit = 3 * (entryValue * (payout / 100));
-                final = initial + profit;
-                status = isPast ? 'SIMULADO (3W-0L)' : 'PROJEÇÃO (3W-0L)';
-                hasOperation = true;
+                if (isPast) {
+                    profit = 0;
+                    final = initial;
+                    status = 'SEM OPERAÇÃO';
+                    hasOperation = false;
+                } else {
+                    profit = targetProfit;
+                    final = initial + profit;
+                    status = 'META BATIDA';
+                    hasOperation = true; // Planned operation
+                }
             }
             rows.push({ 
                 diaTrade: i + 1, 
@@ -1622,9 +1640,9 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                         </td>
                                         <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
                                         <td className="py-4 px-3 opacity-60">{row.metaPercent}%</td>
-                                        <td className={`py-4 px-3 font-black ${row.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>{currencySymbol} {formatMoney(row.profit)}</td>
+                                        <td className="py-4 px-3 font-black text-blue-400">{currencySymbol} {formatMoney(row.targetProfit)}</td>
                                         <td className="py-4 px-3">
-                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' || row.status === 'SIMULADO (3W-0L)' || row.status === 'PROJEÇÃO (3W-0L)' ? 'bg-green-500/20 text-green-500 shadow-[0_0_10px_rgba(34,197,94,0.2)]' : row.status === 'STOP-LOSS' ? 'bg-red-500/20 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'bg-slate-500/20 text-slate-500'}`}>
+                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' ? 'bg-green-500/20 text-green-500' : row.status === 'STOP-LOSS' ? 'bg-red-500/20 text-red-500' : 'bg-slate-500/20 text-slate-500'}`}>
                                                 {row.status}
                                             </span>
                                         </td>
