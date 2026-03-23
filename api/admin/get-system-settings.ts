@@ -1,21 +1,15 @@
 import { db } from '@vercel/postgres';
 import { VercelRequest, VercelResponse } from '@vercel/node';
+import { verifyAdmin } from '../utils/auth';
 
 export default async function handler(
     req: VercelRequest,
     res: VercelResponse,
 ) {
-    const { adminId } = req.query;
-
-    if (!adminId) {
-        return res.status(400).json({ error: 'Admin ID é obrigatório.' });
-    }
-
     const client = await db.connect();
     try {
-        // Verify if requester is admin
-        const { rows: adminCheck } = await client.query('SELECT is_admin FROM users WHERE id = $1', [adminId]);
-        if (adminCheck.length === 0 || !adminCheck[0].is_admin) {
+        const admin = verifyAdmin(req);
+        if (!admin) {
             return res.status(403).json({ error: 'Acesso negado. Apenas administradores podem acessar esta configuração.' });
         }
 

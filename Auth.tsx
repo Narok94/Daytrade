@@ -17,12 +17,15 @@ const Auth: React.FC = () => {
             if (!savedUserJSON) return null;
 
             const savedUser = JSON.parse(savedUserJSON);
+            const savedToken = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
 
             // FIX: Validate the user object.
-            if (savedUser && (typeof savedUser.id !== 'number' || !Number.isInteger(savedUser.id))) {
-                console.warn('Corrupt user session found. Clearing session to force re-authentication.');
+            if (savedUser && (typeof savedUser.id !== 'number' || !Number.isInteger(savedUser.id)) || !savedToken) {
+                console.warn('Corrupt user session or missing token found. Clearing session to force re-authentication.');
                 sessionStorage.removeItem('currentUser');
                 localStorage.removeItem('currentUser');
+                sessionStorage.removeItem('authToken');
+                localStorage.removeItem('authToken');
                 return null; 
             }
             
@@ -49,16 +52,20 @@ const Auth: React.FC = () => {
 
             if (response.ok) {
                 const user: User = data.user;
+                const token: string = data.token;
                 setCurrentUser(user);
                 
                 // Always set sessionStorage for the current session
                 sessionStorage.setItem('currentUser', JSON.stringify(user));
+                sessionStorage.setItem('authToken', token);
                 
                 // If rememberMe is checked, also set localStorage
                 if (rememberMe) {
                     localStorage.setItem('currentUser', JSON.stringify(user));
+                    localStorage.setItem('authToken', token);
                 } else {
                     localStorage.removeItem('currentUser');
+                    localStorage.removeItem('authToken');
                 }
                 
                 return true;
@@ -102,6 +109,8 @@ const Auth: React.FC = () => {
         setCurrentUser(null);
         sessionStorage.removeItem('currentUser');
         localStorage.removeItem('currentUser');
+        sessionStorage.removeItem('authToken');
+        localStorage.removeItem('authToken');
     }, []);
 
     if (!currentUser) {

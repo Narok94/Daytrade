@@ -3,6 +3,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { db } from '@vercel/postgres';
 import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Goal } from '../types';
 import { randomUUID } from 'crypto';
+import { verifyToken } from './utils/auth';
 
 async function ensureTablesAndMigrate(client: any, userId?: number) {
     // 1. CREATE TABLES (idempotent)
@@ -73,8 +74,12 @@ export default async function handler(
     }
 
     const client = await db.connect();
-
     try {
+        const user = verifyToken(req);
+        if (!user) {
+            return res.status(401).json({ error: 'Acesso negado. Token inválido ou não fornecido.' });
+        }
+
         const { brokerages, records, goals } = req.body as {
             brokerages: Brokerage[];
             records: AppRecord[];
@@ -100,6 +105,11 @@ export default async function handler(
             }
         } else {
             return res.status(400).json({ error: `Tipo de ID inválido: ${typeof rawUserId}` });
+        }
+
+        // Security check: Ensure the user is saving their own data
+        if (user.id !== userId && !user.isAdmin) {
+            return res.status(403).json({ error: 'Acesso negado. Você não tem permissão para salvar os dados deste usuário.' });
         }
         
         await ensureTablesAndMigrate(client, userId);
