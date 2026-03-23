@@ -1,6 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { UserIcon, LockClosedIcon } from './icons';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+    User, 
+    Lock, 
+    Key, 
+    ChevronRight, 
+    CandlestickChart, 
+    TrendingUp, 
+    BarChart3,
+    ShieldCheck,
+    Zap,
+    ArrowRight
+} from 'lucide-react';
 
 interface LoginProps {
     onLogin: (username: string, password: string, rememberMe: boolean) => Promise<boolean>;
@@ -52,226 +63,308 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
         setError('');
     };
 
+    // Decorative Candlestick Component
+    const Candle = ({ height, color, delay }: { height: number, color: string, delay: number }) => (
+        <motion.div 
+            initial={{ opacity: 0, scaleY: 0 }}
+            animate={{ opacity: 1, scaleY: 1 }}
+            transition={{ duration: 0.8, delay }}
+            className="flex flex-col items-center justify-center w-2 mx-1"
+        >
+            <div className={`w-[1px] h-4 ${color === 'green' ? 'bg-emerald-400' : 'bg-rose-400'}`}></div>
+            <div className={`w-2 rounded-sm ${color === 'green' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]'}`} style={{ height: `${height}px` }}></div>
+            <div className={`w-[1px] h-4 ${color === 'green' ? 'bg-emerald-400' : 'bg-rose-400'}`}></div>
+        </motion.div>
+    );
+
     return (
-        <div className="min-h-screen w-full flex items-center justify-center p-6 bg-[#050a1f] relative overflow-hidden font-sans">
-            {/* Background Decorative Elements - Network/Constellation Effect */}
-            <div className="absolute inset-0 opacity-20 pointer-events-none">
+        <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#020617] relative overflow-hidden font-sans selection:bg-cyan-500/30">
+            {/* Immersive Background Elements */}
+            <div className="absolute inset-0 z-0">
+                {/* Grid Effect */}
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-20"></div>
+                
+                {/* Neon Glows */}
                 <motion.div 
                     animate={{ 
-                        y: [0, -20, 0],
-                        opacity: [0.2, 0.5, 0.2]
+                        scale: [1, 1.2, 1],
+                        opacity: [0.3, 0.5, 0.3],
                     }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute top-1/4 left-1/4 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"
+                    transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute -top-24 -left-24 w-96 h-96 bg-cyan-500/20 rounded-full blur-[120px]"
                 ></motion.div>
                 <motion.div 
                     animate={{ 
-                        y: [0, 20, 0],
-                        opacity: [0.2, 0.6, 0.2]
+                        scale: [1, 1.3, 1],
+                        opacity: [0.2, 0.4, 0.2],
                     }}
-                    transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                    className="absolute top-1/3 left-1/2 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"
-                ></motion.div>
-                <motion.div 
-                    animate={{ 
-                        x: [0, 15, 0],
-                        opacity: [0.2, 0.4, 0.2]
-                    }}
-                    transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-                    className="absolute top-2/3 left-1/3 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"
-                ></motion.div>
-                <motion.div 
-                    animate={{ 
-                        scale: [1, 1.5, 1],
-                        opacity: [0.2, 0.7, 0.2]
-                    }}
-                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute top-1/2 left-3/4 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"
-                ></motion.div>
-                <motion.div 
-                    animate={{ 
-                        y: [0, -15, 0],
-                        x: [0, 10, 0],
-                        opacity: [0.2, 0.5, 0.2]
-                    }}
-                    transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                    className="absolute top-3/4 left-1/2 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"
-                ></motion.div>
-                <motion.div 
-                    animate={{ 
-                        opacity: [0.1, 0.3, 0.1]
-                    }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-                    className="absolute top-1/2 left-1/4 w-1 h-1 bg-white rounded-full shadow-[0_0_10px_white]"
+                    transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                    className="absolute -bottom-24 -right-24 w-96 h-96 bg-purple-500/20 rounded-full blur-[120px]"
                 ></motion.div>
                 
-                <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-                    <motion.line 
-                        animate={{ opacity: [0.05, 0.2, 0.05] }}
-                        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-                        x1="25%" y1="25%" x2="50%" y2="33%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" 
-                    />
-                    <motion.line 
-                        animate={{ opacity: [0.05, 0.2, 0.05] }}
-                        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                        x1="50%" y1="33%" x2="75%" y2="50%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" 
-                    />
-                    <motion.line 
-                        animate={{ opacity: [0.05, 0.2, 0.05] }}
-                        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-                        x1="75%" y1="50%" x2="50%" y2="75%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" 
-                    />
-                    <motion.line 
-                        animate={{ opacity: [0.05, 0.2, 0.05] }}
-                        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                        x1="50%" y1="75%" x2="33%" y2="66%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" 
-                    />
-                    <motion.line 
-                        animate={{ opacity: [0.05, 0.2, 0.05] }}
-                        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-                        x1="33%" y1="66%" x2="25%" y2="25%" stroke="white" strokeWidth="0.5" strokeOpacity="0.2" 
-                    />
-                </svg>
+                {/* Floating Particles */}
+                {[...Array(15)].map((_, i) => (
+                    <motion.div
+                        key={i}
+                        initial={{ 
+                            x: Math.random() * 100 + "%", 
+                            y: Math.random() * 100 + "%",
+                            opacity: Math.random() * 0.5
+                        }}
+                        animate={{ 
+                            y: [null, Math.random() * -100 - 50 + "px"],
+                            opacity: [null, 0]
+                        }}
+                        transition={{ 
+                            duration: Math.random() * 10 + 10, 
+                            repeat: Infinity, 
+                            ease: "linear",
+                            delay: Math.random() * 10
+                        }}
+                        className="absolute w-1 h-1 bg-white rounded-full shadow-[0_0_8px_white]"
+                    ></motion.div>
+                ))}
             </div>
 
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-radial-gradient from-transparent via-[#050a1f]/80 to-[#050a1f]"></div>
-            
-            <div className="w-full max-w-[440px] relative z-10 flex flex-col items-center">
-                {/* Logo Section */}
-                <div className="flex flex-col items-center mb-8">
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 p-0.5 shadow-[0_0_30px_rgba(79,70,229,0.3)] mb-4 flex items-center justify-center overflow-hidden">
-                        <div className="w-full h-full rounded-full bg-[#050a1f] flex items-center justify-center">
-                            <div className="w-16 h-16 rounded-full bg-indigo-500/20 flex items-center justify-center">
-                                <svg className="w-10 h-10 text-indigo-400" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M12 2L14.59 9.41L22 12L14.59 14.59L12 22L9.41 14.59L2 12L9.41 9.41L12 2Z" fill="currentColor"/>
-                                </svg>
-                            </div>
+            <div className="w-full max-w-[1000px] grid grid-cols-1 lg:grid-cols-2 gap-8 items-center relative z-10">
+                {/* Left Side: Branding & Visuals */}
+                <motion.div 
+                    initial={{ opacity: 0, x: -50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.8 }}
+                    className="hidden lg:flex flex-col space-y-8"
+                >
+                    <div className="space-y-4">
+                        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold tracking-widest uppercase">
+                            <Zap className="w-3 h-3" />
+                            <span>Next-Gen Trading Engine</span>
+                        </div>
+                        <h1 className="text-6xl font-black text-white leading-tight tracking-tighter">
+                            DOMINE O <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">MERCADO</span>
+                        </h1>
+                        <p className="text-slate-400 text-lg max-w-md leading-relaxed">
+                            Gestão profissional para operações binárias com tecnologia de ponta e análise em tempo real.
+                        </p>
+                    </div>
+
+                    {/* Candlestick Visualizer */}
+                    <div className="bg-slate-900/50 border border-white/5 rounded-3xl p-6 backdrop-blur-md relative overflow-hidden group">
+                        <div className="absolute inset-0 opacity-10 pointer-events-none">
+                            <img 
+                                src="https://images.unsplash.com/photo-1611974717483-9b25020dadf8?q=80&w=1000&auto=format&fit=crop" 
+                                alt="Trading Background" 
+                                className="w-full h-full object-cover"
+                                referrerPolicy="no-referrer"
+                            />
+                        </div>
+                        <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity">
+                            <TrendingUp className="w-12 h-12 text-cyan-400" />
+                        </div>
+                        <div className="flex items-end h-32 space-x-1">
+                            <Candle height={40} color="green" delay={0.1} />
+                            <Candle height={60} color="green" delay={0.2} />
+                            <Candle height={30} color="red" delay={0.3} />
+                            <Candle height={50} color="green" delay={0.4} />
+                            <Candle height={80} color="green" delay={0.5} />
+                            <Candle height={40} color="red" delay={0.6} />
+                            <Candle height={20} color="red" delay={0.7} />
+                            <Candle height={60} color="green" delay={0.8} />
+                            <Candle height={90} color="green" delay={0.9} />
+                            <Candle height={50} color="red" delay={1.0} />
+                            <Candle height={30} color="red" delay={1.1} />
+                            <Candle height={70} color="green" delay={1.2} />
+                        </div>
+                        <div className="mt-4 flex justify-between items-center text-[10px] font-mono text-slate-500 uppercase tracking-widest">
+                            <span>Real-time Analysis</span>
+                            <span className="text-emerald-400">+12.4% Volatility</span>
                         </div>
                     </div>
-                    <h1 className="text-4xl font-bold text-white tracking-tight flex items-center">
-                        HRK<span className="text-indigo-500">.</span>
-                    </h1>
-                    <p className="text-slate-400 text-xs font-medium tracking-[0.2em] uppercase mt-1">Binary Operations Management</p>
-                </div>
 
-                {/* Login Card */}
-                <div className="w-full bg-[#0f172a]/40 border border-white/5 p-8 md:p-10 rounded-[2rem] backdrop-blur-2xl shadow-2xl">
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                <UserIcon className="w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="flex items-center space-x-3 text-slate-300">
+                            <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
+                                <ShieldCheck className="w-5 h-5 text-cyan-400" />
                             </div>
-                            <input
-                                type="text"
-                                placeholder="Usuário"
-                                value={username}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
-                                className="w-full h-14 pl-12 pr-4 rounded-2xl bg-[#1e293b]/30 border border-white/5 text-white placeholder-slate-500 outline-none focus:border-indigo-500/50 focus:bg-[#1e293b]/50 transition-all"
-                                required
-                            />
+                            <span className="text-sm font-medium">Segurança Total</span>
                         </div>
-                        
-                        <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                <LockClosedIcon className="w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                        <div className="flex items-center space-x-3 text-slate-300">
+                            <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
+                                <BarChart3 className="w-5 h-5 text-purple-400" />
                             </div>
-                            <input
-                                type="password"
-                                placeholder="Senha"
-                                value={password}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-                                className="w-full h-14 pl-12 pr-4 rounded-2xl bg-[#1e293b]/30 border border-white/5 text-white placeholder-slate-500 outline-none focus:border-indigo-500/50 focus:bg-[#1e293b]/50 transition-all"
-                                required
-                            />
+                            <span className="text-sm font-medium">Analytics Avançado</span>
                         </div>
+                    </div>
+                </motion.div>
+
+                {/* Right Side: Login Form */}
+                <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.6 }}
+                    className="w-full flex justify-center"
+                >
+                    <div className="w-full max-w-[440px] bg-slate-900/40 border border-white/10 rounded-[2.5rem] p-8 md:p-10 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
+                        {/* Neon Border Effect */}
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
                         
-                        {isRegistering && (
-                            <>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                        <LockClosedIcon className="w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
-                                    </div>
-                                    <input
-                                        type="password"
-                                        placeholder="Confirmar Senha"
-                                        value={confirmPassword}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
-                                        className="w-full h-14 pl-12 pr-4 rounded-2xl bg-[#1e293b]/30 border border-white/5 text-white placeholder-slate-500 outline-none focus:border-indigo-500/50 focus:bg-[#1e293b]/50 transition-all"
-                                        required
-                                    />
+                        <div className="flex flex-col items-center mb-10">
+                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-purple-600 p-[1px] shadow-[0_0_20px_rgba(6,182,212,0.3)] mb-6">
+                                <div className="w-full h-full rounded-2xl bg-slate-950 flex items-center justify-center">
+                                    <CandlestickChart className="w-8 h-8 text-cyan-400" />
                                 </div>
+                            </div>
+                            <h2 className="text-3xl font-bold text-white tracking-tight">
+                                {isRegistering ? 'Criar Conta' : 'Bem-vindo'}
+                            </h2>
+                            <p className="text-slate-500 text-sm mt-2">
+                                {isRegistering ? 'Comece sua jornada hoje' : 'Acesse sua central de operações'}
+                            </p>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Usuário</label>
                                 <div className="relative group">
                                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                        <svg className="w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                                        </svg>
+                                        <User className="w-5 h-5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
                                     </div>
                                     <input
                                         type="text"
-                                        placeholder="Palavra-Chave de Convite"
-                                        value={keyword}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKeyword(e.target.value)}
-                                        className="w-full h-14 pl-12 pr-4 rounded-2xl bg-[#1e293b]/30 border border-white/5 text-white placeholder-slate-500 outline-none focus:border-indigo-500/50 focus:bg-[#1e293b]/50 transition-all"
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                        className="w-full h-14 pl-12 pr-4 rounded-2xl bg-slate-950/50 border border-white/5 text-white placeholder-slate-600 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+                                        placeholder="Seu nome de usuário"
                                         required
                                     />
                                 </div>
-                            </>
-                        )}
-
-                        {!isRegistering && (
-                            <div className="flex items-center px-1">
-                                <label className="flex items-center cursor-pointer group">
-                                    <input
-                                        type="checkbox"
-                                        checked={rememberMe}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRememberMe(e.target.checked)}
-                                        className="sr-only"
-                                    />
-                                    <div className={`w-5 h-5 rounded-md border transition-all flex items-center justify-center ${rememberMe ? 'bg-indigo-600 border-indigo-600' : 'bg-[#1e293b]/30 border-white/10 group-hover:border-indigo-500/50'}`}>
-                                        {rememberMe && (
-                                            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                            </svg>
-                                        )}
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Senha</label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        <Lock className="w-5 h-5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
                                     </div>
-                                    <span className="text-sm font-medium text-slate-400 ml-3 group-hover:text-slate-300 transition-colors">Lembrar acesso</span>
-                                </label>
+                                    <input
+                                        type="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full h-14 pl-12 pr-4 rounded-2xl bg-slate-950/50 border border-white/5 text-white placeholder-slate-600 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+                                        placeholder="••••••••"
+                                        required
+                                    />
+                                </div>
                             </div>
-                        )}
+                            
+                            <AnimatePresence mode="wait">
+                                {isRegistering && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="space-y-5 overflow-hidden"
+                                    >
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Confirmar Senha</label>
+                                            <div className="relative group">
+                                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                                    <Lock className="w-5 h-5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+                                                </div>
+                                                <input
+                                                    type="password"
+                                                    value={confirmPassword}
+                                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                                    className="w-full h-14 pl-12 pr-4 rounded-2xl bg-slate-950/50 border border-white/5 text-white placeholder-slate-600 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+                                                    placeholder="••••••••"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Palavra-Chave</label>
+                                            <div className="relative group">
+                                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                                    <Key className="w-5 h-5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    value={keyword}
+                                                    onChange={(e) => setKeyword(e.target.value)}
+                                                    className="w-full h-14 pl-12 pr-4 rounded-2xl bg-slate-950/50 border border-white/5 text-white placeholder-slate-600 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+                                                    placeholder="Convite obrigatório"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
 
-                        {error && (
-                            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
-                                 <p className="text-xs text-red-500 text-center font-medium">{error}</p>
-                            </div>
-                        )}
-                        
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="w-full h-14 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl uppercase text-sm tracking-widest shadow-[0_10px_20px_rgba(79,70,229,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
-                        >
-                            {isLoading ? 'PROCESSANDO...' : isRegistering ? 'CRIAR CONTA' : 'ENTRAR NO DASHBOARD'}
-                        </button>
-                    </form>
-
-                    <div className="mt-8 text-center">
-                        <button
-                            type="button"
-                            onClick={toggleView}
-                            disabled={isLoading}
-                            className="text-sm font-medium text-slate-400 tracking-wide transition-all"
-                        >
-                            {isRegistering ? (
-                                <>Já tem uma conta? <span className="text-indigo-400 hover:text-indigo-300">Login</span></>
-                            ) : (
-                                <>Novo por aqui? <span className="text-indigo-400 hover:text-indigo-300">Crie uma conta</span></>
+                            {!isRegistering && (
+                                <div className="flex items-center justify-between px-1">
+                                    <label className="flex items-center cursor-pointer group">
+                                        <input
+                                            type="checkbox"
+                                            checked={rememberMe}
+                                            onChange={(e) => setRememberMe(e.target.checked)}
+                                            className="sr-only"
+                                        />
+                                        <div className={`w-5 h-5 rounded-lg border transition-all flex items-center justify-center ${rememberMe ? 'bg-cyan-500 border-cyan-500' : 'bg-slate-950/50 border-white/10 group-hover:border-cyan-500/50'}`}>
+                                            {rememberMe && <ShieldCheck className="w-3 h-3 text-white" />}
+                                        </div>
+                                        <span className="text-xs font-medium text-slate-500 ml-3 group-hover:text-slate-300 transition-colors">Lembrar acesso</span>
+                                    </label>
+                                    <button type="button" className="text-xs font-medium text-cyan-500 hover:text-cyan-400 transition-colors">Esqueceu a senha?</button>
+                                </div>
                             )}
-                        </button>
+
+                            {error && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl"
+                                >
+                                     <p className="text-[11px] text-rose-400 text-center font-bold uppercase tracking-wider">{error}</p>
+                                </motion.div>
+                            )}
+                            
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="w-full h-14 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white font-black rounded-2xl uppercase text-xs tracking-[0.2em] shadow-[0_10px_30px_rgba(6,182,212,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] flex items-center justify-center space-x-2 group"
+                            >
+                                <span>{isLoading ? 'PROCESSANDO...' : isRegistering ? 'CRIAR CONTA' : 'INICIAR SESSÃO'}</span>
+                                {!isLoading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
+                            </button>
+                        </form>
+
+                        <div className="mt-8 text-center">
+                            <button
+                                type="button"
+                                onClick={toggleView}
+                                disabled={isLoading}
+                                className="text-xs font-bold text-slate-500 tracking-widest uppercase transition-all hover:text-white"
+                            >
+                                {isRegistering ? (
+                                    <>Já possui conta? <span className="text-cyan-500">Login</span></>
+                                ) : (
+                                    <>Novo usuário? <span className="text-cyan-500">Registrar</span></>
+                                )}
+                            </button>
+                        </div>
                     </div>
-                </div>
-                
-                <div className="mt-12 text-center">
+                </motion.div>
+            </div>
+            
+            {/* Mobile Candlestick Decoration (Bottom) */}
+            <div className="lg:hidden absolute bottom-0 left-0 w-full flex justify-center opacity-20 pointer-events-none">
+                <div className="flex items-end h-16 space-x-1">
+                    <Candle height={20} color="green" delay={0.1} />
+                    <Candle height={30} color="green" delay={0.2} />
+                    <Candle height={15} color="red" delay={0.3} />
+                    <Candle height={25} color="green" delay={0.4} />
+                    <Candle height={40} color="green" delay={0.5} />
                 </div>
             </div>
         </div>
