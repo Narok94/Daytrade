@@ -1534,12 +1534,17 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                 hasOperation = true;
             } else {
                 isProjection = true; 
-                // Simular 3 wins e 0 loss conforme solicitado para qualquer dia sem operação
-                const payout = activeBrokerage?.payoutPercentage || 80;
-                profit = 3 * (entryValue * (payout / 100));
-                final = initial + profit;
-                status = isPast ? 'SIMULADO (3W-0L)' : 'PROJEÇÃO (3W-0L)';
-                hasOperation = true;
+                if (isPast) {
+                    profit = 0;
+                    final = initial;
+                    status = 'SEM OPERAÇÃO';
+                    hasOperation = false;
+                } else {
+                    profit = targetProfit;
+                    final = initial + profit;
+                    status = 'META BATIDA';
+                    hasOperation = true; // Planned operation
+                }
             }
             rows.push({ 
                 diaTrade: i + 1, 
@@ -1622,9 +1627,9 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                         </td>
                                         <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
                                         <td className="py-4 px-3 opacity-60">{row.metaPercent}%</td>
-                                        <td className={`py-4 px-3 font-black ${row.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>{currencySymbol} {formatMoney(row.profit)}</td>
+                                        <td className="py-4 px-3 font-black text-blue-400">{currencySymbol} {formatMoney(row.targetProfit)}</td>
                                         <td className="py-4 px-3">
-                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' || row.status === 'SIMULADO (3W-0L)' || row.status === 'PROJEÇÃO (3W-0L)' ? 'bg-green-500/20 text-green-500 shadow-[0_0_10px_rgba(34,197,94,0.2)]' : row.status === 'STOP-LOSS' ? 'bg-red-500/20 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'bg-slate-500/20 text-slate-500'}`}>
+                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' ? 'bg-green-500/20 text-green-500' : row.status === 'STOP-LOSS' ? 'bg-red-500/20 text-red-500' : 'bg-slate-500/20 text-slate-500'}`}>
                                                 {row.status}
                                             </span>
                                         </td>
