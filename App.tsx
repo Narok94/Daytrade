@@ -1535,10 +1535,14 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             } else {
                 isProjection = true; 
                 if (isPast) {
-                    profit = 0;
-                    final = initial;
-                    status = 'SEM OPERAÇÃO';
-                    hasOperation = false;
+                    // Simular 3 wins e 0 loss conforme solicitado pelo usuário
+                    const simulatedWins = 3;
+                    const simulatedLosses = 0;
+                    const payout = activeBrokerage?.payoutPercentage || 80;
+                    profit = (simulatedWins * entryValue * (payout / 100)) - (simulatedLosses * entryValue);
+                    final = initial + profit;
+                    status = 'SIMULADO (3X0)';
+                    hasOperation = true;
                 } else {
                     profit = targetProfit;
                     final = initial + profit;
@@ -1629,7 +1633,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                         <td className="py-4 px-3 opacity-60">{row.metaPercent}%</td>
                                         <td className="py-4 px-3 font-black text-blue-400">{currencySymbol} {formatMoney(row.targetProfit)}</td>
                                         <td className="py-4 px-3">
-                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' ? 'bg-green-500/20 text-green-500' : row.status === 'STOP-LOSS' ? 'bg-red-500/20 text-red-500' : 'bg-slate-500/20 text-slate-500'}`}>
+                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' || row.status === 'SIMULADO (3X0)' ? 'bg-green-500/20 text-green-500' : row.status === 'STOP-LOSS' ? 'bg-red-500/20 text-red-500' : 'bg-slate-500/20 text-slate-500'}`}>
                                                 {row.status}
                                             </span>
                                         </td>
