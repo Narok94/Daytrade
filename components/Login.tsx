@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
-import { 
-    UserIcon, 
-    LockClosedIcon, 
-    SparklesIcon, 
-    TrendingUpIcon, 
-    TargetIcon, 
-    CandlestickIcon,
-    GlobeIcon,
-    ShieldCheckIcon,
-    RocketLaunchIcon,
-    CommandLineIcon
-} from './icons';
 import { motion, AnimatePresence } from 'framer-motion';
+import { 
+    User, 
+    Lock, 
+    ShieldCheck, 
+    TrendingUp, 
+    TrendingDown, 
+    CandlestickChart, 
+    ArrowRight,
+    ChevronRight,
+    Key,
+    Activity,
+    Zap,
+    Globe,
+    Cpu,
+    Fingerprint
+} from 'lucide-react';
 
 interface LoginProps {
     onLogin: (username: string, password: string, rememberMe: boolean) => Promise<boolean>;
@@ -64,254 +68,224 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
     };
 
     return (
-        <div className="min-h-screen w-full flex bg-[#020617] overflow-hidden font-sans selection:bg-indigo-500/30">
-            {/* Atmospheric Background Elements */}
-            <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/10 blur-[120px] rounded-full animate-pulse-glow" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/10 blur-[120px] rounded-full animate-pulse-glow" style={{ animationDelay: '2s' }} />
-                <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-blue-500/5 blur-[100px] rounded-full animate-pulse-glow" style={{ animationDelay: '4s' }} />
-            </div>
-
-            {/* Scanning Line Effect */}
-            <motion.div 
-                initial={{ top: '-10%' }}
-                animate={{ top: '110%' }}
-                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent z-10 pointer-events-none"
-            />
-
-            {/* Data Stream Overlay */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-[0.03] z-10">
-                <div className="absolute top-0 left-4 bottom-0 w-px bg-indigo-500" />
-                <div className="absolute top-0 left-12 bottom-0 w-px bg-indigo-500" />
-                <div className="absolute top-0 right-4 bottom-0 w-px bg-indigo-500" />
+        <div className="min-h-screen w-full flex items-center justify-center p-4 md:p-6 bg-[#020617] relative overflow-hidden font-sans">
+            {/* Cyberpunk Grid Background */}
+            <div className="absolute inset-0 z-0 overflow-hidden">
+                <div 
+                    className="absolute inset-0 opacity-20"
+                    style={{
+                        backgroundImage: `linear-gradient(to right, #6366f1 1px, transparent 1px), linear-gradient(to bottom, #6366f1 1px, transparent 1px)`,
+                        backgroundSize: '40px 40px',
+                        maskImage: 'radial-gradient(ellipse at center, black, transparent 80%)'
+                    }}
+                ></div>
                 
-                <div className="flex flex-col gap-4 p-4 font-mono text-[8px] text-indigo-400 uppercase tracking-widest">
-                    {Array.from({ length: 20 }).map((_, i) => (
+                {/* Moving Grid Lines */}
+                <motion.div 
+                    animate={{ y: [0, 40] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    className="absolute inset-0 opacity-10 pointer-events-none"
+                    style={{
+                        backgroundImage: `linear-gradient(to bottom, #6366f1 2px, transparent 2px)`,
+                        backgroundSize: '100% 40px',
+                    }}
+                />
+            </div>
+
+            {/* Background Image with Overlay */}
+            <div className="absolute inset-0 z-0">
+                <img 
+                    src="https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=2070&auto=format&fit=crop" 
+                    alt="Trading Background" 
+                    className="w-full h-full object-cover opacity-10"
+                    referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-[#020617] via-transparent to-[#020617]"></div>
+            </div>
+
+            {/* Decorative Candlesticks with Glow */}
+            <div className="absolute inset-0 pointer-events-none opacity-20 overflow-hidden">
+                <div className="absolute top-1/4 left-10 flex gap-3 items-end">
+                    <motion.div animate={{ height: [40, 80, 40] }} transition={{ duration: 3, repeat: Infinity }} className="w-2 bg-green-500 rounded-sm shadow-[0_0_10px_#22c55e]"></motion.div>
+                    <motion.div animate={{ height: [60, 120, 60] }} transition={{ duration: 4, repeat: Infinity }} className="w-2 bg-green-500 rounded-sm shadow-[0_0_10px_#22c55e]"></motion.div>
+                    <motion.div animate={{ height: [30, 60, 30] }} transition={{ duration: 2.5, repeat: Infinity }} className="w-2 bg-red-500 rounded-sm shadow-[0_0_10px_#ef4444]"></motion.div>
+                    <motion.div animate={{ height: [50, 100, 50] }} transition={{ duration: 5, repeat: Infinity }} className="w-2 bg-green-500 rounded-sm shadow-[0_0_10px_#22c55e]"></motion.div>
+                </div>
+                <div className="absolute bottom-1/4 right-10 flex gap-3 items-end">
+                    <motion.div animate={{ height: [70, 30, 70] }} transition={{ duration: 3.5, repeat: Infinity }} className="w-2 bg-red-500 rounded-sm shadow-[0_0_10px_#ef4444]"></motion.div>
+                    <motion.div animate={{ height: [40, 90, 40] }} transition={{ duration: 4.5, repeat: Infinity }} className="w-2 bg-red-500 rounded-sm shadow-[0_0_10px_#ef4444]"></motion.div>
+                    <motion.div animate={{ height: [80, 40, 80] }} transition={{ duration: 2.8, repeat: Infinity }} className="w-2 bg-green-500 rounded-sm shadow-[0_0_10px_#22c55e]"></motion.div>
+                    <motion.div animate={{ height: [50, 20, 50] }} transition={{ duration: 6, repeat: Infinity }} className="w-2 bg-red-500 rounded-sm shadow-[0_0_10px_#ef4444]"></motion.div>
+                </div>
+            </div>
+
+            {/* Animated Glow Orbs */}
+            <div className="absolute inset-0 pointer-events-none">
+                <motion.div 
+                    animate={{ 
+                        opacity: [0.1, 0.3, 0.1], 
+                        scale: [1, 1.5, 1],
+                        x: [0, 50, 0],
+                        y: [0, -50, 0]
+                    }}
+                    transition={{ duration: 15, repeat: Infinity }}
+                    className="absolute top-1/4 right-1/4 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[150px]"
+                />
+                <motion.div 
+                    animate={{ 
+                        opacity: [0.1, 0.2, 0.1], 
+                        scale: [1.5, 1, 1.5],
+                        x: [0, -50, 0],
+                        y: [0, 50, 0]
+                    }}
+                    transition={{ duration: 18, repeat: Infinity }}
+                    className="absolute bottom-1/4 left-1/4 w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[150px]"
+                />
+            </div>
+
+            <div className="w-full max-w-[500px] relative z-10">
+                <motion.div 
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col items-center mb-12"
+                >
+                    <div className="relative mb-8">
+                        {/* Outer Glow Ring */}
                         <motion.div 
-                            key={i}
-                            initial={{ x: -20, opacity: 0 }}
-                            animate={{ x: 0, opacity: 1 }}
-                            transition={{ delay: i * 0.1, duration: 0.5 }}
-                        >
-                            {`SYS_LOG_0x${Math.random().toString(16).slice(2, 8)} >> AUTH_READY`}
-                        </motion.div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Left Side - Visual/Marketing (Hidden on mobile) */}
-            <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden border-r border-white/5">
-                {/* Background Image with Overlay */}
-                <div className="absolute inset-0 z-0">
-                    <img 
-                        src="https://images.unsplash.com/photo-1611974717483-9b25022ecf17?q=80&w=2070&auto=format&fit=crop" 
-                        alt="Trading Background" 
-                        className="w-full h-full object-cover opacity-30 scale-105 animate-slow-zoom"
-                        referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#020617] via-transparent to-[#020617] opacity-95"></div>
-                    <div className="absolute inset-0 bg-[#020617]/60 backdrop-blur-[4px]"></div>
-                </div>
-
-                {/* Animated Candlesticks Background - More dynamic */}
-                <div className="absolute inset-0 z-10 opacity-30 pointer-events-none">
-                    {[...Array(15)].map((_, i) => (
-                        <motion.div
-                            key={i}
-                            initial={{ opacity: 0, y: 100 }}
-                            animate={{ 
-                                opacity: [0, 0.8, 0],
-                                y: [-50, -300],
-                                x: Math.sin(i * 0.5) * 80
-                            }}
-                            transition={{ 
-                                duration: 10 + Math.random() * 8, 
-                                repeat: Infinity, 
-                                delay: i * 0.6,
-                                ease: "linear"
-                            }}
-                            className="absolute bottom-0"
-                            style={{ left: `${(i + 1) * 6}%` }}
-                        >
-                            <div className={`w-[2px] h-20 ${i % 3 === 0 ? 'bg-emerald-400 shadow-[0_0_20px_#34d399]' : i % 3 === 1 ? 'bg-rose-400 shadow-[0_0_20px_#fb7185]' : 'bg-indigo-400 shadow-[0_0_20px_#818cf8]'} rounded-full opacity-40`} />
-                            <div className={`w-4 h-12 ${i % 3 === 0 ? 'bg-emerald-400/30' : i % 3 === 1 ? 'bg-rose-400/30' : 'bg-indigo-400/30'} -ml-[7px] rounded-sm border border-white/10 backdrop-blur-[1px]`} />
-                        </motion.div>
-                    ))}
-                </div>
-
-                {/* Content Overlay */}
-                <div className="relative z-20 w-full h-full flex flex-col justify-center p-20 space-y-16">
-                    <motion.div
-                        initial={{ opacity: 0, x: -50 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
-                        className="space-y-6"
-                    >
-                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[11px] font-black uppercase tracking-[0.3em] backdrop-blur-md">
-                            <SparklesIcon className="w-3.5 h-3.5 animate-pulse" />
-                            Next-Gen Trading Intelligence
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                            className="absolute -inset-4 rounded-full border border-dashed border-indigo-500/30"
+                        />
+                        
+                        <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-0.5 shadow-[0_0_50px_rgba(99,102,241,0.5)] flex items-center justify-center relative overflow-hidden group">
+                            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                            <div className="w-full h-full rounded-[1.4rem] bg-[#020617] flex items-center justify-center">
+                                <CandlestickChart className="w-12 h-12 text-indigo-400" />
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <h2 className="text-7xl font-black text-white leading-[0.9] tracking-tighter font-display transform -skew-x-6">
-                                DOMINE O <br />
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 drop-shadow-[0_0_20px_rgba(129,140,248,0.3)]">MERCADO</span>
-                            </h2>
-                        </div>
-                        <p className="text-slate-400 text-xl max-w-md font-medium leading-relaxed opacity-80">
-                            Gestão profissional de operações binárias com análise de IA em tempo real e controle de juros compostos.
-                        </p>
-                    </motion.div>
-
-                    <div className="grid grid-cols-2 gap-8 max-w-xl">
-                        {[
-                            { icon: GlobeIcon, title: "Global", desc: "Mercados mundiais 24/7", color: "text-indigo-400" },
-                            { icon: ShieldCheckIcon, title: "Seguro", desc: "Proteção de dados militar", color: "text-emerald-400" },
-                            { icon: RocketLaunchIcon, title: "Rápido", desc: "Execução ultra-veloz", color: "text-pink-400" },
-                            { icon: CommandLineIcon, title: "API", desc: "Integração via terminal", color: "text-amber-400" }
-                        ].map((item, i) => (
-                            <motion.div
-                                key={i}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.5, delay: 0.5 + (i * 0.1) }}
-                                className="p-8 rounded-[2rem] bg-white/[0.03] border border-white/5 backdrop-blur-xl hover:bg-white/[0.08] hover:border-white/10 transition-all group relative overflow-hidden"
-                            >
-                                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <item.icon className={`w-10 h-10 ${item.color} mb-5 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500`} />
-                                <h4 className="text-white font-black text-sm uppercase tracking-[0.15em] font-display">{item.title}</h4>
-                                <p className="text-slate-500 text-xs mt-2 font-medium leading-relaxed">{item.desc}</p>
-                            </motion.div>
-                        ))}
+                        
+                        <motion.div 
+                            animate={{ scale: [1, 1.3, 1], opacity: [0.7, 1, 0.7] }}
+                            transition={{ duration: 1.5, repeat: Infinity }}
+                            className="absolute -top-3 -right-3 w-8 h-8 bg-indigo-600 rounded-full border-4 border-[#020617] flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.8)]"
+                        >
+                            <Fingerprint className="w-4 h-4 text-white" />
+                        </motion.div>
                     </div>
-                </div>
-            </div>
-
-            {/* Right Side - Login Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 relative z-10">
-                {/* Mobile Background Image (Only on small screens) */}
-                <div className="lg:hidden absolute inset-0 z-0">
-                    <img 
-                        src="https://images.unsplash.com/photo-1611974717483-9b25022ecf17?q=80&w=2070&auto=format&fit=crop" 
-                        alt="Trading Background" 
-                        className="w-full h-full object-cover opacity-10"
-                        referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-b from-[#020617] via-transparent to-[#020617]"></div>
-                </div>
+                    
+                    <div className="text-center">
+                        <h1 className="text-5xl font-black text-white tracking-tighter uppercase italic shimmer-text">
+                            HRK<span className="text-white">.</span>PRO
+                        </h1>
+                        <div className="flex items-center justify-center gap-3 mt-3">
+                            <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-indigo-500/50"></div>
+                            <p className="text-indigo-400 text-[11px] font-black tracking-[0.4em] uppercase">Quantum Trading Hub</p>
+                            <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-indigo-500/50"></div>
+                        </div>
+                    </div>
+                </motion.div>
 
                 <motion.div 
-                    initial={{ opacity: 0, scale: 0.95 }}
+                    initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5 }}
-                    className="w-full max-w-[440px] relative"
+                    transition={{ type: "spring", damping: 20 }}
+                    className="glass-card p-8 md:p-12 rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] relative overflow-hidden group"
                 >
-                    {/* Brand Header */}
-                    <div className="flex flex-col items-center mb-16 lg:hidden">
-                        <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-[1px] shadow-[0_0_40px_rgba(79,70,229,0.2)] mb-6 flex items-center justify-center overflow-hidden rotate-6">
-                            <div className="w-full h-full rounded-3xl bg-[#020617] flex items-center justify-center -rotate-6">
-                                <CandlestickIcon className="w-12 h-12 text-indigo-400" />
-                            </div>
-                        </div>
-                        <h1 className="text-5xl font-black text-white tracking-tighter font-display">
-                            HRK<span className="text-indigo-500">.</span>
-                        </h1>
+                    {/* Scanline Effect */}
+                    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[3rem]">
+                        <div className="w-full h-1 bg-indigo-500/20 absolute top-0 animate-scan" />
                     </div>
 
-                    {/* Form Container */}
-                    <div className="bg-white/[0.03] lg:bg-white/[0.01] border border-white/10 lg:border-white/[0.05] p-10 md:p-12 rounded-[3rem] backdrop-blur-2xl shadow-2xl relative overflow-hidden group">
-                        {/* Subtle Glow Effect */}
-                        <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 blur-[60px] rounded-full group-hover:bg-indigo-500/20 transition-colors duration-700" />
-                        
-                        <div className="mb-12 relative z-10">
-                            <h3 className="text-4xl font-black text-white tracking-tight font-display">
-                                {isRegistering ? 'Crie sua conta' : 'Bem-vindo'}
-                            </h3>
-                            <div className="flex items-center gap-3 mt-3">
-                                <div className="h-[1px] w-8 bg-indigo-500/50" />
-                                <p className="text-slate-500 text-xs font-black uppercase tracking-[0.2em]">
-                                    {isRegistering ? 'Trading Profissional' : 'Terminal de Acesso'}
-                                </p>
+                    {/* Decorative Corner Accents */}
+                    <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-indigo-500/30 rounded-tl-[3rem]"></div>
+                    <div className="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-indigo-500/30 rounded-br-[3rem]"></div>
+
+                    <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-10">
+                            <div className="flex flex-col">
+                                <h2 className="text-2xl font-black text-white uppercase tracking-tight">
+                                    {isRegistering ? 'Registro' : 'Autenticação'}
+                                </h2>
+                                <span className="text-[10px] font-bold text-indigo-400/60 uppercase tracking-widest mt-1">
+                                    {isRegistering ? 'Criação de novo terminal' : 'Acesso ao sistema central'}
+                                </span>
+                            </div>
+                            <div className="flex gap-1.5">
+                                <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1, repeat: Infinity }} className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_#6366f1]"></motion.div>
+                                <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1, repeat: Infinity, delay: 0.3 }} className="w-2 h-2 rounded-full bg-indigo-500/60"></motion.div>
+                                <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1, repeat: Infinity, delay: 0.6 }} className="w-2 h-2 rounded-full bg-indigo-500/30"></motion.div>
                             </div>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
-                            <div className="space-y-2.5">
-                                <div className="flex justify-between items-center px-1">
-                                    <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Usuário</label>
-                                    <span className="text-[9px] font-mono text-indigo-500/50 uppercase tracking-widest">Required</span>
-                                </div>
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                    <User className="w-3 h-3" /> Usuário
+                                </label>
                                 <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                                        <UserIcon className="w-5 h-5 text-slate-600 group-focus-within:text-indigo-400 transition-colors" />
-                                    </div>
                                     <input
                                         type="text"
+                                        placeholder="Digite seu ID"
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
-                                        className="w-full h-16 pl-14 pr-5 rounded-2xl bg-white/[0.03] border border-white/10 text-white placeholder-slate-700 outline-none focus:border-indigo-500/40 focus:bg-white/[0.06] transition-all font-medium text-sm"
-                                        placeholder="Seu nome de usuário"
+                                        className="w-full h-16 pl-6 pr-4 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-slate-600 outline-none focus:border-indigo-500 focus:bg-white/10 transition-all font-bold text-lg shadow-inner"
                                         required
                                     />
+                                    <div className="absolute bottom-0 left-6 right-6 h-[1px] bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent scale-x-0 group-focus-within:scale-x-100 transition-transform duration-500"></div>
                                 </div>
                             </div>
                             
-                            <div className="space-y-2.5">
-                                <div className="flex justify-between items-center px-1">
-                                    <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Senha</label>
-                                    <span className="text-[9px] font-mono text-indigo-500/50 uppercase tracking-widest">Encrypted</span>
-                                </div>
+                            <div className="space-y-2">
+                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                    <Lock className="w-3 h-3" /> Chave Mestra
+                                </label>
                                 <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                                        <LockClosedIcon className="w-5 h-5 text-slate-600 group-focus-within:text-indigo-400 transition-colors" />
-                                    </div>
                                     <input
                                         type="password"
+                                        placeholder="••••••••"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full h-16 pl-14 pr-5 rounded-2xl bg-white/[0.03] border border-white/10 text-white placeholder-slate-700 outline-none focus:border-indigo-500/40 focus:bg-white/[0.06] transition-all font-medium text-sm"
-                                        placeholder="••••••••"
+                                        className="w-full h-16 pl-6 pr-4 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-slate-600 outline-none focus:border-indigo-500 focus:bg-white/10 transition-all font-bold text-lg shadow-inner"
                                         required
                                     />
+                                    <div className="absolute bottom-0 left-6 right-6 h-[1px] bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent scale-x-0 group-focus-within:scale-x-100 transition-transform duration-500"></div>
                                 </div>
                             </div>
                             
                             <AnimatePresence mode="wait">
                                 {isRegistering && (
-                                    <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: 'auto' }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        className="space-y-6 overflow-hidden"
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        className="space-y-6"
                                     >
-                                        <div className="space-y-2.5">
-                                            <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 px-1">Confirmar Senha</label>
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                                <ShieldCheck className="w-3 h-3" /> Verificar Chave
+                                            </label>
                                             <div className="relative group">
-                                                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                                                    <LockClosedIcon className="w-5 h-5 text-slate-600 group-focus-within:text-indigo-400 transition-colors" />
-                                                </div>
                                                 <input
                                                     type="password"
+                                                    placeholder="Repetir senha"
                                                     value={confirmPassword}
                                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                                    className="w-full h-16 pl-14 pr-5 rounded-2xl bg-white/[0.03] border border-white/10 text-white placeholder-slate-700 outline-none focus:border-indigo-500/40 focus:bg-white/[0.06] transition-all font-medium text-sm"
-                                                    placeholder="••••••••"
+                                                    className="w-full h-16 pl-6 pr-4 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-slate-600 outline-none focus:border-indigo-500 focus:bg-white/10 transition-all font-bold text-lg shadow-inner"
                                                     required
                                                 />
                                             </div>
                                         </div>
-                                        <div className="space-y-2.5">
-                                            <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 px-1">Chave de Convite</label>
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                                <Key className="w-3 h-3" /> Token de Convite
+                                            </label>
                                             <div className="relative group">
-                                                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                                                    <SparklesIcon className="w-5 h-5 text-slate-600 group-focus-within:text-indigo-400 transition-colors" />
-                                                </div>
                                                 <input
                                                     type="text"
+                                                    placeholder="Código secreto"
                                                     value={keyword}
                                                     onChange={(e) => setKeyword(e.target.value)}
-                                                    className="w-full h-16 pl-14 pr-5 rounded-2xl bg-white/[0.03] border border-white/10 text-white placeholder-slate-700 outline-none focus:border-indigo-500/40 focus:bg-white/[0.06] transition-all font-medium text-sm"
-                                                    placeholder="Sua chave de acesso"
+                                                    className="w-full h-16 pl-6 pr-4 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-slate-600 outline-none focus:border-indigo-500 focus:bg-white/10 transition-all font-bold text-lg shadow-inner"
                                                     required
                                                 />
                                             </div>
@@ -321,7 +295,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                             </AnimatePresence>
 
                             {!isRegistering && (
-                                <div className="flex items-center justify-between px-1">
+                                <div className="flex items-center justify-between px-2">
                                     <label className="flex items-center cursor-pointer group">
                                         <input
                                             type="checkbox"
@@ -329,72 +303,76 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                                             onChange={(e) => setRememberMe(e.target.checked)}
                                             className="sr-only"
                                         />
-                                        <div className={`w-5 h-5 rounded-lg border transition-all flex items-center justify-center ${rememberMe ? 'bg-indigo-500 border-indigo-500 shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'bg-white/[0.03] border-white/10 group-hover:border-indigo-500/50'}`}>
-                                            {rememberMe && (
-                                                <motion.svg initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                </motion.svg>
-                                            )}
+                                        <div className={`w-6 h-6 rounded-lg border-2 transition-all flex items-center justify-center ${rememberMe ? 'bg-indigo-600 border-indigo-600 shadow-[0_0_15px_rgba(79,70,229,0.6)]' : 'bg-white/5 border-white/10 group-hover:border-indigo-500/50'}`}>
+                                            {rememberMe && <Zap className="w-4 h-4 text-white fill-white" />}
                                         </div>
-                                        <span className="text-[10px] font-black text-slate-500 ml-3 group-hover:text-slate-300 transition-colors uppercase tracking-[0.15em]">Lembrar</span>
+                                        <span className="text-[11px] font-black text-slate-500 ml-4 group-hover:text-slate-300 transition-colors uppercase tracking-widest">Persistir Sessão</span>
                                     </label>
-                                    <button type="button" className="text-[10px] font-black text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-[0.15em]">Recuperar Senha</button>
+                                    <button type="button" className="text-[10px] font-black text-indigo-400/60 hover:text-indigo-400 uppercase tracking-widest transition-colors">Esqueci a chave</button>
                                 </div>
                             )}
 
                             {error && (
                                 <motion.div 
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="p-5 bg-rose-500/10 border border-rose-500/20 rounded-2xl"
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    className="p-5 bg-rose-500/10 border-l-4 border-rose-500 rounded-xl flex items-center gap-4"
                                 >
-                                     <p className="text-[10px] text-rose-500 text-center font-black uppercase tracking-wider leading-relaxed">{error}</p>
+                                     <div className="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0">
+                                        <Activity className="w-5 h-5 text-rose-500" />
+                                     </div>
+                                     <p className="text-xs text-rose-200 font-bold uppercase tracking-wider leading-tight">{error}</p>
                                 </motion.div>
                             )}
                             
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full h-18 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:via-purple-500 hover:to-pink-500 text-white font-black rounded-2xl uppercase text-[11px] tracking-[0.3em] shadow-[0_15px_40px_rgba(79,70,229,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] mt-4 relative overflow-hidden group"
+                                className="w-full h-20 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black rounded-2xl uppercase text-sm tracking-[0.3em] shadow-[0_20px_40px_rgba(79,70,229,0.4)] hover:shadow-[0_20px_50px_rgba(79,70,229,0.6)] transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] flex items-center justify-center gap-4 group relative overflow-hidden"
                             >
-                                <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out" />
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
                                 {isLoading ? (
-                                    <div className="flex items-center justify-center gap-3">
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        <span>Processando</span>
-                                    </div>
+                                    <Cpu className="w-6 h-6 animate-spin" />
                                 ) : (
-                                    <span className="relative z-10">{isRegistering ? 'Criar Conta Agora' : 'Acessar Terminal'}</span>
+                                    <>
+                                        <span className="relative z-10">{isRegistering ? 'Criar Terminal' : 'Inicializar Sistema'}</span>
+                                        <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform relative z-10" />
+                                    </>
                                 )}
                             </button>
                         </form>
 
-                        <div className="mt-12 text-center">
+                        <div className="mt-10 pt-10 border-t border-white/10 text-center">
                             <button
                                 type="button"
                                 onClick={toggleView}
                                 disabled={isLoading}
-                                className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] transition-all group"
+                                className="text-[11px] font-black text-slate-500 uppercase tracking-[0.3em] hover:text-indigo-400 transition-all flex items-center justify-center gap-3 mx-auto group"
                             >
                                 {isRegistering ? (
-                                    <>Já possui conta? <span className="text-indigo-400 group-hover:text-indigo-300 underline underline-offset-4">Faça Login</span></>
+                                    <>Já possui acesso? <span className="text-indigo-500 group-hover:underline">Login</span></>
                                 ) : (
-                                    <>Não tem conta? <span className="text-indigo-400 group-hover:text-indigo-300 underline underline-offset-4">Registre-se grátis</span></>
-                                )}
+                                    <>Novo operador? <span className="text-indigo-500 group-hover:underline">Cadastrar</span></>
+                                ) }
+                                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </button>
                         </div>
                     </div>
-
-                    {/* Footer Info */}
-                    <div className="mt-12 flex justify-center gap-8 opacity-30">
-                        <div className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            <span className="text-[9px] font-black text-white uppercase tracking-widest font-mono">Server Online</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                            <span className="text-[9px] font-black text-white uppercase tracking-widest font-mono">v2.4.0-Stable</span>
-                        </div>
+                </motion.div>
+                
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.8 }}
+                    className="mt-12 flex items-center justify-center gap-12 opacity-30 grayscale hover:grayscale-0 hover:opacity-100 transition-all"
+                >
+                    <div className="flex items-center gap-3">
+                        <Globe className="w-4 h-4 text-indigo-400" />
+                        <span className="text-[9px] font-black text-white uppercase tracking-[0.3em]">Global Network</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <ShieldCheck className="w-4 h-4 text-green-500" />
+                        <span className="text-[9px] font-black text-white uppercase tracking-[0.3em]">SSL Encrypted</span>
                     </div>
                 </motion.div>
             </div>

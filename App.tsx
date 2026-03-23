@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Trade, User, Goal, AIAnalysisResult } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
@@ -15,52 +14,11 @@ import {
     ChevronLeftIcon, ChevronRightIcon, PhotoIcon,
     SparklesIcon, CheckCircleIcon, XMarkIcon, ArrowUpIcon, ArrowDownIcon,
     ExclamationTriangleIcon, BoltIcon, ClockIcon, PlayIcon, CameraIcon,
-    ChevronDownIcon, UsersIcon, PauseIcon, KeyIcon,
-    GlobeIcon, CommandLineIcon, RocketLaunchIcon
+    ChevronDownIcon, UsersIcon, PauseIcon, KeyIcon
 } from './components/icons';
 
 // --- Helper Functions ---
 const formatMoney = (val: number) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
-    constructor(props: any) {
-        super(props);
-        this.state = { hasError: false, error: null };
-    }
-    static getDerivedStateFromError(error: any) {
-        return { hasError: true, error };
-    }
-    componentDidCatch(error: any, errorInfo: any) {
-        console.error("ErrorBoundary caught an error", error, errorInfo);
-    }
-    render() {
-        if (this.state.hasError) {
-            return (
-                <div className="h-screen flex flex-col items-center justify-center bg-[#0f172a] text-white p-8 text-center">
-                    <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mb-6">
-                        <ExclamationTriangleIcon className="w-10 h-10 text-red-500" />
-                    </div>
-                    <h1 className="text-3xl font-black italic mb-4">OPS! ALGO DEU ERRADO</h1>
-                    <p className="text-slate-400 max-w-md mb-8">
-                        Ocorreu um erro inesperado no sistema. Nossa equipe de IA já foi notificada.
-                    </p>
-                    <div className="bg-black/40 p-4 rounded-xl border border-white/5 mb-8 w-full max-w-lg text-left overflow-auto max-h-40">
-                        <code className="text-[10px] text-rose-400 font-mono">
-                            {this.state.error?.toString()}
-                        </code>
-                    </div>
-                    <button 
-                        onClick={() => window.location.reload()}
-                        className="px-8 py-3 bg-indigo-500 hover:bg-indigo-600 rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20"
-                    >
-                        Recarregar Sistema
-                    </button>
-                </div>
-            );
-        }
-        return this.props.children;
-    }
-}
 
 const compressImage = (dataUrl: string, maxWidth = 1200): Promise<string> => {
     return new Promise((resolve) => {
@@ -312,73 +270,40 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
 
     if (isAnalyzing) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[500px] lg:min-h-[600px] p-8 space-y-12 bg-[#020617] text-white relative overflow-hidden">
-                {/* Background Glows */}
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/10 blur-[120px] rounded-full animate-pulse-glow" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/10 blur-[120px] rounded-full animate-pulse-glow" style={{ animationDelay: '2s' }} />
-
-                <div className="relative group">
-                    <div className="w-24 h-24 lg:w-32 lg:h-32 rounded-[2rem] border border-indigo-500/30 flex items-center justify-center relative z-10 bg-white/[0.03] backdrop-blur-2xl shadow-2xl">
-                        <CpuChipIcon className="w-12 h-12 lg:w-16 lg:h-16 text-indigo-400 animate-pulse" />
+            <div className="flex flex-col items-center justify-center min-h-[500px] lg:min-h-[600px] p-4 lg:p-6 space-y-8 lg:space-y-12 bg-[#0f172a] text-white">
+                <div className="relative">
+                    <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-2xl border-2 border-[#6366f1]/30 flex items-center justify-center relative z-10 bg-[#1e293b]">
+                        <CpuChipIcon className="w-10 h-10 lg:w-12 lg:h-12 text-[#6366f1] animate-pulse" />
                         {/* Neural Scan Line */}
-                        <div className="absolute inset-0 overflow-hidden rounded-[2rem]">
-                            <motion.div 
-                                initial={{ top: '-10%' }}
-                                animate={{ top: '110%' }}
-                                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                                className="w-full h-1 bg-gradient-to-r from-transparent via-indigo-400 to-transparent absolute shadow-[0_0_15px_rgba(129,140,248,0.5)]" 
-                            />
+                        <div className="absolute inset-0 overflow-hidden rounded-2xl">
+                            <div className="w-full h-0.5 bg-[#6366f1]/40 absolute top-0 animate-scan" />
                         </div>
                     </div>
-                    <div className="absolute -inset-4 border border-indigo-500/20 rounded-[2.5rem] animate-ping opacity-20" />
-                    <div className="absolute -inset-8 border border-indigo-500/10 rounded-[3rem] animate-pulse opacity-10" />
+                    <div className="absolute inset-0 border-2 border-[#6366f1] rounded-2xl animate-ping opacity-20" />
                 </div>
 
-                <div className="text-center space-y-3 relative z-10">
-                    <h2 className="text-3xl lg:text-4xl font-black tracking-tighter text-white uppercase font-display transform -skew-x-6">
-                        ANALISANDO <span className="text-indigo-400">PADRÕES</span>
-                    </h2>
-                    <div className="flex items-center justify-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" />
-                        <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                        <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
-                        <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-[10px] ml-2">Sincronizando com a Rede Neural</p>
-                    </div>
+                <div className="text-center space-y-1">
+                    <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-[#6366f1] uppercase">Processando...</h2>
+                    <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[8px] lg:text-[10px]">Análise de Mercado em Tempo Real</p>
                 </div>
 
-                <div className="w-full max-w-sm space-y-6 relative z-10">
+                <div className="w-full max-w-xs space-y-4">
                     {[
-                        { label: 'UPLOAD_IMAGE', val: progress.upload, color: 'from-indigo-500 to-blue-500' },
-                        { label: 'EXTRACT_DATA', val: progress.data, color: 'from-blue-500 to-purple-500' },
-                        { label: 'PATTERN_MATCH', val: progress.patterns, color: 'from-purple-500 to-pink-500' },
-                        { label: 'FINAL_COMPUTE', val: progress.result, color: 'from-pink-500 to-rose-500' }
+                        { label: 'UPLOAD_IMAGE', val: progress.upload, color: 'bg-[#6366f1]' },
+                        { label: 'EXTRACT_DATA', val: progress.data, color: 'bg-[#6366f1]/80' },
+                        { label: 'PATTERN_MATCH', val: progress.patterns, color: 'bg-[#6366f1]/60' },
+                        { label: 'FINAL_COMPUTE', val: progress.result, color: 'bg-[#6366f1]/40' }
                     ].map((p, i) => (
-                        <div key={i} className="space-y-2">
-                            <div className="flex justify-between text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
-                                <span className="flex items-center gap-2">
-                                    <div className={`w-1 h-1 rounded-full ${p.val === 100 ? 'bg-emerald-400 shadow-[0_0_5px_#34d399]' : 'bg-slate-600'}`} />
-                                    {p.label}
-                                </span>
-                                <span className={p.val === 100 ? 'text-emerald-400' : ''}>{p.val}%</span>
+                        <div key={i} className="space-y-1.5">
+                            <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-400">
+                                <span>{p.label}</span>
+                                <span>{p.val}%</span>
                             </div>
-                            <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                                <motion.div 
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${p.val}%` }}
-                                    className={`h-full bg-gradient-to-r ${p.color} transition-all duration-500 shadow-[0_0_10px_rgba(129,140,248,0.3)]`} 
-                                />
+                            <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                                <div className={`h-full ${p.color} transition-all duration-500`} style={{ width: `${p.val}%` }} />
                             </div>
                         </div>
                     ))}
-                </div>
-
-                {/* Simulated Terminal Output */}
-                <div className="absolute bottom-8 left-8 right-8 h-24 overflow-hidden opacity-20 pointer-events-none">
-                    <div className="font-mono text-[8px] text-indigo-400 space-y-1">
-                        {Array.from({ length: 10 }).map((_, i) => (
-                            <div key={i}>{`> [${new Date().toISOString()}] PROC_ID_${Math.random().toString(16).slice(2, 6)}: ANALYZING_CANDLE_STRUCTURE...`}</div>
-                        ))}
-                    </div>
                 </div>
             </div>
         );
@@ -386,140 +311,90 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
 
     if (analysisResult) {
         return (
-            <div className="max-w-md mx-auto p-6 space-y-8 bg-[#020617] min-h-screen text-white relative overflow-hidden">
-                {/* Background Glows */}
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/5 blur-[120px] rounded-full" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/5 blur-[120px] rounded-full" />
-
-                <div className="flex items-center justify-between relative z-10">
+            <div className="max-w-md mx-auto p-4 space-y-6 bg-[#0f172a] min-h-screen text-white">
+                <div className="flex items-center justify-between border-b border-white/10 pb-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse shadow-[0_0_12px_rgba(99,102,241,0.8)]" />
-                        <h2 className="text-[11px] font-black uppercase tracking-[0.3em] text-indigo-400 font-display">Relatório de Inteligência</h2>
+                        <div className="w-2 h-2 bg-[#6366f1] rounded-full animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
+                        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[#6366f1]">Análise Concluída</h2>
                     </div>
-                    <button 
-                        onClick={() => setAnalysisResult(null)} 
-                        className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all"
-                    >
+                    <button onClick={() => setAnalysisResult(null)} className="p-2 bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
                         <XMarkIcon className="w-4 h-4" />
                     </button>
                 </div>
 
-                {/* Main Signal Card - Futuristic Design */}
-                <motion.div 
-                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    className="relative group z-10"
-                >
-                    <div className="absolute -inset-0.5 bg-gradient-to-br from-indigo-500/20 via-purple-500/20 to-pink-500/20 rounded-[2.5rem] blur opacity-50 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-                    <div className="relative bg-[#0f172a]/80 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl">
-                        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-4 flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                                <GlobeIcon className="w-4 h-4 text-white/80" />
-                                <span className="text-[11px] font-black uppercase text-white tracking-[0.2em] font-display">{analysisResult.asset}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <div className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[9px] font-black uppercase text-white tracking-widest">
-                                    {analysisResult.timeframe}
-                                </div>
-                                <div className="w-1.5 h-1.5 bg-white/40 rounded-full animate-pulse" />
-                            </div>
+                {/* Main Signal Card */}
+                <div className="bg-[#1e293b] border border-[#6366f1]/20 rounded-3xl overflow-hidden shadow-2xl">
+                    <div className="bg-[#6366f1] px-6 py-3 flex justify-between items-center">
+                        <span className="text-[10px] font-black uppercase text-white tracking-widest">{analysisResult.asset}</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase text-[#0f172a]/80">{analysisResult.timeframe}</span>
+                            <div className="w-1 h-1 bg-[#0f172a] rounded-full" />
                         </div>
-                        
-                        <div className="p-10 text-center space-y-10">
-                            <div className="space-y-3">
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Sinal de Entrada</p>
-                                <h3 className={`text-7xl font-black tracking-tighter font-display transform -skew-x-6 ${
-                                    analysisResult.recommendation === 'CALL' ? 'text-emerald-400 drop-shadow-[0_0_25px_rgba(52,211,153,0.3)]' : 
-                                    analysisResult.recommendation === 'PUT' ? 'text-rose-500 drop-shadow-[0_0_25px_rgba(251,113,133,0.3)]' : 'text-slate-400'
-                                }`}>
-                                    {analysisResult.recommendation === 'CALL' ? 'COMPRA' : analysisResult.recommendation === 'PUT' ? 'VENDA' : 'AGUARDAR'}
-                                </h3>
-                            </div>
+                    </div>
+                    
+                    <div className="p-8 text-center space-y-8">
+                        <div className="space-y-2">
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Recomendação</p>
+                            <h3 className={`text-6xl font-black tracking-tighter ${
+                                analysisResult.recommendation === 'CALL' ? 'text-[#6366f1]' : 
+                                analysisResult.recommendation === 'PUT' ? 'text-rose-500' : 'text-slate-400'
+                            }`}>
+                                {analysisResult.recommendation === 'CALL' ? 'COMPRA' : analysisResult.recommendation === 'PUT' ? 'VENDA' : 'AGUARDAR'}
+                            </h3>
+                        </div>
 
-                            <div className="py-8 border-y border-white/5 relative">
-                                <div className="absolute -left-10 -right-10 top-1/2 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-3">Execução Estimada</p>
-                                <p className="text-5xl font-black text-white tracking-[0.1em] font-mono">{analysisResult.entryTime}</p>
-                                
-                                {countdown !== null && (
-                                    <div className="mt-6 flex flex-col items-center gap-3">
-                                        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">
-                                            <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-ping" />
-                                            <p className="text-[11px] font-black text-indigo-400 tracking-widest uppercase">Ação em: {countdown}s</p>
-                                        </div>
-                                        <div className="w-48 h-1 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                                            <motion.div 
-                                                initial={{ width: '100%' }}
-                                                animate={{ width: `${(countdown / 60) * 100}%` }}
-                                                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 shadow-[0_0_10px_rgba(129,140,248,0.5)]" 
-                                            />
-                                        </div>
+                        <div className="py-6 border-y border-white/5">
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Horário de Entrada</p>
+                            <p className="text-4xl font-black text-white tracking-widest">{analysisResult.entryTime}</p>
+                            {countdown !== null && (
+                                <div className="mt-4 flex flex-col items-center gap-1">
+                                    <p className="text-[10px] font-black text-[#6366f1] animate-pulse">ENTRE EM: {countdown}S</p>
+                                    <div className="w-32 h-1 bg-slate-800 rounded-full overflow-hidden">
+                                        <div className="h-full bg-[#6366f1] transition-all duration-1000" style={{ width: `${(countdown / 60) * 100}%` }} />
                                     </div>
-                                )}
-                            </div>
+                                </div>
+                            )}
+                        </div>
 
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="bg-white/[0.02] p-5 rounded-3xl border border-white/5 group-hover:bg-white/[0.05] transition-all">
-                                    <div className="flex items-center gap-2 mb-2 justify-center">
-                                        <TargetIcon className="w-3.5 h-3.5 text-indigo-400" />
-                                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Confiança</p>
-                                    </div>
-                                    <p className="text-2xl font-black text-indigo-400 font-display">{analysisResult.confidence}%</p>
-                                </div>
-                                <div className="bg-white/[0.02] p-5 rounded-3xl border border-white/5 group-hover:bg-white/[0.05] transition-all">
-                                    <div className="flex items-center gap-2 mb-2 justify-center">
-                                        <TrendingUpIcon className="w-3.5 h-3.5 text-white/60" />
-                                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Tendência</p>
-                                    </div>
-                                    <p className="text-2xl font-black text-white font-display uppercase tracking-tighter">{analysisResult.trend}</p>
-                                </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-[#1e293b] p-3 rounded-2xl border border-white/5">
+                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Confiança</p>
+                                <p className="text-xl font-black text-[#6366f1]">{analysisResult.confidence}%</p>
+                            </div>
+                            <div className="bg-[#1e293b] p-3 rounded-2xl border border-white/5">
+                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Tendência</p>
+                                <p className="text-xl font-black text-white">{analysisResult.trend}</p>
                             </div>
                         </div>
                     </div>
-                </motion.div>
-
-                {/* Technical Logs */}
-                <div className="space-y-4 relative z-10">
-                    <button 
-                        onClick={() => setShowDetailed(!showDetailed)}
-                        className="w-full p-5 bg-white/[0.03] border border-white/5 rounded-3xl flex items-center justify-between hover:bg-white/[0.08] transition-all group"
-                    >
-                        <div className="flex items-center gap-3">
-                            <CommandLineIcon className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition-colors" />
-                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 group-hover:text-slate-300">Análise Estrutural</span>
-                        </div>
-                        <ChevronDownIcon className={`w-4 h-4 text-slate-500 transition-transform duration-500 ${showDetailed ? 'rotate-180' : ''}`} />
-                    </button>
-                    <AnimatePresence>
-                        {showDetailed && (
-                            <motion.div 
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="overflow-hidden"
-                            >
-                                <div className="p-6 bg-indigo-500/[0.02] rounded-3xl text-[12px] text-slate-400 leading-relaxed font-medium border border-indigo-500/10 backdrop-blur-xl">
-                                    <div className="flex gap-3 mb-4 items-center">
-                                        <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
-                                        <span className="text-indigo-400 font-black uppercase tracking-widest text-[10px]">Neural_Output_v2.4</span>
-                                    </div>
-                                    <div className="font-mono opacity-80">
-                                        {analysisResult.reasoning}
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
                 </div>
 
-                <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                {/* Technical Logs */}
+                <div className="space-y-3">
+                    <button 
+                        onClick={() => setShowDetailed(!showDetailed)}
+                        className="w-full p-4 bg-[#1e293b] border border-white/5 rounded-2xl flex items-center justify-between hover:bg-slate-900/50 transition-all"
+                    >
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Logs Técnicos</span>
+                        <ChevronDownIcon className={`w-4 h-4 text-slate-500 transition-transform ${showDetailed ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showDetailed && (
+                        <div className="p-5 bg-slate-900/30 rounded-2xl text-[11px] text-slate-400 leading-relaxed font-medium border border-white/5">
+                            <div className="flex gap-2 mb-2">
+                                <span className="text-[#6366f1] font-bold">[INFO]</span>
+                                <span>Processando padrões de mercado...</span>
+                            </div>
+                            {analysisResult.reasoning}
+                        </div>
+                    )}
+                </div>
+
+                <button 
                     onClick={() => { setAnalysisResult(null); setSelectedImage(null); }}
-                    className="w-full py-6 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:brightness-110 text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] transition-all shadow-[0_0_30px_rgba(99,102,241,0.3)] relative z-10 font-display"
+                    className="w-full py-5 bg-gradient-to-br from-green-600 to-emerald-700 hover:brightness-110 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-[0.98]"
                 >
-                    Nova Análise de Mercado
-                </motion.button>
+                    Nova Análise
+                </button>
             </div>
         );
     }
@@ -607,7 +482,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     useEffect(() => { latestDataRef.current = { userId: user.id, brokerages, records, goals }; }, [user.id, brokerages, records, goals]);
     
     const activeBrokerage = useMemo(() => {
-        if (!brokerages || brokerages.length === 0) return null;
         return brokerages.find(b => b.id === activeBrokerageId) || brokerages[0];
     }, [brokerages, activeBrokerageId]);
 
@@ -847,17 +721,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const theme = useThemeClasses(isDarkMode);
     if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-[#6366f1] border-t-transparent rounded-full animate-spin" /></div>;
 
-    if (!activeBrokerage) {
-        return (
-            <div className={`h-screen flex flex-col items-center justify-center ${theme.bg} ${theme.text} p-4 text-center`}>
-                <ExclamationTriangleIcon className="w-12 h-12 text-amber-500 mb-4" />
-                <h2 className="text-xl font-bold mb-2">Nenhuma corretora encontrada</h2>
-                <p className="text-sm opacity-60 mb-6">Não foi possível carregar os dados do seu perfil.</p>
-                <button onClick={() => fetchData()} className="px-6 py-2 bg-indigo-500 rounded-xl font-bold">Tentar Novamente</button>
-            </div>
-        );
-    }
-
     const dateStr = getLocalDateString(selectedDate);
     const brokerageRecords = records.filter(r => r.brokerageId === activeBrokerage?.id);
     
@@ -932,174 +795,107 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
 
     return (
-        <ErrorBoundary>
-            <div className={`flex h-screen overflow-hidden overflow-x-hidden ${theme.bg} ${theme.text}`}>
+        <div className={`flex h-screen overflow-hidden overflow-x-hidden ${theme.bg} ${theme.text}`}>
             {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
-            <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 border-r border-white/5 shadow-[20px_0_50px_rgba(0,0,0,0.3)]`}>
-                <div className={`h-24 flex-none flex items-center justify-center border-b border-white/5 ${theme.header} relative overflow-hidden group`}>
-                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-purple-500/10 opacity-50" />
+            <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
+                <div className={`h-20 flex-none flex items-center justify-center border-b ${theme.border} ${theme.header} relative overflow-hidden`}>
                     <div className="flex flex-col items-center relative z-10">
-                        <motion.div 
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="flex items-center gap-2"
-                        >
-                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.5)]">
-                                <RocketLaunchIcon className="w-5 h-5 text-white" />
-                            </div>
-                            <span className="font-black italic text-white text-3xl tracking-tighter leading-none font-display">HRK</span>
-                        </motion.div>
-                        <span className="text-[7px] font-black uppercase tracking-[0.4em] text-indigo-400/60 mt-2 font-mono">Neural Trading System</span>
+                        <span className="font-black italic text-[#6366f1] text-3xl tracking-tighter leading-none">HRK</span>
+                        <span className="text-[6px] font-black uppercase tracking-[0.3em] text-[#6366f1]/40 mt-1">Binary Options Control</span>
                     </div>
-                    
-                    {/* Scanning line effect */}
-                    <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
-                        <div className="w-full h-[1px] bg-indigo-500 shadow-[0_0_10px_#6366f1] absolute top-0 animate-[scan_3s_linear_infinite]" />
+                    {/* Subtle background decorations */}
+                    <div className="absolute right-4 bottom-2 flex items-end gap-[2px] opacity-10">
+                        <div className="w-[2px] h-3 bg-indigo-500" />
+                        <div className="w-[2px] h-5 bg-red-500" />
+                        <div className="w-[2px] h-4 bg-indigo-500" />
+                    </div>
+                    <div className="absolute left-4 top-2 flex items-start gap-[2px] opacity-10">
+                        <div className="w-[2px] h-4 bg-red-500" />
+                        <div className="w-[2px] h-2 bg-indigo-500" />
+                        <div className="w-[2px] h-3 bg-red-500" />
                     </div>
                 </div>
-                
-                <nav className="flex-1 p-6 space-y-2 overflow-y-auto no-scrollbar">
-                    <div className="px-2 mb-6">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Main Terminal</span>
-                            <div className="flex gap-1">
-                                <div className="w-1 h-1 rounded-full bg-indigo-500 animate-pulse" />
-                                <div className="w-1 h-1 rounded-full bg-indigo-500/40" />
-                            </div>
+                <nav className="flex-1 p-4 space-y-1">
+                    <div className="px-4 py-2 mb-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-[0.2em] text-[#6366f1]/40">
+                            <div className="w-1 h-1 rounded-full bg-[#6366f1]" />
+                            Trading Mode: M1 / OTC
                         </div>
-                        <div className="h-[1px] w-full bg-gradient-to-r from-indigo-500/50 via-indigo-500/10 to-transparent" />
+                        <div className="px-1 py-0.5 rounded bg-[#6366f1]/10 text-[6px] font-black text-[#6366f1]/50 uppercase">Binary</div>
                     </div>
-
-                    <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all group relative overflow-hidden ${activeTab === 'dashboard' ? 'bg-indigo-500/10 text-white border border-indigo-500/20 shadow-[0_0_20px_rgba(99,102,241,0.1)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'}`}>
-                        {activeTab === 'dashboard' && <motion.div layoutId="nav-glow" className="absolute inset-0 bg-indigo-500/5 blur-md" />}
-                        <LayoutGridIcon className={`w-5 h-5 transition-colors ${activeTab === 'dashboard' ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                        Dashboard
-                    </button>
-
-                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all group relative overflow-hidden ${activeTab === 'ai-analysis' ? 'bg-indigo-500/10 text-white border border-indigo-500/20 shadow-[0_0_20px_rgba(99,102,241,0.1)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'}`}>
-                        {activeTab === 'ai-analysis' && <motion.div layoutId="nav-glow" className="absolute inset-0 bg-indigo-500/5 blur-md" />}
-                        <CpuChipIcon className={`w-5 h-5 transition-colors ${activeTab === 'ai-analysis' ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                        Análise IA
-                    </button>
-
-                    <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all group relative overflow-hidden ${activeTab === 'compound' ? 'bg-indigo-500/10 text-white border border-indigo-500/20 shadow-[0_0_20px_rgba(99,102,241,0.1)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'}`}>
-                        {activeTab === 'compound' && <motion.div layoutId="nav-glow" className="absolute inset-0 bg-indigo-500/5 blur-md" />}
-                        <ChartBarIcon className={`w-5 h-5 transition-colors ${activeTab === 'compound' ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                        Juros Compostos
-                    </button>
-
-                    <button onClick={() => {setActiveTab('history'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all group relative overflow-hidden ${activeTab === 'history' ? 'bg-indigo-500/10 text-white border border-indigo-500/20 shadow-[0_0_20px_rgba(99,102,241,0.1)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'}`}>
-                        {activeTab === 'history' && <motion.div layoutId="nav-glow" className="absolute inset-0 bg-indigo-500/5 blur-md" />}
-                        <ListBulletIcon className={`w-5 h-5 transition-colors ${activeTab === 'history' ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                        Histórico
-                    </button>
-
-                    <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all group relative overflow-hidden ${activeTab === 'soros' ? 'bg-indigo-500/10 text-white border border-indigo-500/20 shadow-[0_0_20px_rgba(99,102,241,0.1)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'}`}>
-                        {activeTab === 'soros' && <motion.div layoutId="nav-glow" className="absolute inset-0 bg-indigo-500/5 blur-md" />}
-                        <CalculatorIcon className={`w-5 h-5 transition-colors ${activeTab === 'soros' ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                        Calc Soros
-                    </button>
-
-                    <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all group relative overflow-hidden ${activeTab === 'goals' ? 'bg-indigo-500/10 text-white border border-indigo-500/20 shadow-[0_0_20px_rgba(99,102,241,0.1)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'}`}>
-                        {activeTab === 'goals' && <motion.div layoutId="nav-glow" className="absolute inset-0 bg-indigo-500/5 blur-md" />}
-                        <TargetIcon className={`w-5 h-5 transition-colors ${activeTab === 'goals' ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                        Metas
-                    </button>
-
-                    <button onClick={() => {setActiveTab('management-sheet'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all group relative overflow-hidden ${activeTab === 'management-sheet' ? 'bg-indigo-500/10 text-white border border-indigo-500/20 shadow-[0_0_20px_rgba(99,102,241,0.1)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'}`}>
-                        {activeTab === 'management-sheet' && <motion.div layoutId="nav-glow" className="absolute inset-0 bg-indigo-500/5 blur-md" />}
-                        <DocumentTextIcon className={`w-5 h-5 transition-colors ${activeTab === 'management-sheet' ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                        Planilha Gestão
-                    </button>
-
+                    <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
+                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'ai-analysis' ? 'bg-[#6366f1]/10 text-[#6366f1]' : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
+                    <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Juros Compostos</button>
+                    <button onClick={() => {setActiveTab('history'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'history' ? theme.navActive : theme.navInactive}`}><ListBulletIcon className="w-5 h-5" />Histórico</button>
+                    <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
+                    <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
+                    <button onClick={() => {setActiveTab('management-sheet'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'management-sheet' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Planilha Gestão</button>
                     {user.isAdmin && (
-                        <button onClick={() => {setActiveTab('admin'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all group relative overflow-hidden ${activeTab === 'admin' ? 'bg-amber-500/10 text-white border border-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.1)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'}`}>
-                            {activeTab === 'admin' && <motion.div layoutId="nav-glow" className="absolute inset-0 bg-amber-500/5 blur-md" />}
-                            <UsersIcon className={`w-5 h-5 transition-colors ${activeTab === 'admin' ? 'text-amber-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                            Admin Panel
-                        </button>
+                        <button onClick={() => {setActiveTab('admin'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'admin' ? theme.navActive : theme.navInactive}`}><UsersIcon className="w-5 h-5" />Admin Panel</button>
                     )}
                 </nav>
-
-                <div className="p-6 border-t border-white/5 bg-black/20">
-                    <div className="flex items-center justify-between px-2 mb-6">
-                        <div className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                            <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500/60">Call Signal</span>
+                <div className="p-4 border-t border-slate-800/50">
+                    <div className="flex items-center justify-between px-4 mb-4 opacity-20">
+                        <div className="flex items-center gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                            <span className="text-[7px] font-black uppercase tracking-widest">Call</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-[8px] font-black uppercase tracking-widest text-rose-500/60">Put Signal</span>
-                            <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
+                        <div className="flex items-center gap-1">
+                            <span className="text-[7px] font-black uppercase tracking-widest">Put</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
                         </div>
                     </div>
-                    <button onClick={onLogout} className="w-full flex items-center gap-4 px-5 py-3.5 text-rose-500 font-black text-[11px] uppercase tracking-widest hover:bg-rose-500/10 rounded-2xl transition-all group">
-                        <LogoutIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                        Encerrar Sessão
-                    </button>
+                    <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 font-bold hover:bg-red-500/10 rounded-2xl"><LogoutIcon className="w-5 h-5" />Sair</button>
                 </div>
             </aside>
             <main className="flex-1 flex flex-col overflow-hidden">
-                <header className={`h-20 md:h-24 flex-none flex items-center justify-between px-6 md:px-10 border-b border-white/5 ${theme.header} backdrop-blur-xl relative z-30`}>
-                    <div className="flex items-center gap-4 md:gap-8">
-                        <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-400 hover:text-white transition-colors">
-                            <MenuIcon className="w-6 h-6" />
-                        </button>
-                        
-                        <div className="hidden lg:flex items-center gap-4">
-                            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
-                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Market Live</span>
-                            </div>
-                            <SavingStatusIndicator status={savingStatus} />
+                <header className={`h-16 md:h-20 flex-none flex items-center justify-between px-4 md:px-8 border-b ${theme.border} ${theme.header}`}>
+                    <div className="flex items-center gap-2 md:gap-4">
+                        <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-5 h-5" /></button>
+                        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e293b]/30 border border-white/5 text-[8px] font-black uppercase tracking-widest text-[#6366f1]/60">
+                            <div className="w-1 h-1 rounded-full bg-[#6366f1] animate-pulse" />
+                            Market: Active
                         </div>
-
-                        <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/5">
-                            <GlobeIcon className="w-4 h-4 text-indigo-400" />
+                        <SavingStatusIndicator status={savingStatus} />
+                        <div className="flex items-center gap-1 md:gap-2 ml-1 md:ml-4 max-w-[80px] md:max-w-none">
                             <select 
                                 value={activeBrokerageId || ''} 
                                 onChange={(e) => setActiveBrokerageId(e.target.value)}
-                                className={`text-[10px] font-black uppercase tracking-[0.2em] bg-transparent border-none focus:ring-0 cursor-pointer outline-none ${theme.text}`}
+                                className={`text-[8px] md:text-xs font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 cursor-pointer truncate ${theme.text}`}
                             >
                                 {brokerages.map(b => (
-                                    <option key={b.id} value={b.id} className="bg-slate-900 text-white">{b.name}</option>
+                                    <option key={b.id} value={b.id} className={isDarkMode ? 'bg-slate-900' : 'bg-white'}>{b.name}</option>
                                 ))}
                             </select>
                         </div>
                     </div>
-
-                    <div className="flex items-center gap-6">
-                        <div className="hidden sm:flex items-center gap-4">
+                    <div className="flex items-center gap-1 md:gap-3 overflow-hidden justify-end">
+                        <div className="flex items-center gap-1 md:gap-4 overflow-x-auto no-scrollbar py-1 max-w-[120px] sm:max-w-none">
                             {brokerageBalances.map((b, i) => (
-                                <motion.div 
-                                    key={i} 
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: i * 0.1 }}
-                                    className={`flex flex-col items-end px-5 py-2 rounded-2xl border bg-black/40 border-white/5 shadow-xl`}
-                                >
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">{b.name}</span>
-                                    <span className={`text-sm font-black font-mono tracking-tighter ${b.balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                <div key={i} className={`flex flex-col items-end px-1.5 md:px-3 py-0.5 md:py-1 rounded-md md:rounded-xl border shrink-0 ${isDarkMode ? 'bg-slate-900/40 border-slate-800/50' : 'bg-zinc-200/50 border-zinc-300/50'}`}>
+                                    <span className="text-[5px] md:text-[8px] font-black uppercase opacity-40 leading-none">{b.name}</span>
+                                    <span className={`text-[7px] md:text-xs font-bold leading-tight ${b.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                         {b.currency === 'USD' ? '$' : 'R$'} {formatMoney(b.balance)}
                                     </span>
-                                </motion.div>
+                                </div>
                             ))}
                         </div>
-
-                        <div className="h-10 w-[1px] bg-white/5 hidden sm:block" />
-
+                    <div className="flex items-center gap-1 md:gap-3 shrink-0">
                         <button 
                             onClick={() => setActiveTab('settings')}
-                            className="relative group p-1 rounded-2xl border border-white/10 hover:border-indigo-500/50 transition-all bg-white/5"
+                            className={`relative group transition-all hover:scale-105 active:scale-95 ${activeTab === 'settings' ? 'ring-2 ring-[#6366f1] ring-offset-2 ring-offset-[#0f172a]' : ''}`}
+                            title="Configurações"
                         >
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-xs shadow-lg group-hover:shadow-indigo-500/20 transition-all">
+                            <div className="w-6 h-6 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-[#6366f1] flex items-center justify-center text-white font-black text-[8px] md:text-xs shadow-lg shadow-[#6366f1]/20">
                                 {user.username.slice(0, 2).toUpperCase()}
                             </div>
                             {user.isAdmin && (
-                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full border-2 border-[#0f172a] flex items-center justify-center shadow-lg">
-                                    <SparklesIcon className="w-2 h-2 text-white" />
+                                <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-amber-500 rounded-full border-2 border-[#0f172a] flex items-center justify-center" title="Administrador">
+                                    <SparklesIcon className="w-1.5 h-1.5 md:w-2 md:h-2 text-white" />
                                 </div>
                             )}
                         </button>
+                    </div>
                     </div>
                 </header>
                 <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
@@ -1156,7 +952,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 </div>
             </main>
         </div>
-        </ErrorBoundary>
     );
 };
 
@@ -1440,15 +1235,13 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     const [transAmount, setTransAmount] = useState('');
     const [transType, setTransType] = useState<'deposit' | 'withdrawal'>('deposit');
     const [isNextTradeSoros, setIsNextTradeSoros] = useState(false);
-    const [entryMode, setEntryMode] = useState<'fixed' | 'percentage'>(activeBrokerage?.entryMode || 'percentage');
+    const [entryMode, setEntryMode] = useState<'fixed' | 'percentage'>(activeBrokerage.entryMode);
 
     useEffect(() => {
-        if (activeBrokerage) {
-            setEntryMode(activeBrokerage.entryMode);
-        }
-    }, [activeBrokerage?.entryMode]);
+        setEntryMode(activeBrokerage.entryMode);
+    }, [activeBrokerage.entryMode]);
 
-    const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
+    const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     
     const currentProfit = dailyRecordForSelectedDay?.netProfitUSD ?? 0;
     const currentBalance = currentBalanceForDashboard;
@@ -1460,7 +1253,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     const handlePayoutChange = (val: string) => {
         setCustomPayout(val);
         const num = parseFloat(val);
-        if (!isNaN(num) && activeBrokerage) {
+        if (!isNaN(num)) {
             updateBrokerageSetting(activeBrokerage.id, 'payoutPercentage', num);
         }
     };
@@ -1502,8 +1295,8 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     const estimatedProfit = entryValueNum * (payoutNum / 100) * qtyNum;
     const estimatedLoss = entryValueNum * qtyNum;
 
-    const stopWinReached = activeBrokerage?.stopGainTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.winCount >= activeBrokerage.stopGainTrades;
-    const stopLossReached = activeBrokerage?.stopLossTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.lossCount >= activeBrokerage.stopLossTrades;
+    const stopWinReached = activeBrokerage.stopGainTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.winCount >= activeBrokerage.stopGainTrades;
+    const stopLossReached = activeBrokerage.stopLossTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.lossCount >= activeBrokerage.stopLossTrades;
 
     const kpis = [
         { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-green-500' },
@@ -1513,89 +1306,32 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     ];
 
     return (
-        <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto relative">
-            {/* Background Atmosphere */}
-            <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500/5 blur-[100px] rounded-full pointer-events-none" />
-            <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/5 blur-[100px] rounded-full pointer-events-none" />
-
-            <div className="flex flex-col md:flex-row md:justify-between items-start gap-6 relative z-10">
-                <div className="space-y-1">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] font-black uppercase tracking-[0.2em]">
-                        <CommandLineIcon className="w-3 h-3" />
-                        Terminal de Operações
-                    </div>
-                    <h2 className={`text-3xl lg:text-4xl font-black tracking-tighter font-display transform -skew-x-6 ${theme.text}`}>
-                        DASHBOARD <span className="text-indigo-400">ESTRATÉGICO</span>
-                    </h2>
-                    <p className={`${theme.textMuted} text-[10px] lg:text-xs font-bold uppercase tracking-widest opacity-60`}>Monitoramento de performance em tempo real.</p>
-                </div>
-                <div className="relative group w-full md:w-auto">
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
-                    <input 
-                        type="date" 
-                        value={selectedDateString} 
-                        onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} 
-                        className={`relative w-full md:w-auto border rounded-xl px-6 py-3 text-xs lg:text-sm font-black uppercase tracking-widest focus:outline-none backdrop-blur-xl ${isDarkMode ? 'bg-slate-950/80 text-slate-300 border-white/10' : 'bg-white/80 text-slate-700 border-slate-200'}`} 
-                    />
-                </div>
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
+                <div><h2 className={`text-xl lg:text-2xl font-black ${theme.text}`}>Dashboard de Gestão</h2><p className={`text-[10px] lg:text-xs ${theme.textMuted}`}>Controle operacional em tempo real.</p></div>
+                <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`w-full md:w-auto border rounded-xl px-4 py-2.5 text-xs lg:text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
             </div>
-
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 relative z-10">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
                 {kpis.map((kpi, i) => (
-                    <motion.div 
-                        key={i} 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.1 }}
-                        className={`p-6 rounded-[2rem] border relative overflow-hidden group transition-all hover:scale-[1.02] ${theme.card} border-white/5 shadow-2xl`}
-                    >
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="flex justify-between items-start mb-4 relative z-10">
-                            <p className="text-[9px] md:text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] leading-none">{kpi.label}</p>
-                            <div className={`p-2 rounded-xl bg-white/5 border border-white/5 ${kpi.color}`}>
-                                <kpi.icon className="w-4 h-4 opacity-80" />
-                            </div>
-                        </div>
-                        <p className={`text-xl md:text-2xl lg:text-3xl font-black font-display tracking-tighter ${kpi.color} truncate relative z-10`}>{kpi.val}</p>
-                        {kpi.subVal && (
-                            <div className="mt-3 flex items-center gap-2 relative z-10">
-                                <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
-                                    <motion.div 
-                                        initial={{ width: 0 }}
-                                        animate={{ width: kpi.subVal.includes('%') ? kpi.subVal.split('%')[0] + '%' : '100%' }}
-                                        className={`h-full bg-current ${kpi.color} opacity-50`}
-                                    />
-                                </div>
-                                <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest shrink-0">{kpi.subVal}</p>
-                            </div>
-                        )}
-                    </motion.div>
+                    <div key={i} className={`p-3 md:p-4 rounded-2xl md:rounded-3xl border ${theme.card} flex flex-col justify-between`}>
+                        <div className="flex justify-between items-start mb-1"><p className="text-[8px] md:text-[10px] uppercase font-black text-slate-500 tracking-wider leading-none">{kpi.label}</p><kpi.icon className={`w-3 h-3 md:w-4 md:h-4 ${kpi.color} opacity-80`} /></div>
+                        <p className={`text-sm md:text-lg lg:text-xl font-black ${kpi.color} truncate`}>{kpi.val}</p>
+                        {kpi.subVal && <p className="text-[7px] md:text-[9px] font-bold mt-1 text-slate-500 truncate leading-tight">{kpi.subVal}</p>}
+                    </div>
                 ))}
             </div>
-
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 relative z-10">
-                <div className="space-y-8">
-                    <div className={`p-8 rounded-[2.5rem] border relative overflow-hidden ${theme.card} border-white/5 shadow-2xl`}>
-                        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
-                        
-                        <div className="flex items-center justify-between mb-8">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
-                                    <CalculatorIcon className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <h3 className="font-black text-[11px] uppercase tracking-[0.2em] text-white">Execução de Ordem</h3>
-                                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Configuração de entrada algorítmica</p>
-                                </div>
-                            </div>
-                            
-                            <div className="flex bg-black/40 p-1 rounded-2xl border border-white/5 backdrop-blur-md">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="space-y-6">
+                    <div className={`p-6 rounded-3xl border ${theme.card}`}>
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="font-black flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-green-500" /> Nova Operação</h3>
+                            <div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/5">
                                 <button 
                                     onClick={() => {
                                         setEntryMode('fixed');
                                         setCustomEntryValue(activeBrokerage.entryValue.toString());
                                     }}
-                                    className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${entryMode === 'fixed' ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'text-slate-500 hover:text-slate-300'}`}
+                                    className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${entryMode === 'fixed' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                                 >
                                     Fixo
                                 </button>
@@ -1604,208 +1340,140 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                         setEntryMode('percentage');
                                         setCustomEntryValue(activeBrokerage.entryValue.toString());
                                     }}
-                                    className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${entryMode === 'percentage' ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'text-slate-500 hover:text-slate-300'}`}
+                                    className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${entryMode === 'percentage' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                                 >
                                     % Banca
                                 </button>
                                 <button 
                                     onClick={handleSoros}
-                                    className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_15px_rgba(147,51,234,0.4)] ml-1"
+                                    title="Calcular Soros (Última entrada + lucro)"
+                                    className="px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all bg-blue-600 hover:bg-blue-500 text-white shadow-lg ml-1 active:scale-95"
                                 >
                                     Soros
                                 </button>
                             </div>
                         </div>
-
-                        <div className="space-y-6">
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                                        {entryMode === 'fixed' ? 'Volume' : 'Exposição %'}
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1">
+                                        {entryMode === 'fixed' ? 'Valor' : 'Porcentagem'}
                                     </label>
-                                    <div className="relative group">
-                                        <div className="absolute -inset-0.5 bg-indigo-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500" />
-                                        <input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`relative w-full h-14 px-6 rounded-2xl border border-white/10 focus:border-indigo-500/50 outline-none font-black text-lg font-mono bg-black/40 text-white transition-all ${entryMode === 'percentage' ? 'pr-12' : ''}`} />
-                                        {entryMode === 'percentage' && <span className="absolute right-6 top-1/2 -translate-y-1/2 text-indigo-400 font-black">%</span>}
+                                    <div className="relative">
+                                        <input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input} ${entryMode === 'percentage' ? 'pr-8' : ''}`} />
+                                        {entryMode === 'percentage' && <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-bold">%</span>}
                                     </div>
                                     {entryMode === 'percentage' && (
-                                        <p className="text-[9px] font-black text-indigo-400/60 mt-2 ml-1 uppercase tracking-widest">
-                                            ≈ {currencySymbol} {formatMoney(entryValueNum)}
+                                        <p className="text-[8px] font-bold text-slate-500 mt-1 ml-1">
+                                            = {currencySymbol} {formatMoney(entryValueNum)}
                                         </p>
                                     )}
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Payout</label>
-                                    <div className="relative group">
-                                        <div className="absolute -inset-0.5 bg-emerald-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500" />
-                                        <input type="number" value={customPayout} onChange={e => handlePayoutChange(e.target.value)} className={`relative w-full h-14 px-6 pr-12 rounded-2xl border border-white/10 focus:border-emerald-500/50 outline-none font-black text-lg font-mono bg-black/40 text-white transition-all`} />
-                                        <span className="absolute right-6 top-1/2 -translate-y-1/2 text-emerald-400 font-black">%</span>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout</label>
+                                    <div className="relative">
+                                        <input type="number" value={customPayout} onChange={e => handlePayoutChange(e.target.value)} className={`w-full h-12 px-4 pr-8 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
+                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-bold">%</span>
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Lotes</label>
-                                    <input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-14 px-6 rounded-2xl border border-white/10 focus:border-white/30 outline-none font-black text-lg font-mono bg-black/40 text-white transition-all`} />
-                                </div>
+                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
                             </div>
-
-                            <div className="flex justify-between items-center px-2 py-4 bg-white/[0.02] rounded-2xl border border-white/5">
-                                <div className="flex flex-col">
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Risco Máximo</span>
-                                    <span className="text-sm font-black text-rose-500 font-mono">{currencySymbol} {formatMoney(estimatedLoss)}</span>
-                                </div>
-                                <div className="h-8 w-[1px] bg-white/5" />
-                                <div className="flex flex-col items-end">
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Retorno Estimado</span>
-                                    <span className="text-sm font-black text-emerald-400 font-mono">{currencySymbol} {formatMoney(estimatedProfit)}</span>
-                                </div>
+                            <div className="flex justify-between items-center px-1">
+                                <p className="text-[8px] font-black uppercase tracking-widest text-red-500/40">
+                                    Risco: <span className="text-red-500/60">{currencySymbol} {formatMoney(estimatedLoss)}</span>
+                                </p>
+                                <p className="text-[9px] font-black uppercase tracking-widest text-green-500/40">
+                                    Estimativa de Ganho: <span className="text-green-500/80">{currencySymbol} {formatMoney(estimatedProfit)}</span>
+                                </p>
                             </div>
-
-                            <div className="grid grid-cols-2 gap-6 pt-2">
-                                <motion.button 
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={() => handleQuickAdd('win')} 
-                                    disabled={stopWinReached || stopLossReached} 
-                                    className="h-16 bg-gradient-to-br from-emerald-500 to-teal-600 hover:brightness-110 text-slate-950 font-black rounded-[1.5rem] text-sm uppercase tracking-[0.3em] transition-all shadow-[0_0_30px_rgba(16,185,129,0.2)] disabled:opacity-30 disabled:grayscale font-display"
-                                >
-                                    CALL
-                                </motion.button>
-                                <motion.button 
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={() => handleQuickAdd('loss')} 
-                                    disabled={stopWinReached || stopLossReached} 
-                                    className="h-16 bg-gradient-to-br from-rose-600 to-pink-700 hover:brightness-110 text-white font-black rounded-[1.5rem] text-sm uppercase tracking-[0.3em] transition-all shadow-[0_0_30px_rgba(244,63,94,0.2)] disabled:opacity-30 disabled:grayscale font-display"
-                                >
-                                    PUT
-                                </motion.button>
+                            <div className="grid grid-cols-2 gap-4 pt-1">
+                                <button onClick={() => handleQuickAdd('win')} disabled={stopWinReached || stopLossReached} className="h-14 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">WIN</button>
+                                <button onClick={() => handleQuickAdd('loss')} disabled={stopWinReached || stopLossReached} className="h-14 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">LOSS</button>
                             </div>
                         </div>
                     </div>
 
-                    <div className={`p-8 rounded-[2.5rem] border relative overflow-hidden ${theme.card} border-white/5 shadow-2xl`}>
-                        <div className="flex items-center gap-3 mb-8">
-                            <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
-                                <ArrowPathIcon className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h3 className="font-black text-[11px] uppercase tracking-[0.2em] text-white">Fluxo de Caixa</h3>
-                                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Ajuste manual de liquidez</p>
-                            </div>
-                        </div>
-                        
-                        <div className="space-y-6">
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Modalidade</label>
-                                    <select value={transType} onChange={e => setTransType(e.target.value as any)} className={`w-full h-14 px-6 rounded-2xl border border-white/10 focus:border-blue-500/50 outline-none font-black text-xs uppercase tracking-widest bg-black/40 text-white transition-all`}>
+                    <div className={`p-6 rounded-3xl border ${theme.card}`}>
+                        <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><ArrowPathIcon className="w-5 h-5 text-blue-500" /> Movimentação de Banca</h3>
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Tipo</label>
+                                    <select value={transType} onChange={e => setTransType(e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-blue-500 outline-none font-bold ${theme.input}`}>
                                         <option value="deposit">Depósito</option>
                                         <option value="withdrawal">Saque</option>
                                     </select>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Montante</label>
-                                    <div className="relative group">
-                                        <div className="absolute -inset-0.5 bg-blue-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500" />
-                                        <input type="number" value={transAmount} onChange={e => setTransAmount(e.target.value)} placeholder="0.00" className={`relative w-full h-14 px-6 rounded-2xl border border-white/10 focus:border-blue-500/50 outline-none font-black text-lg font-mono bg-black/40 text-white transition-all`} />
-                                    </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor</label>
+                                    <input type="number" value={transAmount} onChange={e => setTransAmount(e.target.value)} placeholder="0.00" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-blue-500 outline-none font-bold ${theme.input}`} />
                                 </div>
                             </div>
-                            <motion.button 
-                                whileHover={{ scale: 1.01 }}
-                                whileTap={{ scale: 0.99 }}
-                                onClick={handleTransaction} 
-                                className="w-full h-14 bg-white/5 hover:bg-white/10 text-white border border-white/10 font-black rounded-2xl text-[10px] uppercase tracking-[0.3em] transition-all"
-                            >
-                                Processar Transação
-                            </motion.button>
+                            <button onClick={handleTransaction} className="w-full h-12 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95">Confirmar Lançamento</button>
                         </div>
                     </div>
                 </div>
 
-                <div className={`p-8 rounded-[2.5rem] border relative overflow-hidden flex flex-col ${theme.card} border-white/5 shadow-2xl`}>
-                    <div className="flex items-center justify-between mb-8">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.1)]">
-                                <ListBulletIcon className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h3 className="font-black text-[11px] uppercase tracking-[0.2em] text-white">Log de Atividades</h3>
-                                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Sincronizado com servidor central</p>
-                            </div>
-                        </div>
-                        <div className="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[8px] font-black text-indigo-400 uppercase tracking-widest">
-                            Live Feed
-                        </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto max-h-[700px] pr-2 custom-scrollbar space-y-3">
-                        {/* Transactions first */}
-                        {transactionsForSelectedDay.map((trans: any) => (
-                            <motion.div 
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                key={trans.id} 
-                                className={`flex items-center justify-between p-5 rounded-3xl border bg-black/40 border-white/5 group hover:bg-white/[0.03] transition-all`}
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-1 h-10 rounded-full ${trans.recordType === 'deposit' ? 'bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]'}`} />
-                                    <div>
-                                        <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">{new Date(trans.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                                        <p className="text-xs font-black uppercase tracking-tight text-white">{trans.recordType === 'deposit' ? 'Depósito' : 'Saque'}</p>
+                <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
+                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60 text-blue-400"><ListBulletIcon className="w-5 h-5" /> Histórico do Dia</h3>
+                    <div className="flex-1 overflow-y-auto max-h-[500px] pr-2 custom-scrollbar">
+                        <div className="space-y-2">
+                            {/* Transactions first */}
+                            {transactionsForSelectedDay.map((trans: any) => (
+                                <div key={trans.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-blue-950/20 border-blue-800/30' : 'bg-blue-50 border-blue-200/50'}`}>
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-2 h-8 rounded-full ${trans.recordType === 'deposit' ? 'bg-blue-500' : 'bg-orange-500'}`} />
+                                        <div>
+                                            <p className="text-[10px] font-black uppercase text-slate-500 leading-none">{new Date(trans.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                                            <p className="text-sm font-bold">{trans.recordType === 'deposit' ? 'Depósito' : 'Saque'}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className={`text-sm font-black ${trans.recordType === 'deposit' ? 'text-blue-500' : 'text-orange-500'}`}>
+                                            {trans.recordType === 'deposit' ? '+' : '-'}{currencySymbol} {formatMoney(trans.amountUSD)}
+                                        </p>
+                                        <button onClick={() => deleteTransaction(trans.id)} className="text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className={`text-sm font-black font-mono ${trans.recordType === 'deposit' ? 'text-indigo-400' : 'text-orange-400'}`}>
-                                        {trans.recordType === 'deposit' ? '+' : '-'}{currencySymbol} {formatMoney(trans.amountUSD)}
-                                    </p>
-                                    <button onClick={() => deleteTransaction(trans.id)} className="text-[8px] font-black text-rose-500/40 hover:text-rose-500 uppercase tracking-widest mt-1">Remover</button>
-                                </div>
-                            </motion.div>
-                        ))}
+                            ))}
 
-                        {/* Trades */}
-                        {dailyRecordForSelectedDay?.trades?.length ? (
-                            [...dailyRecordForSelectedDay.trades].reverse().map((trade, idx) => {
-                                const tradeProfit = trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)) : -trade.entryValue;
-                                return (
-                                    <motion.div 
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: idx * 0.05 }}
-                                        key={trade.id} 
-                                        className={`flex items-center justify-between p-5 rounded-3xl border bg-black/40 border-white/5 group hover:bg-white/[0.03] transition-all`}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className={`w-1 h-10 rounded-full ${trade.result === 'win' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]'}`} />
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest">{new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                                                    <span className="text-[7px] font-bold text-slate-600 uppercase tracking-tighter bg-white/5 px-1.5 py-0.5 rounded">P: {trade.payoutPercentage}%</span>
+                            {/* Trades */}
+                            {dailyRecordForSelectedDay?.trades?.length ? (
+                                [...dailyRecordForSelectedDay.trades].reverse().map((trade) => {
+                                    const tradeProfit = trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)) : -trade.entryValue;
+                                    return (
+                                        <div key={trade.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-slate-950/50 border-slate-800/50' : 'bg-slate-50 border-slate-200/50'}`}>
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-2 h-8 rounded-full ${trade.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                                <div>
+                                                    <p className="text-[10px] font-black uppercase text-slate-500 leading-none">
+                                                        {new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                        <span className="ml-2 opacity-50">Payout: {trade.payoutPercentage}%</span>
+                                                    </p>
+                                                    <p className="text-sm font-bold">
+                                                        {trade.result === 'win' ? 'Vitória' : 'Derrota'}
+                                                        {trade.isSoros && <span className="ml-2 text-[8px] bg-green-500/20 text-green-500 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter">Soros</span>}
+                                                    </p>
                                                 </div>
-                                                <p className="text-xs font-black uppercase tracking-tight text-white">
-                                                    {trade.result === 'win' ? 'Vitória' : 'Derrota'}
-                                                    {trade.isSoros && <span className="ml-2 text-[7px] bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded-full font-black uppercase tracking-widest border border-indigo-500/20">Soros</span>}
+                                            </div>
+                                            <div className="text-right">
+                                                <p className={`text-sm font-black ${tradeProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                                    {tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}
                                                 </p>
+                                                <button onClick={() => deleteTrade(trade.id, selectedDateString)} className="text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button>
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <p className={`text-sm font-black font-mono ${tradeProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                {tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}
-                                            </p>
-                                            <button onClick={() => deleteTrade(trade.id, selectedDateString)} className="text-[8px] font-black text-rose-500/40 hover:text-rose-500 uppercase tracking-widest mt-1">Remover</button>
-                                        </div>
-                                    </motion.div>
-                                );
-                            })
-                        ) : null}
+                                    );
+                                })
+                            ) : null}
 
-                        {!dailyRecordForSelectedDay?.trades?.length && !transactionsForSelectedDay.length && (
-                            <div className="h-full flex flex-col items-center justify-center opacity-20 py-20">
-                                <CommandLineIcon className="w-16 h-16 mb-4 text-slate-500" />
-                                <p className="text-[10px] font-black uppercase tracking-[0.3em]">Aguardando dados de mercado...</p>
-                            </div>
-                        )}
+                            {!dailyRecordForSelectedDay?.trades?.length && !transactionsForSelectedDay.length && (
+                                <div className="h-full flex flex-col items-center justify-center opacity-30 py-10">
+                                    <InformationCircleIcon className="w-10 h-10 mb-2" />
+                                    <p className="text-xs font-black uppercase">Sem atividades hoje</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1866,13 +1534,11 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                 hasOperation = true;
             } else {
                 isProjection = true; 
-                // Simular 3 wins e 0 loss conforme solicitado pelo usuário para dias sem operações
-                const simulatedWins = 3;
-                const simulatedLosses = 0;
+                // Simular 3 wins e 0 loss conforme solicitado para qualquer dia sem operação
                 const payout = activeBrokerage?.payoutPercentage || 80;
-                profit = (simulatedWins * entryValue * (payout / 100)) - (simulatedLosses * entryValue);
+                profit = 3 * (entryValue * (payout / 100));
                 final = initial + profit;
-                status = 'SIMULADO (3X0)';
+                status = isPast ? 'SIMULADO (3W-0L)' : 'PROJEÇÃO (3W-0L)';
                 hasOperation = true;
             }
             rows.push({ 
@@ -1893,109 +1559,82 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
             runningBalance = final;
         }
 
-        return rows;
-    }, [records, activeBrokerage?.id, activeBrokerage?.initialBalance, activeBrokerage?.payoutPercentage, projMetaPercent, projStopPercent, projEntryPercent]);
-
-    const formatMoney = (val: number) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        // We keep all rows now to show the "SEM OPERAÇÃO" gaps if they exist within the 30-day window
+        return rows.map((row, index) => ({
+            ...row,
+            diaTrade: index + 1
+        }));
+    }, [records, activeBrokerage?.id, activeBrokerage?.initialBalance, projMetaPercent, projStopPercent, projEntryPercent]);
 
     return (
-        <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto relative">
-            {/* Atmospheric background */}
-            <div className="absolute top-0 right-0 w-1/2 h-full bg-indigo-500/5 blur-[120px] rounded-full pointer-events-none z-0" />
-            <div className="absolute bottom-0 left-0 w-1/2 h-full bg-purple-500/5 blur-[120px] rounded-full pointer-events-none z-0" />
-
-            <div className="flex flex-col md:flex-row md:justify-between items-start gap-8 relative z-10">
-                <div className="space-y-2">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] font-black uppercase tracking-[0.2em]">
-                        <CalculatorIcon className="w-3 h-3" />
-                        Simulador de Projeção
-                    </div>
-                    <h2 className={`text-4xl lg:text-5xl font-black tracking-tighter font-display transform -skew-x-6 ${theme.text}`}>
-                        JUROS <span className="text-indigo-400">COMPOSTOS</span>
-                    </h2>
-                    <p className={`${theme.textMuted} text-[10px] lg:text-xs font-bold uppercase tracking-widest opacity-60`}>Planejamento estratégico baseado em metas dinâmicas e crescimento exponencial.</p>
-                </div>
-
-                <div className="flex flex-wrap gap-4 w-full md:w-auto">
-                    {[
-                        { label: 'Meta %', value: projMetaPercent, setter: setProjMetaPercent, color: 'text-indigo-400' },
-                        { label: 'Stop %', value: projStopPercent, setter: setProjStopPercent, color: 'text-rose-400' },
-                        { label: 'Entrada %', value: projEntryPercent, setter: setProjEntryPercent, color: 'text-amber-400' }
-                    ].map((item, i) => (
-                        <div key={i} className="flex-1 md:flex-none min-w-[100px] space-y-1">
-                            <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">{item.label}</label>
-                            <div className="relative group">
-                                <input 
-                                    type="number" 
-                                    value={item.value} 
-                                    onChange={e => item.setter(parseFloat(e.target.value) || 0)} 
-                                    className="w-full h-12 px-4 rounded-2xl border border-white/10 bg-black/40 text-white font-black text-sm focus:border-indigo-500/50 outline-none transition-all group-hover:bg-black/60"
-                                />
-                                <div className={`absolute bottom-0 left-0 h-[2px] w-0 group-focus-within:w-full transition-all duration-300 bg-gradient-to-r from-transparent via-indigo-500 to-transparent`} />
-                            </div>
-                        </div>
-                    ))}
+        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
+                <div>
+                    <h2 className={`text-xl lg:text-2xl font-black ${theme.text}`}>Planejamento de Juros Compostos</h2>
+                    <p className={`${theme.textMuted} text-[10px] lg:text-xs mt-1 font-bold`}>Projeção baseada no histórico real e metas futuras.</p>
                 </div>
             </div>
 
-            <div className={`rounded-[2.5rem] border overflow-hidden shadow-2xl relative z-10 ${theme.card} border-white/5`}>
-                <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full border-collapse">
-                        <thead>
-                            <tr className="bg-black/40 border-b border-white/5">
-                                <th className="p-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Dia</th>
-                                <th className="p-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Data</th>
-                                <th className="p-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Capital Inicial</th>
-                                <th className="p-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Entrada</th>
-                                <th className="p-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Meta Diária</th>
-                                <th className="p-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Lucro/Prejuízo</th>
-                                <th className="p-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Capital Final</th>
-                                <th className="p-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                            {tableData.map((row, idx) => (
-                                <motion.tr 
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: idx * 0.01 }}
-                                    key={idx} 
-                                    className={`group hover:bg-white/[0.02] transition-colors ${row.isProjection ? 'opacity-40' : ''}`}
-                                >
-                                    <td className="p-6">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-3xl font-black font-display text-slate-800 group-hover:text-indigo-500/20 transition-colors leading-none">{row.diaTrade.toString().padStart(2, '0')}</span>
-                                            <div className={`w-1 h-6 rounded-full ${row.profit >= 0 ? 'bg-emerald-500' : 'bg-rose-500'} shadow-[0_0_10px_rgba(16,185,129,0.3)]`} />
+            <div className={`rounded-3xl border overflow-hidden shadow-2xl ${theme.card}`}>
+                <div className="overflow-x-auto no-scrollbar">
+                    <div className="min-w-[800px]">
+                        <table className="w-full text-center border-collapse">
+                            <thead>
+                                <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
+                                    <th className="py-5 px-3 border-b border-slate-800/20">Data</th>
+                                    <th className="py-5 px-3 border-b border-slate-800/20">Capital</th>
+                                    <th className="py-5 px-3 border-b border-slate-800/20">
+                                        <div className="flex flex-col items-center gap-1">
+                                            <span>Meta</span>
+                                            <div className="flex items-center gap-1">
+                                                <input type="number" value={projMetaPercent} onChange={e => setProjMetaPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
+                                                <span className="opacity-30">%</span>
+                                            </div>
                                         </div>
-                                    </td>
-                                    <td className="p-6">
-                                        <p className="text-xs font-black text-white uppercase tracking-tight">{row.dateDisplay}</p>
-                                        <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">{row.isProjection ? 'Projeção' : 'Realizado'}</p>
-                                    </td>
-                                    <td className="p-6 font-mono text-xs font-black text-slate-400">{currencySymbol} {formatMoney(row.initial)}</td>
-                                    <td className="p-6 font-mono text-xs font-black text-indigo-400">{currencySymbol} {formatMoney(row.entryValue)}</td>
-                                    <td className="p-6 font-mono text-xs font-black text-emerald-400/40">{currencySymbol} {formatMoney(row.targetProfit)}</td>
-                                    <td className={`p-6 font-mono text-xs font-black ${row.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                        <div className="flex items-center gap-1">
-                                            {row.profit >= 0 ? <TrendingUpIcon className="w-3 h-3" /> : <TrendingDownIcon className="w-3 h-3" />}
-                                            {row.profit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(row.profit)}
+                                    </th>
+                                    <th className="py-5 px-3 border-b border-slate-800/20">Lucro</th>
+                                    <th className="py-5 px-3 border-b border-slate-800/20">Status</th>
+                                    <th className="py-5 px-3 border-b border-slate-800/20">
+                                        <div className="flex flex-col items-center gap-1">
+                                            <span>Stop</span>
+                                            <div className="flex items-center gap-1">
+                                                <input type="number" value={projStopPercent} onChange={e => setProjStopPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
+                                                <span className="opacity-30">%</span>
+                                            </div>
                                         </div>
-                                    </td>
-                                    <td className="p-6 font-mono text-sm font-black text-white">{currencySymbol} {formatMoney(row.final)}</td>
-                                    <td className="p-6">
-                                        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
-                                            row.status === 'META BATIDA' || row.status === 'SIMULADO (3X0)' 
-                                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
-                                            : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                                        }`}>
-                                            <div className={`w-1 h-1 rounded-full animate-pulse ${row.status === 'META BATIDA' || row.status === 'SIMULADO (3X0)' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
-                                            {row.status}
+                                    </th>
+                                    <th className="py-5 px-3 border-b border-slate-800/20">
+                                        <div className="flex flex-col items-center gap-1">
+                                            <span>Entrada</span>
+                                            <div className="flex items-center gap-1">
+                                                <input type="number" value={projEntryPercent} onChange={e => setProjEntryPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
+                                                <span className="opacity-30">%</span>
+                                            </div>
                                         </div>
-                                    </td>
-                                </motion.tr>
-                            ))}
-                        </tbody>
-                    </table>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/10">
+                                {tableData.map((row) => (
+                                    <tr key={row.dateId} className={`text-sm font-bold hover:bg-slate-800/5 transition-colors ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : row.status === 'STOP-LOSS' ? 'bg-red-500/5' : ''}`}>
+                                        <td className="py-4 px-3 text-[10px] uppercase font-black opacity-60">
+                                            {row.hasOperation ? row.dateDisplay : ''}
+                                        </td>
+                                        <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
+                                        <td className="py-4 px-3 opacity-60">{row.metaPercent}%</td>
+                                        <td className={`py-4 px-3 font-black ${row.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>{currencySymbol} {formatMoney(row.profit)}</td>
+                                        <td className="py-4 px-3">
+                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' || row.status === 'SIMULADO (3W-0L)' || row.status === 'PROJEÇÃO (3W-0L)' ? 'bg-green-500/20 text-green-500 shadow-[0_0_10px_rgba(34,197,94,0.2)]' : row.status === 'STOP-LOSS' ? 'bg-red-500/20 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'bg-slate-500/20 text-slate-500'}`}>
+                                                {row.status}
+                                            </span>
+                                        </td>
+                                        <td className="py-4 px-3 text-red-500/80">{currencySymbol} {formatMoney(row.stopValue)}</td>
+                                        <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.entryValue)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
