@@ -2,7 +2,6 @@
 import { db } from '@vercel/postgres';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
-import { verifyAdmin } from '../utils/auth';
 
 export default async function handler(
     req: VercelRequest,
@@ -14,15 +13,20 @@ export default async function handler(
 
     const client = await db.connect();
     try {
-        const admin = verifyAdmin(req);
-        if (!admin) {
-            return res.status(403).json({ error: 'Acesso negado. Apenas administradores podem realizar esta ação.' });
+        const { adminId, targetUserId, newPassword } = req.body;
+
+        if (!adminId || !targetUserId || !newPassword) {
+            return res.status(400).json({ error: 'Admin ID, Target User ID e Nova Senha são obrigatórios.' });
         }
 
-        const { targetUserId, newPassword } = req.body;
+        if (newPassword.length < 4) {
+            return res.status(400).json({ error: 'A nova senha deve ter pelo menos 4 caracteres.' });
+        }
 
-        if (!targetUserId || !newPassword) {
-            return res.status(400).json({ error: 'Target User ID e Nova Senha são obrigatórios.' });
+        // Verify if requester is admin
+        const { rows: adminCheck } = await client.query('SELECT is_admin FROM users WHERE id = $1', [adminId]);
+        if (adminCheck.length === 0 || !adminCheck[0].is_admin) {
+            return res.status(403).json({ error: 'Acesso negado. Apenas administradores podem realizar esta ação.' });
         }
 
         // Hash new password

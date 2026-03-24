@@ -1,7 +1,6 @@
 import { db } from '@vercel/postgres';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { Brokerage } from '../types';
 import { randomUUID } from 'crypto';
 
@@ -170,18 +169,7 @@ export default async function handler(
             isPaused: user.is_paused,
         };
 
-        // Generate JWT
-        const token = jwt.sign(
-            userData,
-            process.env.JWT_SECRET || 'fallback-secret-for-dev-only',
-            { expiresIn: '7d' }
-        );
-
-        return res.status(200).json({ 
-            message: 'Login realizado com sucesso.', 
-            user: userData,
-            token 
-        });
+        return res.status(200).json({ message: 'Login realizado com sucesso.', user: userData });
     } catch (error: any) {
         console.error('Login API Error:', error);
         return res.status(500).json({ 

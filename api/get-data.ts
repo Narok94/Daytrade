@@ -3,7 +3,6 @@ import { db } from '@vercel/postgres';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Brokerage, DailyRecord, Goal, Trade } from '../types';
 import { randomUUID } from 'crypto';
-import { verifyToken } from './utils/auth';
 
 async function ensureTablesAndMigrate(client: any, userId?: number) {
     const { rows: tableCheck } = await client.query(`
@@ -105,11 +104,6 @@ export default async function handler(
 
     const client = await db.connect();
     try {
-        const user = verifyToken(req);
-        if (!user) {
-            return res.status(401).json({ error: 'Acesso negado. Token inválido ou não fornecido.' });
-        }
-
         const rawUserId = req.query.userId as string;
         if (!rawUserId) {
             return res.status(400).json({ error: 'User ID é obrigatório.' });
@@ -118,11 +112,6 @@ export default async function handler(
         const userId = Number(rawUserId);
         if (!Number.isInteger(userId)) {
             return res.status(400).json({ error: `ID de usuário inválido: "${rawUserId}".` });
-        }
-
-        // Security check: Ensure the user is requesting their own data
-        if (user.id !== userId && !user.isAdmin) {
-            return res.status(403).json({ error: 'Acesso negado. Você não tem permissão para acessar os dados deste usuário.' });
         }
         
         await ensureTablesAndMigrate(client, userId);
