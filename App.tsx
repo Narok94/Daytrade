@@ -949,7 +949,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     </div>
 
                     {/* Navigation Row */}
-                    <div className="h-12 md:h-14 flex items-center px-4 md:px-8 overflow-x-auto no-scrollbar gap-1 md:gap-2">
+                    <div className="h-12 md:h-14 flex items-center justify-center px-4 md:px-8 overflow-x-auto no-scrollbar gap-1 md:gap-2">
                         {[
                             { id: 'dashboard', label: 'Dashboard', icon: LayoutGridIcon },
                             { id: 'ai-analysis', label: 'Análise IA', icon: CpuChipIcon },
@@ -3136,7 +3136,25 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                             </button>
                         </div>
                     </div>
-                    <div className="flex gap-2 w-full lg:w-auto">
+                    <div className="flex gap-2 w-full lg:w-auto items-end">
+                        <div className="flex flex-col">
+                            <label className="text-[10px] font-black uppercase text-slate-500 ml-1 mb-1 tracking-widest">Banca</label>
+                            <input 
+                                type="number" 
+                                value={bank} 
+                                onChange={e => setBank(Number(e.target.value))} 
+                                className={`w-24 px-3 py-2 rounded-xl font-black text-right text-xs outline-none focus:ring-2 focus:ring-[#6366f1]/50 ${theme.input}`} 
+                            />
+                        </div>
+                        <div className="flex flex-col">
+                            <label className="text-[10px] font-black uppercase text-slate-500 ml-1 mb-1 tracking-widest">Stop %</label>
+                            <input 
+                                type="number" 
+                                value={stopPercent} 
+                                onChange={e => setStopPercent(Number(e.target.value))} 
+                                className={`w-20 px-3 py-2 rounded-xl font-black text-right text-xs outline-none focus:ring-2 focus:ring-[#6366f1]/50 ${theme.input}`} 
+                            />
+                        </div>
                         <ActionButton 
                             variant="primary"
                             onClick={() => setSelectedDate(new Date())}
@@ -3201,9 +3219,9 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="space-y-6">
                 {/* GESTÃO TABLE */}
-                <div className="lg:col-span-8 space-y-6">
+                <div className="w-full space-y-6">
                     <GlassCard theme={theme} className="flex flex-col h-full">
                         <SectionTitle 
                             title={viewMode === 'daily' ? 'Gestão Diária' : 'Gestão Mensal'} 
@@ -3314,129 +3332,6 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                             )}
                         </div>
                     </GlassCard>
-                </div>
-
-                {/* RIGHT COLUMN - SUMMARY */}
-                <div className="lg:col-span-4 space-y-8">
-                    <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
-                        <GlassCard theme={theme} className="flex flex-col justify-between group hover:border-[#6366f1]/30 transition-all duration-300 relative overflow-hidden">
-                            <div className="flex justify-between items-start mb-2">
-                                <p className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em]">Banca Inicial</p>
-                                <PieChartIcon className="w-4 h-4 text-slate-500 opacity-50 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                            <div className={`text-xl md:text-2xl font-black text-white truncate tracking-tight ${isPrivacyMode ? 'blur-md select-none opacity-50' : ''}`}>
-                                {currencySymbol} <CountUp end={displayInitialBank} decimals={2} duration={2} separator="." decimal="," />
-                            </div>
-                        </GlassCard>
-
-                        <GlassCard theme={theme} className="flex flex-col justify-between group hover:border-[#22c55e]/30 transition-all duration-300 relative overflow-hidden">
-                            <div className="flex justify-between items-start mb-2">
-                                <p className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em]">Banca Atualizada</p>
-                                <TrendingUpIcon className="w-4 h-4 text-[#22c55e] opacity-50 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                            <div className={`text-xl md:text-2xl font-black text-[#22c55e] truncate tracking-tight ${isPrivacyMode ? 'blur-md select-none opacity-50' : ''}`}>
-                                {currencySymbol} <CountUp end={displayCurrentBank} decimals={2} duration={2} separator="." decimal="," />
-                            </div>
-                        </GlassCard>
-                    </div>
-
-                    <GlassCard theme={theme}>
-                        <SectionTitle title="Configuração de Risco" subtitle="Parâmetros operacionais" icon={ShieldCheckIcon} theme={theme} />
-                        <div className="space-y-6">
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Banca Base</span>
-                                        <button 
-                                            onClick={() => {
-                                                const val = activeBrokerage?.initialBalance || 0;
-                                                setBank(val);
-                                                localStorage.setItem(getStorageKey('bank'), val.toString());
-                                            }}
-                                            title="Sincronizar com Saldo Inicial da Corretora"
-                                            className="p-1 text-[#6366f1] hover:bg-[#6366f1]/10 rounded-lg transition-colors"
-                                        >
-                                            <ArrowPathIcon className="w-3 h-3" />
-                                        </button>
-                                    </div>
-                                    <input 
-                                        type="number" 
-                                        value={bank} 
-                                        onChange={e => setBank(Number(e.target.value))} 
-                                        className={`w-24 px-3 py-2 rounded-xl font-black text-right text-xs outline-none focus:ring-2 focus:ring-[#6366f1]/50 ${theme.input}`} 
-                                    />
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">
-                                        {viewMode === 'daily' ? 'Stop Diário %' : 'Stop Mensal %'}
-                                    </span>
-                                    <input 
-                                        type="number" 
-                                        value={stopPercent} 
-                                        onChange={e => setStopPercent(Number(e.target.value))} 
-                                        className={`w-24 px-3 py-2 rounded-xl font-black text-right text-xs outline-none focus:ring-2 focus:ring-[#6366f1]/50 ${theme.input}`} 
-                                    />
-                                </div>
-                            </div>
-                            
-                            <div className="pt-6 border-t border-white/5">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[10px] font-black uppercase text-[#6366f1] tracking-widest">
-                                        {viewMode === 'daily' ? 'Valor do Stop' : 'Valor do Stop Mensal'}
-                                    </span>
-                                    <span className="text-lg font-black text-[#6366f1]">
-                                        {currencySymbol} {formatMoney(bank * (stopPercent / 100))}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </GlassCard>
-
-                    <div className="space-y-4">
-                        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-xl">
-                            <div className="bg-slate-900/50 text-white font-black text-center py-2 uppercase text-[10px] border-b border-white/5 tracking-widest">
-                                {viewMode === 'daily' ? 'Placar do Dia' : 'Placar do Mês'}
-                            </div>
-                            <div className="grid grid-cols-2 h-24">
-                                <div className="bg-[#22c55e]/10 flex flex-col items-center justify-center border-r border-white/5 group hover:bg-[#22c55e]/20 transition-colors">
-                                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#22c55e] opacity-70 mb-1">Vitórias</span>
-                                    <span className="text-3xl font-black text-[#22c55e]"><CountUp end={displayWins} duration={1} /></span>
-                                </div>
-                                <div className="bg-[#ef4444]/10 flex flex-col items-center justify-center group hover:bg-[#ef4444]/20 transition-colors">
-                                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#ef4444] opacity-70 mb-1">Derrotas</span>
-                                    <span className="text-3xl font-black text-[#ef4444]"><CountUp end={displayLosses} duration={1} /></span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-xl relative">
-                            <div className="bg-slate-900/50 text-white font-black text-center py-2 uppercase text-[10px] border-b border-white/5 tracking-widest">
-                                {viewMode === 'daily' ? 'Resultado do Dia' : 'Resultado do Mês'}
-                            </div>
-                            <div className="h-24 flex flex-col items-center justify-center relative">
-                                <div className={`absolute inset-0 opacity-5 ${displayProfit >= 0 ? 'bg-[#22c55e]' : 'bg-[#ef4444]'}`} />
-                                <span className="text-[8px] font-black uppercase text-slate-500 mb-1 relative z-10 tracking-widest">
-                                    {viewMode === 'daily' ? 'Lucro Líquido Diário' : 'Lucro Líquido Mensal'}
-                                </span>
-                                <div className={`text-3xl font-black relative z-10 ${displayProfit >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'} ${isPrivacyMode ? 'blur-md select-none opacity-50' : ''}`}>
-                                    {displayProfit >= 0 ? '+' : '-'}{currencySymbol} <CountUp end={Math.abs(displayProfit)} decimals={2} duration={1.5} separator="." decimal="," />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col items-center justify-center">
-                                <span className="text-[8px] font-black uppercase text-slate-500 tracking-widest mb-1">Assertividade</span>
-                                <span className="text-lg font-black text-[#6366f1]">
-                                    {displayWins + displayLosses > 0 ? ((displayWins / (displayWins + displayLosses)) * 100).toFixed(1) : '0'}%
-                                </span>
-                            </div>
-                            <div className="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col items-center justify-center">
-                                <span className="text-[8px] font-black uppercase text-slate-500 tracking-widest mb-1">Total Trades</span>
-                                <span className="text-lg font-black text-white">{displayWins + displayLosses}</span>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
