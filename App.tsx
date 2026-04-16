@@ -763,7 +763,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     }, [brokerages, records]);
 
     const theme = useThemeClasses(isDarkMode);
-    // if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-[#6366f1] border-t-transparent rounded-full animate-spin" /></div>;
+    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-[#6366f1] border-t-transparent rounded-full animate-spin" /></div>;
 
     const dateStr = getLocalDateString(selectedDate);
     const brokerageRecords = records.filter(r => r.brokerageId === activeBrokerage?.id);
@@ -1293,11 +1293,15 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     const [transAmount, setTransAmount] = useState('');
     const [transType, setTransType] = useState<'deposit' | 'withdrawal'>('deposit');
     const [isNextTradeSoros, setIsNextTradeSoros] = useState(false);
-    const [entryMode, setEntryMode] = useState<'fixed' | 'percentage'>(activeBrokerage.entryMode);
+    const [entryMode, setEntryMode] = useState<'fixed' | 'percentage'>(activeBrokerage?.entryMode || 'percentage');
 
     useEffect(() => {
-        setEntryMode(activeBrokerage.entryMode);
-    }, [activeBrokerage.entryMode]);
+        if (activeBrokerage?.entryMode) {
+            setEntryMode(activeBrokerage.entryMode);
+        }
+    }, [activeBrokerage?.entryMode]);
+
+    if (!activeBrokerage) return <div className="p-8 text-center opacity-50">Carregando dados da corretora...</div>;
 
     const currencySymbol = activeBrokerage.currency === 'USD' ? '$' : 'R$';
     
