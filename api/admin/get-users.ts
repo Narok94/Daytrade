@@ -23,14 +23,15 @@ export default async function handler(
             return res.status(403).json({ error: 'Acesso negado. Apenas administradores podem realizar esta ação.' });
         }
 
-        const { rows: users } = await client.query('SELECT id, username, is_admin, is_paused, created_at FROM users ORDER BY username ASC');
+        const { rows: users } = await client.query('SELECT id, username, is_admin, is_paused, created_at, last_login_at FROM users ORDER BY username ASC');
         
         const formattedUsers = users.map(u => ({
             id: u.id,
             username: u.username,
             isAdmin: u.is_admin,
             isPaused: u.is_paused,
-            createdAt: u.created_at
+            createdAt: u.created_at,
+            lastLoginAt: u.last_login_at
         }));
 
         return res.status(200).json({ users: formattedUsers });

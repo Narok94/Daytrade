@@ -21,6 +21,7 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
     await client.query(`
         ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS is_paused BOOLEAN DEFAULT FALSE;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
     `);
 
     // Set Henrique as admin
@@ -159,6 +160,9 @@ export default async function handler(
             return res.status(401).json({ error: 'Usuário ou senha inválidos.' });
         }
 
+        // Update last login
+        await client.query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
+
         // Now that user is authenticated, we have the ID. Run migration again with user context to populate data.
         await ensureTablesAndMigrate(client, user.id);
 
@@ -167,6 +171,7 @@ export default async function handler(
             username: user.username,
             isAdmin: user.is_admin,
             isPaused: user.is_paused,
+            lastLoginAt: new Date().toISOString(),
         };
 
         return res.status(200).json({ message: 'Login realizado com sucesso.', user: userData });

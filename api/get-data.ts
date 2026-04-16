@@ -41,6 +41,7 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
     await client.query(`
         ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS is_paused BOOLEAN DEFAULT FALSE;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
     `);
 
     // Set Henrique as admin

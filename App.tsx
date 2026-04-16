@@ -1172,6 +1172,7 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Role</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Criado em</th>
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Último Acesso</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</th>
                                 </tr>
                             </thead>
@@ -1198,6 +1199,16 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
                                         </td>
                                         <td className="px-6 py-5 text-xs text-slate-500 font-bold">
                                             {new Date((u as any).createdAt || Date.now()).toLocaleDateString('pt-BR')}
+                                        </td>
+                                        <td className="px-6 py-5 text-xs text-[#a5b4fc] font-bold">
+                                            {u.lastLoginAt ? (
+                                                <div className="flex flex-col">
+                                                    <span>{new Date(u.lastLoginAt).toLocaleDateString('pt-BR')}</span>
+                                                    <span className="text-[9px] opacity-70">{new Date(u.lastLoginAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                </div>
+                                            ) : (
+                                                <span className="opacity-30">---</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-5 text-right">
                                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
