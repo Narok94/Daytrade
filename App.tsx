@@ -3179,6 +3179,42 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                 </div>
             </div>
 
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className={`p-4 rounded-2xl border ${theme.card} border-white/5 flex flex-col gap-1`}>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Placar do Dia</span>
+                    <span className="text-sm font-black text-white">
+                        <span className="text-[#22c55e]">{displayWins}</span>
+                        <span className="mx-1 opacity-20">/</span>
+                        <span className="text-[#ef4444]">{displayLosses}</span>
+                    </span>
+                </div>
+                <div className={`p-4 rounded-2xl border ${theme.card} border-white/5 flex flex-col gap-1`}>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Banca Inicial</span>
+                    <span className={`text-sm font-black text-white ${isPrivacyMode ? 'blur-sm' : ''}`}>
+                        {currencySymbol} {formatMoney(displayInitialBank)}
+                    </span>
+                </div>
+                <div className={`p-4 rounded-2xl border ${theme.card} border-white/5 flex flex-col gap-1`}>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Banca Atualizada</span>
+                    <span className={`text-sm font-black text-white ${isPrivacyMode ? 'blur-sm' : ''}`}>
+                        {currencySymbol} {formatMoney(displayCurrentBank)}
+                    </span>
+                </div>
+                <div className={`p-4 rounded-2xl border ${theme.card} border-white/5 flex flex-col gap-1`}>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Resultado do Dia</span>
+                    <span className={`text-sm font-black ${displayProfit >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'} ${isPrivacyMode ? 'blur-sm' : ''}`}>
+                        {displayProfit >= 0 ? '+' : '-'}{currencySymbol} {formatMoney(Math.abs(displayProfit))}
+                    </span>
+                </div>
+                <div className={`p-4 rounded-2xl border ${theme.card} border-white/5 flex flex-col gap-1 col-span-2 md:col-span-1`}>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Assertividade</span>
+                    <span className="text-sm font-black text-[#6366f1]">
+                        {((displayWins / (displayWins + displayLosses || 1)) * 100).toFixed(1)}%
+                    </span>
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* GESTÃO TABLE */}
                 <div className="lg:col-span-8 space-y-6">
