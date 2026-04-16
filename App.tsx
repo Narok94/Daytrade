@@ -2096,9 +2096,6 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerag
                     <ActionButton variant="ghost" onClick={() => setShowFilters(!showFilters)} icon={FunnelIcon}>
                         Filtros
                     </ActionButton>
-                    <ActionButton variant="primary" onClick={() => setIsTextModalOpen(true)} icon={ArrowDownTrayIcon}>
-                        Importar
-                    </ActionButton>
                 </div>
             </div>
 
@@ -2137,173 +2134,123 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerag
                 </GlassCard>
             )}
 
-            {viewMode === 'calendar' ? (
-                <CalendarHistory isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />
-            ) : (
-                <GlassCard theme={theme}>
-                    <div className="flex items-center justify-between mb-6">
-                        <SectionTitle title={`Relatório ${viewMode === 'daily' ? 'Diário' : viewMode === 'weekly' ? 'Semanal' : 'Mensal'}`} subtitle="Performance consolidada" icon={ChartBarIcon} theme={theme} />
-                        <div className="flex gap-2">
-                            <button onClick={() => handleExport('json')} className="p-2 hover:bg-white/5 rounded-xl transition-colors text-slate-400 hover:text-white" title="Exportar JSON"><DocumentTextIcon className="w-5 h-5" /></button>
-                            <button onClick={() => handleExport('csv')} className="p-2 hover:bg-white/5 rounded-xl transition-colors text-slate-400 hover:text-white" title="Exportar CSV"><ListBulletIcon className="w-5 h-5" /></button>
+            {/* Relatório e Gráfico */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2">
+                    <GlassCard theme={theme} className="h-full">
+                        <div className="flex items-center justify-between mb-6">
+                            <SectionTitle title={`Relatório ${viewMode === 'daily' ? 'Diário' : viewMode === 'weekly' ? 'Semanal' : 'Mensal'}`} subtitle="Performance consolidada" icon={ChartBarIcon} theme={theme} />
+                            <div className="flex gap-2">
+                                <button onClick={() => handleExport('json')} className="p-2 hover:bg-white/5 rounded-xl transition-colors text-slate-400 hover:text-white" title="Exportar JSON"><DocumentTextIcon className="w-5 h-5" /></button>
+                                <button onClick={() => handleExport('csv')} className="p-2 hover:bg-white/5 rounded-xl transition-colors text-slate-400 hover:text-white" title="Exportar CSV"><ListBulletIcon className="w-5 h-5" /></button>
+                            </div>
                         </div>
-                    </div>
-                    <div className="overflow-x-auto custom-scrollbar">
-                        <table className="w-full min-w-[700px]">
-                            <thead>
-                                <tr className="border-b border-white/5">
-                                    <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Período</th>
-                                    <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Lucro Líquido</th>
-                                    <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">W / L</th>
-                                    <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Total</th>
-                                    <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Win Rate</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                                {stats.map((s: any, i: number) => {
-                                    const isToday = s.id === getLocalDateString();
-                                    const yesterday = new Date();
-                                    yesterday.setDate(yesterday.getDate() - 1);
-                                    const isYesterday = s.id === getLocalDateString(yesterday);
-                                    
-                                    const showSeparator = viewMode === 'daily' && (isToday || isYesterday);
-                                    
-                                    return (
-                                        <React.Fragment key={i}>
-                                            {showSeparator && (i === 0 || stats[i-1].id !== s.id) && (
-                                                <tr className="bg-white/5">
-                                                    <td colSpan={5} className="py-2 px-4 text-[8px] font-black uppercase tracking-[0.2em] text-[#6366f1]">
-                                                        {isToday ? 'Hoje' : 'Ontem'}
+                        <div className="overflow-x-auto custom-scrollbar">
+                            <table className="w-full min-w-[500px]">
+                                <thead>
+                                    <tr className="border-b border-white/5">
+                                        <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Período</th>
+                                        <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Lucro Líquido</th>
+                                        <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">W / L</th>
+                                        <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Win Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {stats.map((s: any, i: number) => {
+                                        const isToday = s.id === getLocalDateString();
+                                        const yesterday = new Date();
+                                        yesterday.setDate(yesterday.getDate() - 1);
+                                        const isYesterday = s.id === getLocalDateString(yesterday);
+                                        
+                                        const showSeparator = viewMode === 'daily' && (isToday || isYesterday);
+                                        
+                                        return (
+                                            <React.Fragment key={i}>
+                                                {showSeparator && (i === 0 || stats[i-1].id !== s.id) && (
+                                                    <tr className="bg-white/5">
+                                                        <td colSpan={4} className="py-2 px-4 text-[8px] font-black uppercase tracking-[0.2em] text-[#6366f1]">
+                                                            {isToday ? 'Hoje' : 'Ontem'}
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                                <tr className="group hover:bg-white/5 transition-colors">
+                                                    <td className="py-4 text-xs font-bold text-slate-400">{s.label}</td>
+                                                    <td className={`py-4 text-sm font-black ${s.profit >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'} ${isPrivacyMode ? 'blur-sm select-none opacity-50' : ''}`}>
+                                                        {s.profit >= 0 ? '+' : '-'}{currencySymbol}
+                                                        <CountUp end={Math.abs(s.profit)} decimals={2} duration={1} separator="." decimal="," />
+                                                    </td>
+                                                    <td className="py-4 text-xs font-bold">
+                                                        <span className="text-[#22c55e]">{s.wins}</span>
+                                                        <span className="mx-1 opacity-20">/</span>
+                                                        <span className="text-[#ef4444]">{s.losses}</span>
+                                                    </td>
+                                                    <td className="py-4 text-right">
+                                                        <span className="text-xs font-black text-white">{s.winRate.toFixed(1)}%</span>
                                                     </td>
                                                 </tr>
-                                            )}
-                                            <tr className="group hover:bg-white/5 transition-colors">
-                                                <td className="py-4 text-xs font-bold text-slate-400">{s.label}</td>
-                                                <td className={`py-4 text-sm font-black ${s.profit >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'} ${isPrivacyMode ? 'blur-sm select-none opacity-50' : ''}`}>
-                                                    {s.profit >= 0 ? '+' : '-'}{currencySymbol}
-                                                    <CountUp end={Math.abs(s.profit)} decimals={2} duration={1} separator="." decimal="," />
-                                                </td>
-                                                <td className="py-4 text-xs font-bold">
-                                                    <span className="text-[#22c55e]">{s.wins}</span>
-                                                    <span className="mx-1 opacity-20">/</span>
-                                                    <span className="text-[#ef4444]">{s.losses}</span>
-                                                </td>
-                                                <td className="py-4 text-xs font-bold text-slate-400">{s.total}</td>
-                                                <td className="py-4 text-right">
-                                                    <div className="flex items-center justify-end gap-3">
-                                                        <div className="w-24 bg-white/5 h-1.5 rounded-full overflow-hidden hidden md:block">
-                                                            <div className="h-full bg-[#6366f1]" style={{ width: `${s.winRate}%` }} />
-                                                        </div>
-                                                        <span className="text-xs font-black text-white w-12">{s.winRate.toFixed(1)}%</span>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        </React.Fragment>
-                                    );
-                                })}
-                                {stats.length === 0 && (
-                                    <tr>
-                                        <td colSpan={5} className="py-12 text-center text-xs font-medium text-slate-500 italic">
-                                            Nenhum dado encontrado para os filtros aplicados.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </GlassCard>
-            )}
-
-            <GlassCard theme={theme} className="h-[400px] flex flex-col">
-                <SectionTitle title="Evolução da Banca" subtitle="Histórico das últimas 30 movimentações" icon={TrendingUpIcon} theme={theme} />
-                <div className="flex-1 min-h-0">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={chartData}>
-                            <defs>
-                                <linearGradient id="colorBalHistory" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                            <XAxis 
-                                dataKey="date" 
-                                stroke="#ffffff20" 
-                                fontSize={10} 
-                                tickLine={false} 
-                                axisLine={false}
-                                tick={{ fill: '#64748b' }}
-                            />
-                            <YAxis 
-                                stroke="#ffffff20" 
-                                fontSize={10} 
-                                tickLine={false} 
-                                axisLine={false}
-                                tick={{ fill: '#64748b' }}
-                                tickFormatter={(val) => `${currencySymbol}${val}`}
-                            />
-                            <Tooltip 
-                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '12px' }}
-                                itemStyle={{ color: '#6366f1', fontWeight: 'bold' }}
-                            />
-                            <Area 
-                                type="monotone" 
-                                dataKey="balance" 
-                                stroke="#6366f1" 
-                                strokeWidth={3}
-                                fillOpacity={1} 
-                                fill="url(#colorBalHistory)" 
-                                animationDuration={1500}
-                            />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                </div>
-            </GlassCard>
-
-            {/* Import Modal */}
-            {isTextModalOpen && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-                    <GlassCard theme={theme} className="w-full max-w-2xl animate-in zoom-in-95 duration-300">
-                        <SectionTitle title="Importar Histórico" subtitle="Cole o texto das suas operações" icon={ArrowDownTrayIcon} theme={theme} />
-                        
-                        <div className="space-y-4">
-                            <textarea 
-                                value={importText}
-                                onChange={(e) => setImportText(e.target.value)}
-                                placeholder="Ex: 02/03,08:27:01,CAD/JPY,R$ 5.00,90%,+ R$ 9.50"
-                                className={`w-full h-64 p-4 rounded-2xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-mono text-xs ${theme.input}`}
-                            />
-                            
-                            {importError && (
-                                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold">
-                                    {importError}
-                                </div>
-                            )}
-
-                            {isImporting && (
-                                <div className="flex items-center gap-3 p-4 rounded-xl bg-[#6366f1]/10 border border-[#6366f1]/20 text-[#6366f1] text-xs font-bold">
-                                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                    IA Analisando dados... {retryCount > 0 && `(Tentativa ${retryCount}/5)`}
-                                </div>
-                            )}
-
-                            <div className="flex gap-4 pt-4">
-                                <ActionButton variant="ghost" className="flex-1" onClick={() => setIsTextModalOpen(false)}>
-                                    Cancelar
-                                </ActionButton>
-                                <ActionButton 
-                                    variant="primary" 
-                                    className="flex-1" 
-                                    onClick={handleTextImport}
-                                    disabled={isImporting || !importText.trim()}
-                                >
-                                    {isImporting ? 'Processando...' : 'Importar Agora'}
-                                </ActionButton>
-                            </div>
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                    {stats.length === 0 && (
+                                        <tr>
+                                            <td colSpan={4} className="py-12 text-center text-xs font-medium text-slate-500 italic">
+                                                Nenhum dado encontrado.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </GlassCard>
                 </div>
-            )}
+
+                <div className="lg:col-span-1">
+                    <GlassCard theme={theme} className="h-full flex flex-col">
+                        <SectionTitle title="Evolução" subtitle="Últimas 30 movimentações" icon={TrendingUpIcon} theme={theme} />
+                        <div className="flex-1 min-h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={chartData}>
+                                    <defs>
+                                        <linearGradient id="colorBalHistory" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                                    <XAxis 
+                                        dataKey="date" 
+                                        stroke="#ffffff20" 
+                                        fontSize={8} 
+                                        tickLine={false} 
+                                        axisLine={false}
+                                        tick={{ fill: '#64748b' }}
+                                    />
+                                    <YAxis 
+                                        stroke="#ffffff20" 
+                                        fontSize={8} 
+                                        tickLine={false} 
+                                        axisLine={false}
+                                        tick={{ fill: '#64748b' }}
+                                        tickFormatter={(val) => `${currencySymbol}${val}`}
+                                    />
+                                    <Tooltip 
+                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '10px' }}
+                                        itemStyle={{ color: '#6366f1', fontWeight: 'bold' }}
+                                    />
+                                    <Area 
+                                        type="monotone" 
+                                        dataKey="balance" 
+                                        stroke="#6366f1" 
+                                        strokeWidth={2}
+                                        fillOpacity={1} 
+                                        fill="url(#colorBalHistory)" 
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </GlassCard>
+                </div>
+            </div>
         </div>
     );
 };
@@ -3097,46 +3044,49 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                         <p className={`text-xs font-medium ${theme.textMuted}`}>{activeBrokerage?.name} • {selectedMonth}</p>
                     </div>
                 </div>
-                <div className="flex flex-wrap gap-3 items-end w-full lg:w-auto">
-                    <div className="flex flex-col flex-1 lg:flex-none min-w-[140px]">
-                        <label className="text-[10px] font-black uppercase text-slate-500 ml-1 mb-1 tracking-widest">Dia Selecionado</label>
-                        <input 
-                            type="date" 
-                            value={getLocalDateString(selectedDate)} 
-                            onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))}
-                            className={`w-full px-4 py-2 rounded-xl font-bold text-xs outline-none focus:ring-2 focus:ring-[#6366f1]/50 ${theme.input}`}
-                        />
-                    </div>
-                    <div className="flex flex-col flex-1 lg:flex-none min-w-[140px]">
-                        <label className="text-[10px] font-black uppercase text-slate-500 ml-1 mb-1 tracking-widest">Mês Referência</label>
-                        <select 
-                            value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(e.target.value)}
-                            className={`w-full px-4 py-2 rounded-xl font-bold text-xs outline-none focus:ring-2 focus:ring-[#6366f1]/50 ${theme.input}`}
-                        >
-                            {months.map(m => (
-                                <option key={m} value={m}>{m}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="flex flex-col w-full lg:w-auto">
-                        <label className="text-[10px] font-black uppercase text-slate-500 ml-1 mb-1 tracking-widest">Visualização</label>
-                        <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
-                            <button 
-                                onClick={() => setViewMode('daily')}
-                                className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${viewMode === 'daily' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 w-full">
+                    <div className="flex flex-wrap gap-3 items-end">
+                        <div className="flex flex-col min-w-[140px]">
+                            <label className="text-[10px] font-black uppercase text-slate-500 ml-1 mb-1 tracking-widest">Dia Selecionado</label>
+                            <input 
+                                type="date" 
+                                value={getLocalDateString(selectedDate)} 
+                                onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))}
+                                className={`w-full px-4 py-2 rounded-xl font-bold text-xs outline-none focus:ring-2 focus:ring-[#6366f1]/50 ${theme.input}`}
+                            />
+                        </div>
+                        <div className="flex flex-col min-w-[140px]">
+                            <label className="text-[10px] font-black uppercase text-slate-500 ml-1 mb-1 tracking-widest">Mês Referência</label>
+                            <select 
+                                value={selectedMonth}
+                                onChange={(e) => setSelectedMonth(e.target.value)}
+                                className={`w-full px-4 py-2 rounded-xl font-bold text-xs outline-none focus:ring-2 focus:ring-[#6366f1]/50 ${theme.input}`}
                             >
-                                Diária
-                            </button>
-                            <button 
-                                onClick={() => setViewMode('monthly')}
-                                className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${viewMode === 'monthly' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                                Mensal
-                            </button>
+                                {months.map(m => (
+                                    <option key={m} value={m}>{m}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex flex-col">
+                            <label className="text-[10px] font-black uppercase text-slate-500 ml-1 mb-1 tracking-widest">Visualização</label>
+                            <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
+                                <button 
+                                    onClick={() => setViewMode('daily')}
+                                    className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${viewMode === 'daily' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    Diária
+                                </button>
+                                <button 
+                                    onClick={() => setViewMode('monthly')}
+                                    className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${viewMode === 'monthly' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    Mensal
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    <div className="flex gap-2 w-full lg:w-auto items-end">
+
+                    <div className="flex flex-wrap gap-2 items-end">
                         <div className="flex flex-col">
                             <label className="text-[10px] font-black uppercase text-slate-500 ml-1 mb-1 tracking-widest">Banca</label>
                             <input 
@@ -3154,6 +3104,20 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                 onChange={e => setStopPercent(Number(e.target.value))} 
                                 className={`w-20 px-3 py-2 rounded-xl font-black text-right text-xs outline-none focus:ring-2 focus:ring-[#6366f1]/50 ${theme.input}`} 
                             />
+                        </div>
+                        <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-white/10">
+                            <div className="flex flex-col items-center border-r border-white/10 pr-3">
+                                <span className="text-[7px] font-black uppercase text-slate-500 tracking-widest">Placar</span>
+                                <span className="text-[10px] font-black"><span className="text-green-500">{displayWins}</span>/<span className="text-red-500">{displayLosses}</span></span>
+                            </div>
+                            <div className="flex flex-col items-center border-r border-white/10 px-3">
+                                <span className="text-[7px] font-black uppercase text-slate-500 tracking-widest">Resultado</span>
+                                <span className={`text-[10px] font-black ${displayProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>{displayProfit >= 0 ? '+' : '-'}{currencySymbol}{formatMoney(Math.abs(displayProfit))}</span>
+                            </div>
+                            <div className="flex flex-col items-center pl-3">
+                                <span className="text-[7px] font-black uppercase text-slate-500 tracking-widest">Assert.</span>
+                                <span className="text-[10px] font-black text-[#6366f1]">{((displayWins / (displayWins + displayLosses || 1)) * 100).toFixed(1)}%</span>
+                            </div>
                         </div>
                         <ActionButton 
                             variant="primary"
@@ -3180,42 +3144,6 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                             Resetar
                         </ActionButton>
                     </div>
-                </div>
-            </div>
-
-            {/* Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div className={`p-4 rounded-2xl border ${theme.card} border-white/5 flex flex-col gap-1`}>
-                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Placar do Dia</span>
-                    <span className="text-sm font-black text-white">
-                        <span className="text-[#22c55e]">{displayWins}</span>
-                        <span className="mx-1 opacity-20">/</span>
-                        <span className="text-[#ef4444]">{displayLosses}</span>
-                    </span>
-                </div>
-                <div className={`p-4 rounded-2xl border ${theme.card} border-white/5 flex flex-col gap-1`}>
-                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Banca Inicial</span>
-                    <span className={`text-sm font-black text-white ${isPrivacyMode ? 'blur-sm' : ''}`}>
-                        {currencySymbol} {formatMoney(displayInitialBank)}
-                    </span>
-                </div>
-                <div className={`p-4 rounded-2xl border ${theme.card} border-white/5 flex flex-col gap-1`}>
-                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Banca Atualizada</span>
-                    <span className={`text-sm font-black text-white ${isPrivacyMode ? 'blur-sm' : ''}`}>
-                        {currencySymbol} {formatMoney(displayCurrentBank)}
-                    </span>
-                </div>
-                <div className={`p-4 rounded-2xl border ${theme.card} border-white/5 flex flex-col gap-1`}>
-                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Resultado do Dia</span>
-                    <span className={`text-sm font-black ${displayProfit >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'} ${isPrivacyMode ? 'blur-sm' : ''}`}>
-                        {displayProfit >= 0 ? '+' : '-'}{currencySymbol} {formatMoney(Math.abs(displayProfit))}
-                    </span>
-                </div>
-                <div className={`p-4 rounded-2xl border ${theme.card} border-white/5 flex flex-col gap-1 col-span-2 md:col-span-1`}>
-                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Assertividade</span>
-                    <span className="text-sm font-black text-[#6366f1]">
-                        {((displayWins / (displayWins + displayLosses || 1)) * 100).toFixed(1)}%
-                    </span>
                 </div>
             </div>
 
