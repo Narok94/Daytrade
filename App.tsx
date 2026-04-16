@@ -718,43 +718,6 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         }
     };
 
-    const addBulkTrades = (tradesToImport: { date: string, result: 'win' | 'loss', entryValue: number, payoutPercentage: number }[]) => {
-        if (!activeBrokerage) return;
-        setRecords(prev => {
-            let updatedRecords = [...prev];
-            tradesToImport.forEach(t => {
-                const dateKey = t.date;
-                const newTrade: Trade = { 
-                    id: crypto.randomUUID(), 
-                    result: t.result, 
-                    entryValue: t.entryValue, 
-                    payoutPercentage: t.payoutPercentage, 
-                    timestamp: new Date(t.date + 'T12:00:00').getTime() 
-                };
-                
-                const existingIdx = updatedRecords.findIndex(r => r.id === dateKey && r.recordType === 'day' && r.brokerageId === activeBrokerage.id);
-                if (existingIdx >= 0) {
-                    const rec = updatedRecords[existingIdx] as DailyRecord;
-                    updatedRecords[existingIdx] = { ...rec, trades: [...rec.trades, newTrade] };
-                } else {
-                    updatedRecords.push({ 
-                        recordType: 'day', 
-                        brokerageId: activeBrokerage.id, 
-                        id: dateKey, 
-                        date: dateKey, 
-                        trades: [newTrade], 
-                        startBalanceUSD: 0, 
-                        winCount: 0, 
-                        lossCount: 0, 
-                        netProfitUSD: 0, 
-                        endBalanceUSD: 0 
-                    });
-                }
-            });
-            return recalibrateHistory(updatedRecords, activeBrokerage.initialBalance, activeBrokerage.id);
-        });
-    };
-
     const brokerageBalances = useMemo(() => {
         return brokerages.map(b => {
             const bRecords = records.filter(r => r.brokerageId === b.id)
@@ -1012,7 +975,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                         />
                     )}
                     {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
-                    {activeTab === 'history' && <HistoryPanel isDarkMode={isDarkMode} isPrivacyMode={isPrivacyMode} activeBrokerage={activeBrokerage} records={records} addBulkTrades={addBulkTrades} />}
+                    {activeTab === 'history' && <HistoryPanel isDarkMode={isDarkMode} isPrivacyMode={isPrivacyMode} activeBrokerage={activeBrokerage} records={records} />}
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'management-sheet' && <ManagementSheetPanel theme={theme} activeBrokerage={activeBrokerage} isDarkMode={isDarkMode} records={records} selectedDate={selectedDate} setSelectedDate={setSelectedDate} isPrivacyMode={isPrivacyMode} />}
@@ -1875,7 +1838,7 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
     );
 };
 
-const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerage, records, addBulkTrades }) => {
+const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerage, records }) => {
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
     const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly' | 'calendar'>('calendar');
@@ -1899,11 +1862,6 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerag
         });
     }, [records, activeBrokerage]);
 
-    const [isImporting, setIsImporting] = useState(false);
-    const [importError, setImportError] = useState<string | null>(null);
-    const [retryCount, setRetryCount] = useState(0);
-    const [isTextModalOpen, setIsTextModalOpen] = useState(false);
-    const [importText, setImportText] = useState('');
     const [filterStartDate, setFilterStartDate] = useState('');
     const [filterEndDate, setFilterEndDate] = useState('');
     const [filterMinProfit, setFilterMinProfit] = useState('');
@@ -1937,83 +1895,6 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerag
             a.href = url;
             a.download = `historico_${viewMode}_${new Date().toISOString().slice(0, 10)}.csv`;
             a.click();
-        }
-    };
-
-    const handleTextImport = async () => {
-        if (!importText.trim()) return;
-
-        setIsImporting(true);
-        setImportError(null);
-        setRetryCount(0);
-
-        try {
-            const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
-            if (!apiKey) throw new Error("Chave de API não encontrada.");
-            const ai = new GoogleGenAI({ apiKey });
-
-            const response = await withRetry(() => ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: {
-                    parts: [
-                        { text: `Analise este texto que contém um histórico de operações de trading, possivelmente no formato: Data,Horário,Par de Moedas,Valor Entrada,Payout (%),Resultado.
-                        Exemplo: 02/03,08:27:01,CAD/JPY,"R$ 5,00",90%,"+ R$ 9,50"
-                        
-                        Regras de extração:
-                        1. Data: Converta para o formato YYYY-MM-DD. Use o ano de 2026.
-                        2. Resultado: Identifique como 'win' ou 'loss'.
-                           - Se houver lucro ("+ R$") ou for uma operação vencedora, use 'win'.
-                           - Se houver prejuízo ("- R$") ou for uma operação perdedora, use 'loss'.
-                           - Se for "Empate", use 'win' mas defina o Payout como 0 (isso garante que o lucro seja zero).
-                        3. Valor de Entrada: Extraia apenas o valor numérico (ex: 5.00).
-                        4. Payout %: Extraia apenas o número (ex: 90). Se for "-", use 0.
-                        
-                        Texto:
-                        ${importText}
-                        
-                        Retorne APENAS um array JSON de objetos.` }
-                    ],
-                },
-                config: {
-                    systemInstruction: "Você é um assistente especializado em extração de dados de trading. Você deve processar textos (incluindo formatos CSV) e extrair operações para um formato JSON padronizado. Trate 'Empate' como 'win' com payout 0.",
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                date: { type: Type.STRING, description: "Data da operação YYYY-MM-DD" },
-                                result: { type: Type.STRING, enum: ['win', 'loss'] },
-                                entryValue: { type: Type.NUMBER },
-                                payoutPercentage: { type: Type.NUMBER }
-                            },
-                            required: ['date', 'result', 'entryValue', 'payoutPercentage']
-                        }
-                    }
-                }
-            }), 5, 2000, (attempt) => setRetryCount(attempt));
-
-            const text = response.text;
-            if (text) {
-                const trades = JSON.parse(text);
-                if (Array.isArray(trades) && trades.length > 0) {
-                    addBulkTrades(trades);
-                    alert(`${trades.length} operações importadas com sucesso!`);
-                    setIsTextModalOpen(false);
-                    setImportText('');
-                } else {
-                    setImportError("Nenhuma operação encontrada no texto enviado.");
-                }
-            }
-        } catch (err: any) {
-            console.error(err);
-            if (err.message?.includes('503') || err.message?.includes('high demand')) {
-                setImportError("O Google está com alta demanda no momento (Erro 503). Por favor, aguarde 10 segundos e tente novamente.");
-            } else {
-                setImportError("Erro ao processar texto: " + err.message);
-            }
-        } finally {
-            setIsImporting(false);
         }
     };
 
@@ -2151,7 +2032,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerag
                                     <tr className="border-b border-white/5">
                                         <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Período</th>
                                         <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Lucro Líquido</th>
-                                        <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">W / L</th>
+                                        <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">W / L</th>
                                         <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Win Rate</th>
                                     </tr>
                                 </thead>
@@ -2179,7 +2060,7 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerag
                                                         {s.profit >= 0 ? '+' : '-'}{currencySymbol}
                                                         <CountUp end={Math.abs(s.profit)} decimals={2} duration={1} separator="." decimal="," />
                                                     </td>
-                                                    <td className="py-4 text-xs font-bold">
+                                                    <td className="py-4 text-right text-xs font-bold">
                                                         <span className="text-[#22c55e]">{s.wins}</span>
                                                         <span className="mx-1 opacity-20">/</span>
                                                         <span className="text-[#ef4444]">{s.losses}</span>
@@ -3087,24 +2968,6 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                     </div>
 
                     <div className="flex flex-wrap gap-2 items-end">
-                        <div className="flex flex-col">
-                            <label className="text-[10px] font-black uppercase text-slate-500 ml-1 mb-1 tracking-widest">Banca</label>
-                            <input 
-                                type="number" 
-                                value={bank} 
-                                onChange={e => setBank(Number(e.target.value))} 
-                                className={`w-24 px-3 py-2 rounded-xl font-black text-right text-xs outline-none focus:ring-2 focus:ring-[#6366f1]/50 ${theme.input}`} 
-                            />
-                        </div>
-                        <div className="flex flex-col">
-                            <label className="text-[10px] font-black uppercase text-slate-500 ml-1 mb-1 tracking-widest">Stop %</label>
-                            <input 
-                                type="number" 
-                                value={stopPercent} 
-                                onChange={e => setStopPercent(Number(e.target.value))} 
-                                className={`w-20 px-3 py-2 rounded-xl font-black text-right text-xs outline-none focus:ring-2 focus:ring-[#6366f1]/50 ${theme.input}`} 
-                            />
-                        </div>
                         <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-white/10">
                             <div className="flex flex-col items-center border-r border-white/10 pr-3">
                                 <span className="text-[7px] font-black uppercase text-slate-500 tracking-widest">Placar</span>
@@ -3119,30 +2982,6 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                 <span className="text-[10px] font-black text-[#6366f1]">{((displayWins / (displayWins + displayLosses || 1)) * 100).toFixed(1)}%</span>
                             </div>
                         </div>
-                        <ActionButton 
-                            variant="primary"
-                            onClick={() => setSelectedDate(new Date())}
-                        >
-                            Hoje
-                        </ActionButton>
-                        <ActionButton 
-                            variant="ghost"
-                            className="text-[#ef4444] hover:bg-[#ef4444]/10"
-                            onClick={() => {
-                                if(confirm('Deseja resetar os dados deste mês para esta corretora?')) {
-                                    localStorage.removeItem(getStorageKey('days'));
-                                    localStorage.removeItem(getStorageKey('bank'));
-                                    localStorage.removeItem(getStorageKey('stop'));
-                                    localStorage.removeItem(getStorageKey('exchange'));
-                                    localStorage.removeItem(getStorageKey('cycle1'));
-                                    localStorage.removeItem(getStorageKey('deposits'));
-                                    localStorage.removeItem(getStorageKey('withdrawals'));
-                                    window.location.reload();
-                                }
-                            }}
-                        >
-                            Resetar
-                        </ActionButton>
                     </div>
                 </div>
             </div>
