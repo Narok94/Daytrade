@@ -21,7 +21,8 @@
     "motion": "^12.37.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "recharts": "^2.12.7",
+    "react-hot-toast": "^2.6.0",
+    "recharts": "^2.15.4",
     "tailwindcss": "^4.2.1",
     "tsx": "^4.21.0"
   },

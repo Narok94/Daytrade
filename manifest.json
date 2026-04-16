@@ -1,0 +1,21 @@
+{
+  "name": "HRK Binary Control",
+  "short_name": "HRK Control",
+  "description": "Gestão Profissional para Traders de Opções Binárias",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/hrk/192/192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://picsum.photos/seed/hrk/512/512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

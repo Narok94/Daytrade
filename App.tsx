@@ -14,8 +14,10 @@ import {
     ChevronLeftIcon, ChevronRightIcon, PhotoIcon,
     SparklesIcon, CheckCircleIcon, XMarkIcon, ArrowUpIcon, ArrowDownIcon,
     ExclamationTriangleIcon, BoltIcon, ClockIcon, PlayIcon, CameraIcon,
-    ChevronDownIcon, UsersIcon, PauseIcon, KeyIcon
+    ChevronDownIcon, UsersIcon, PauseIcon, KeyIcon, FunnelIcon, ArrowDownTrayIcon
 } from './components/icons';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import toast, { Toaster } from 'react-hot-toast';
 
 // --- Helper Functions ---
 const formatMoney = (val: number) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -82,17 +84,72 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 5, initialDelay =
 
 const useThemeClasses = (isDarkMode: boolean) => {
     return useMemo(() => ({
-        bg: isDarkMode ? 'bg-[#0f172a]' : 'bg-zinc-100',
+        bg: isDarkMode ? 'bg-[#0b0e14]' : 'bg-zinc-100',
         text: isDarkMode ? 'text-slate-50' : 'text-zinc-900',
         textMuted: isDarkMode ? 'text-slate-400' : 'text-zinc-500',
-        card: isDarkMode ? 'bg-[#1e293b]/50 border-white/5' : 'bg-zinc-50 border-zinc-200 shadow-sm',
-        input: isDarkMode ? 'bg-[#0f172a] border-white/10 text-white placeholder-slate-700' : 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400',
+        card: isDarkMode ? 'bg-white/5 backdrop-blur-md border border-white/10 shadow-2xl' : 'bg-white border-zinc-200 shadow-sm',
+        input: isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-[#6366f1]/50 focus:ring-1 focus:ring-[#6366f1]/50' : 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400',
         border: isDarkMode ? 'border-white/10' : 'border-zinc-200',
-        sidebar: isDarkMode ? 'bg-[#0f172a] border-r border-white/10' : 'bg-zinc-50 border-r border-zinc-200',
-        header: isDarkMode ? 'bg-[#0f172a]' : 'bg-zinc-50',
-        navActive: isDarkMode ? 'bg-[#6366f1]/10 text-[#6366f1]' : 'bg-indigo-50 text-indigo-600',
-        navInactive: isDarkMode ? 'text-slate-400 hover:text-[#6366f1] hover:bg-[#6366f1]/5' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50',
+        sidebar: isDarkMode ? 'bg-[#0b0e14] border-r border-white/10' : 'bg-zinc-50 border-r border-zinc-200',
+        header: isDarkMode ? 'bg-[#0b0e14]/80 backdrop-blur-md' : 'bg-zinc-50/80 backdrop-blur-md',
+        navActive: isDarkMode ? 'bg-[#6366f1]/20 text-[#6366f1] shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'bg-indigo-50 text-indigo-600',
+        navInactive: isDarkMode ? 'text-slate-400 hover:text-[#6366f1] hover:bg-white/5' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50',
+        accentSuccess: 'text-[#22c55e] drop-shadow-[0_0_8px_rgba(34,197,94,0.3)]',
+        accentError: 'text-[#ef4444] drop-shadow-[0_0_8px_rgba(239,68,68,0.3)]',
+        accentAction: 'bg-[#6366f1] hover:bg-[#4f46e5] shadow-[0_0_20px_rgba(99,102,241,0.3)]',
     }), [isDarkMode]);
+};
+
+// --- Components ---
+const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
+    <div className={`animate-pulse bg-white/5 rounded-2xl ${className}`} />
+);
+
+const GlassCard: React.FC<{ children: React.ReactNode; className?: string; theme: any }> = ({ children, className = '', theme }) => (
+    <div className={`p-6 rounded-3xl ${theme.card} ${className}`}>
+        {children}
+    </div>
+);
+
+const SectionTitle: React.FC<{ title: string; subtitle?: string; icon?: any; theme: any }> = ({ title, subtitle, icon: Icon, theme }) => (
+    <div className="mb-6">
+        <div className="flex items-center gap-3 mb-1">
+            {Icon && <Icon className="w-5 h-5 text-[#6366f1]" />}
+            <h3 className={`text-sm font-black uppercase tracking-[0.2em] opacity-80 ${theme.text}`}>{title}</h3>
+        </div>
+        {subtitle && <p className={`text-[10px] font-medium ${theme.textMuted}`}>{subtitle}</p>}
+    </div>
+);
+
+const ActionButton: React.FC<{ 
+    children: React.ReactNode; 
+    onClick?: () => void; 
+    className?: string; 
+    variant?: 'primary' | 'success' | 'danger' | 'ghost';
+    disabled?: boolean;
+    icon?: any;
+}> = ({ children, onClick, className = '', variant = 'primary', disabled, icon: Icon }) => {
+    const variants = {
+        primary: 'bg-[#6366f1] text-white shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:bg-[#4f46e5]',
+        success: 'bg-[#22c55e] text-white shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:bg-[#16a34a]',
+        danger: 'bg-[#ef4444] text-white shadow-[0_0_20px_rgba(239,68,68,0.3)] hover:bg-[#dc2626]',
+        ghost: 'bg-white/5 text-slate-300 hover:bg-white/10 border border-white/10'
+    };
+
+    return (
+        <button 
+            onClick={onClick}
+            disabled={disabled}
+            className={`
+                flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest
+                transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
+                ${variants[variant]} ${className}
+            `}
+        >
+            {Icon && <Icon className="w-4 h-4" />}
+            {children}
+        </button>
+    );
 };
 
 // --- AI Analysis Panel (Advanced Analysis v4 - Pro Edition) ---
@@ -270,193 +327,172 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
 
     if (isAnalyzing) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[500px] lg:min-h-[600px] p-4 lg:p-6 space-y-8 lg:space-y-12 bg-[#0f172a] text-white">
-                <div className="relative">
-                    <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-2xl border-2 border-[#6366f1]/30 flex items-center justify-center relative z-10 bg-[#1e293b]">
-                        <CpuChipIcon className="w-10 h-10 lg:w-12 lg:h-12 text-[#6366f1] animate-pulse" />
-                        {/* Neural Scan Line */}
-                        <div className="absolute inset-0 overflow-hidden rounded-2xl">
-                            <div className="w-full h-0.5 bg-[#6366f1]/40 absolute top-0 animate-scan" />
+            <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-8">
+                <GlassCard theme={theme} className="animate-pulse">
+                    <SectionTitle title="Análise Neural" subtitle="Insights baseados em IA" icon={CpuChipIcon} theme={theme} />
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Status do Motor</span>
+                            <span className="text-xs font-black text-[#6366f1] uppercase tracking-widest animate-pulse">Processando...</span>
+                        </div>
+                        <div className="space-y-4">
+                            {[
+                                { label: 'UPLOAD_IMAGE', val: progress.upload },
+                                { label: 'EXTRACT_DATA', val: progress.data },
+                                { label: 'PATTERN_MATCH', val: progress.patterns },
+                                { label: 'FINAL_COMPUTE', val: progress.result }
+                            ].map((p, i) => (
+                                <div key={i} className="space-y-2">
+                                    <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-500">
+                                        <span>{p.label}</span>
+                                        <span>{p.val}%</span>
+                                    </div>
+                                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                                        <div className="h-full bg-[#6366f1] transition-all duration-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: `${p.val}%` }} />
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
-                    <div className="absolute inset-0 border-2 border-[#6366f1] rounded-2xl animate-ping opacity-20" />
-                </div>
-
-                <div className="text-center space-y-1">
-                    <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-[#6366f1] uppercase">Processando...</h2>
-                    <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[8px] lg:text-[10px]">Análise de Mercado em Tempo Real</p>
-                </div>
-
-                <div className="w-full max-w-xs space-y-4">
-                    {[
-                        { label: 'UPLOAD_IMAGE', val: progress.upload, color: 'bg-[#6366f1]' },
-                        { label: 'EXTRACT_DATA', val: progress.data, color: 'bg-[#6366f1]/80' },
-                        { label: 'PATTERN_MATCH', val: progress.patterns, color: 'bg-[#6366f1]/60' },
-                        { label: 'FINAL_COMPUTE', val: progress.result, color: 'bg-[#6366f1]/40' }
-                    ].map((p, i) => (
-                        <div key={i} className="space-y-1.5">
-                            <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-400">
-                                <span>{p.label}</span>
-                                <span>{p.val}%</span>
-                            </div>
-                            <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-                                <div className={`h-full ${p.color} transition-all duration-500`} style={{ width: `${p.val}%` }} />
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                </GlassCard>
             </div>
         );
     }
 
     if (analysisResult) {
         return (
-            <div className="max-w-md mx-auto p-4 space-y-6 bg-[#0f172a] min-h-screen text-white">
-                <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 bg-[#6366f1] rounded-full animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
-                        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[#6366f1]">Análise Concluída</h2>
+            <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-8">
+                <GlassCard theme={theme} className="animate-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex items-center justify-between mb-6">
+                        <SectionTitle title="Resultado da Análise" subtitle="Recomendações técnicas" icon={CheckCircleIcon} theme={theme} />
+                        <button onClick={() => setAnalysisResult(null)} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white transition-all active:scale-90">
+                            <XMarkIcon className="w-5 h-5" />
+                        </button>
                     </div>
-                    <button onClick={() => setAnalysisResult(null)} className="p-2 bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
-                        <XMarkIcon className="w-4 h-4" />
-                    </button>
-                </div>
 
-                {/* Main Signal Card */}
-                <div className="bg-[#1e293b] border border-[#6366f1]/20 rounded-3xl overflow-hidden shadow-2xl">
-                    <div className="bg-[#6366f1] px-6 py-3 flex justify-between items-center">
-                        <span className="text-[10px] font-black uppercase text-white tracking-widest">{analysisResult.asset}</span>
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black uppercase text-[#0f172a]/80">{analysisResult.timeframe}</span>
-                            <div className="w-1 h-1 bg-[#0f172a] rounded-full" />
-                        </div>
-                    </div>
-                    
-                    <div className="p-8 text-center space-y-8">
-                        <div className="space-y-2">
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Recomendação</p>
-                            <h3 className={`text-6xl font-black tracking-tighter ${
-                                analysisResult.recommendation === 'CALL' ? 'text-[#6366f1]' : 
-                                analysisResult.recommendation === 'PUT' ? 'text-rose-500' : 'text-slate-400'
+                    <div className="space-y-8">
+                        <div className="p-8 rounded-[2.5rem] bg-[#6366f1]/10 border border-[#6366f1]/20 text-center relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#6366f1]/40 to-transparent animate-pulse" />
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Recomendação</p>
+                            <h3 className={`text-7xl font-black tracking-tighter mb-2 ${
+                                analysisResult.recommendation === 'CALL' ? 'text-[#6366f1] drop-shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 
+                                analysisResult.recommendation === 'PUT' ? 'text-[#ef4444] drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'text-slate-400'
                             }`}>
                                 {analysisResult.recommendation === 'CALL' ? 'COMPRA' : analysisResult.recommendation === 'PUT' ? 'VENDA' : 'AGUARDAR'}
                             </h3>
+                            <div className="flex items-center justify-center gap-2">
+                                <span className="text-xs font-black uppercase text-white tracking-widest">{analysisResult.asset}</span>
+                                <div className="w-1.5 h-1.5 bg-[#6366f1] rounded-full animate-pulse" />
+                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{analysisResult.timeframe}</span>
+                            </div>
                         </div>
 
-                        <div className="py-6 border-y border-white/5">
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Horário de Entrada</p>
-                            <p className="text-4xl font-black text-white tracking-widest">{analysisResult.entryTime}</p>
-                            {countdown !== null && (
-                                <div className="mt-4 flex flex-col items-center gap-1">
-                                    <p className="text-[10px] font-black text-[#6366f1] animate-pulse">ENTRE EM: {countdown}S</p>
-                                    <div className="w-32 h-1 bg-slate-800 rounded-full overflow-hidden">
-                                        <div className="h-full bg-[#6366f1] transition-all duration-1000" style={{ width: `${(countdown / 60) * 100}%` }} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-6 rounded-3xl bg-white/5 border border-white/5 text-center">
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Horário de Entrada</p>
+                                <p className="text-4xl font-black text-white tracking-widest">{analysisResult.entryTime}</p>
+                                {countdown !== null && (
+                                    <p className="text-[10px] font-black text-[#6366f1] animate-pulse mt-2 uppercase tracking-widest">Entre em: {countdown}s</p>
+                                )}
+                            </div>
+                            <div className="p-6 rounded-3xl bg-white/5 border border-white/5 text-center">
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Confiança</p>
+                                <p className="text-4xl font-black text-[#22c55e]">{analysisResult.confidence}%</p>
+                                <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden mt-3">
+                                    <div className="h-full bg-[#22c55e]" style={{ width: `${analysisResult.confidence}%` }} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <button 
+                                onClick={() => setShowDetailed(!showDetailed)}
+                                className="w-full p-5 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between hover:bg-white/10 transition-all active:scale-[0.98]"
+                            >
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Logs Técnicos</span>
+                                <ChevronDownIcon className={`w-5 h-5 text-slate-500 transition-transform duration-300 ${showDetailed ? 'rotate-180' : ''}`} />
+                            </button>
+                            {showDetailed && (
+                                <div className="p-6 bg-white/5 rounded-2xl text-xs text-slate-400 leading-relaxed font-medium border border-white/5 animate-in slide-in-from-top-2 duration-300">
+                                    <div className="flex gap-2 mb-3">
+                                        <span className="text-[#6366f1] font-black tracking-widest">[IA_CORE]</span>
+                                        <span className="text-slate-300">Analisando padrões de price action...</span>
                                     </div>
+                                    <p className="italic opacity-80">{analysisResult.reasoning}</p>
                                 </div>
                             )}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-[#1e293b] p-3 rounded-2xl border border-white/5">
-                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Confiança</p>
-                                <p className="text-xl font-black text-[#6366f1]">{analysisResult.confidence}%</p>
-                            </div>
-                            <div className="bg-[#1e293b] p-3 rounded-2xl border border-white/5">
-                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Tendência</p>
-                                <p className="text-xl font-black text-white">{analysisResult.trend}</p>
-                            </div>
-                        </div>
+                        <ActionButton variant="primary" className="w-full h-16" onClick={() => { setAnalysisResult(null); setSelectedImage(null); }} icon={ArrowPathIcon}>
+                            Nova Análise
+                        </ActionButton>
                     </div>
-                </div>
-
-                {/* Technical Logs */}
-                <div className="space-y-3">
-                    <button 
-                        onClick={() => setShowDetailed(!showDetailed)}
-                        className="w-full p-4 bg-[#1e293b] border border-white/5 rounded-2xl flex items-center justify-between hover:bg-slate-900/50 transition-all"
-                    >
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Logs Técnicos</span>
-                        <ChevronDownIcon className={`w-4 h-4 text-slate-500 transition-transform ${showDetailed ? 'rotate-180' : ''}`} />
-                    </button>
-                    {showDetailed && (
-                        <div className="p-5 bg-slate-900/30 rounded-2xl text-[11px] text-slate-400 leading-relaxed font-medium border border-white/5">
-                            <div className="flex gap-2 mb-2">
-                                <span className="text-[#6366f1] font-bold">[INFO]</span>
-                                <span>Processando padrões de mercado...</span>
-                            </div>
-                            {analysisResult.reasoning}
-                        </div>
-                    )}
-                </div>
-
-                <button 
-                    onClick={() => { setAnalysisResult(null); setSelectedImage(null); }}
-                    className="w-full py-5 bg-gradient-to-br from-green-600 to-emerald-700 hover:brightness-110 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-[0.98]"
-                >
-                    Nova Análise
-                </button>
+                </GlassCard>
             </div>
         );
     }
 
     return (
-        <div className="p-4 md:p-8 space-y-8 max-w-2xl mx-auto bg-[#0f172a] min-h-screen">
-            {!selectedImage ? (
-                <div className="space-y-8">
-                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 rounded-[2.5rem] p-12 bg-[#1e293b]/50 space-y-8 relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#6366f1]/20 to-transparent" />
-                        
-                        <div className="w-24 h-24 rounded-3xl bg-[#6366f1]/10 border border-[#6366f1]/20 flex items-center justify-center text-[#6366f1] shadow-2xl">
-                            <PhotoIcon className="w-12 h-12" />
+        <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-8">
+            <GlassCard theme={theme} className="animate-in fade-in duration-500">
+                <SectionTitle title="Análise IA" subtitle="Envie um print do seu gráfico" icon={SparklesIcon} theme={theme} />
+                
+                {!selectedImage ? (
+                    <div className="space-y-8">
+                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 rounded-[3rem] p-12 bg-white/5 backdrop-blur-md space-y-10 relative overflow-hidden group">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#6366f1]/40 to-transparent animate-pulse" />
+                            
+                            <div className="w-28 h-28 rounded-[2rem] bg-[#6366f1]/10 border border-[#6366f1]/20 flex items-center justify-center text-[#6366f1] shadow-[0_0_50px_rgba(99,102,241,0.1)] group-hover:scale-110 transition-transform duration-500">
+                                <PhotoIcon className="w-14 h-14" />
+                            </div>
+                            
+                            <div className="text-center space-y-4">
+                                <h3 className="text-3xl font-black uppercase tracking-tight text-white">Análise IA</h3>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Envie um print do seu gráfico para análise</p>
+                            </div>
+                            
+                            <div className="w-full grid grid-cols-2 gap-4">
+                                <label className="py-6 bg-gradient-to-br from-[#6366f1] to-[#4f46e5] hover:brightness-110 text-white rounded-2xl flex flex-col items-center justify-center gap-3 font-black text-[10px] uppercase cursor-pointer transition-all shadow-xl active:scale-95">
+                                    <CameraIcon className="w-7 h-7" /> Câmera
+                                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+                                </label>
+                                <label className="py-6 bg-white/5 hover:bg-white/10 text-white rounded-2xl flex flex-col items-center justify-center gap-3 font-black text-[10px] uppercase cursor-pointer transition-all border border-white/10 active:scale-95">
+                                    <PhotoIcon className="w-7 h-7" /> Galeria
+                                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                                </label>
+                            </div>
                         </div>
-                        
-                        <div className="text-center space-y-3 text-white">
-                            <h3 className="text-2xl font-black uppercase tracking-tight">Análise de Gráfico</h3>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Envie um print do seu gráfico para análise IA</p>
-                        </div>
-                        
-                        <div className="w-full grid grid-cols-2 gap-4">
-                            <label className="py-5 bg-gradient-to-br from-green-600 to-emerald-700 hover:brightness-110 text-white rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase cursor-pointer transition-all shadow-lg">
-                                <CameraIcon className="w-6 h-6" /> Câmera
-                                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
-                            </label>
-                            <label className="py-5 bg-[#1e293b] hover:bg-slate-700 text-white rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase cursor-pointer transition-all border border-white/5">
-                                <PhotoIcon className="w-6 h-6" /> Galeria
-                                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                            </label>
-                        </div>
-                    </div>
 
-                    <div className="p-6 border border-white/5 rounded-3xl bg-slate-900/20">
-                        <div className="flex items-start gap-4">
-                            <InformationCircleIcon className="w-5 h-5 text-[#6366f1]/40 shrink-0 mt-0.5" />
-                            <p className="text-[10px] text-slate-500 leading-relaxed uppercase tracking-widest font-bold">
+                        <div className="p-6 rounded-2xl bg-white/5 border border-white/5 flex items-start gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-[#6366f1]/10 flex items-center justify-center text-[#6366f1] shrink-0">
+                                <InformationCircleIcon className="w-6 h-6" />
+                            </div>
+                            <p className="text-[10px] text-slate-400 leading-relaxed uppercase tracking-widest font-black">
                                 Para melhores resultados, certifique-se de que o gráfico mostre claramente o preço, o timer da vela e pelo menos 30-50 períodos de histórico.
                             </p>
                         </div>
                     </div>
-                </div>
-            ) : (
-                <div className="space-y-8">
-                    <div className="relative aspect-video rounded-[2rem] overflow-hidden border border-[#6366f1]/30 bg-[#1e293b] shadow-2xl">
-                        <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a]/60 to-transparent pointer-events-none" />
-                        <button 
-                            onClick={() => setSelectedImage(null)}
-                            className="absolute top-4 right-4 p-2 bg-black/80 backdrop-blur-md rounded-xl text-white hover:bg-rose-600 transition-all"
-                        >
-                            <XMarkIcon className="w-5 h-5" />
-                        </button>
+                ) : (
+                    <div className="space-y-8">
+                        <div className="relative aspect-video rounded-[2.5rem] overflow-hidden border border-[#6366f1]/30 bg-white/5 shadow-2xl group">
+                            <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#0b0e14]/80 to-transparent pointer-events-none" />
+                            <button onClick={() => setSelectedImage(null)} className="absolute top-4 right-4 p-3 bg-black/50 backdrop-blur-md rounded-2xl text-white hover:bg-red-500 transition-all active:scale-90">
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="flex flex-col gap-4">
+                            <ActionButton variant="primary" className="w-full h-16" onClick={runAIAnalysis} icon={SparklesIcon}>
+                                Iniciar Análise Neural
+                            </ActionButton>
+                            <ActionButton variant="ghost" className="w-full h-16" onClick={() => setSelectedImage(null)} icon={ArrowPathIcon}>
+                                Trocar Imagem
+                            </ActionButton>
+                        </div>
                     </div>
-                    
-                    <button 
-                        onClick={runAIAnalysis}
-                        className="w-full py-6 bg-gradient-to-br from-green-600 to-emerald-700 hover:brightness-110 text-white rounded-2xl flex items-center justify-center gap-4 font-black text-sm uppercase tracking-widest transition-all shadow-xl active:scale-[0.97]"
-                    >
-                        <CpuChipIcon className="w-7 h-7" /> Iniciar Análise IA
-                    </button>
-                </div>
-            )}
+                )}
+            </GlassCard>
         </div>
     );
 };
@@ -465,7 +501,15 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
 // --- App Root Logic ---
 const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout }) => {
     const [activeTab, setActiveTab] = useState<string>('dashboard');
-    const [isDarkMode, setIsDarkMode] = useState(true);
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        const saved = localStorage.getItem('hrk_isDarkMode');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+
+    useEffect(() => {
+        localStorage.setItem('hrk_isDarkMode', JSON.stringify(isDarkMode));
+    }, [isDarkMode]);
+
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [brokerages, setBrokerages] = useState<Brokerage[]>([]);
@@ -719,7 +763,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     }, [brokerages, records]);
 
     const theme = useThemeClasses(isDarkMode);
-    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-[#6366f1] border-t-transparent rounded-full animate-spin" /></div>;
+    // if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-[#6366f1] border-t-transparent rounded-full animate-spin" /></div>;
 
     const dateStr = getLocalDateString(selectedDate);
     const brokerageRecords = records.filter(r => r.brokerageId === activeBrokerage?.id);
@@ -796,6 +840,16 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
 
     return (
         <div className={`flex h-screen overflow-hidden overflow-x-hidden ${theme.bg} ${theme.text}`}>
+            <Toaster position="top-right" toastOptions={{ 
+                style: { 
+                    background: isDarkMode ? '#1e293b' : '#ffffff', 
+                    color: isDarkMode ? '#f8fafc' : '#0f172a',
+                    borderRadius: '16px',
+                    border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
+                    fontSize: '12px',
+                    fontWeight: 'bold'
+                } 
+            }} />
             {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
             <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
                 <div className={`h-20 flex-none flex items-center justify-center border-b ${theme.border} ${theme.header} relative overflow-hidden`}>
@@ -823,15 +877,15 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                         </div>
                         <div className="px-1 py-0.5 rounded bg-[#6366f1]/10 text-[6px] font-black text-[#6366f1]/50 uppercase">Binary</div>
                     </div>
-                    <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
-                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'ai-analysis' ? 'bg-[#6366f1]/10 text-[#6366f1]' : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
-                    <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Juros Compostos</button>
-                    <button onClick={() => {setActiveTab('history'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'history' ? theme.navActive : theme.navInactive}`}><ListBulletIcon className="w-5 h-5" />Histórico</button>
-                    <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
-                    <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
-                    <button onClick={() => {setActiveTab('management-sheet'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'management-sheet' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Planilha Gestão</button>
+                    <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
+                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'ai-analysis' ? 'bg-[#6366f1]/10 text-[#6366f1]' : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
+                    <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Juros Compostos</button>
+                    <button onClick={() => {setActiveTab('history'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'history' ? theme.navActive : theme.navInactive}`}><ListBulletIcon className="w-5 h-5" />Histórico</button>
+                    <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
+                    <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
+                    {/* <button onClick={() => {setActiveTab('management-sheet'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'management-sheet' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Planilha Gestão</button> */}
                     {user.isAdmin && (
-                        <button onClick={() => {setActiveTab('admin'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold ${activeTab === 'admin' ? theme.navActive : theme.navInactive}`}><UsersIcon className="w-5 h-5" />Admin Panel</button>
+                        <button onClick={() => {setActiveTab('admin'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'admin' ? theme.navActive : theme.navInactive}`}><UsersIcon className="w-5 h-5" />Admin Panel</button>
                     )}
                 </nav>
                 <div className="p-4 border-t border-slate-800/50">
@@ -919,6 +973,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             currentBalanceForDashboard={currentBalanceForDashboard}
                             isDarkMode={isDarkMode} 
                             dailyGoalTarget={activeDailyGoal} 
+                            isLoading={isLoading}
+                            records={records}
                         />
                     )}
                     {activeTab === 'ai-analysis' && (
@@ -934,7 +990,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {activeTab === 'history' && <HistoryPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} addBulkTrades={addBulkTrades} />}
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
-                    {activeTab === 'management-sheet' && <ManagementSheetPanel theme={theme} activeBrokerage={activeBrokerage} isDarkMode={isDarkMode} records={records} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />}
+                    {/* {activeTab === 'management-sheet' && <ManagementSheetPanel theme={theme} activeBrokerage={activeBrokerage} isDarkMode={isDarkMode} records={records} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />} */}
                     {activeTab === 'admin' && user.isAdmin && <AdminPanel theme={theme} adminId={user.id} />}
                 {activeTab === 'settings' && (
                     <SettingsPanel 
@@ -1067,158 +1123,160 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
     };
 
     return (
-        <div className="p-4 md:p-8 max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center justify-between mb-8">
+        <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-8">
+            <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl md:text-3xl font-black italic tracking-tight">Painel Admin</h2>
-                    <p className="text-xs md:text-sm opacity-50 font-medium">Gerenciamento de usuários e sistema</p>
+                    <h2 className="text-2xl md:text-3xl font-black italic tracking-tight text-white">Painel Admin</h2>
+                    <p className="text-xs md:text-sm text-slate-400 font-medium">Gerenciamento de usuários e sistema</p>
                 </div>
-                <button onClick={fetchUsers} className="p-2 rounded-xl bg-[#6366f1]/10 text-[#6366f1] hover:bg-[#6366f1]/20 transition-all">
-                    <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+                <button onClick={fetchUsers} className="p-3 rounded-2xl bg-white/5 text-[#6366f1] hover:bg-white/10 transition-all active:scale-90 border border-white/5">
+                    <ArrowPathIcon className={`w-6 h-6 ${isLoading ? 'animate-spin' : ''}`} />
                 </button>
             </div>
 
             {message && (
-                <div className={`mb-6 p-4 rounded-2xl flex items-center gap-3 animate-in zoom-in-95 duration-300 ${message.type === 'success' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                <div className={`p-4 rounded-2xl flex items-center gap-3 border animate-in zoom-in-95 duration-300 ${message.type === 'success' ? 'bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]/20' : 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]/20'}`}>
                     {message.type === 'success' ? <CheckCircleIcon className="w-5 h-5" /> : <ExclamationTriangleIcon className="w-5 h-5" />}
                     <span className="text-sm font-bold">{message.text}</span>
                     <button onClick={() => setMessage(null)} className="ml-auto opacity-50 hover:opacity-100"><XMarkIcon className="w-4 h-4" /></button>
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                <div className={`lg:col-span-1 p-6 rounded-3xl border ${theme.border} ${theme.card} shadow-xl`}>
-                    <h3 className="text-sm font-black uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <KeyIcon className="w-4 h-4 text-amber-500" />
-                        Convite de Novos Membros
-                    </h3>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <GlassCard theme={theme} className="lg:col-span-1">
+                    <SectionTitle title="Convite de Novos Membros" icon={KeyIcon} theme={theme} />
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 leading-relaxed">
                         Defina a palavra-chave obrigatória para o registro de novos usuários.
                     </p>
-                    <div className="space-y-4">
-                        <div className="relative group">
+                    <div className="space-y-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Palavra-chave</label>
                             <input
                                 type="text"
                                 value={registrationKeyword}
                                 onChange={(e) => setRegistrationKeyword(e.target.value)}
-                                placeholder="Palavra-chave"
-                                className={`w-full h-12 px-4 rounded-xl border outline-none font-bold text-sm ${theme.input}`}
+                                placeholder="Ex: CONVITE2024"
+                                className={`w-full h-14 px-5 rounded-2xl border outline-none font-bold text-sm transition-all ${theme.input}`}
                             />
                         </div>
-                        <button
+                        <ActionButton
+                            variant="primary"
                             onClick={updateRegistrationKeyword}
                             disabled={isUpdatingKeyword}
-                            className="w-full h-12 bg-[#6366f1] hover:bg-[#6366f1]/80 text-white font-bold rounded-xl uppercase text-[10px] tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                            className="w-full h-14"
+                            icon={CheckCircleIcon}
                         >
-                            {isUpdatingKeyword ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
-                            Atualizar Palavra-Chave
-                        </button>
+                            {isUpdatingKeyword ? 'Atualizando...' : 'Atualizar Chave'}
+                        </ActionButton>
                     </div>
-                </div>
+                </GlassCard>
 
-                <div className="lg:col-span-2">
-                    <div className={`rounded-3xl border ${theme.border} ${theme.card} overflow-hidden shadow-2xl shadow-black/20`}>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className={`border-b ${theme.border} bg-black/5`}>
-                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest opacity-40">Usuário</th>
-                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest opacity-40">Status</th>
-                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest opacity-40">Role</th>
-                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest opacity-40">Criado em</th>
-                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest opacity-40 text-right">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/30">
-                            {users.map(u => (
-                                <tr key={u.id} className="hover:bg-black/5 transition-colors">
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-xl bg-[#6366f1]/10 flex items-center justify-center text-[#6366f1] font-black text-xs">
-                                                {u.username.slice(0, 2).toUpperCase()}
-                                            </div>
-                                            <span className="font-bold">{u.username}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter ${u.isPaused ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
-                                            {u.isPaused ? 'Pausado' : 'Ativo'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter ${u.isAdmin ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-500/10 text-slate-500'}`}>
-                                            {u.isAdmin ? 'Admin' : 'User'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-xs opacity-50 font-medium">
-                                        {new Date((u as any).createdAt).toLocaleDateString('pt-BR')}
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <button 
-                                                onClick={() => togglePause(u.id, !!u.isPaused)}
-                                                title={u.isPaused ? 'Despausar' : 'Pausar'}
-                                                className={`p-2 rounded-xl transition-all ${u.isPaused ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20' : 'bg-red-500/10 text-red-500 hover:bg-red-500/20'}`}
-                                            >
-                                                {u.isPaused ? <PlayIcon className="w-4 h-4" /> : <PauseIcon className="w-4 h-4" />}
-                                            </button>
-                                            <button 
-                                                onClick={() => setResettingUserId(u.id)}
-                                                title="Resetar Senha"
-                                                className="p-2 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-all"
-                                            >
-                                                <KeyIcon className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </td>
+                <GlassCard theme={theme} className="lg:col-span-2 !p-0 overflow-hidden">
+                    <div className="p-6 border-b border-white/5">
+                        <SectionTitle title="Usuários Registrados" icon={UsersIcon} theme={theme} />
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-white/5">
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Usuário</th>
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Role</th>
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Criado em</th>
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                                {users.map(u => (
+                                    <tr key={u.id} className="hover:bg-white/5 transition-colors group">
+                                        <td className="px-6 py-5">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-[#6366f1]/10 flex items-center justify-center text-[#6366f1] font-black text-xs border border-[#6366f1]/20">
+                                                    {u.username.slice(0, 2).toUpperCase()}
+                                                </div>
+                                                <span className="font-bold text-slate-200">{u.username}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${u.isPaused ? 'bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/20' : 'bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20'}`}>
+                                                {u.isPaused ? 'Pausado' : 'Ativo'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${u.isAdmin ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-slate-500/10 text-slate-400 border border-white/5'}`}>
+                                                {u.isAdmin ? 'Admin' : 'User'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-5 text-xs text-slate-500 font-bold">
+                                            {new Date((u as any).createdAt || Date.now()).toLocaleDateString('pt-BR')}
+                                        </td>
+                                        <td className="px-6 py-5 text-right">
+                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button 
+                                                    onClick={() => togglePause(u.id, !!u.isPaused)}
+                                                    title={u.isPaused ? 'Despausar' : 'Pausar'}
+                                                    className={`p-2.5 rounded-xl transition-all active:scale-90 ${u.isPaused ? 'bg-[#22c55e]/10 text-[#22c55e] hover:bg-[#22c55e]/20' : 'bg-[#ef4444]/10 text-[#ef4444] hover:bg-[#ef4444]/20'}`}
+                                                >
+                                                    {u.isPaused ? <PlayIcon className="w-5 h-5" /> : <PauseIcon className="w-5 h-5" />}
+                                                </button>
+                                                <button 
+                                                    onClick={() => setResettingUserId(u.id)}
+                                                    title="Resetar Senha"
+                                                    className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-all active:scale-90"
+                                                >
+                                                    <KeyIcon className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </GlassCard>
             </div>
-        </div>
-    </div>
 
             {resettingUserId && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className={`w-full max-w-md p-8 rounded-[2rem] border ${theme.border} ${theme.card} shadow-2xl animate-in zoom-in-95 duration-300`}>
-                        <div className="flex items-center gap-4 mb-6">
-                            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-                                <KeyIcon className="w-6 h-6" />
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+                    <GlassCard theme={theme} className="w-full max-w-md !p-8 border-[#6366f1]/30 animate-in zoom-in-95 duration-300">
+                        <div className="flex items-center gap-4 mb-8">
+                            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
+                                <KeyIcon className="w-7 h-7" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-black italic">Resetar Senha</h3>
-                                <p className="text-xs opacity-50 font-medium">Defina uma nova senha para o usuário</p>
+                                <h3 className="text-xl font-black italic text-white">Resetar Senha</h3>
+                                <p className="text-xs text-slate-400 font-medium">Defina uma nova senha para o usuário</p>
                             </div>
                         </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-2">Nova Senha</label>
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nova Senha</label>
                                 <input 
                                     type="password" 
                                     value={newPassword}
                                     onChange={(e) => setNewPassword(e.target.value)}
                                     placeholder="Mínimo 4 caracteres"
-                                    className={`w-full px-4 py-3 rounded-2xl border ${theme.border} bg-black/5 focus:ring-2 focus:ring-amber-500/50 outline-none transition-all font-bold`}
+                                    className={`w-full h-14 px-5 rounded-2xl border outline-none font-bold text-sm transition-all ${theme.input}`}
                                 />
                             </div>
-                            <div className="flex gap-3 pt-4">
+                            <div className="flex gap-4 pt-4">
                                 <button 
                                     onClick={() => {setResettingUserId(null); setNewPassword('');}}
-                                    className={`flex-1 py-3 rounded-2xl font-bold opacity-50 hover:opacity-100 transition-all ${theme.text}`}
+                                    className="flex-1 h-14 rounded-2xl font-black uppercase text-[10px] tracking-widest text-slate-400 hover:text-white transition-all"
                                 >
                                     Cancelar
                                 </button>
-                                <button 
+                                <ActionButton 
+                                    variant="primary"
                                     onClick={() => handleResetPassword(resettingUserId)}
-                                    className="flex-1 py-3 rounded-2xl bg-amber-500 text-white font-black shadow-lg shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                    className="flex-1 h-14"
+                                    icon={CheckCircleIcon}
                                 >
                                     Confirmar
-                                </button>
+                                </ActionButton>
                             </div>
                         </div>
-                    </div>
+                    </GlassCard>
                 </div>
             )}
         </div>
@@ -1229,7 +1287,7 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
 // For brevity, assuming they are within this file but omitted in the update to focus on the change.
 // (I will keep the logic from the previous provided file structure)
 
-const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, addTransaction, deleteTransaction, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, transactionsForSelectedDay, startBalanceForSelectedDay, currentBalanceForDashboard, isDarkMode, dailyGoalTarget }) => {
+const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, addTransaction, deleteTransaction, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, transactionsForSelectedDay, startBalanceForSelectedDay, currentBalanceForDashboard, isDarkMode, dailyGoalTarget, isLoading, records }) => {
     const theme = useThemeClasses(isDarkMode);
     const [quantity, setQuantity] = useState('1');
     const [transAmount, setTransAmount] = useState('');
@@ -1261,18 +1319,33 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     const handleQuickAdd = (type: 'win' | 'loss') => {
          const payout = parseFloat(customPayout) || 0;
          const qty = parseInt(quantity) || 1;
+         
+         if (entryValueNum <= 0) {
+             toast.error("O valor da entrada deve ser maior que zero.");
+             return;
+         }
+         if (payout < 0 || payout > 100) {
+             toast.error("O payout deve estar entre 0 e 100%.");
+             return;
+         }
+
          if (type === 'win') addRecord(qty, 0, entryValueNum, payout, isNextTradeSoros);
          else addRecord(0, qty, entryValueNum, payout, isNextTradeSoros);
+         
          setQuantity('1');
          setIsNextTradeSoros(false);
+         toast.success(`Operação ${type.toUpperCase()} adicionada!`);
     };
 
     const handleTransaction = () => {
         const amount = parseFloat(transAmount) || 0;
-        if (amount > 0) {
-            addTransaction(transType, amount);
-            setTransAmount('');
+        if (amount <= 0) {
+            toast.error("O valor da movimentação deve ser maior que zero.");
+            return;
         }
+        addTransaction(transType, amount);
+        setTransAmount('');
+        toast.success(`${transType === 'deposit' ? 'Depósito' : 'Saque'} realizado com sucesso!`);
     };
 
     const handleSoros = () => {
@@ -1299,182 +1372,307 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     const stopLossReached = activeBrokerage.stopLossTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.lossCount >= activeBrokerage.stopLossTrades;
 
     const kpis = [
-        { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-green-500' },
-        { label: 'Lucro Diário', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol} ${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-green-500' : 'text-red-500' },
-        { label: 'Meta Diária', val: `${currencySymbol}${formatMoney(dailyGoalTarget)}`, subVal: `${Math.min(100, dailyGoalPercent).toFixed(0)}% Alcançado`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-green-500' : 'text-blue-400' },
+        { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-white' },
+        { label: 'Lucro Diário', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol} ${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]' },
+        { label: 'Meta Diária', val: `${currencySymbol}${formatMoney(dailyGoalTarget)}`, subVal: `${Math.min(100, dailyGoalPercent).toFixed(0)}% Alcançado`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-[#22c55e]' : 'text-[#6366f1]' },
         { label: 'Win Rate', val: `${winRate}%`, icon: TrophyIcon, color: 'text-purple-400' },
     ];
 
-    return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
-                <div><h2 className={`text-xl lg:text-2xl font-black ${theme.text}`}>Dashboard de Gestão</h2><p className={`text-[10px] lg:text-xs ${theme.textMuted}`}>Controle operacional em tempo real.</p></div>
-                <input type="date" value={selectedDateString} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} className={`w-full md:w-auto border rounded-xl px-4 py-2.5 text-xs lg:text-sm font-bold focus:outline-none ${isDarkMode ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`} />
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
-                {kpis.map((kpi, i) => (
-                    <div key={i} className={`p-3 md:p-4 rounded-2xl md:rounded-3xl border ${theme.card} flex flex-col justify-between`}>
-                        <div className="flex justify-between items-start mb-1"><p className="text-[8px] md:text-[10px] uppercase font-black text-slate-500 tracking-wider leading-none">{kpi.label}</p><kpi.icon className={`w-3 h-3 md:w-4 md:h-4 ${kpi.color} opacity-80`} /></div>
-                        <p className={`text-sm md:text-lg lg:text-xl font-black ${kpi.color} truncate`}>{kpi.val}</p>
-                        {kpi.subVal && <p className="text-[7px] md:text-[9px] font-bold mt-1 text-slate-500 truncate leading-tight">{kpi.subVal}</p>}
-                    </div>
-                ))}
-            </div>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <div className="space-y-6">
-                    <div className={`p-6 rounded-3xl border ${theme.card}`}>
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="font-black flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><CalculatorIcon className="w-5 h-5 text-green-500" /> Nova Operação</h3>
-                            <div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/5">
-                                <button 
-                                    onClick={() => {
-                                        setEntryMode('fixed');
-                                        setCustomEntryValue(activeBrokerage.entryValue.toString());
-                                    }}
-                                    className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${entryMode === 'fixed' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                                >
-                                    Fixo
-                                </button>
-                                <button 
-                                    onClick={() => {
-                                        setEntryMode('percentage');
-                                        setCustomEntryValue(activeBrokerage.entryValue.toString());
-                                    }}
-                                    className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${entryMode === 'percentage' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                                >
-                                    % Banca
-                                </button>
-                                <button 
-                                    onClick={handleSoros}
-                                    title="Calcular Soros (Última entrada + lucro)"
-                                    className="px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all bg-blue-600 hover:bg-blue-500 text-white shadow-lg ml-1 active:scale-95"
-                                >
-                                    Soros
-                                </button>
-                            </div>
-                        </div>
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1">
-                                        {entryMode === 'fixed' ? 'Valor' : 'Porcentagem'}
-                                    </label>
-                                    <div className="relative">
-                                        <input type="number" value={customEntryValue} onChange={e => setCustomEntryValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input} ${entryMode === 'percentage' ? 'pr-8' : ''}`} />
-                                        {entryMode === 'percentage' && <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-bold">%</span>}
-                                    </div>
-                                    {entryMode === 'percentage' && (
-                                        <p className="text-[8px] font-bold text-slate-500 mt-1 ml-1">
-                                            = {currencySymbol} {formatMoney(entryValueNum)}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout</label>
-                                    <div className="relative">
-                                        <input type="number" value={customPayout} onChange={e => handlePayoutChange(e.target.value)} className={`w-full h-12 px-4 pr-8 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} />
-                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-bold">%</span>
-                                    </div>
-                                </div>
-                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase ml-1">Qtd</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min="1" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-green-500 outline-none font-bold ${theme.input}`} /></div>
-                            </div>
-                            <div className="flex justify-between items-center px-1">
-                                <p className="text-[8px] font-black uppercase tracking-widest text-red-500/40">
-                                    Risco: <span className="text-red-500/60">{currencySymbol} {formatMoney(estimatedLoss)}</span>
-                                </p>
-                                <p className="text-[9px] font-black uppercase tracking-widest text-green-500/40">
-                                    Estimativa de Ganho: <span className="text-green-500/80">{currencySymbol} {formatMoney(estimatedProfit)}</span>
-                                </p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 pt-1">
-                                <button onClick={() => handleQuickAdd('win')} disabled={stopWinReached || stopLossReached} className="h-14 bg-green-500 hover:bg-green-400 text-slate-950 font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">WIN</button>
-                                <button onClick={() => handleQuickAdd('loss')} disabled={stopWinReached || stopLossReached} className="h-14 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:bg-slate-700 disabled:opacity-50">LOSS</button>
-                            </div>
-                        </div>
-                    </div>
+    // Chart Data
+    const chartData = useMemo(() => {
+        const brokerageRecords = records.filter((r: any) => r.brokerageId === activeBrokerage?.id);
+        const sorted = [...brokerageRecords].sort((a, b) => {
+            const dateA = a.recordType === 'day' ? a.id : a.date;
+            const dateB = b.recordType === 'day' ? b.id : b.date;
+            if (dateA !== dateB) return dateA.localeCompare(dateB);
+            return (a.timestamp || 0) - (b.timestamp || 0);
+        });
 
-                    <div className={`p-6 rounded-3xl border ${theme.card}`}>
-                        <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60"><ArrowPathIcon className="w-5 h-5 text-blue-500" /> Movimentação de Banca</h3>
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Tipo</label>
-                                    <select value={transType} onChange={e => setTransType(e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-blue-500 outline-none font-bold ${theme.input}`}>
-                                        <option value="deposit">Depósito</option>
-                                        <option value="withdrawal">Saque</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor</label>
-                                    <input type="number" value={transAmount} onChange={e => setTransAmount(e.target.value)} placeholder="0.00" className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-blue-500 outline-none font-bold ${theme.input}`} />
-                                </div>
+        return sorted.slice(-15).map(r => {
+            const balance = r.recordType === 'day' ? r.endBalanceUSD : (r as TransactionRecord).runningBalanceUSD || 0;
+            return {
+                date: r.recordType === 'day' ? r.id.slice(5) : r.date.slice(5),
+                balance: balance
+            };
+        });
+    }, [records, activeBrokerage]);
+
+    return (
+        <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
+                <div>
+                    <h2 className={`text-2xl lg:text-3xl font-black tracking-tight ${theme.text}`}>Dashboard</h2>
+                    <p className={`text-xs font-medium ${theme.textMuted}`}>Operações e gestão em tempo real.</p>
+                </div>
+                <input 
+                    type="date" 
+                    value={selectedDateString} 
+                    onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} 
+                    className={`w-full md:w-auto border rounded-2xl px-6 py-3 text-sm font-bold focus:outline-none ${theme.input}`} 
+                />
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {isLoading ? (
+                    [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32" />)
+                ) : (
+                    kpis.map((kpi, i) => (
+                        <GlassCard key={i} theme={theme} className="flex flex-col justify-between group hover:border-[#6366f1]/30 transition-all duration-300">
+                            <div className="flex justify-between items-start mb-2">
+                                <p className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em]">{kpi.label}</p>
+                                <kpi.icon className={`w-4 h-4 ${kpi.color} opacity-50 group-hover:opacity-100 transition-opacity`} />
                             </div>
-                            <button onClick={handleTransaction} className="w-full h-12 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-lg active:scale-95">Confirmar Lançamento</button>
+                            <p className={`text-xl md:text-2xl font-black ${kpi.color} truncate tracking-tight`}>{kpi.val}</p>
+                            {kpi.subVal && (
+                                <div className="mt-2 w-full bg-white/5 h-1 rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-[#6366f1] transition-all duration-1000" 
+                                        style={{ width: `${Math.min(100, dailyGoalPercent)}%` }} 
+                                    />
+                                </div>
+                            )}
+                        </GlassCard>
+                    ))
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                <div className="xl:col-span-2 space-y-8">
+                    <GlassCard theme={theme} className="h-[400px] flex flex-col">
+                        <SectionTitle title="Evolução da Banca" subtitle="Histórico das últimas 15 movimentações" icon={TrendingUpIcon} theme={theme} />
+                        <div className="flex-1 min-h-0">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={chartData}>
+                                    <defs>
+                                        <linearGradient id="colorBal" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                                    <XAxis 
+                                        dataKey="date" 
+                                        stroke="#ffffff20" 
+                                        fontSize={10} 
+                                        tickLine={false} 
+                                        axisLine={false}
+                                        tick={{ fill: '#64748b' }}
+                                    />
+                                    <YAxis 
+                                        stroke="#ffffff20" 
+                                        fontSize={10} 
+                                        tickLine={false} 
+                                        axisLine={false}
+                                        tick={{ fill: '#64748b' }}
+                                        tickFormatter={(val) => `${currencySymbol}${val}`}
+                                    />
+                                    <Tooltip 
+                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '12px' }}
+                                        itemStyle={{ color: '#6366f1', fontWeight: 'bold' }}
+                                    />
+                                    <Area 
+                                        type="monotone" 
+                                        dataKey="balance" 
+                                        stroke="#6366f1" 
+                                        strokeWidth={3}
+                                        fillOpacity={1} 
+                                        fill="url(#colorBal)" 
+                                        animationDuration={1500}
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
                         </div>
-                    </div>
+                    </GlassCard>
+
+                    <GlassCard theme={theme}>
+                        <SectionTitle title="Histórico do Dia" subtitle="Operações realizadas hoje" icon={ListBulletIcon} theme={theme} />
+                        <div className="overflow-x-auto custom-scrollbar">
+                            <table className="w-full min-w-[600px]">
+                                <thead>
+                                    <tr className="border-b border-white/5">
+                                        <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Hora</th>
+                                        <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Tipo</th>
+                                        <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Entrada</th>
+                                        <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Resultado</th>
+                                        <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {dailyRecordForSelectedDay?.trades?.map((trade: Trade, i: number) => (
+                                        <tr key={i} className="group hover:bg-white/5 transition-colors">
+                                            <td className="py-4 text-xs font-bold text-slate-400">
+                                                {new Date(trade.timestamp || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                            </td>
+                                            <td className="py-4">
+                                                <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase ${trade.isSoros ? 'bg-amber-500/20 text-amber-500' : 'bg-blue-500/20 text-blue-500'}`}>
+                                                    {trade.isSoros ? 'Soros' : 'Fixo'}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 text-xs font-black text-white">
+                                                {currencySymbol} {formatMoney(trade.entryValue)}
+                                            </td>
+                                            <td className="py-4">
+                                                <span className={`text-xs font-black ${trade.result === 'win' ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                                                    {trade.result === 'win' ? '+' : '-'}{currencySymbol} {formatMoney(trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)) : trade.entryValue)}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 text-right">
+                                                <button 
+                                                    onClick={() => deleteTrade(trade.id, selectedDateString)}
+                                                    className="p-2 text-slate-600 hover:text-red-500 transition-colors"
+                                                >
+                                                    <TrashIcon className="w-4 h-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {dailyRecordForSelectedDay?.trades?.length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="py-12 text-center text-xs font-medium text-slate-500 italic">
+                                                Nenhuma operação registrada para este dia.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </GlassCard>
                 </div>
 
-                <div className={`p-6 rounded-3xl border flex flex-col ${theme.card}`}>
-                    <h3 className="font-black mb-6 flex items-center gap-2 text-[10px] uppercase tracking-widest opacity-60 text-blue-400"><ListBulletIcon className="w-5 h-5" /> Histórico do Dia</h3>
-                    <div className="flex-1 overflow-y-auto max-h-[500px] pr-2 custom-scrollbar">
-                        <div className="space-y-2">
-                            {/* Transactions first */}
-                            {transactionsForSelectedDay.map((trans: any) => (
-                                <div key={trans.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-blue-950/20 border-blue-800/30' : 'bg-blue-50 border-blue-200/50'}`}>
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-2 h-8 rounded-full ${trans.recordType === 'deposit' ? 'bg-blue-500' : 'bg-orange-500'}`} />
-                                        <div>
-                                            <p className="text-[10px] font-black uppercase text-slate-500 leading-none">{new Date(trans.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                                            <p className="text-sm font-bold">{trans.recordType === 'deposit' ? 'Depósito' : 'Saque'}</p>
-                                        </div>
+                <div className="space-y-8">
+                    <GlassCard theme={theme}>
+                        <SectionTitle title="Nova Operação" subtitle="Registre seu resultado" icon={CalculatorIcon} theme={theme} />
+                        
+                        <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 mb-6">
+                            <button 
+                                onClick={() => setEntryMode('fixed')}
+                                className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${entryMode === 'fixed' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            >
+                                Fixo
+                            </button>
+                            <button 
+                                onClick={() => setEntryMode('percentage')}
+                                className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${entryMode === 'percentage' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            >
+                                % Banca
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Entrada ({entryMode === 'fixed' ? currencySymbol : '%'})</label>
+                                    <input 
+                                        type="number" 
+                                        value={customEntryValue}
+                                        onChange={(e) => setCustomEntryValue(e.target.value)}
+                                        className={`w-full px-4 py-3 rounded-2xl font-bold text-sm ${theme.input}`}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Payout %</label>
+                                    <input 
+                                        type="number" 
+                                        value={customPayout}
+                                        onChange={(e) => handlePayoutChange(e.target.value)}
+                                        className={`w-full px-4 py-3 rounded-2xl font-bold text-sm ${theme.input}`}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-[10px] font-black uppercase text-slate-500">Estimativa</span>
+                                    <span className="text-[10px] font-black uppercase text-[#6366f1]">Soros Ativo: {isNextTradeSoros ? 'Sim' : 'Não'}</span>
+                                </div>
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <p className="text-[8px] font-black text-slate-500 uppercase">Se Win</p>
+                                        <p className="text-lg font-black text-[#22c55e]">+{currencySymbol} {formatMoney(estimatedProfit)}</p>
                                     </div>
                                     <div className="text-right">
-                                        <p className={`text-sm font-black ${trans.recordType === 'deposit' ? 'text-blue-500' : 'text-orange-500'}`}>
-                                            {trans.recordType === 'deposit' ? '+' : '-'}{currencySymbol} {formatMoney(trans.amountUSD)}
-                                        </p>
-                                        <button onClick={() => deleteTransaction(trans.id)} className="text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button>
+                                        <p className="text-[8px] font-black text-slate-500 uppercase">Se Loss</p>
+                                        <p className="text-lg font-black text-[#ef4444]">-{currencySymbol} {formatMoney(estimatedLoss)}</p>
                                     </div>
                                 </div>
-                            ))}
+                            </div>
 
-                            {/* Trades */}
-                            {dailyRecordForSelectedDay?.trades?.length ? (
-                                [...dailyRecordForSelectedDay.trades].reverse().map((trade) => {
-                                    const tradeProfit = trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)) : -trade.entryValue;
-                                    return (
-                                        <div key={trade.id} className={`flex items-center justify-between p-3 rounded-2xl border ${isDarkMode ? 'bg-slate-950/50 border-slate-800/50' : 'bg-slate-50 border-slate-200/50'}`}>
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-2 h-8 rounded-full ${trade.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} />
-                                                <div>
-                                                    <p className="text-[10px] font-black uppercase text-slate-500 leading-none">
-                                                        {new Date(trade.timestamp || 0).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                                        <span className="ml-2 opacity-50">Payout: {trade.payoutPercentage}%</span>
-                                                    </p>
-                                                    <p className="text-sm font-bold">
-                                                        {trade.result === 'win' ? 'Vitória' : 'Derrota'}
-                                                        {trade.isSoros && <span className="ml-2 text-[8px] bg-green-500/20 text-green-500 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter">Soros</span>}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className={`text-sm font-black ${tradeProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                                    {tradeProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(tradeProfit)}
-                                                </p>
-                                                <button onClick={() => deleteTrade(trade.id, selectedDateString)} className="text-[9px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-tighter">Excluir</button>
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            ) : null}
+                            <div className="flex gap-4 pt-2">
+                                <ActionButton 
+                                    variant="success" 
+                                    className="flex-1" 
+                                    onClick={() => handleQuickAdd('win')}
+                                    disabled={stopWinReached || stopLossReached}
+                                >
+                                    WIN
+                                </ActionButton>
+                                <ActionButton 
+                                    variant="danger" 
+                                    className="flex-1" 
+                                    onClick={() => handleQuickAdd('loss')}
+                                    disabled={stopWinReached || stopLossReached}
+                                >
+                                    LOSS
+                                </ActionButton>
+                            </div>
 
-                            {!dailyRecordForSelectedDay?.trades?.length && !transactionsForSelectedDay.length && (
-                                <div className="h-full flex flex-col items-center justify-center opacity-30 py-10">
-                                    <InformationCircleIcon className="w-10 h-10 mb-2" />
-                                    <p className="text-xs font-black uppercase">Sem atividades hoje</p>
+                            <ActionButton 
+                                variant="ghost" 
+                                className="w-full" 
+                                onClick={handleSoros}
+                                icon={BoltIcon}
+                            >
+                                Calcular Soros
+                            </ActionButton>
+
+                            {(stopWinReached || stopLossReached) && (
+                                <div className={`p-4 rounded-2xl border ${stopWinReached ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'} text-center`}>
+                                    <p className="text-[10px] font-black uppercase tracking-widest">
+                                        {stopWinReached ? 'Meta Batida! Pare por hoje.' : 'Stop Loss Atingido! Volte amanhã.'}
+                                    </p>
                                 </div>
                             )}
                         </div>
-                    </div>
+                    </GlassCard>
+
+                    <GlassCard theme={theme}>
+                        <SectionTitle title="Movimentação" subtitle="Depósitos e Saques" icon={ArrowPathIcon} theme={theme} />
+                        
+                        <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 mb-6">
+                            <button 
+                                onClick={() => setTransType('deposit')}
+                                className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${transType === 'deposit' ? 'bg-green-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            >
+                                Depósito
+                            </button>
+                            <button 
+                                onClick={() => setTransType('withdrawal')}
+                                className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${transType === 'withdrawal' ? 'bg-red-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            >
+                                Saque
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Valor ({currencySymbol})</label>
+                                <input 
+                                    type="number" 
+                                    value={transAmount}
+                                    onChange={(e) => setTransAmount(e.target.value)}
+                                    className={`w-full px-4 py-3 rounded-2xl font-bold text-sm ${theme.input}`}
+                                    placeholder="0,00"
+                                />
+                            </div>
+                            <ActionButton 
+                                variant="primary" 
+                                className="w-full" 
+                                onClick={handleTransaction}
+                            >
+                                Confirmar {transType === 'deposit' ? 'Depósito' : 'Saque'}
+                            </ActionButton>
+                        </div>
+                    </GlassCard>
                 </div>
             </div>
         </div>
@@ -1572,76 +1770,74 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
     }, [records, activeBrokerage?.id, activeBrokerage?.initialBalance, projMetaPercent, projStopPercent, projEntryPercent]);
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+        <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div>
-                    <h2 className={`text-xl lg:text-2xl font-black ${theme.text}`}>Planejamento de Juros Compostos</h2>
-                    <p className={`${theme.textMuted} text-[10px] lg:text-xs mt-1 font-bold`}>Projeção baseada no histórico real e metas futuras.</p>
+                    <h2 className={`text-2xl lg:text-3xl font-black tracking-tight ${theme.text}`}>Juros Compostos</h2>
+                    <p className={`text-xs font-medium ${theme.textMuted}`}>Projeção baseada no histórico real e metas futuras.</p>
                 </div>
             </div>
 
-            <div className={`rounded-3xl border overflow-hidden shadow-2xl ${theme.card}`}>
-                <div className="overflow-x-auto no-scrollbar">
-                    <div className="min-w-[800px]">
-                        <table className="w-full text-center border-collapse">
-                            <thead>
-                                <tr className={`text-[10px] uppercase font-black tracking-widest ${isDarkMode ? 'bg-slate-950/50' : 'bg-slate-100/50'}`}>
-                                    <th className="py-5 px-3 border-b border-slate-800/20">Data</th>
-                                    <th className="py-5 px-3 border-b border-slate-800/20">Capital</th>
-                                    <th className="py-5 px-3 border-b border-slate-800/20">
-                                        <div className="flex flex-col items-center gap-1">
-                                            <span>Meta</span>
-                                            <div className="flex items-center gap-1">
-                                                <input type="number" value={projMetaPercent} onChange={e => setProjMetaPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
-                                                <span className="opacity-30">%</span>
-                                            </div>
+            <GlassCard theme={theme}>
+                <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full min-w-[800px]">
+                        <thead>
+                            <tr className="border-b border-white/5">
+                                <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Data</th>
+                                <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Capital</th>
+                                <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                    <div className="flex flex-col items-start gap-1">
+                                        <span>Meta</span>
+                                        <div className="flex items-center gap-1">
+                                            <input type="number" value={projMetaPercent} onChange={e => setProjMetaPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
+                                            <span className="opacity-30">%</span>
                                         </div>
-                                    </th>
-                                    <th className="py-5 px-3 border-b border-slate-800/20">Lucro</th>
-                                    <th className="py-5 px-3 border-b border-slate-800/20">Status</th>
-                                    <th className="py-5 px-3 border-b border-slate-800/20">
-                                        <div className="flex flex-col items-center gap-1">
-                                            <span>Stop</span>
-                                            <div className="flex items-center gap-1">
-                                                <input type="number" value={projStopPercent} onChange={e => setProjStopPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
-                                                <span className="opacity-30">%</span>
-                                            </div>
+                                    </div>
+                                </th>
+                                <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Lucro</th>
+                                <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Status</th>
+                                <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                    <div className="flex flex-col items-start gap-1">
+                                        <span>Stop</span>
+                                        <div className="flex items-center gap-1">
+                                            <input type="number" value={projStopPercent} onChange={e => setProjStopPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
+                                            <span className="opacity-30">%</span>
                                         </div>
-                                    </th>
-                                    <th className="py-5 px-3 border-b border-slate-800/20">
-                                        <div className="flex flex-col items-center gap-1">
-                                            <span>Entrada</span>
-                                            <div className="flex items-center gap-1">
-                                                <input type="number" value={projEntryPercent} onChange={e => setProjEntryPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
-                                                <span className="opacity-30">%</span>
-                                            </div>
+                                    </div>
+                                </th>
+                                <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                    <div className="flex flex-col items-end gap-1">
+                                        <span>Entrada</span>
+                                        <div className="flex items-center gap-1">
+                                            <input type="number" value={projEntryPercent} onChange={e => setProjEntryPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
+                                            <span className="opacity-30">%</span>
                                         </div>
-                                    </th>
+                                    </div>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                            {tableData.map((row) => (
+                                <tr key={row.dateId} className={`group transition-colors hover:bg-white/5 ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : row.status === 'STOP-LOSS' ? 'bg-[#ef4444]/5' : ''}`}>
+                                    <td className="py-4 text-xs font-bold text-slate-400">
+                                        {row.hasOperation ? row.dateDisplay : ''}
+                                    </td>
+                                    <td className="py-4 text-xs font-bold text-slate-300">{currencySymbol} {formatMoney(row.initial)}</td>
+                                    <td className="py-4 text-xs font-bold text-slate-500">{row.metaPercent}%</td>
+                                    <td className="py-4 text-sm font-black text-[#6366f1]">{currencySymbol} {formatMoney(row.targetProfit)}</td>
+                                    <td className="py-4">
+                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' ? 'bg-[#22c55e]/20 text-[#22c55e]' : row.status === 'STOP-LOSS' ? 'bg-[#ef4444]/20 text-[#ef4444]' : 'bg-slate-500/20 text-slate-500'}`}>
+                                            {row.status}
+                                        </span>
+                                    </td>
+                                    <td className="py-4 text-xs font-bold text-[#ef4444]/80">{currencySymbol} {formatMoney(row.stopValue)}</td>
+                                    <td className="py-4 text-right text-xs font-bold text-slate-400">{currencySymbol} {formatMoney(row.entryValue)}</td>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800/10">
-                                {tableData.map((row) => (
-                                    <tr key={row.dateId} className={`text-sm font-bold hover:bg-slate-800/5 transition-colors ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : row.status === 'STOP-LOSS' ? 'bg-red-500/5' : ''}`}>
-                                        <td className="py-4 px-3 text-[10px] uppercase font-black opacity-60">
-                                            {row.hasOperation ? row.dateDisplay : ''}
-                                        </td>
-                                        <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.initial)}</td>
-                                        <td className="py-4 px-3 opacity-60">{row.metaPercent}%</td>
-                                        <td className="py-4 px-3 font-black text-blue-400">{currencySymbol} {formatMoney(row.targetProfit)}</td>
-                                        <td className="py-4 px-3">
-                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' ? 'bg-green-500/20 text-green-500' : row.status === 'STOP-LOSS' ? 'bg-red-500/20 text-red-500' : 'bg-slate-500/20 text-slate-500'}`}>
-                                                {row.status}
-                                            </span>
-                                        </td>
-                                        <td className="py-4 px-3 text-red-500/80">{currencySymbol} {formatMoney(row.stopValue)}</td>
-                                        <td className="py-4 px-3 opacity-80">{currencySymbol} {formatMoney(row.entryValue)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
-            </div>
+            </GlassCard>
         </div>
     );
 };
@@ -1678,16 +1874,16 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
     for (let d = 1; d <= totalDays; d++) calendarDays.push(d);
 
     return (
-        <div className={`p-1.5 md:p-3 rounded-xl border ${theme.card} w-full max-w-xl mx-auto`}>
-            <div className="flex items-center justify-between mb-3">
-                <button onClick={prevMonth} className="p-1 hover:bg-slate-800/50 rounded-md transition-colors"><ChevronLeftIcon className="w-3.5 h-3.5" /></button>
-                <h3 className="text-xs md:text-sm font-black uppercase tracking-widest text-[#6366f1]">{monthName}</h3>
-                <button onClick={nextMonth} className="p-1 hover:bg-slate-800/50 rounded-md transition-colors"><ChevronRightIcon className="w-3.5 h-3.5" /></button>
+        <GlassCard theme={theme} className="w-full max-w-xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+                <button onClick={prevMonth} className="p-2 hover:bg-white/5 rounded-xl transition-colors active:scale-90"><ChevronLeftIcon className="w-5 h-5" /></button>
+                <h3 className="text-sm md:text-base font-black uppercase tracking-[0.2em] text-[#6366f1]">{monthName}</h3>
+                <button onClick={nextMonth} className="p-2 hover:bg-white/5 rounded-xl transition-colors active:scale-90"><ChevronRightIcon className="w-5 h-5" /></button>
             </div>
 
-            <div className="grid grid-cols-7 gap-0.5 md:gap-1">
+            <div className="grid grid-cols-7 gap-1 md:gap-2">
                 {dayNames.map(day => (
-                    <div key={day} className="text-center text-[8px] md:text-[9px] font-black uppercase text-slate-500 py-0.5">{day}</div>
+                    <div key={day} className="text-center text-[10px] font-black uppercase text-slate-500 py-2">{day}</div>
                 ))}
                 {calendarDays.map((day, idx) => {
                     if (day === null) return <div key={`empty-${idx}`} className="aspect-square" />;
@@ -1697,10 +1893,10 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
                     const isToday = getLocalDateString() === dateId;
 
                     return (
-                        <div key={dateId} className={`aspect-square rounded-md md:rounded-lg border ${isDarkMode ? 'border-slate-800/50' : 'border-zinc-200'} flex flex-col items-center justify-center p-0.5 relative transition-all hover:scale-105 cursor-default ${isToday ? 'ring-1 ring-teal-500/50' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-green-500/10' : 'bg-red-500/10') : ''}`}>
-                            <span className="text-[8px] md:text-[10px] font-black opacity-40 mb-0.5">{day}</span>
+                        <div key={dateId} className={`aspect-square rounded-xl border ${isDarkMode ? 'border-white/5' : 'border-zinc-200'} flex flex-col items-center justify-center p-1 relative transition-all hover:scale-105 cursor-default ${isToday ? 'ring-2 ring-[#6366f1]/50' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-[#22c55e]/10' : 'bg-[#ef4444]/10') : 'bg-white/5'}`}>
+                            <span className="text-[10px] font-black opacity-30 mb-1">{day}</span>
                             {profit !== undefined && (
-                                <span className={`text-[5px] md:text-[8px] font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                <span className={`text-[8px] md:text-[10px] font-black ${profit >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
                                     {profit >= 0 ? '+' : ''}{formatMoney(profit)}
                                 </span>
                             )}
@@ -1708,11 +1904,11 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
                     );
                 })}
             </div>
-            <div className="mt-3 flex justify-center gap-3 text-[8px] font-black uppercase tracking-widest opacity-40">
-                <div className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-green-500" /> Lucro</div>
-                <div className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-red-500" /> Prejuízo</div>
+            <div className="mt-6 flex justify-center gap-6 text-[10px] font-black uppercase tracking-widest opacity-40">
+                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#22c55e]" /> Lucro</div>
+                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#ef4444]" /> Prejuízo</div>
             </div>
-        </div>
+        </GlassCard>
     );
 };
 
@@ -1725,6 +1921,41 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
     const [retryCount, setRetryCount] = useState(0);
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     const [importText, setImportText] = useState('');
+    const [filterStartDate, setFilterStartDate] = useState('');
+    const [filterEndDate, setFilterEndDate] = useState('');
+    const [filterMinProfit, setFilterMinProfit] = useState('');
+    const [filterMaxProfit, setFilterMaxProfit] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
+
+    const handleExport = (format: 'json' | 'csv') => {
+        const dataToExport = stats.map((s: any) => ({
+            Data: s.label,
+            Lucro: s.profit.toFixed(2),
+            Wins: s.wins,
+            Losses: s.losses,
+            Total: s.total,
+            WinRate: s.winRate.toFixed(2) + '%'
+        }));
+
+        if (format === 'json') {
+            const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `historico_${viewMode}_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+        } else {
+            const headers = Object.keys(dataToExport[0]).join(',');
+            const rows = dataToExport.map((obj: any) => Object.values(obj).join(',')).join('\n');
+            const csvContent = `${headers}\n${rows}`;
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `historico_${viewMode}_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+        }
+    };
 
     const handleTextImport = async () => {
         if (!importText.trim()) return;
@@ -1804,8 +2035,14 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
     };
 
     const stats = useMemo(() => {
-        const dayRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0);
+        let dayRecords = records.filter((r: AppRecord): r is DailyRecord => r.recordType === 'day' && r.brokerageId === activeBrokerage?.id && r.trades.length > 0);
         
+        // Apply Filters
+        if (filterStartDate) dayRecords = dayRecords.filter((r: DailyRecord) => r.id >= filterStartDate);
+        if (filterEndDate) dayRecords = dayRecords.filter((r: DailyRecord) => r.id <= filterEndDate);
+        if (filterMinProfit) dayRecords = dayRecords.filter((r: DailyRecord) => r.netProfitUSD >= parseFloat(filterMinProfit));
+        if (filterMaxProfit) dayRecords = dayRecords.filter((r: DailyRecord) => r.netProfitUSD <= parseFloat(filterMaxProfit));
+
         if (viewMode === 'daily') {
             return dayRecords.sort((a: DailyRecord, b: DailyRecord) => b.id.localeCompare(a.id)).map((r: DailyRecord) => ({
                 id: r.id,
@@ -1866,138 +2103,157 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
     }, [records, viewMode]);
 
     return (
-        <div className="p-2 md:p-4 space-y-4 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:justify-between items-start gap-3">
-                <div className="flex flex-col sm:flex-row justify-between w-full md:w-auto items-start sm:items-center gap-4">
-                    <div>
-                        <h2 className={`text-xl md:text-2xl font-black ${theme.text}`}>Histórico de Performance</h2>
-                        <p className={`text-[10px] md:text-xs ${theme.textMuted}`}>Análise detalhada por períodos.</p>
-                    </div>
+        <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
+                <div>
+                    <h2 className={`text-2xl lg:text-3xl font-black tracking-tight ${theme.text}`}>Histórico</h2>
+                    <p className={`text-xs font-medium ${theme.textMuted}`}>Análise detalhada de performance.</p>
+                </div>
+                <div className="flex gap-2 w-full md:w-auto">
+                    <ActionButton variant="ghost" onClick={() => setShowFilters(!showFilters)} icon={FunnelIcon}>
+                        Filtros
+                    </ActionButton>
+                    <ActionButton variant="primary" onClick={() => setIsTextModalOpen(true)} icon={ArrowDownTrayIcon}>
+                        Importar
+                    </ActionButton>
+                </div>
+            </div>
+
+            <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 max-w-md mx-auto">
+                {(['calendar', 'daily', 'weekly', 'monthly'] as const).map((mode) => (
                     <button 
-                        onClick={() => setIsTextModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:opacity-50 w-full sm:w-auto justify-center"
+                        key={mode}
+                        onClick={() => setViewMode(mode)}
+                        className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${viewMode === mode ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                     >
-                        {isImporting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <DocumentTextIcon className="w-4 h-4" />}
-                        {isImporting ? 'Processando...' : 'Importar Texto'}
+                        {mode === 'calendar' ? 'Cal' : mode === 'daily' ? 'Dia' : mode === 'weekly' ? 'Sem' : 'Mês'}
                     </button>
-                </div>
-                {importError && (
-                    <div className="w-full md:w-auto px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl">
-                        <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider">{importError}</p>
-                    </div>
-                )}
-                <div className="flex p-1 rounded-2xl bg-slate-900 border border-slate-800 overflow-x-auto no-scrollbar w-full md:w-auto">
-                    {(['calendar', 'daily', 'weekly', 'monthly'] as const).map((mode) => (
-                        <button
-                            key={mode}
-                            onClick={() => setViewMode(mode)}
-                            className={`flex-1 md:flex-none px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${viewMode === mode ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                        >
-                            {mode === 'calendar' ? 'Calendário' : mode === 'daily' ? 'Diário' : mode === 'weekly' ? 'Semanal' : 'Mensal'}
-                        </button>
-                    ))}
-                </div>
+                ))}
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
-                {viewMode === 'calendar' ? (
-                    <CalendarHistory isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />
-                ) : stats.length > 0 ? stats.map((item: any) => (
-                    <div key={item.id} className={`p-4 md:p-6 rounded-3xl border ${theme.card} flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6`}>
-                        <div className="flex items-center gap-4">
-                            <div className={`p-2 md:p-3 rounded-2xl ${item.profit >= 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                                {item.profit >= 0 ? <TrendingUpIcon className="w-5 h-5 md:w-6 md:h-6" /> : <TrendingDownIcon className="w-5 h-5 md:w-6 md:h-6" />}
-                            </div>
-                            <div>
-                                <h4 className="font-black text-base md:text-lg leading-none mb-1">{item.label}</h4>
-                                <p className="text-[8px] md:text-[10px] font-black uppercase text-slate-500 tracking-widest">{item.total} Operações Realizadas</p>
-                            </div>
+            {showFilters && (
+                <GlassCard theme={theme} className="animate-in slide-in-from-top-4 duration-300">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Início</label>
+                            <input type="date" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} className={`w-full h-10 px-4 rounded-xl border focus:ring-1 focus:ring-[#6366f1] outline-none font-bold text-xs ${theme.input}`} />
                         </div>
-
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-12">
-                            <div>
-                                <p className="text-[8px] lg:text-[9px] font-black uppercase text-slate-500 mb-1">Resultado</p>
-                                <p className={`text-sm md:text-base lg:text-lg font-black ${item.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                    {item.profit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(item.profit)}
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-[8px] lg:text-[9px] font-black uppercase text-slate-500 mb-1">Win / Loss %</p>
-                                <p className="text-sm md:text-base lg:text-lg font-black">
-                                    <span className="text-green-500">{item.winRate.toFixed(0)}%</span>
-                                    <span className="mx-1 opacity-20">/</span>
-                                    <span className="text-red-500">{(100 - item.winRate).toFixed(0)}%</span>
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Wins / Losses</p>
-                                <p className="text-lg font-black">
-                                    <span className="text-green-500">{item.wins}</span>
-                                    <span className="mx-1 opacity-20">/</span>
-                                    <span className="text-red-500">{item.losses}</span>
-                                </p>
-                            </div>
-                            <div className="hidden md:block">
-                                <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Performance</p>
-                                <div className="w-24 h-2 bg-slate-800 rounded-full overflow-hidden mt-2">
-                                    <div className="h-full bg-green-500" style={{ width: `${item.winRate}%` }} />
-                                </div>
-                            </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Fim</label>
+                            <input type="date" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} className={`w-full h-10 px-4 rounded-xl border focus:ring-1 focus:ring-[#6366f1] outline-none font-bold text-xs ${theme.input}`} />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Lucro Mín</label>
+                            <input type="number" value={filterMinProfit} onChange={e => setFilterMinProfit(e.target.value)} placeholder="0.00" className={`w-full h-10 px-4 rounded-xl border focus:ring-1 focus:ring-[#6366f1] outline-none font-bold text-xs ${theme.input}`} />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Lucro Máx</label>
+                            <input type="number" value={filterMaxProfit} onChange={e => setFilterMaxProfit(e.target.value)} placeholder="0.00" className={`w-full h-10 px-4 rounded-xl border focus:ring-1 focus:ring-[#6366f1] outline-none font-bold text-xs ${theme.input}`} />
                         </div>
                     </div>
-                )) : (
-                    <div className="py-20 text-center opacity-30">
-                        <InformationCircleIcon className="w-12 h-12 mx-auto mb-4" />
-                        <p className="text-xs font-black uppercase">Nenhum dado para este período</p>
-                    </div>
-                )}
-            </div>
+                </GlassCard>
+            )}
 
-            {/* Modal de Importação de Texto */}
+            {viewMode === 'calendar' ? (
+                <CalendarHistory isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />
+            ) : (
+                <GlassCard theme={theme}>
+                    <div className="flex items-center justify-between mb-6">
+                        <SectionTitle title={`Relatório ${viewMode === 'daily' ? 'Diário' : viewMode === 'weekly' ? 'Semanal' : 'Mensal'}`} subtitle="Performance consolidada" icon={ChartBarIcon} theme={theme} />
+                        <div className="flex gap-2">
+                            <button onClick={() => handleExport('json')} className="p-2 hover:bg-white/5 rounded-xl transition-colors text-slate-400 hover:text-white" title="Exportar JSON"><DocumentTextIcon className="w-5 h-5" /></button>
+                            <button onClick={() => handleExport('csv')} className="p-2 hover:bg-white/5 rounded-xl transition-colors text-slate-400 hover:text-white" title="Exportar CSV"><ListBulletIcon className="w-5 h-5" /></button>
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full min-w-[700px]">
+                            <thead>
+                                <tr className="border-b border-white/5">
+                                    <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Período</th>
+                                    <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Lucro Líquido</th>
+                                    <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">W / L</th>
+                                    <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Total</th>
+                                    <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Win Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                                {stats.map((s: any, i: number) => (
+                                    <tr key={i} className="group hover:bg-white/5 transition-colors">
+                                        <td className="py-4 text-xs font-bold text-slate-400">{s.label}</td>
+                                        <td className={`py-4 text-sm font-black ${s.profit >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                                            {s.profit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(s.profit)}
+                                        </td>
+                                        <td className="py-4 text-xs font-bold">
+                                            <span className="text-[#22c55e]">{s.wins}</span>
+                                            <span className="mx-1 opacity-20">/</span>
+                                            <span className="text-[#ef4444]">{s.losses}</span>
+                                        </td>
+                                        <td className="py-4 text-xs font-bold text-slate-400">{s.total}</td>
+                                        <td className="py-4 text-right">
+                                            <div className="flex items-center justify-end gap-3">
+                                                <div className="w-24 bg-white/5 h-1.5 rounded-full overflow-hidden hidden md:block">
+                                                    <div className="h-full bg-[#6366f1]" style={{ width: `${s.winRate}%` }} />
+                                                </div>
+                                                <span className="text-xs font-black text-white w-12">{s.winRate.toFixed(1)}%</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {stats.length === 0 && (
+                                    <tr>
+                                        <td colSpan={5} className="py-12 text-center text-xs font-medium text-slate-500 italic">
+                                            Nenhum dado encontrado para os filtros aplicados.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </GlassCard>
+            )}
+
+            {/* Import Modal */}
             {isTextModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-                    <div className={`w-full max-w-2xl rounded-3xl border ${theme.card} p-6 md:p-8 space-y-6 shadow-2xl`}>
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <h3 className={`text-xl font-black ${theme.text}`}>Importar Histórico</h3>
-                                <p className={`text-xs ${theme.textMuted}`}>Cole o texto do seu histórico de operações abaixo.</p>
-                                <p className="text-[10px] text-teal-500 font-bold mt-1 uppercase tracking-tighter">Dica: Se der erro de demanda, tente importar em partes menores.</p>
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+                    <GlassCard theme={theme} className="w-full max-w-2xl animate-in zoom-in-95 duration-300">
+                        <SectionTitle title="Importar Histórico" subtitle="Cole o texto das suas operações" icon={ArrowDownTrayIcon} theme={theme} />
+                        
+                        <div className="space-y-4">
+                            <textarea 
+                                value={importText}
+                                onChange={(e) => setImportText(e.target.value)}
+                                placeholder="Ex: 02/03,08:27:01,CAD/JPY,R$ 5.00,90%,+ R$ 9.50"
+                                className={`w-full h-64 p-4 rounded-2xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-mono text-xs ${theme.input}`}
+                            />
+                            
+                            {importError && (
+                                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold">
+                                    {importError}
+                                </div>
+                            )}
+
+                            {isImporting && (
+                                <div className="flex items-center gap-3 p-4 rounded-xl bg-[#6366f1]/10 border border-[#6366f1]/20 text-[#6366f1] text-xs font-bold">
+                                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                    IA Analisando dados... {retryCount > 0 && `(Tentativa ${retryCount}/5)`}
+                                </div>
+                            )}
+
+                            <div className="flex gap-4 pt-4">
+                                <ActionButton variant="ghost" className="flex-1" onClick={() => setIsTextModalOpen(false)}>
+                                    Cancelar
+                                </ActionButton>
+                                <ActionButton 
+                                    variant="primary" 
+                                    className="flex-1" 
+                                    onClick={handleTextImport}
+                                    disabled={isImporting || !importText.trim()}
+                                >
+                                    {isImporting ? 'Processando...' : 'Importar Agora'}
+                                </ActionButton>
                             </div>
-                            <button onClick={() => setIsTextModalOpen(false)} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
-                                <TrashIcon className="w-5 h-5 text-slate-500" />
-                            </button>
                         </div>
-
-                        <textarea
-                            value={importText}
-                            onChange={(e) => setImportText(e.target.value)}
-                            placeholder="Ex: 11/03/2026 - Win - $10.00 - 80%..."
-                            className={`w-full h-64 p-4 rounded-2xl border outline-none font-bold resize-none ${theme.input} text-xs`}
-                        />
-
-                        {importError && (
-                            <div className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl">
-                                <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider">{importError}</p>
-                            </div>
-                        )}
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setIsTextModalOpen(false)}
-                                className={`flex-1 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] border ${theme.card} hover:bg-slate-800 transition-all`}
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleTextImport}
-                                disabled={isImporting || !importText.trim()}
-                                className="flex-1 py-4 bg-[#6366f1] hover:brightness-110 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-[#6366f1]/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                            >
-                                {isImporting && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
-                                {isImporting ? (retryCount > 0 ? `Tentativa ${retryCount + 1}...` : 'Processando...') : 'Confirmar Importação'}
-                            </button>
-                        </div>
-                    </div>
+                    </GlassCard>
                 </div>
             )}
         </div>
@@ -2105,7 +2361,7 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
                 .reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
             label = "Progresso da Semana";
         } else if (goal.type === 'custom' && goal.deadline) {
-            const startStr = getLocalDateString(new Date(goal.createdAt));
+            const startStr = getLocalDateString(new Date(goal.createdAt || Date.now()));
             relevantProfit = brokerageRecords
                 .filter((r: any) => r.id >= startStr && r.id <= goal.deadline!)
                 .reduce((acc: number, r: any) => acc + r.netProfitUSD, 0);
@@ -2117,65 +2373,97 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
     };
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
-            <div><h2 className="text-xl lg:text-2xl font-black">Metas Financeiras</h2><p className={`text-[10px] lg:text-xs ${theme.textMuted}`}>Acompanhamento de objetivos a longo prazo.</p></div>
-            <div className={`p-4 lg:p-8 rounded-3xl border ${theme.card} space-y-8`}>
-                <div className="space-y-4">
+        <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto">
+            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
+                <div>
+                    <h2 className={`text-2xl lg:text-3xl font-black tracking-tight ${theme.text}`}>Metas</h2>
+                    <p className={`text-xs font-medium ${theme.textMuted}`}>Acompanhamento de objetivos a longo prazo.</p>
+                </div>
+            </div>
+
+            <GlassCard theme={theme}>
+                <SectionTitle title="Nova Meta" subtitle="Defina um novo objetivo financeiro" icon={TargetIcon} theme={theme} />
+                <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="text" placeholder="Nome da Meta" value={newGoalName} onChange={e => setNewGoalName(e.target.value)} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} />
-                        <select value={newGoalType} onChange={e => setNewGoalType(e.target.value as any)} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`}>
-                            <option value="weekly">Semanal</option>
-                            <option value="monthly">Mensal</option>
-                            <option value="custom">Até certa data</option>
-                        </select>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Nome da Meta</label>
+                            <input type="text" placeholder="Ex: Viagem, Carro..." value={newGoalName} onChange={e => setNewGoalName(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`} />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Tipo</label>
+                            <select value={newGoalType} onChange={e => setNewGoalType(e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`}>
+                                <option value="weekly">Semanal</option>
+                                <option value="monthly">Mensal</option>
+                                <option value="custom">Até certa data</option>
+                            </select>
+                        </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="number" placeholder="Valor Alvo" value={newGoalAmount} onChange={e => setNewGoalAmount(e.target.value)} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} />
-                        {newGoalType === 'custom' ? (
-                            <input type="date" value={newGoalDeadline} onChange={e => setNewGoalDeadline(e.target.value)} className={`h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} />
-                        ) : (
-                            <div className="h-12" />
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor Alvo ({currencySymbol})</label>
+                            <input type="number" placeholder="0.00" value={newGoalAmount} onChange={e => setNewGoalAmount(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`} />
+                        </div>
+                        {newGoalType === 'custom' && (
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Data Limite</label>
+                                <input type="date" value={newGoalDeadline} onChange={e => setNewGoalDeadline(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`} />
+                            </div>
                         )}
                     </div>
-                    <button onClick={addGoal} className="w-full h-12 bg-[#6366f1] text-white font-black rounded-xl uppercase text-[10px] tracking-widest">Adicionar Meta</button>
+                    <ActionButton variant="primary" className="w-full h-14" onClick={addGoal} icon={PlusIcon}>
+                        Adicionar Meta
+                    </ActionButton>
                 </div>
-                
-                <div className="space-y-4">
-                    {goals.filter((g: Goal) => g.brokerageId === activeBrokerage?.id).map((goal: Goal) => {
-                        const { percentage, label, current } = calculateProgress(goal);
-                        return (
-                            <div key={goal.id} className="p-6 rounded-3xl bg-slate-950/30 border border-slate-800/50 space-y-4">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-[10px] font-black uppercase text-slate-500 mb-1">{goal.name}</p>
-                                        <h4 className="text-xl font-black">{currencySymbol} {formatMoney(goal.targetAmount)}</h4>
-                                        <p className="text-[10px] font-bold text-slate-400 mt-1">Atual: {currencySymbol} {formatMoney(current)}</p>
-                                    </div>
-                                    <button onClick={() => deleteGoal(goal.id)} className="text-red-500/50 hover:text-red-500"><TrashIcon className="w-5 h-5" /></button>
+            </GlassCard>
+
+            <div className="space-y-4">
+                {goals.filter((g: Goal) => g.brokerageId === activeBrokerage?.id).map((goal: Goal) => {
+                    const { percentage, label, current } = calculateProgress(goal);
+                    const isCompleted = percentage >= 100;
+                    return (
+                        <GlassCard key={goal.id} theme={theme} className="animate-in fade-in duration-300">
+                            <div className="flex justify-between items-start mb-6">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase text-slate-500 mb-1 tracking-widest">{goal.name}</p>
+                                    <h4 className="text-2xl font-black text-white">{currencySymbol} {formatMoney(goal.targetAmount)}</h4>
+                                    <p className="text-xs font-bold text-slate-400 mt-1">Atual: <span className={isCompleted ? 'text-[#22c55e]' : 'text-[#6366f1]'}>{currencySymbol} {formatMoney(current)}</span></p>
                                 </div>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-[10px] font-black uppercase"><span className="text-slate-500">{label}</span><span className={percentage >= 100 ? 'text-green-500' : 'text-blue-400'}>{percentage.toFixed(1)}%</span></div>
-                                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden"><div className={`h-full transition-all duration-500 ${percentage >= 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }} /></div>
+                                <button onClick={() => deleteGoal(goal.id)} className="p-2 hover:bg-red-500/10 rounded-xl transition-colors text-red-500/50 hover:text-red-500 active:scale-90"><TrashIcon className="w-5 h-5" /></button>
+                            </div>
+                            
+                            <div className="space-y-3">
+                                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                                    <span className="text-slate-500">{label}</span>
+                                    <span className={isCompleted ? 'text-[#22c55e]' : 'text-[#6366f1]'}>{percentage.toFixed(1)}%</span>
                                 </div>
-                                
-                                <div className="grid grid-cols-3 gap-2 pt-4 border-t border-slate-800/50">
-                                    <div className="text-center">
-                                        <p className="text-[7px] font-black uppercase text-slate-500 mb-1">Meta Diária</p>
-                                        <p className="text-[10px] font-bold text-blue-400">{currencySymbol} {formatMoney(goal.targetAmount / (goal.type === 'monthly' ? 22 : goal.type === 'weekly' ? 5 : 30))}</p>
-                                    </div>
-                                    <div className="text-center border-x border-slate-800/50">
-                                        <p className="text-[7px] font-black uppercase text-slate-500 mb-1">Meta Semanal</p>
-                                        <p className="text-[10px] font-bold text-blue-400">{currencySymbol} {formatMoney(goal.type === 'weekly' ? goal.targetAmount : goal.targetAmount / (goal.type === 'monthly' ? 4 : 4))}</p>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-[7px] font-black uppercase text-slate-500 mb-1">Meta Mensal</p>
-                                        <p className="text-[10px] font-bold text-blue-400">{currencySymbol} {formatMoney(goal.type === 'monthly' ? goal.targetAmount : goal.targetAmount * (goal.type === 'weekly' ? 4 : 1))}</p>
-                                    </div>
+                                <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                                    <div className={`h-full transition-all duration-1000 ease-out ${isCompleted ? 'bg-[#22c55e] shadow-[0_0_15px_rgba(34,197,94,0.3)]' : 'bg-[#6366f1] shadow-[0_0_15px_rgba(99,102,241,0.3)]'}`} style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }} />
                                 </div>
                             </div>
-                        );
-                    })}
-                </div>
+                            
+                            <div className="grid grid-cols-3 gap-4 pt-6 mt-6 border-t border-white/5">
+                                <div className="text-center">
+                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-1">Meta Diária</p>
+                                    <p className="text-xs font-black text-[#6366f1]">{currencySymbol} {formatMoney(goal.targetAmount / (goal.type === 'monthly' ? 22 : goal.type === 'weekly' ? 5 : 30))}</p>
+                                </div>
+                                <div className="text-center border-x border-white/5">
+                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-1">Meta Semanal</p>
+                                    <p className="text-xs font-black text-[#6366f1]">{currencySymbol} {formatMoney(goal.type === 'weekly' ? goal.targetAmount : goal.targetAmount / (goal.type === 'monthly' ? 4 : 4))}</p>
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-1">Meta Mensal</p>
+                                    <p className="text-xs font-black text-[#6366f1]">{currencySymbol} {formatMoney(goal.type === 'monthly' ? goal.targetAmount : goal.targetAmount * (goal.type === 'weekly' ? 4 : 1))}</p>
+                                </div>
+                            </div>
+                        </GlassCard>
+                    );
+                })}
+                {goals.filter((g: Goal) => g.brokerageId === activeBrokerage?.id).length === 0 && (
+                    <div className="py-20 text-center opacity-20">
+                        <TargetIcon className="w-16 h-16 mx-auto mb-4" />
+                        <p className="text-sm font-black uppercase tracking-[0.2em]">Nenhuma meta definida</p>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -2191,8 +2479,14 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
 
     const handleManualSave = async () => {
         setIsSaving(true);
-        await onSave();
-        setTimeout(() => setIsSaving(false), 1000);
+        try {
+            await onSave();
+            toast.success("Configurações salvas com sucesso!");
+        } catch (err) {
+            toast.error("Erro ao salvar configurações.");
+        } finally {
+            setTimeout(() => setIsSaving(false), 1000);
+        }
     };
 
     const addNewBrokerage = () => {
@@ -2219,125 +2513,160 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
     };
 
     return (
-        <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
+        <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div><h2 className="text-xl lg:text-2xl font-black">Configurações da Corretora</h2><p className={`text-[10px] lg:text-xs ${theme.textMuted}`}>Gestão de capital e limites de risco.</p></div>
+                <div>
+                    <h2 className={`text-2xl lg:text-3xl font-black tracking-tight ${theme.text}`}>Configurações</h2>
+                    <p className={`text-xs font-medium ${theme.textMuted}`}>Gestão de capital e limites de risco.</p>
+                </div>
                 <div className="flex gap-2 w-full sm:w-auto">
                     <input 
                         type="text" 
                         placeholder="Nova Corretora" 
                         value={newBrokerageName}
                         onChange={e => setNewBrokerageName(e.target.value)}
-                        className={`flex-1 h-10 px-4 rounded-xl border text-xs font-bold outline-none ${theme.input}`}
+                        className={`flex-1 h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-xs ${theme.input}`}
                     />
-                    <button onClick={addNewBrokerage} className="h-10 px-4 bg-[#6366f1] text-white font-black rounded-xl uppercase text-[10px] tracking-widest">Nova</button>
+                    <ActionButton variant="primary" onClick={addNewBrokerage} icon={PlusIcon}>
+                        Nova
+                    </ActionButton>
                 </div>
             </div>
             
-            <div className={`p-4 md:p-8 rounded-3xl border ${theme.card} space-y-8`}>
-                <section className="space-y-6">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                        <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">
-                            <LayoutGridIcon className="w-4 h-4 text-[#6366f1]" />
-                            Parâmetros de {brokerage.name}
-                        </h3>
-                        <button onClick={() => deleteBrokerage(brokerage.id)} className="text-red-500 text-[10px] font-black uppercase tracking-widest hover:underline">Excluir Corretora</button>
+            <GlassCard theme={theme} className="space-y-12">
+                <section className="space-y-8">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <SectionTitle title={`Parâmetros de ${brokerage.name}`} subtitle="Configurações básicas" icon={LayoutGridIcon} theme={theme} />
+                        <button onClick={() => deleteBrokerage(brokerage.id)} className="text-[#ef4444] text-[10px] font-black uppercase tracking-widest hover:underline active:scale-95 transition-all">Excluir Corretora</button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Corretora</label><input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} /></div>
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Moeda</label><select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`}><option value="USD">Dólar ($)</option><option value="BRL">Real (R$)</option></select></div>
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Saldo Inicial</label><input type="number" value={brokerage.initialBalance} onChange={e => updateBrokerage('initialBalance', parseFloat(e.target.value) || 0)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} /></div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase">Payout Padrão</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Nome da Corretora</label>
+                            <input type="text" value={brokerage.name} onChange={e => updateBrokerage('name', e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`} />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Moeda</label>
+                            <select value={brokerage.currency} onChange={e => updateBrokerage('currency', e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`}>
+                                <option value="USD">Dólar ($)</option>
+                                <option value="BRL">Real (R$)</option>
+                            </select>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Saldo Inicial</label>
+                            <input type="number" value={brokerage.initialBalance} onChange={e => updateBrokerage('initialBalance', parseFloat(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`} />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Payout Padrão</label>
                             <div className="relative">
-                                <input type="number" value={brokerage.payoutPercentage} onChange={e => updateBrokerage('payoutPercentage', parseInt(e.target.value) || 0)} className={`w-full h-11 md:h-12 px-4 pr-8 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} />
-                                <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-bold">%</span>
+                                <input type="number" value={brokerage.payoutPercentage} onChange={e => updateBrokerage('payoutPercentage', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 pr-10 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`} />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-black">%</span>
                             </div>
                         </div>
                     </div>
                 </section>
-                <section className="space-y-6 pt-8 border-t border-slate-800/10">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">
-                        <TargetIcon className="w-4 h-4 text-emerald-500" />
-                        Meta Diária
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                <section className="space-y-8 pt-8 border-t border-white/5">
+                    <SectionTitle title="Meta Diária" subtitle="Objetivo de lucro por dia" icon={TargetIcon} theme={theme} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase">Modo da Meta</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Modo da Meta</label>
                             <select 
                                 value={brokerage.dailyGoalMode || 'percentage'} 
                                 onChange={e => updateBrokerage('dailyGoalMode', e.target.value as any)} 
-                                className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`}
+                                className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`}
                             >
                                 <option value="percentage">Porcentagem (%)</option>
                                 <option value="fixed">Valor Fixo ({brokerage.currency === 'USD' ? '$' : 'R$'})</option>
                             </select>
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase">Valor da Meta</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor da Meta</label>
                             <div className="relative">
                                 <input 
                                     type="number" 
                                     value={brokerage.dailyGoalValue || 0} 
                                     onChange={e => updateBrokerage('dailyGoalValue', parseFloat(e.target.value) || 0)} 
-                                    className={`w-full h-11 md:h-12 px-4 pr-8 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} 
+                                    className={`w-full h-12 px-4 pr-10 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`} 
                                 />
-                                <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-bold">
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-black">
                                     {brokerage.dailyGoalMode === 'fixed' ? (brokerage.currency === 'USD' ? '$' : 'R$') : '%'}
                                 </span>
                             </div>
                         </div>
                     </div>
                 </section>
-                <section className="space-y-6 pt-8 border-t border-slate-800/10">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">
-                        <ExclamationTriangleIcon className="w-4 h-4 text-red-500" />
-                        Bloqueio Operacional (Stop)
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Gain (Wins)</label><input type="number" value={brokerage.stopGainTrades} onChange={e => updateBrokerage('stopGainTrades', parseInt(e.target.value) || 0)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} /></div>
-                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Stop Loss (Losses)</label><input type="number" value={brokerage.stopLossTrades} onChange={e => updateBrokerage('stopLossTrades', parseInt(e.target.value) || 0)} className={`w-full h-11 md:h-12 px-4 rounded-xl border outline-none font-bold text-sm md:text-base ${theme.input}`} /></div>
-                    </div>
-                </section>
-                <section className="space-y-6 pt-8 border-t border-slate-800/10">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2">
-                        <SparklesIcon className="w-4 h-4 text-amber-500" />
-                        Preferências de Exibição
-                    </h3>
-                    <div className={`flex items-center justify-between p-4 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800/50' : 'bg-slate-100/50 border-black/5'}`}>
-                        <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-xl ${isDarkMode ? 'bg-slate-800 text-amber-400' : 'bg-white text-blue-600 shadow-sm'}`}>
-                                {isDarkMode ? <MoonIcon className="w-5 h-5" /> : <SunIcon className="w-5 h-5" />}
-                            </div>
-                            <div>
-                                <p className="text-xs font-black uppercase tracking-tight">Tema do Aplicativo</p>
-                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{isDarkMode ? 'Modo Escuro Ativo' : 'Modo Claro Ativo'}</p>
+
+                <section className="space-y-8 pt-8 border-t border-white/5">
+                    <SectionTitle title="Gerenciamento de Risco" subtitle="Limites de operações e entradas" icon={CheckCircleIcon} theme={theme} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Modo de Entrada</label>
+                            <select value={brokerage.entryMode} onChange={e => updateBrokerage('entryMode', e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`}>
+                                <option value="percentage">Porcentagem (%)</option>
+                                <option value="fixed">Valor Fixo ({brokerage.currency === 'USD' ? '$' : 'R$'})</option>
+                            </select>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor da Entrada</label>
+                            <div className="relative">
+                                <input type="number" value={brokerage.entryValue} onChange={e => updateBrokerage('entryValue', parseFloat(e.target.value) || 0)} className={`w-full h-12 px-4 pr-10 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`} />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-black">{brokerage.entryMode === 'fixed' ? (brokerage.currency === 'USD' ? '$' : 'R$') : '%'}</span>
                             </div>
                         </div>
-                        <button 
-                            onClick={() => setIsDarkMode(!isDarkMode)}
-                            className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${isDarkMode ? 'bg-[#6366f1]' : 'bg-slate-300'}`}
-                        >
-                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${isDarkMode ? 'left-7' : 'left-1'}`} />
-                        </button>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Stop Gain (Operações)</label>
+                            <input type="number" value={brokerage.stopGainTrades} onChange={e => updateBrokerage('stopGainTrades', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`} />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Stop Loss (Operações)</label>
+                            <input type="number" value={brokerage.stopLossTrades} onChange={e => updateBrokerage('stopLossTrades', parseInt(e.target.value) || 0)} className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`} />
+                        </div>
                     </div>
                 </section>
-                <div className="flex flex-col md:flex-row gap-3 md:gap-4">
-                    <button 
-                        onClick={handleManualSave} 
-                        className={`flex-1 px-6 py-3 md:px-8 md:py-4 bg-green-600 hover:bg-green-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2 ${isSaving ? 'opacity-70' : ''}`}
-                    >
-                        {isSaving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+
+                <div className="flex flex-col md:flex-row gap-4 pt-8 border-t border-white/5">
+                    <ActionButton variant="primary" className="flex-1 h-14" onClick={handleManualSave} disabled={isSaving} icon={ArrowPathIcon}>
                         {isSaving ? 'Salvando...' : 'Salvar Configurações'}
-                    </button>
-                    <button onClick={onReset} className="flex-1 px-6 py-3 md:px-8 md:py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all">Limpar Histórico</button>
-                    {trashCount > 0 && (
-                        <button onClick={onRestore} className="flex-1 px-6 py-3 md:px-8 md:py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2">
-                            <ArrowPathIcon className="w-4 h-4" /> Restaurar ({trashCount})
-                        </button>
-                    )}
+                    </ActionButton>
+                    <ActionButton variant="ghost" className="flex-1 h-14 text-[#ef4444] hover:bg-[#ef4444]/10" onClick={onReset} icon={TrashIcon}>
+                        Resetar Todos os Dados
+                    </ActionButton>
                 </div>
-            </div>
+            </GlassCard>
+
+            <GlassCard theme={theme}>
+                <SectionTitle title="Aparência" subtitle="Personalize sua interface" icon={SparklesIcon} theme={theme} />
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
+                    <div className="flex items-center gap-3">
+                        {isDarkMode ? <MoonIcon className="w-5 h-5 text-[#6366f1]" /> : <SunIcon className="w-5 h-5 text-amber-500" />}
+                        <span className="text-sm font-bold">Modo Escuro</span>
+                    </div>
+                    <button 
+                        onClick={() => setIsDarkMode(!isDarkMode)}
+                        className={`w-12 h-6 rounded-full transition-all relative ${isDarkMode ? 'bg-[#6366f1]' : 'bg-slate-300'}`}
+                    >
+                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${isDarkMode ? 'right-1' : 'left-1'}`} />
+                    </button>
+                </div>
+            </GlassCard>
+
+            {trashCount > 0 && (
+                <GlassCard theme={theme} className="border-[#6366f1]/20 bg-[#6366f1]/5">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-[#6366f1]/20 flex items-center justify-center text-[#6366f1]">
+                                <TrashIcon className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-black uppercase tracking-widest">Lixeira</h4>
+                                <p className="text-xs font-medium text-slate-500">{trashCount} itens excluídos recentemente.</p>
+                            </div>
+                        </div>
+                        <ActionButton variant="primary" onClick={onRestore} icon={ArrowPathIcon}>
+                            Restaurar Tudo
+                        </ActionButton>
+                    </div>
+                </GlassCard>
+            )}
         </div>
     );
 };
