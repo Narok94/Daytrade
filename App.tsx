@@ -1442,105 +1442,13 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
                 <div className="xl:col-span-2 space-y-8">
-                    <GlassCard theme={theme} className="h-[400px] flex flex-col">
-                        <SectionTitle title="Evolução da Banca" subtitle="Histórico das últimas 15 movimentações" icon={TrendingUpIcon} theme={theme} />
-                        <div className="flex-1 min-h-0">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={chartData}>
-                                    <defs>
-                                        <linearGradient id="colorBal" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                                    <XAxis 
-                                        dataKey="date" 
-                                        stroke="#ffffff20" 
-                                        fontSize={10} 
-                                        tickLine={false} 
-                                        axisLine={false}
-                                        tick={{ fill: '#64748b' }}
-                                    />
-                                    <YAxis 
-                                        stroke="#ffffff20" 
-                                        fontSize={10} 
-                                        tickLine={false} 
-                                        axisLine={false}
-                                        tick={{ fill: '#64748b' }}
-                                        tickFormatter={(val) => `${currencySymbol}${val}`}
-                                    />
-                                    <Tooltip 
-                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '12px' }}
-                                        itemStyle={{ color: '#6366f1', fontWeight: 'bold' }}
-                                    />
-                                    <Area 
-                                        type="monotone" 
-                                        dataKey="balance" 
-                                        stroke="#6366f1" 
-                                        strokeWidth={3}
-                                        fillOpacity={1} 
-                                        fill="url(#colorBal)" 
-                                        animationDuration={1500}
-                                    />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </GlassCard>
-
-                    <GlassCard theme={theme}>
-                        <SectionTitle title="Histórico do Dia" subtitle="Operações realizadas hoje" icon={ListBulletIcon} theme={theme} />
-                        <div className="overflow-x-auto custom-scrollbar">
-                            <table className="w-full min-w-[600px]">
-                                <thead>
-                                    <tr className="border-b border-white/5">
-                                        <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Hora</th>
-                                        <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Tipo</th>
-                                        <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Entrada</th>
-                                        <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Resultado</th>
-                                        <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-white/5">
-                                    {dailyRecordForSelectedDay?.trades?.map((trade: Trade, i: number) => (
-                                        <tr key={i} className="group hover:bg-white/5 transition-colors">
-                                            <td className="py-4 text-xs font-bold text-slate-400">
-                                                {new Date(trade.timestamp || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                            </td>
-                                            <td className="py-4">
-                                                <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase ${trade.isSoros ? 'bg-amber-500/20 text-amber-500' : 'bg-blue-500/20 text-blue-500'}`}>
-                                                    {trade.isSoros ? 'Soros' : 'Fixo'}
-                                                </span>
-                                            </td>
-                                            <td className="py-4 text-xs font-black text-white">
-                                                {currencySymbol} {formatMoney(trade.entryValue)}
-                                            </td>
-                                            <td className="py-4">
-                                                <span className={`text-xs font-black ${trade.result === 'win' ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
-                                                    {trade.result === 'win' ? '+' : '-'}{currencySymbol} {formatMoney(trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)) : trade.entryValue)}
-                                                </span>
-                                            </td>
-                                            <td className="py-4 text-right">
-                                                <button 
-                                                    onClick={() => deleteTrade(trade.id, selectedDateString)}
-                                                    className="p-2 text-slate-600 hover:text-red-500 transition-colors"
-                                                >
-                                                    <TrashIcon className="w-4 h-4" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {dailyRecordForSelectedDay?.trades?.length === 0 && (
-                                        <tr>
-                                            <td colSpan={5} className="py-12 text-center text-xs font-medium text-slate-500 italic">
-                                                Nenhuma operação registrada para este dia.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </GlassCard>
+                    {/* A evolução da conta foi movida para a aba Histórico */}
+                    <div className="hidden xl:block h-full">
+                        <GlassCard theme={theme} className="h-full flex flex-col justify-center items-center opacity-20 border-dashed">
+                            <TrendingUpIcon className="w-12 h-12 mb-4" />
+                            <p className="text-sm font-bold uppercase tracking-widest">Dashboard Operacional</p>
+                        </GlassCard>
+                    </div>
                 </div>
 
                 <div className="space-y-8">
@@ -1636,6 +1544,50 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                     </p>
                                 </div>
                             )}
+                        </div>
+                    </GlassCard>
+
+                    <GlassCard theme={theme}>
+                        <SectionTitle title="Histórico do Dia" subtitle="Operações realizadas hoje" icon={ListBulletIcon} theme={theme} />
+                        <div className="overflow-x-auto custom-scrollbar">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="border-b border-white/5">
+                                        <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Hora</th>
+                                        <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Res</th>
+                                        <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {dailyRecordForSelectedDay?.trades?.map((trade: Trade, i: number) => (
+                                        <tr key={i} className="group hover:bg-white/5 transition-colors">
+                                            <td className="py-4 text-[10px] font-bold text-slate-400">
+                                                {new Date(trade.timestamp || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                            </td>
+                                            <td className="py-4">
+                                                <span className={`text-[10px] font-black ${trade.result === 'win' ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                                                    {trade.result === 'win' ? 'WIN' : 'LOSS'}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 text-right">
+                                                <button 
+                                                    onClick={() => deleteTrade(trade.id, selectedDateString)}
+                                                    className="p-1 text-slate-600 hover:text-red-500 transition-colors"
+                                                >
+                                                    <TrashIcon className="w-3 h-3" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {dailyRecordForSelectedDay?.trades?.length === 0 && (
+                                        <tr>
+                                            <td colSpan={3} className="py-8 text-center text-[10px] font-medium text-slate-500 italic">
+                                                Vazio
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </GlassCard>
 
@@ -1920,6 +1872,26 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
     const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly' | 'calendar'>('calendar');
+    
+    // Chart Data logic moved from Dashboard
+    const chartData = useMemo(() => {
+        const brokerageRecords = records.filter((r: any) => r.brokerageId === activeBrokerage?.id);
+        const sorted = [...brokerageRecords].sort((a, b) => {
+            const dateA = a.recordType === 'day' ? a.id : a.date;
+            const dateB = b.recordType === 'day' ? b.id : b.date;
+            if (dateA !== dateB) return dateA.localeCompare(dateB);
+            return (a.timestamp || 0) - (b.timestamp || 0);
+        });
+
+        return sorted.slice(-30).map(r => {
+            const balance = r.recordType === 'day' ? r.endBalanceUSD : (r as TransactionRecord).runningBalanceUSD || 0;
+            return {
+                date: r.recordType === 'day' ? r.id.slice(5) : r.date.slice(5),
+                balance: balance
+            };
+        });
+    }, [records, activeBrokerage]);
+
     const [isImporting, setIsImporting] = useState(false);
     const [importError, setImportError] = useState<string | null>(null);
     const [retryCount, setRetryCount] = useState(0);
@@ -2134,6 +2106,52 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                     </button>
                 ))}
             </div>
+
+            <GlassCard theme={theme} className="h-[400px] flex flex-col">
+                <SectionTitle title="Evolução da Banca" subtitle="Histórico das últimas 30 movimentações" icon={TrendingUpIcon} theme={theme} />
+                <div className="flex-1 min-h-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={chartData}>
+                            <defs>
+                                <linearGradient id="colorBalHistory" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                            <XAxis 
+                                dataKey="date" 
+                                stroke="#ffffff20" 
+                                fontSize={10} 
+                                tickLine={false} 
+                                axisLine={false}
+                                tick={{ fill: '#64748b' }}
+                            />
+                            <YAxis 
+                                stroke="#ffffff20" 
+                                fontSize={10} 
+                                tickLine={false} 
+                                axisLine={false}
+                                tick={{ fill: '#64748b' }}
+                                tickFormatter={(val) => `${currencySymbol}${val}`}
+                            />
+                            <Tooltip 
+                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '12px' }}
+                                itemStyle={{ color: '#6366f1', fontWeight: 'bold' }}
+                            />
+                            <Area 
+                                type="monotone" 
+                                dataKey="balance" 
+                                stroke="#6366f1" 
+                                strokeWidth={3}
+                                fillOpacity={1} 
+                                fill="url(#colorBalHistory)" 
+                                animationDuration={1500}
+                            />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </div>
+            </GlassCard>
 
             {showFilters && (
                 <GlassCard theme={theme} className="animate-in slide-in-from-top-4 duration-300">
