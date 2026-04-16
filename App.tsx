@@ -15,7 +15,7 @@ import {
     SparklesIcon, CheckCircleIcon, XMarkIcon, ArrowUpIcon, ArrowDownIcon,
     ExclamationTriangleIcon, BoltIcon, ClockIcon, PlayIcon, CameraIcon,
     ChevronDownIcon, UsersIcon, PauseIcon, KeyIcon, FunnelIcon, ArrowDownTrayIcon,
-    EyeIcon, EyeSlashIcon
+    EyeIcon, EyeSlashIcon, CalendarIcon, ShieldCheckIcon
 } from './components/icons';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { motion } from 'motion/react';
@@ -915,8 +915,34 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             </aside>
             <main className="flex-1 flex flex-col overflow-hidden">
                 <header className={`h-16 md:h-20 flex-none flex items-center justify-between px-4 md:px-8 border-b ${theme.border} ${theme.header}`}>
-                    <div className="flex items-center gap-2 md:gap-4">
+                    <div className="flex items-center gap-2 md:gap-6">
                         <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-5 h-5" /></button>
+                        
+                        {/* Professionalized Logo */}
+                        <div className="flex items-center gap-3">
+                            <div className="relative group">
+                                <motion.div 
+                                    animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.5, 0.2] }}
+                                    transition={{ duration: 3, repeat: Infinity }}
+                                    className="absolute inset-0 bg-purple-500 rounded-full blur-xl"
+                                />
+                                <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 p-0.5 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                                    <div className="w-full h-full rounded-[10px] bg-[#050a1f] flex items-center justify-center">
+                                        <SparklesIcon className="w-4 h-4 md:w-5 md:h-5 text-purple-400" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="relative overflow-hidden hidden sm:block">
+                                <span className="text-lg md:text-xl font-black tracking-tighter text-white">HRK<span className="text-purple-500">.</span></span>
+                                <motion.div 
+                                    initial={{ x: '-100%' }}
+                                    animate={{ x: '200%' }}
+                                    transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
+                                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12"
+                                />
+                            </div>
+                        </div>
+
                         <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e293b]/30 border border-white/5 text-[8px] font-black uppercase tracking-widest text-[#6366f1]/60">
                             <div className="w-1 h-1 rounded-full bg-[#6366f1] animate-pulse" />
                             Market: Active
@@ -1003,7 +1029,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     {activeTab === 'history' && <HistoryPanel isDarkMode={isDarkMode} isPrivacyMode={isPrivacyMode} activeBrokerage={activeBrokerage} records={records} addBulkTrades={addBulkTrades} />}
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
-                    {/* {activeTab === 'management-sheet' && <ManagementSheetPanel theme={theme} activeBrokerage={activeBrokerage} isDarkMode={isDarkMode} records={records} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />} */}
+                    {activeTab === 'management-sheet' && <ManagementSheetPanel theme={theme} activeBrokerage={activeBrokerage} isDarkMode={isDarkMode} records={records} selectedDate={selectedDate} setSelectedDate={setSelectedDate} isPrivacyMode={isPrivacyMode} />}
                     {activeTab === 'admin' && user.isAdmin && <AdminPanel theme={theme} adminId={user.id} />}
                 {activeTab === 'settings' && (
                     <SettingsPanel 
@@ -1016,6 +1042,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                         onSave={saveData}
                         isDarkMode={isDarkMode}
                         setIsDarkMode={setIsDarkMode}
+                        addTransaction={addTransaction}
                     />
                 )}
                 </div>
@@ -1303,8 +1330,6 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
 const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, addTransaction, deleteTransaction, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, transactionsForSelectedDay, startBalanceForSelectedDay, currentBalanceForDashboard, isDarkMode, isPrivacyMode, setIsPrivacyMode, dailyGoalTarget, isLoading, records }) => {
     const theme = useThemeClasses(isDarkMode);
     const [quantity, setQuantity] = useState('1');
-    const [transAmount, setTransAmount] = useState('');
-    const [transType, setTransType] = useState<'deposit' | 'withdrawal'>('deposit');
     const [isNextTradeSoros, setIsNextTradeSoros] = useState(false);
     const [entryMode, setEntryMode] = useState<'fixed' | 'percentage'>(activeBrokerage?.entryMode || 'percentage');
 
@@ -1352,17 +1377,6 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
          setQuantity('1');
          setIsNextTradeSoros(false);
          toast.success(`Operação ${type.toUpperCase()} adicionada!`);
-    };
-
-    const handleTransaction = () => {
-        const amount = parseFloat(transAmount) || 0;
-        if (amount <= 0) {
-            toast.error("O valor da movimentação deve ser maior que zero.");
-            return;
-        }
-        addTransaction(transType, amount);
-        setTransAmount('');
-        toast.success(`${transType === 'deposit' ? 'Depósito' : 'Saque'} realizado com sucesso!`);
     };
 
     const handleSoros = () => {
@@ -1484,7 +1498,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                 )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <GlassCard theme={theme} className="flex flex-col h-full">
                     <SectionTitle title="Nova Operação" subtitle="Registre seu resultado" icon={CalculatorIcon} theme={theme} />
                     
@@ -1629,49 +1643,6 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                 )}
                             </tbody>
                         </table>
-                    </div>
-                </GlassCard>
-
-                <GlassCard theme={theme} className="flex flex-col h-full">
-                    <SectionTitle title="Movimentação" subtitle="Depósitos e Saques" icon={ArrowPathIcon} theme={theme} />
-                    
-                    <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 mb-6">
-                        <button 
-                            onClick={() => setTransType('deposit')}
-                            className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${transType === 'deposit' ? 'bg-green-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                        >
-                            Depósito
-                        </button>
-                        <button 
-                            onClick={() => setTransType('withdrawal')}
-                            className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${transType === 'withdrawal' ? 'bg-red-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                        >
-                            Saque
-                        </button>
-                    </div>
-
-                    <div className="space-y-4 flex-1 flex flex-col justify-between">
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Valor ({currencySymbol})</label>
-                                <input 
-                                    type="number" 
-                                    value={transAmount}
-                                    onChange={(e) => setTransAmount(e.target.value)}
-                                    className={`w-full px-4 py-3 rounded-2xl font-bold text-sm ${theme.input}`}
-                                    placeholder="0,00"
-                                />
-                            </div>
-                        </div>
-                        <div className="pt-4">
-                            <ActionButton 
-                                variant="primary" 
-                                className="w-full" 
-                                onClick={handleTransaction}
-                            >
-                                Confirmar {transType === 'deposit' ? 'Depósito' : 'Saque'}
-                            </ActionButton>
-                        </div>
                     </div>
                 </GlassCard>
             </div>
@@ -2554,9 +2525,11 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
     );
 };
 
-const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset, trashCount, onRestore, onSave, isDarkMode, setIsDarkMode }) => {
+const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset, trashCount, onRestore, onSave, isDarkMode, setIsDarkMode, addTransaction }) => {
     const [newBrokerageName, setNewBrokerageName] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [transAmount, setTransAmount] = useState('');
+    const [transType, setTransType] = useState<'deposit' | 'withdrawal'>('deposit');
     
     const updateBrokerage = (field: keyof Brokerage, value: any) => {
         setBrokerages((prev: Brokerage[]) => prev.map((b) => b.id === brokerage.id ? { ...b, [field]: value } : b));
@@ -2572,6 +2545,17 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
         } finally {
             setTimeout(() => setIsSaving(false), 1000);
         }
+    };
+
+    const handleTransaction = () => {
+        const amount = parseFloat(transAmount) || 0;
+        if (amount <= 0) {
+            toast.error("O valor da movimentação deve ser maior que zero.");
+            return;
+        }
+        addTransaction(transType, amount);
+        setTransAmount('');
+        toast.success(`${transType === 'deposit' ? 'Depósito' : 'Saque'} realizado com sucesso!`);
     };
 
     const addNewBrokerage = () => {
@@ -2708,6 +2692,55 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                     </div>
                 </section>
 
+                <section className="space-y-8 pt-8 border-t border-white/5">
+                    <SectionTitle title="Parâmetros de VEX" subtitle="Movimentação de capital" icon={ArrowPathIcon} theme={theme} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                            <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5">
+                                <button 
+                                    onClick={() => setTransType('deposit')}
+                                    className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${transType === 'deposit' ? 'bg-green-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    Depósito
+                                </button>
+                                <button 
+                                    onClick={() => setTransType('withdrawal')}
+                                    className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${transType === 'withdrawal' ? 'bg-red-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    Saque
+                                </button>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor ({brokerage.currency === 'USD' ? '$' : 'R$'})</label>
+                                <input 
+                                    type="number" 
+                                    value={transAmount}
+                                    onChange={(e) => setTransAmount(e.target.value)}
+                                    className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`}
+                                    placeholder="0,00"
+                                />
+                            </div>
+                            <ActionButton 
+                                variant="primary" 
+                                className="w-full h-12" 
+                                onClick={handleTransaction}
+                                icon={ArrowPathIcon}
+                            >
+                                Confirmar {transType === 'deposit' ? 'Depósito' : 'Saque'}
+                            </ActionButton>
+                        </div>
+                        <div className="bg-white/5 rounded-2xl p-6 border border-white/5 flex flex-col justify-center items-center text-center">
+                            <div className="w-12 h-12 rounded-full bg-[#6366f1]/20 flex items-center justify-center text-[#6366f1] mb-4">
+                                <ShieldCheckIcon className="w-6 h-6" />
+                            </div>
+                            <h4 className="text-sm font-black uppercase tracking-widest mb-2">Segurança VEX</h4>
+                            <p className="text-[10px] font-medium text-slate-500 leading-relaxed">
+                                Todas as movimentações são registradas no histórico para auditoria e controle de banca.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
                 <div className="flex flex-col md:flex-row gap-4 pt-8 border-t border-white/5">
                     <ActionButton variant="primary" className="flex-1 h-14" onClick={handleManualSave} disabled={isSaving} icon={ArrowPathIcon}>
                         {isSaving ? 'Salvando...' : 'Salvar Configurações'}
@@ -2756,7 +2789,7 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
     );
 };
 
-const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMode, records, selectedDate, setSelectedDate }) => {
+const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMode, records, selectedDate, setSelectedDate, isPrivacyMode }) => {
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
     const [selectedMonth, setSelectedMonth] = useState(() => getLocalMonthString(selectedDate));
     const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
@@ -3061,35 +3094,33 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
     }, []);
 
     return (
-        <div className="p-1 md:p-2 space-y-2 w-full mx-auto text-black text-[11px]">
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-4 bg-white p-3 md:p-4 rounded-2xl border border-black/10 shadow-sm gap-4">
-                <div className="flex items-center gap-3">
-                    <DocumentTextIcon className="w-6 h-6 md:w-8 md:h-8 text-blue-600 shrink-0" />
+        <div className={`p-4 md:p-8 space-y-8 max-w-7xl mx-auto ${theme.text} text-[11px]`}>
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-[#6366f1]/20 flex items-center justify-center text-[#6366f1]">
+                        <DocumentTextIcon className="w-6 h-6" />
+                    </div>
                     <div>
-                        <h2 className="text-base md:text-lg lg:text-xl font-black uppercase tracking-tighter text-black leading-tight">
-                            Planilha de Gerenciamento
-                        </h2>
-                        <p className="text-black/60 text-[8px] md:text-[10px] lg:text-xs font-bold uppercase tracking-widest mt-0.5">
-                            {activeBrokerage?.name} • {selectedMonth}
-                        </p>
+                        <h2 className={`text-2xl lg:text-3xl font-black tracking-tight ${theme.text}`}>Planilha de Gerenciamento</h2>
+                        <p className={`text-xs font-medium ${theme.textMuted}`}>{activeBrokerage?.name} • {selectedMonth}</p>
                     </div>
                 </div>
-                <div className="flex flex-wrap gap-2 md:gap-3 items-end w-full lg:w-auto">
-                    <div className="flex flex-col flex-1 lg:flex-none min-w-[120px]">
-                        <label className="text-[8px] font-black uppercase text-slate-500 ml-1 mb-0.5">Dia Selecionado</label>
+                <div className="flex flex-wrap gap-3 items-end w-full lg:w-auto">
+                    <div className="flex flex-col flex-1 lg:flex-none min-w-[140px]">
+                        <label className="text-[10px] font-black uppercase text-slate-500 ml-1 mb-1 tracking-widest">Dia Selecionado</label>
                         <input 
                             type="date" 
                             value={getLocalDateString(selectedDate)} 
                             onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))}
-                            className="bg-slate-100 border border-black/20 rounded-xl px-3 py-2 text-[10px] lg:text-xs font-black uppercase outline-none focus:border-blue-500 transition-all w-full"
+                            className={`w-full px-4 py-2 rounded-xl font-bold text-xs outline-none focus:ring-2 focus:ring-[#6366f1]/50 ${theme.input}`}
                         />
                     </div>
-                    <div className="flex flex-col flex-1 lg:flex-none min-w-[120px]">
-                        <label className="text-[8px] font-black uppercase text-slate-500 ml-1 mb-0.5">Mês de Referência</label>
+                    <div className="flex flex-col flex-1 lg:flex-none min-w-[140px]">
+                        <label className="text-[10px] font-black uppercase text-slate-500 ml-1 mb-1 tracking-widest">Mês Referência</label>
                         <select 
                             value={selectedMonth}
                             onChange={(e) => setSelectedMonth(e.target.value)}
-                            className="bg-slate-100 border border-black/20 rounded-xl px-3 py-2 text-[10px] lg:text-xs font-black uppercase outline-none focus:border-blue-500 transition-all w-full"
+                            className={`w-full px-4 py-2 rounded-xl font-bold text-xs outline-none focus:ring-2 focus:ring-[#6366f1]/50 ${theme.input}`}
                         >
                             {months.map(m => (
                                 <option key={m} value={m}>{m}</option>
@@ -3097,30 +3128,32 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                         </select>
                     </div>
                     <div className="flex flex-col w-full lg:w-auto">
-                        <label className="text-[8px] font-black uppercase text-slate-500 ml-1 mb-0.5">Visualização</label>
-                        <div className="flex bg-slate-100 border border-black/20 rounded-xl p-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 ml-1 mb-1 tracking-widest">Visualização</label>
+                        <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
                             <button 
                                 onClick={() => setViewMode('daily')}
-                                className={`flex-1 lg:flex-none px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all ${viewMode === 'daily' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-blue-600'}`}
+                                className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${viewMode === 'daily' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                             >
                                 Diária
                             </button>
                             <button 
                                 onClick={() => setViewMode('monthly')}
-                                className={`flex-1 lg:flex-none px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all ${viewMode === 'monthly' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-blue-600'}`}
+                                className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${viewMode === 'monthly' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                             >
                                 Mensal
                             </button>
                         </div>
                     </div>
                     <div className="flex gap-2 w-full lg:w-auto">
-                        <button 
+                        <ActionButton 
+                            variant="primary"
                             onClick={() => setSelectedDate(new Date())}
-                            className="flex-1 lg:flex-none px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-blue-500 transition-all shadow-sm"
                         >
                             Hoje
-                        </button>
-                        <button 
+                        </ActionButton>
+                        <ActionButton 
+                            variant="ghost"
+                            className="text-[#ef4444] hover:bg-[#ef4444]/10"
                             onClick={() => {
                                 if(confirm('Deseja resetar os dados deste mês para esta corretora?')) {
                                     localStorage.removeItem(getStorageKey('days'));
@@ -3133,239 +3166,251 @@ const ManagementSheetPanel: React.FC<any> = ({ theme, activeBrokerage, isDarkMod
                                     window.location.reload();
                                 }
                             }}
-                            className="flex-1 lg:flex-none px-4 py-2 bg-red-500/10 text-red-600 rounded-xl text-[10px] font-black uppercase hover:bg-red-500/20 transition-all"
                         >
                             Resetar
-                        </button>
+                        </ActionButton>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* GESTÃO TABLE */}
-                <div className="col-span-1 lg:col-span-6 space-y-1">
-                    <div className="bg-blue-600 text-white font-black text-center py-1.5 uppercase text-xs border border-black rounded-t-lg">
-                        {viewMode === 'daily' ? 'Gestão Diária' : 'Gestão Mensal'}
-                    </div>
-                    
-                    {viewMode === 'monthly' ? (
-                        <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
-                            <div className="min-w-[300px]">
-                                <div className="grid grid-cols-4 gap-0 border border-black text-[9px] font-black uppercase text-center bg-slate-800 text-white">
-                                    <div className="border-r border-black py-1">RF</div>
-                                    <div className="border-r border-black py-1">Data</div>
-                                    <div className="border-r border-black py-1">Entradas</div>
-                                    <div className="py-1">Lucro/Prej</div>
-                                </div>
-                                <div className="max-h-[400px] lg:max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
-                                    {daysData.map((d: any, idx: number) => (
-                                        <div key={d.id} className={`grid grid-cols-4 gap-0 border-x border-b border-black text-[10px] transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${getLocalDateString(selectedDate).endsWith(String(d.id).padStart(2, '0')) ? 'ring-2 ring-blue-500 ring-inset' : ''}`}>
-                                            <div 
-                                                className="border-r border-black bg-yellow-400 text-black font-bold text-center py-1 relative cursor-pointer hover:bg-yellow-500 transition-colors"
-                                                onClick={() => {
-                                                    const [year, month] = selectedMonth.split('-');
-                                                    const newDate = new Date(Number(year), Number(month) - 1, d.id, 12, 0, 0);
-                                                    setSelectedDate(newDate);
-                                                }}
-                                            >
-                                                {d.id}
-                                                {d.hasSoros && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-green-500 rounded-bl-sm" title="Soros realizado" />}
-                                            </div>
-                                            <div className="border-r border-black text-black">
-                                                <input 
-                                                    type="text" 
-                                                    value={d.date} 
-                                                    onChange={e => updateDay(d.id, 'date', e.target.value)}
-                                                    className="w-full bg-transparent text-center outline-none font-medium py-1 focus:bg-white transition-colors"
-                                                />
-                                            </div>
-                                            <div className="border-r border-black bg-blue-100/20 text-black">
-                                                <input 
-                                                    type="number" 
-                                                    value={d.tradeCount || 0} 
-                                                    readOnly
-                                                    className="w-full bg-transparent text-center outline-none font-bold py-1 focus:bg-white transition-colors"
-                                                />
-                                            </div>
-                                            <div className={`text-center py-1 font-black transition-colors ${d.result > 0 ? 'bg-green-100/50 text-green-700' : d.result < 0 ? 'bg-red-100/50 text-red-700' : 'bg-slate-100/50 text-slate-400'}`}>
-                                                <input 
-                                                    type="number" 
-                                                    step="0.01"
-                                                    value={d.result !== undefined && d.result !== '' ? Number(d.result).toFixed(2) : ''} 
-                                                    onChange={e => updateDay(d.id, 'result', e.target.value)}
-                                                    className="w-full bg-transparent text-center outline-none py-0 focus:bg-white/50 transition-colors"
-                                                />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
-                            <div className="min-w-[400px]">
-                                <div className="grid grid-cols-5 gap-0 border border-black text-[9px] font-black uppercase text-center bg-slate-800 text-white">
-                                    <div className="border-r border-black py-1">Entrada</div>
-                                    <div className="border-r border-black py-1">Data/Hora</div>
-                                    <div className="border-r border-black py-1">Payout</div>
-                                    <div className="border-r border-black py-1">Resultado</div>
-                                    <div className="py-1">Lucro/Prej</div>
-                                </div>
-                                <div className="max-h-[400px] lg:max-h-[700px] overflow-y-auto border-b border-black custom-scrollbar">
-                                    {(() => {
-                                        const dateKey = getLocalDateString(selectedDate);
-                                        const dayRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateKey && r.brokerageId === activeBrokerage.id);
-                                        const trades = dayRecord?.trades || [];
-                                        
-                                        if (trades.length === 0) {
-                                            return <div className="py-10 text-center text-slate-400 font-bold uppercase text-[10px]">Nenhuma entrada registrada hoje</div>;
-                                        }
-
-                                        return trades.map((t: any, idx: number) => {
-                                            const profit = t.result === 'win' ? (t.entryValue * (t.payoutPercentage / 100)) : -t.entryValue;
+                <div className="lg:col-span-8 space-y-6">
+                    <GlassCard theme={theme} className="flex flex-col h-full">
+                        <SectionTitle 
+                            title={viewMode === 'daily' ? 'Gestão Diária' : 'Gestão Mensal'} 
+                            subtitle="Acompanhamento detalhado" 
+                            icon={viewMode === 'daily' ? ListBulletIcon : CalendarIcon} 
+                            theme={theme} 
+                        />
+                        
+                        <div className="overflow-x-auto custom-scrollbar flex-1">
+                            {viewMode === 'monthly' ? (
+                                <table className="w-full min-w-[500px]">
+                                    <thead>
+                                        <tr className="border-b border-white/5">
+                                            <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">RF</th>
+                                            <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Data</th>
+                                            <th className="text-center py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Entradas</th>
+                                            <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Lucro/Prej</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {daysData.map((d: any, idx: number) => {
+                                            const isSelected = getLocalDateString(selectedDate).endsWith(String(d.id).padStart(2, '0'));
                                             return (
-                                                <div key={t.id || idx} className={`grid grid-cols-5 gap-0 border-x border-b border-black text-[10px] transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                                                    <div className="border-r border-black bg-yellow-400 text-black font-bold text-center py-2">
-                                                        {idx + 1}
-                                                    </div>
-                                                    <div className="border-r border-black text-black text-center py-2 font-medium">
-                                                        {t.timestamp ? new Date(t.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-'}
-                                                    </div>
-                                                    <div className="border-r border-black bg-blue-50/30 text-black text-center py-2 font-bold">
-                                                        {t.payoutPercentage}%
-                                                    </div>
-                                                    <div className={`border-r border-black text-center py-2 font-black uppercase ${t.result === 'win' ? 'text-green-600' : 'text-red-600'}`}>
-                                                        {t.result}
-                                                    </div>
-                                                    <div className={`text-center py-2 font-black ${profit > 0 ? 'bg-green-100/50 text-green-700' : 'bg-red-100/50 text-red-700'}`}>
-                                                        {currencySymbol} {formatMoney(profit)}
-                                                    </div>
-                                                </div>
+                                                <tr 
+                                                    key={d.id} 
+                                                    className={`group hover:bg-white/5 transition-colors cursor-pointer ${isSelected ? 'bg-[#6366f1]/10' : ''}`}
+                                                    onClick={() => {
+                                                        const [year, month] = selectedMonth.split('-');
+                                                        const newDate = new Date(Number(year), Number(month) - 1, d.id, 12, 0, 0);
+                                                        setSelectedDate(newDate);
+                                                    }}
+                                                >
+                                                    <td className="py-4">
+                                                        <div className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-black ${isSelected ? 'bg-[#6366f1] text-white' : 'bg-white/5 text-slate-400'}`}>
+                                                            {d.id}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-4 text-xs font-bold text-slate-400">{d.date}</td>
+                                                    <td className="py-4 text-center text-xs font-black text-slate-300">{d.tradeCount || 0}</td>
+                                                    <td className={`py-4 text-right text-sm font-black ${d.result > 0 ? 'text-[#22c55e]' : d.result < 0 ? 'text-[#ef4444]' : 'text-slate-500'}`}>
+                                                        {d.result !== 0 ? (d.result > 0 ? '+' : '-') : ''}{currencySymbol} {formatMoney(Math.abs(d.result))}
+                                                    </td>
+                                                </tr>
                                             );
-                                        });
-                                    })()}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
+                                        })}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <table className="w-full min-w-[500px]">
+                                    <thead>
+                                        <tr className="border-b border-white/5">
+                                            <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Entrada</th>
+                                            <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Hora</th>
+                                            <th className="text-center py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Payout</th>
+                                            <th className="text-center py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Resultado</th>
+                                            <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Lucro/Prej</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {(() => {
+                                            const dateKey = getLocalDateString(selectedDate);
+                                            const dayRecord = records.find((r: any) => r.recordType === 'day' && r.id === dateKey && r.brokerageId === activeBrokerage.id);
+                                            const trades = dayRecord?.trades || [];
+                                            
+                                            if (trades.length === 0) {
+                                                return (
+                                                    <tr>
+                                                        <td colSpan={5} className="py-20 text-center text-xs font-medium text-slate-500 italic">
+                                                            Nenhuma operação registrada para este dia.
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            }
 
-                {/* MIDDLE COLUMN */}
-                <div className="col-span-1 lg:col-span-2 space-y-4">
-                    {/* BANCA CARDS */}
-                    <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
-                        <div className="bg-white border border-black rounded-xl overflow-hidden shadow-sm flex flex-col">
-                            <div className="bg-blue-600 text-white font-black text-[9px] uppercase py-1 text-center border-b border-black">Banca Inicial</div>
-                            <div className="text-black font-black text-lg lg:text-xl py-2 text-center">{currencySymbol} {formatMoney(displayInitialBank)}</div>
+                                            return trades.map((t: any, idx: number) => {
+                                                const profit = t.result === 'win' ? (t.entryValue * (t.payoutPercentage / 100)) : -t.entryValue;
+                                                return (
+                                                    <tr key={t.id || idx} className="group hover:bg-white/5 transition-colors">
+                                                        <td className="py-4">
+                                                            <div className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center text-[10px] font-black text-slate-400">
+                                                                {idx + 1}
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-4 text-xs font-bold text-slate-400">
+                                                            {t.timestamp ? new Date(t.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                                        </td>
+                                                        <td className="py-4 text-center text-xs font-black text-slate-300">
+                                                            {t.payoutPercentage}%
+                                                        </td>
+                                                        <td className="py-4 text-center">
+                                                            <span className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest ${
+                                                                t.result === 'win' 
+                                                                    ? 'bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20' 
+                                                                    : 'bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/20'
+                                                            }`}>
+                                                                {t.result}
+                                                            </span>
+                                                        </td>
+                                                        <td className={`py-4 text-right text-sm font-black ${profit > 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                                                            {profit > 0 ? '+' : '-'}{currencySymbol} {formatMoney(Math.abs(profit))}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            });
+                                        })()}
+                                    </tbody>
+                                </table>
+                            )}
                         </div>
-                        <div className="bg-white border border-black rounded-xl overflow-hidden shadow-sm flex flex-col">
-                            <div className="bg-green-600 text-white font-black text-[9px] uppercase py-1 text-center border-b border-black">Banca Atualizada</div>
-                            <div className="text-green-600 font-black text-lg lg:text-xl py-2 text-center">{currencySymbol} {formatMoney(displayCurrentBank)}</div>
-                        </div>
-                    </div>
-
-                    {/* GESTÃO DE CAPITAL */}
-                    <div className="space-y-1">
-                        <div className="bg-slate-800 text-white font-black text-center py-1.5 uppercase text-xs border border-black rounded-t-lg">Configuração de Risco</div>
-                        <div className="bg-white border border-black p-3 rounded-b-lg space-y-3 shadow-sm">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-black uppercase text-slate-500">Banca Base</span>
-                                    <button 
-                                        onClick={() => {
-                                            const val = activeBrokerage?.initialBalance || 0;
-                                            setBank(val);
-                                            localStorage.setItem(getStorageKey('bank'), val.toString());
-                                        }}
-                                        title="Sincronizar com Saldo Inicial da Corretora"
-                                        className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                    >
-                                        <ArrowPathIcon className="w-3 h-3" />
-                                    </button>
-                                </div>
-                                <input type="number" value={bank} onChange={e => setBank(Number(e.target.value))} className="w-20 lg:w-24 bg-slate-100 border border-black/10 rounded px-2 py-1 text-right font-black outline-none focus:border-blue-500" />
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase text-slate-500">
-                                    {viewMode === 'daily' ? 'Stop Diário %' : 'Stop Mensal %'}
-                                </span>
-                                <input type="number" value={stopPercent} onChange={e => setStopPercent(Number(e.target.value))} className="w-20 lg:w-24 bg-slate-100 border border-black/10 rounded px-2 py-1 text-right font-black outline-none focus:border-blue-500" />
-                            </div>
-                            <div className="pt-2 border-t border-black/5 flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase text-blue-600">
-                                    {viewMode === 'daily' ? 'Valor do Stop' : 'Valor do Stop Mensal'}
-                                </span>
-                                <span className="text-sm font-black text-blue-700">{currencySymbol} {formatMoney(bank * (stopPercent / 100))}</span>
-                            </div>
-                        </div>
-                    </div>
+                    </GlassCard>
                 </div>
 
                 {/* RIGHT COLUMN - SUMMARY */}
-                <div className="col-span-4 space-y-4">
-                    {/* PLACAR */}
-                    <div className="space-y-1">
-                        <div className="bg-slate-900 text-white font-black text-center py-2 uppercase text-[10px] border border-black rounded-t-2xl">
-                            {viewMode === 'daily' ? 'Placar do Dia' : 'Placar do Mês'}
-                        </div>
-                        <div className="grid grid-cols-2 border-x border-b border-black h-28 rounded-b-2xl overflow-hidden shadow-md">
-                            <div className="bg-green-500 text-white flex flex-col items-center justify-center border-r border-black group hover:bg-green-600 transition-colors">
-                                <span className="text-[11px] font-black uppercase tracking-widest opacity-70 mb-1">Vitórias</span>
-                                <span className="text-5xl font-black drop-shadow-sm">{displayWins}</span>
+                <div className="lg:col-span-4 space-y-8">
+                    <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+                        <GlassCard theme={theme} className="flex flex-col justify-between group hover:border-[#6366f1]/30 transition-all duration-300 relative overflow-hidden">
+                            <div className="flex justify-between items-start mb-2">
+                                <p className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em]">Banca Inicial</p>
+                                <PieChartIcon className="w-4 h-4 text-slate-500 opacity-50 group-hover:opacity-100 transition-opacity" />
                             </div>
-                            <div className="bg-red-500 text-white flex flex-col items-center justify-center group hover:bg-red-600 transition-colors">
-                                <span className="text-[11px] font-black uppercase tracking-widest opacity-70 mb-1">Derrotas</span>
-                                <span className="text-5xl font-black drop-shadow-sm">{displayLosses}</span>
+                            <div className={`text-xl md:text-2xl font-black text-white truncate tracking-tight ${isPrivacyMode ? 'blur-md select-none opacity-50' : ''}`}>
+                                {currencySymbol} <CountUp end={displayInitialBank} decimals={2} duration={2} separator="." decimal="," />
                             </div>
-                        </div>
+                        </GlassCard>
+
+                        <GlassCard theme={theme} className="flex flex-col justify-between group hover:border-[#22c55e]/30 transition-all duration-300 relative overflow-hidden">
+                            <div className="flex justify-between items-start mb-2">
+                                <p className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em]">Banca Atualizada</p>
+                                <TrendingUpIcon className="w-4 h-4 text-[#22c55e] opacity-50 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                            <div className={`text-xl md:text-2xl font-black text-[#22c55e] truncate tracking-tight ${isPrivacyMode ? 'blur-md select-none opacity-50' : ''}`}>
+                                {currencySymbol} <CountUp end={displayCurrentBank} decimals={2} duration={2} separator="." decimal="," />
+                            </div>
+                        </GlassCard>
                     </div>
 
-                    {/* RESULTADO */}
-                    <div className="space-y-1">
-                        <div className="bg-slate-900 text-white font-black text-center py-2 uppercase text-[10px] border border-black rounded-t-2xl">
-                            {viewMode === 'daily' ? 'Resultado do Dia' : 'Resultado do Mês'}
+                    <GlassCard theme={theme}>
+                        <SectionTitle title="Configuração de Risco" subtitle="Parâmetros operacionais" icon={ShieldCheckIcon} theme={theme} />
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Banca Base</span>
+                                        <button 
+                                            onClick={() => {
+                                                const val = activeBrokerage?.initialBalance || 0;
+                                                setBank(val);
+                                                localStorage.setItem(getStorageKey('bank'), val.toString());
+                                            }}
+                                            title="Sincronizar com Saldo Inicial da Corretora"
+                                            className="p-1 text-[#6366f1] hover:bg-[#6366f1]/10 rounded-lg transition-colors"
+                                        >
+                                            <ArrowPathIcon className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                    <input 
+                                        type="number" 
+                                        value={bank} 
+                                        onChange={e => setBank(Number(e.target.value))} 
+                                        className={`w-24 px-3 py-2 rounded-xl font-black text-right text-xs outline-none focus:ring-2 focus:ring-[#6366f1]/50 ${theme.input}`} 
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">
+                                        {viewMode === 'daily' ? 'Stop Diário %' : 'Stop Mensal %'}
+                                    </span>
+                                    <input 
+                                        type="number" 
+                                        value={stopPercent} 
+                                        onChange={e => setStopPercent(Number(e.target.value))} 
+                                        className={`w-24 px-3 py-2 rounded-xl font-black text-right text-xs outline-none focus:ring-2 focus:ring-[#6366f1]/50 ${theme.input}`} 
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="pt-6 border-t border-white/5">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[10px] font-black uppercase text-[#6366f1] tracking-widest">
+                                        {viewMode === 'daily' ? 'Valor do Stop' : 'Valor do Stop Mensal'}
+                                    </span>
+                                    <span className="text-lg font-black text-[#6366f1]">
+                                        {currencySymbol} {formatMoney(bank * (stopPercent / 100))}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div className="bg-white border-x border-b border-black h-28 flex flex-col items-center justify-center rounded-b-2xl shadow-md relative overflow-hidden">
-                            <div className={`absolute inset-0 opacity-5 ${displayProfit >= 0 ? 'bg-green-500' : 'bg-red-500'}`} />
-                            <span className="text-[10px] font-black uppercase text-slate-400 mb-1 relative z-10">
-                                {viewMode === 'daily' ? 'Lucro Líquido Diário' : 'Lucro Líquido Mensal'}
-                            </span>
-                            <span className={`text-4xl font-black relative z-10 ${displayProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {displayProfit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(displayProfit)}
-                            </span>
-                        </div>
-                    </div>
+                    </GlassCard>
 
-                    {/* QUICK STATS */}
-                    <div className="grid grid-cols-2 gap-2">
-                        <div className="bg-white border border-black p-3 rounded-xl shadow-sm flex flex-col items-center justify-center">
-                            <span className="text-[8px] font-black uppercase text-slate-500">Assertividade</span>
-                            <span className="text-lg font-black text-blue-600">
-                                {displayWins + displayLosses > 0 ? ((displayWins / (displayWins + displayLosses)) * 100).toFixed(1) : '0'}%
-                            </span>
+                    <div className="space-y-4">
+                        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-xl">
+                            <div className="bg-slate-900/50 text-white font-black text-center py-2 uppercase text-[10px] border-b border-white/5 tracking-widest">
+                                {viewMode === 'daily' ? 'Placar do Dia' : 'Placar do Mês'}
+                            </div>
+                            <div className="grid grid-cols-2 h-24">
+                                <div className="bg-[#22c55e]/10 flex flex-col items-center justify-center border-r border-white/5 group hover:bg-[#22c55e]/20 transition-colors">
+                                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#22c55e] opacity-70 mb-1">Vitórias</span>
+                                    <span className="text-3xl font-black text-[#22c55e]"><CountUp end={displayWins} duration={1} /></span>
+                                </div>
+                                <div className="bg-[#ef4444]/10 flex flex-col items-center justify-center group hover:bg-[#ef4444]/20 transition-colors">
+                                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#ef4444] opacity-70 mb-1">Derrotas</span>
+                                    <span className="text-3xl font-black text-[#ef4444]"><CountUp end={displayLosses} duration={1} /></span>
+                                </div>
+                            </div>
                         </div>
-                        <div className="bg-white border border-black p-3 rounded-xl shadow-sm flex flex-col items-center justify-center">
-                            <span className="text-[8px] font-black uppercase text-slate-500">Total Trades</span>
-                            <span className="text-lg font-black text-slate-800">{displayWins + displayLosses}</span>
+
+                        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-xl relative">
+                            <div className="bg-slate-900/50 text-white font-black text-center py-2 uppercase text-[10px] border-b border-white/5 tracking-widest">
+                                {viewMode === 'daily' ? 'Resultado do Dia' : 'Resultado do Mês'}
+                            </div>
+                            <div className="h-24 flex flex-col items-center justify-center relative">
+                                <div className={`absolute inset-0 opacity-5 ${displayProfit >= 0 ? 'bg-[#22c55e]' : 'bg-[#ef4444]'}`} />
+                                <span className="text-[8px] font-black uppercase text-slate-500 mb-1 relative z-10 tracking-widest">
+                                    {viewMode === 'daily' ? 'Lucro Líquido Diário' : 'Lucro Líquido Mensal'}
+                                </span>
+                                <div className={`text-3xl font-black relative z-10 ${displayProfit >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'} ${isPrivacyMode ? 'blur-md select-none opacity-50' : ''}`}>
+                                    {displayProfit >= 0 ? '+' : '-'}{currencySymbol} <CountUp end={Math.abs(displayProfit)} decimals={2} duration={1.5} separator="." decimal="," />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col items-center justify-center">
+                                <span className="text-[8px] font-black uppercase text-slate-500 tracking-widest mb-1">Assertividade</span>
+                                <span className="text-lg font-black text-[#6366f1]">
+                                    {displayWins + displayLosses > 0 ? ((displayWins / (displayWins + displayLosses)) * 100).toFixed(1) : '0'}%
+                                </span>
+                            </div>
+                            <div className="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col items-center justify-center">
+                                <span className="text-[8px] font-black uppercase text-slate-500 tracking-widest mb-1">Total Trades</span>
+                                <span className="text-lg font-black text-white">{displayWins + displayLosses}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <style>{`
-                .custom-scrollbar::-webkit-scrollbar {
-                    width: 4px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-track {
-                    background: #f1f1f1;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb {
-                    background: #888;
-                    border-radius: 10px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                    background: #555;
-                }
-            `}</style>
         </div>
     );
 };
