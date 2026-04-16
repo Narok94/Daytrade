@@ -894,7 +894,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     <button onClick={() => {setActiveTab('history'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'history' ? theme.navActive : theme.navInactive}`}><ListBulletIcon className="w-5 h-5" />Histórico</button>
                     <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
                     <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
-                    {/* <button onClick={() => {setActiveTab('management-sheet'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'management-sheet' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Planilha Gestão</button> */}
+                    <button onClick={() => {setActiveTab('management-sheet'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'management-sheet' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Planilha Gestão</button>
                     {user.isAdmin && (
                         <button onClick={() => {setActiveTab('admin'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'admin' ? theme.navActive : theme.navInactive}`}><UsersIcon className="w-5 h-5" />Admin Panel</button>
                     )}
@@ -1606,6 +1606,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                 <tr className="border-b border-white/5">
                                     <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Hora</th>
                                     <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Res</th>
+                                    <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Valor</th>
                                     <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Ações</th>
                                 </tr>
                             </thead>
@@ -1622,6 +1623,11 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                                     : 'bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/20'
                                             }`}>
                                                 {trade.result === 'win' ? 'WIN' : 'LOSS'}
+                                            </span>
+                                        </td>
+                                        <td className="py-4">
+                                            <span className={`text-[10px] font-black ${trade.result === 'win' ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                                                {trade.result === 'win' ? '+' : '-'}{currencySymbol}{trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)).toFixed(2) : trade.entryValue.toFixed(2)}
                                             </span>
                                         </td>
                                         <td className="py-4 text-right">
@@ -2122,52 +2128,6 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerag
                 ))}
             </div>
 
-            <GlassCard theme={theme} className="h-[400px] flex flex-col">
-                <SectionTitle title="Evolução da Banca" subtitle="Histórico das últimas 30 movimentações" icon={TrendingUpIcon} theme={theme} />
-                <div className="flex-1 min-h-0">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={chartData}>
-                            <defs>
-                                <linearGradient id="colorBalHistory" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                            <XAxis 
-                                dataKey="date" 
-                                stroke="#ffffff20" 
-                                fontSize={10} 
-                                tickLine={false} 
-                                axisLine={false}
-                                tick={{ fill: '#64748b' }}
-                            />
-                            <YAxis 
-                                stroke="#ffffff20" 
-                                fontSize={10} 
-                                tickLine={false} 
-                                axisLine={false}
-                                tick={{ fill: '#64748b' }}
-                                tickFormatter={(val) => `${currencySymbol}${val}`}
-                            />
-                            <Tooltip 
-                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '12px' }}
-                                itemStyle={{ color: '#6366f1', fontWeight: 'bold' }}
-                            />
-                            <Area 
-                                type="monotone" 
-                                dataKey="balance" 
-                                stroke="#6366f1" 
-                                strokeWidth={3}
-                                fillOpacity={1} 
-                                fill="url(#colorBalHistory)" 
-                                animationDuration={1500}
-                            />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                </div>
-            </GlassCard>
-
             {showFilters && (
                 <GlassCard theme={theme} className="animate-in slide-in-from-top-4 duration-300">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -2267,6 +2227,52 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerag
                     </div>
                 </GlassCard>
             )}
+
+            <GlassCard theme={theme} className="h-[400px] flex flex-col">
+                <SectionTitle title="Evolução da Banca" subtitle="Histórico das últimas 30 movimentações" icon={TrendingUpIcon} theme={theme} />
+                <div className="flex-1 min-h-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={chartData}>
+                            <defs>
+                                <linearGradient id="colorBalHistory" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                            <XAxis 
+                                dataKey="date" 
+                                stroke="#ffffff20" 
+                                fontSize={10} 
+                                tickLine={false} 
+                                axisLine={false}
+                                tick={{ fill: '#64748b' }}
+                            />
+                            <YAxis 
+                                stroke="#ffffff20" 
+                                fontSize={10} 
+                                tickLine={false} 
+                                axisLine={false}
+                                tick={{ fill: '#64748b' }}
+                                tickFormatter={(val) => `${currencySymbol}${val}`}
+                            />
+                            <Tooltip 
+                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '12px' }}
+                                itemStyle={{ color: '#6366f1', fontWeight: 'bold' }}
+                            />
+                            <Area 
+                                type="monotone" 
+                                dataKey="balance" 
+                                stroke="#6366f1" 
+                                strokeWidth={3}
+                                fillOpacity={1} 
+                                fill="url(#colorBalHistory)" 
+                                animationDuration={1500}
+                            />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </div>
+            </GlassCard>
 
             {/* Import Modal */}
             {isTextModalOpen && (
