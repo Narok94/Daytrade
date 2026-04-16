@@ -1484,36 +1484,26 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                 )}
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                <div className="xl:col-span-2 space-y-8">
-                    {/* A evolução da conta foi movida para a aba Histórico */}
-                    <div className="hidden xl:block h-full">
-                        <GlassCard theme={theme} className="h-full flex flex-col justify-center items-center opacity-20 border-dashed">
-                            <TrendingUpIcon className="w-12 h-12 mb-4" />
-                            <p className="text-sm font-bold uppercase tracking-widest">Dashboard Operacional</p>
-                        </GlassCard>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <GlassCard theme={theme} className="flex flex-col h-full">
+                    <SectionTitle title="Nova Operação" subtitle="Registre seu resultado" icon={CalculatorIcon} theme={theme} />
+                    
+                    <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 mb-6">
+                        <button 
+                            onClick={() => setEntryMode('fixed')}
+                            className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${entryMode === 'fixed' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            Fixo
+                        </button>
+                        <button 
+                            onClick={() => setEntryMode('percentage')}
+                            className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${entryMode === 'percentage' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            % Banca
+                        </button>
                     </div>
-                </div>
 
-                <div className="space-y-8">
-                    <GlassCard theme={theme}>
-                        <SectionTitle title="Nova Operação" subtitle="Registre seu resultado" icon={CalculatorIcon} theme={theme} />
-                        
-                        <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 mb-6">
-                            <button 
-                                onClick={() => setEntryMode('fixed')}
-                                className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${entryMode === 'fixed' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                                Fixo
-                            </button>
-                            <button 
-                                onClick={() => setEntryMode('percentage')}
-                                className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${entryMode === 'percentage' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                                % Banca
-                            </button>
-                        </div>
-
+                    <div className="space-y-4 flex-1 flex flex-col justify-between">
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
@@ -1552,8 +1542,10 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
-                            <div className="flex gap-4 pt-2">
+                        <div className="space-y-4 pt-4">
+                            <div className="flex gap-4">
                                 <ActionButton 
                                     variant="success" 
                                     className="flex-1" 
@@ -1589,74 +1581,76 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                 </div>
                             )}
                         </div>
-                    </GlassCard>
+                    </div>
+                </GlassCard>
 
-                    <GlassCard theme={theme}>
-                        <SectionTitle title="Histórico do Dia" subtitle="Operações realizadas hoje" icon={ListBulletIcon} theme={theme} />
-                        <div className="overflow-x-auto custom-scrollbar">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="border-b border-white/5">
-                                        <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Hora</th>
-                                        <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Res</th>
-                                        <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Ações</th>
+                <GlassCard theme={theme} className="flex flex-col h-full">
+                    <SectionTitle title="Histórico do Dia" subtitle="Operações realizadas hoje" icon={ListBulletIcon} theme={theme} />
+                    <div className="overflow-y-auto custom-scrollbar flex-1 max-h-[400px]">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b border-white/5">
+                                    <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Hora</th>
+                                    <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Res</th>
+                                    <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                                {dailyRecordForSelectedDay?.trades?.map((trade: Trade, i: number) => (
+                                    <tr key={i} className="group hover:bg-white/5 transition-colors">
+                                        <td className="py-4 text-[10px] font-bold text-slate-400">
+                                            {new Date(trade.timestamp || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                        </td>
+                                        <td className="py-4">
+                                            <span className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest ${
+                                                trade.result === 'win' 
+                                                    ? 'bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20' 
+                                                    : 'bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/20'
+                                            }`}>
+                                                {trade.result === 'win' ? 'WIN' : 'LOSS'}
+                                            </span>
+                                        </td>
+                                        <td className="py-4 text-right">
+                                            <button 
+                                                onClick={() => deleteTrade(trade.id, selectedDateString)}
+                                                className="p-1 text-slate-600 hover:text-red-500 transition-colors"
+                                            >
+                                                <TrashIcon className="w-3 h-3" />
+                                            </button>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody className="divide-y divide-white/5">
-                                    {dailyRecordForSelectedDay?.trades?.map((trade: Trade, i: number) => (
-                                        <tr key={i} className="group hover:bg-white/5 transition-colors">
-                                            <td className="py-4 text-[10px] font-bold text-slate-400">
-                                                {new Date(trade.timestamp || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                            </td>
-                                            <td className="py-4">
-                                                <span className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest ${
-                                                    trade.result === 'win' 
-                                                        ? 'bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20' 
-                                                        : 'bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/20'
-                                                }`}>
-                                                    {trade.result === 'win' ? 'WIN' : 'LOSS'}
-                                                </span>
-                                            </td>
-                                            <td className="py-4 text-right">
-                                                <button 
-                                                    onClick={() => deleteTrade(trade.id, selectedDateString)}
-                                                    className="p-1 text-slate-600 hover:text-red-500 transition-colors"
-                                                >
-                                                    <TrashIcon className="w-3 h-3" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {dailyRecordForSelectedDay?.trades?.length === 0 && (
-                                        <tr>
-                                            <td colSpan={3} className="py-8 text-center text-[10px] font-medium text-slate-500 italic">
-                                                Vazio
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </GlassCard>
+                                ))}
+                                {(!dailyRecordForSelectedDay?.trades || dailyRecordForSelectedDay.trades.length === 0) && (
+                                    <tr>
+                                        <td colSpan={3} className="py-8 text-center text-[10px] font-medium text-slate-500 italic">
+                                            Vazio
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </GlassCard>
 
-                    <GlassCard theme={theme}>
-                        <SectionTitle title="Movimentação" subtitle="Depósitos e Saques" icon={ArrowPathIcon} theme={theme} />
-                        
-                        <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 mb-6">
-                            <button 
-                                onClick={() => setTransType('deposit')}
-                                className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${transType === 'deposit' ? 'bg-green-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                                Depósito
-                            </button>
-                            <button 
-                                onClick={() => setTransType('withdrawal')}
-                                className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${transType === 'withdrawal' ? 'bg-red-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                                Saque
-                            </button>
-                        </div>
+                <GlassCard theme={theme} className="flex flex-col h-full">
+                    <SectionTitle title="Movimentação" subtitle="Depósitos e Saques" icon={ArrowPathIcon} theme={theme} />
+                    
+                    <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 mb-6">
+                        <button 
+                            onClick={() => setTransType('deposit')}
+                            className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${transType === 'deposit' ? 'bg-green-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            Depósito
+                        </button>
+                        <button 
+                            onClick={() => setTransType('withdrawal')}
+                            className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${transType === 'withdrawal' ? 'bg-red-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            Saque
+                        </button>
+                    </div>
 
+                    <div className="space-y-4 flex-1 flex flex-col justify-between">
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Valor ({currencySymbol})</label>
@@ -1668,6 +1662,8 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                     placeholder="0,00"
                                 />
                             </div>
+                        </div>
+                        <div className="pt-4">
                             <ActionButton 
                                 variant="primary" 
                                 className="w-full" 
@@ -1676,8 +1672,8 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                 Confirmar {transType === 'deposit' ? 'Depósito' : 'Saque'}
                             </ActionButton>
                         </div>
-                    </GlassCard>
-                </div>
+                    </div>
+                </GlassCard>
             </div>
         </div>
     );
