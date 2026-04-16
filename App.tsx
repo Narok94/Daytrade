@@ -14,9 +14,12 @@ import {
     ChevronLeftIcon, ChevronRightIcon, PhotoIcon,
     SparklesIcon, CheckCircleIcon, XMarkIcon, ArrowUpIcon, ArrowDownIcon,
     ExclamationTriangleIcon, BoltIcon, ClockIcon, PlayIcon, CameraIcon,
-    ChevronDownIcon, UsersIcon, PauseIcon, KeyIcon, FunnelIcon, ArrowDownTrayIcon
+    ChevronDownIcon, UsersIcon, PauseIcon, KeyIcon, FunnelIcon, ArrowDownTrayIcon,
+    EyeIcon, EyeSlashIcon
 } from './components/icons';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { motion } from 'motion/react';
+import CountUp from 'react-countup';
 import toast, { Toaster } from 'react-hot-toast';
 
 // --- Helper Functions ---
@@ -505,10 +508,18 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         const saved = localStorage.getItem('hrk_isDarkMode');
         return saved !== null ? JSON.parse(saved) : true;
     });
+    const [isPrivacyMode, setIsPrivacyMode] = useState(() => {
+        const saved = localStorage.getItem('hrk_isPrivacyMode');
+        return saved !== null ? JSON.parse(saved) : false;
+    });
 
     useEffect(() => {
         localStorage.setItem('hrk_isDarkMode', JSON.stringify(isDarkMode));
     }, [isDarkMode]);
+
+    useEffect(() => {
+        localStorage.setItem('hrk_isPrivacyMode', JSON.stringify(isPrivacyMode));
+    }, [isPrivacyMode]);
 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -972,6 +983,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             startBalanceForSelectedDay={startBalDashboard} 
                             currentBalanceForDashboard={currentBalanceForDashboard}
                             isDarkMode={isDarkMode} 
+                            isPrivacyMode={isPrivacyMode}
+                            setIsPrivacyMode={setIsPrivacyMode}
                             dailyGoalTarget={activeDailyGoal} 
                             isLoading={isLoading}
                             records={records}
@@ -987,7 +1000,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                         />
                     )}
                     {activeTab === 'compound' && <CompoundInterestPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} />}
-                    {activeTab === 'history' && <HistoryPanel isDarkMode={isDarkMode} activeBrokerage={activeBrokerage} records={records} addBulkTrades={addBulkTrades} />}
+                    {activeTab === 'history' && <HistoryPanel isDarkMode={isDarkMode} isPrivacyMode={isPrivacyMode} activeBrokerage={activeBrokerage} records={records} addBulkTrades={addBulkTrades} />}
                     {activeTab === 'soros' && <SorosCalculatorPanel theme={theme} activeBrokerage={activeBrokerage} />}
                     {activeTab === 'goals' && <GoalsPanel theme={theme} goals={goals} setGoals={setGoals} records={records} activeBrokerage={activeBrokerage} />}
                     {/* {activeTab === 'management-sheet' && <ManagementSheetPanel theme={theme} activeBrokerage={activeBrokerage} isDarkMode={isDarkMode} records={records} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />} */}
@@ -1287,7 +1300,7 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
 // For brevity, assuming they are within this file but omitted in the update to focus on the change.
 // (I will keep the logic from the previous provided file structure)
 
-const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, addTransaction, deleteTransaction, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, transactionsForSelectedDay, startBalanceForSelectedDay, currentBalanceForDashboard, isDarkMode, dailyGoalTarget, isLoading, records }) => {
+const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting, customEntryValue, setCustomEntryValue, customPayout, setCustomPayout, addRecord, deleteTrade, addTransaction, deleteTransaction, selectedDateString, setSelectedDate, dailyRecordForSelectedDay, transactionsForSelectedDay, startBalanceForSelectedDay, currentBalanceForDashboard, isDarkMode, isPrivacyMode, setIsPrivacyMode, dailyGoalTarget, isLoading, records }) => {
     const theme = useThemeClasses(isDarkMode);
     const [quantity, setQuantity] = useState('1');
     const [transAmount, setTransAmount] = useState('');
@@ -1376,10 +1389,10 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     const stopLossReached = activeBrokerage.stopLossTrades > 0 && dailyRecordForSelectedDay && dailyRecordForSelectedDay.lossCount >= activeBrokerage.stopLossTrades;
 
     const kpis = [
-        { label: 'Banca Atual', val: `${currencySymbol} ${formatMoney(currentBalance)}`, icon: PieChartIcon, color: 'text-white' },
-        { label: 'Lucro Diário', val: `${currentProfit >= 0 ? '+' : ''}${currencySymbol} ${formatMoney(currentProfit)}`, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]' },
-        { label: 'Meta Diária', val: `${currencySymbol}${formatMoney(dailyGoalTarget)}`, subVal: `${Math.min(100, dailyGoalPercent).toFixed(0)}% Alcançado`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-[#22c55e]' : 'text-[#6366f1]' },
-        { label: 'Win Rate', val: `${winRate}%`, icon: TrophyIcon, color: 'text-purple-400' },
+        { label: 'Banca Atual', val: currentBalance, isCurrency: true, icon: PieChartIcon, color: 'text-white' },
+        { label: 'Lucro Diário', val: currentProfit, isCurrency: true, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]' },
+        { label: 'Meta Diária', val: dailyGoalTarget, isCurrency: true, subVal: `${Math.min(100, dailyGoalPercent).toFixed(0)}% Alcançado`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-[#22c55e]' : 'text-[#6366f1]' },
+        { label: 'Win Rate', val: parseFloat(winRate), isPercent: true, icon: TrophyIcon, color: 'text-purple-400' },
     ];
 
     // Chart Data
@@ -1404,9 +1417,18 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
     return (
         <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
-                <div>
-                    <h2 className={`text-2xl lg:text-3xl font-black tracking-tight ${theme.text}`}>Dashboard</h2>
-                    <p className={`text-xs font-medium ${theme.textMuted}`}>Operações e gestão em tempo real.</p>
+                <div className="flex items-center gap-4">
+                    <div>
+                        <h2 className={`text-2xl lg:text-3xl font-black tracking-tight ${theme.text}`}>Dashboard</h2>
+                        <p className={`text-xs font-medium ${theme.textMuted}`}>Operações e gestão em tempo real.</p>
+                    </div>
+                    <button 
+                        onClick={() => setIsPrivacyMode(!isPrivacyMode)}
+                        className={`p-2 rounded-xl border transition-all ${isPrivacyMode ? 'bg-[#6366f1] text-white border-[#6366f1]' : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'}`}
+                        title={isPrivacyMode ? "Mostrar Saldo" : "Ocultar Saldo"}
+                    >
+                        {isPrivacyMode ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                    </button>
                 </div>
                 <input 
                     type="date" 
@@ -1421,18 +1443,40 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                     [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32" />)
                 ) : (
                     kpis.map((kpi, i) => (
-                        <GlassCard key={i} theme={theme} className="flex flex-col justify-between group hover:border-[#6366f1]/30 transition-all duration-300">
+                        <GlassCard key={i} theme={theme} className="flex flex-col justify-between group hover:border-[#6366f1]/30 transition-all duration-300 relative overflow-hidden">
                             <div className="flex justify-between items-start mb-2">
                                 <p className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em]">{kpi.label}</p>
                                 <kpi.icon className={`w-4 h-4 ${kpi.color} opacity-50 group-hover:opacity-100 transition-opacity`} />
                             </div>
-                            <p className={`text-xl md:text-2xl font-black ${kpi.color} truncate tracking-tight`}>{kpi.val}</p>
-                            {kpi.subVal && (
-                                <div className="mt-2 w-full bg-white/5 h-1 rounded-full overflow-hidden">
-                                    <div 
-                                        className="h-full bg-[#6366f1] transition-all duration-1000" 
-                                        style={{ width: `${Math.min(100, dailyGoalPercent)}%` }} 
-                                    />
+                            
+                            <div className={`text-xl md:text-2xl font-black ${kpi.color} truncate tracking-tight transition-all duration-500 ${isPrivacyMode && kpi.label === 'Banca Atual' ? 'blur-md select-none opacity-50' : ''}`}>
+                                {kpi.isCurrency && (
+                                    <span className="mr-1">{kpi.val >= 0 ? '' : '-'}{currencySymbol}</span>
+                                )}
+                                <CountUp 
+                                    end={Math.abs(kpi.val)} 
+                                    decimals={2} 
+                                    duration={2} 
+                                    separator="." 
+                                    decimal="," 
+                                />
+                                {kpi.isPercent && '%'}
+                            </div>
+
+                            {kpi.label === 'Meta Diária' && (
+                                <div className="mt-4 space-y-2">
+                                    <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-500">
+                                        <span>Progresso</span>
+                                        <span className={dailyGoalPercent >= 100 ? 'text-[#22c55e]' : 'text-[#6366f1]'}>{dailyGoalPercent.toFixed(1)}%</span>
+                                    </div>
+                                    <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/5">
+                                        <motion.div 
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${Math.min(100, dailyGoalPercent)}%` }}
+                                            transition={{ duration: 1.5, ease: "easeOut" }}
+                                            className={`h-full transition-all duration-1000 shadow-[0_0_10px_rgba(99,102,241,0.3)] ${dailyGoalPercent >= 100 ? 'bg-[#22c55e]' : 'bg-[#6366f1]'}`}
+                                        />
+                                    </div>
                                 </div>
                             )}
                         </GlassCard>
@@ -1565,7 +1609,11 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                                 {new Date(trade.timestamp || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                             </td>
                                             <td className="py-4">
-                                                <span className={`text-[10px] font-black ${trade.result === 'win' ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                                                <span className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest ${
+                                                    trade.result === 'win' 
+                                                        ? 'bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20' 
+                                                        : 'bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/20'
+                                                }`}>
                                                     {trade.result === 'win' ? 'WIN' : 'LOSS'}
                                                 </span>
                                             </td>
@@ -1868,7 +1916,7 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
     );
 };
 
-const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, addBulkTrades }) => {
+const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerage, records, addBulkTrades }) => {
     const theme = useThemeClasses(isDarkMode);
     const currencySymbol = activeBrokerage?.currency === 'USD' ? '$' : 'R$';
     const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly' | 'calendar'>('calendar');
@@ -2199,28 +2247,47 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, records, add
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
-                                {stats.map((s: any, i: number) => (
-                                    <tr key={i} className="group hover:bg-white/5 transition-colors">
-                                        <td className="py-4 text-xs font-bold text-slate-400">{s.label}</td>
-                                        <td className={`py-4 text-sm font-black ${s.profit >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
-                                            {s.profit >= 0 ? '+' : ''}{currencySymbol} {formatMoney(s.profit)}
-                                        </td>
-                                        <td className="py-4 text-xs font-bold">
-                                            <span className="text-[#22c55e]">{s.wins}</span>
-                                            <span className="mx-1 opacity-20">/</span>
-                                            <span className="text-[#ef4444]">{s.losses}</span>
-                                        </td>
-                                        <td className="py-4 text-xs font-bold text-slate-400">{s.total}</td>
-                                        <td className="py-4 text-right">
-                                            <div className="flex items-center justify-end gap-3">
-                                                <div className="w-24 bg-white/5 h-1.5 rounded-full overflow-hidden hidden md:block">
-                                                    <div className="h-full bg-[#6366f1]" style={{ width: `${s.winRate}%` }} />
-                                                </div>
-                                                <span className="text-xs font-black text-white w-12">{s.winRate.toFixed(1)}%</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {stats.map((s: any, i: number) => {
+                                    const isToday = s.id === getLocalDateString();
+                                    const yesterday = new Date();
+                                    yesterday.setDate(yesterday.getDate() - 1);
+                                    const isYesterday = s.id === getLocalDateString(yesterday);
+                                    
+                                    const showSeparator = viewMode === 'daily' && (isToday || isYesterday);
+                                    
+                                    return (
+                                        <React.Fragment key={i}>
+                                            {showSeparator && (i === 0 || stats[i-1].id !== s.id) && (
+                                                <tr className="bg-white/5">
+                                                    <td colSpan={5} className="py-2 px-4 text-[8px] font-black uppercase tracking-[0.2em] text-[#6366f1]">
+                                                        {isToday ? 'Hoje' : 'Ontem'}
+                                                    </td>
+                                                </tr>
+                                            )}
+                                            <tr className="group hover:bg-white/5 transition-colors">
+                                                <td className="py-4 text-xs font-bold text-slate-400">{s.label}</td>
+                                                <td className={`py-4 text-sm font-black ${s.profit >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'} ${isPrivacyMode ? 'blur-sm select-none opacity-50' : ''}`}>
+                                                    {s.profit >= 0 ? '+' : '-'}{currencySymbol}
+                                                    <CountUp end={Math.abs(s.profit)} decimals={2} duration={1} separator="." decimal="," />
+                                                </td>
+                                                <td className="py-4 text-xs font-bold">
+                                                    <span className="text-[#22c55e]">{s.wins}</span>
+                                                    <span className="mx-1 opacity-20">/</span>
+                                                    <span className="text-[#ef4444]">{s.losses}</span>
+                                                </td>
+                                                <td className="py-4 text-xs font-bold text-slate-400">{s.total}</td>
+                                                <td className="py-4 text-right">
+                                                    <div className="flex items-center justify-end gap-3">
+                                                        <div className="w-24 bg-white/5 h-1.5 rounded-full overflow-hidden hidden md:block">
+                                                            <div className="h-full bg-[#6366f1]" style={{ width: `${s.winRate}%` }} />
+                                                        </div>
+                                                        <span className="text-xs font-black text-white w-12">{s.winRate.toFixed(1)}%</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </React.Fragment>
+                                    );
+                                })}
                                 {stats.length === 0 && (
                                     <tr>
                                         <td colSpan={5} className="py-12 text-center text-xs font-medium text-slate-500 italic">
