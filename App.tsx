@@ -861,132 +861,118 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                     fontWeight: 'bold'
                 } 
             }} />
-            {isMobileMenuOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
-            <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform ${theme.sidebar} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
-                <div className={`h-20 flex-none flex items-center justify-center border-b ${theme.border} ${theme.header} relative overflow-hidden`}>
-                    <div className="flex flex-col items-center relative z-10">
-                        <span className="font-black italic text-[#6366f1] text-3xl tracking-tighter leading-none">HRK</span>
-                        <span className="text-[6px] font-black uppercase tracking-[0.3em] text-[#6366f1]/40 mt-1">Binary Options Control</span>
-                    </div>
-                    {/* Subtle background decorations */}
-                    <div className="absolute right-4 bottom-2 flex items-end gap-[2px] opacity-10">
-                        <div className="w-[2px] h-3 bg-indigo-500" />
-                        <div className="w-[2px] h-5 bg-red-500" />
-                        <div className="w-[2px] h-4 bg-indigo-500" />
-                    </div>
-                    <div className="absolute left-4 top-2 flex items-start gap-[2px] opacity-10">
-                        <div className="w-[2px] h-4 bg-red-500" />
-                        <div className="w-[2px] h-2 bg-indigo-500" />
-                        <div className="w-[2px] h-3 bg-red-500" />
-                    </div>
-                </div>
-                <nav className="flex-1 p-4 space-y-1">
-                    <div className="px-4 py-2 mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-[0.2em] text-[#6366f1]/40">
-                            <div className="w-1 h-1 rounded-full bg-[#6366f1]" />
-                            Trading Mode: M1 / OTC
-                        </div>
-                        <div className="px-1 py-0.5 rounded bg-[#6366f1]/10 text-[6px] font-black text-[#6366f1]/50 uppercase">Binary</div>
-                    </div>
-                    <button onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'dashboard' ? theme.navActive : theme.navInactive}`}><LayoutGridIcon className="w-5 h-5" />Dashboard</button>
-                    <button onClick={() => {setActiveTab('ai-analysis'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'ai-analysis' ? 'bg-[#6366f1]/10 text-[#6366f1]' : theme.navInactive}`}><CpuChipIcon className="w-5 h-5" />Análise IA</button>
-                    <button onClick={() => {setActiveTab('compound'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'compound' ? theme.navActive : theme.navInactive}`}><ChartBarIcon className="w-5 h-5" />Juros Compostos</button>
-                    <button onClick={() => {setActiveTab('history'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'history' ? theme.navActive : theme.navInactive}`}><ListBulletIcon className="w-5 h-5" />Histórico</button>
-                    <button onClick={() => {setActiveTab('soros'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'soros' ? theme.navActive : theme.navInactive}`}><CalculatorIcon className="w-5 h-5" />Calc Soros</button>
-                    <button onClick={() => {setActiveTab('goals'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'goals' ? theme.navActive : theme.navInactive}`}><TargetIcon className="w-5 h-5" />Metas</button>
-                    <button onClick={() => {setActiveTab('management-sheet'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'management-sheet' ? theme.navActive : theme.navInactive}`}><DocumentTextIcon className="w-5 h-5" />Planilha Gestão</button>
-                    {user.isAdmin && (
-                        <button onClick={() => {setActiveTab('admin'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 ${activeTab === 'admin' ? theme.navActive : theme.navInactive}`}><UsersIcon className="w-5 h-5" />Admin Panel</button>
-                    )}
-                </nav>
-                <div className="p-4 border-t border-slate-800/50">
-                    <div className="flex items-center justify-between px-4 mb-4 opacity-20">
-                        <div className="flex items-center gap-1">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                            <span className="text-[7px] font-black uppercase tracking-widest">Call</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <span className="text-[7px] font-black uppercase tracking-widest">Put</span>
-                            <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                        </div>
-                    </div>
-                    <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 font-bold hover:bg-red-500/10 rounded-2xl"><LogoutIcon className="w-5 h-5" />Sair</button>
-                </div>
-            </aside>
             <main className="flex-1 flex flex-col overflow-hidden">
-                <header className={`h-16 md:h-20 flex-none flex items-center justify-between px-4 md:px-8 border-b ${theme.border} ${theme.header}`}>
-                    <div className="flex items-center gap-2 md:gap-6">
-                        <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2"><MenuIcon className="w-5 h-5" /></button>
-                        
-                        {/* Professionalized Logo */}
-                        <div className="flex items-center gap-3">
-                            <div className="relative group">
-                                <motion.div 
-                                    animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.5, 0.2] }}
-                                    transition={{ duration: 3, repeat: Infinity }}
-                                    className="absolute inset-0 bg-purple-500 rounded-full blur-xl"
-                                />
-                                <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 p-0.5 flex items-center justify-center shadow-lg shadow-purple-500/20">
-                                    <div className="w-full h-full rounded-[10px] bg-[#050a1f] flex items-center justify-center">
-                                        <SparklesIcon className="w-4 h-4 md:w-5 md:h-5 text-purple-400" />
+                <header className={`flex-none flex flex-col border-b ${theme.border} ${theme.header}`}>
+                    {/* Top Row */}
+                    <div className="h-14 md:h-16 flex items-center justify-between px-4 md:px-8 border-b border-white/5">
+                        <div className="flex items-center gap-2 md:gap-6">
+                            {/* Professionalized Logo */}
+                            <div className="flex items-center gap-3">
+                                <div className="relative group">
+                                    <motion.div 
+                                        animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.5, 0.2] }}
+                                        transition={{ duration: 3, repeat: Infinity }}
+                                        className="absolute inset-0 bg-purple-500 rounded-full blur-xl"
+                                    />
+                                    <div className="relative w-7 h-7 md:w-9 md:h-9 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 p-0.5 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                                        <div className="w-full h-full rounded-[10px] bg-[#050a1f] flex items-center justify-center">
+                                            <SparklesIcon className="w-3.5 h-3.5 md:w-4 md:h-4 text-purple-400" />
+                                        </div>
                                     </div>
                                 </div>
+                                <div className="relative overflow-hidden">
+                                    <span className="text-base md:text-lg font-black tracking-tighter text-white">HRK<span className="text-purple-500">.</span></span>
+                                    <motion.div 
+                                        initial={{ x: '-100%' }}
+                                        animate={{ x: '200%' }}
+                                        transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
+                                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12"
+                                    />
+                                </div>
                             </div>
-                            <div className="relative overflow-hidden hidden sm:block">
-                                <span className="text-lg md:text-xl font-black tracking-tighter text-white">HRK<span className="text-purple-500">.</span></span>
-                                <motion.div 
-                                    initial={{ x: '-100%' }}
-                                    animate={{ x: '200%' }}
-                                    transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
-                                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12"
-                                />
+
+                            <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e293b]/30 border border-white/5 text-[7px] font-black uppercase tracking-widest text-[#6366f1]/60">
+                                <div className="w-1 h-1 rounded-full bg-[#6366f1] animate-pulse" />
+                                Market: Active
+                            </div>
+                            <SavingStatusIndicator status={savingStatus} />
+                            
+                            <div className="flex items-center gap-1 md:gap-2 ml-1 md:ml-4">
+                                <select 
+                                    value={activeBrokerageId || ''} 
+                                    onChange={(e) => setActiveBrokerageId(e.target.value)}
+                                    className={`text-[8px] md:text-xs font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 cursor-pointer truncate ${theme.text}`}
+                                >
+                                    {brokerages.map(b => (
+                                        <option key={b.id} value={b.id} className={isDarkMode ? 'bg-slate-900' : 'bg-white'}>{b.name}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
 
-                        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e293b]/30 border border-white/5 text-[8px] font-black uppercase tracking-widest text-[#6366f1]/60">
-                            <div className="w-1 h-1 rounded-full bg-[#6366f1] animate-pulse" />
-                            Market: Active
-                        </div>
-                        <SavingStatusIndicator status={savingStatus} />
-                        <div className="flex items-center gap-1 md:gap-2 ml-1 md:ml-4 max-w-[80px] md:max-w-none">
-                            <select 
-                                value={activeBrokerageId || ''} 
-                                onChange={(e) => setActiveBrokerageId(e.target.value)}
-                                className={`text-[8px] md:text-xs font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 cursor-pointer truncate ${theme.text}`}
-                            >
-                                {brokerages.map(b => (
-                                    <option key={b.id} value={b.id} className={isDarkMode ? 'bg-slate-900' : 'bg-white'}>{b.name}</option>
+                        <div className="flex items-center gap-2 md:gap-6">
+                            <div className="hidden sm:flex items-center gap-2 md:gap-4 overflow-x-auto no-scrollbar py-1">
+                                {brokerageBalances.map((b, i) => (
+                                    <div key={i} className={`flex flex-col items-end px-2 md:px-3 py-0.5 md:py-1 rounded-lg md:rounded-xl border shrink-0 ${isDarkMode ? 'bg-slate-900/40 border-slate-800/50' : 'bg-zinc-200/50 border-zinc-300/50'}`}>
+                                        <span className="text-[5px] md:text-[7px] font-black uppercase opacity-40 leading-none">{b.name}</span>
+                                        <span className={`text-[7px] md:text-xs font-bold leading-tight ${b.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                            {b.currency === 'USD' ? '$' : 'R$'} {formatMoney(b.balance)}
+                                        </span>
+                                    </div>
                                 ))}
-                            </select>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-1 md:gap-3 overflow-hidden justify-end">
-                        <div className="flex items-center gap-1 md:gap-4 overflow-x-auto no-scrollbar py-1 max-w-[120px] sm:max-w-none">
-                            {brokerageBalances.map((b, i) => (
-                                <div key={i} className={`flex flex-col items-end px-1.5 md:px-3 py-0.5 md:py-1 rounded-md md:rounded-xl border shrink-0 ${isDarkMode ? 'bg-slate-900/40 border-slate-800/50' : 'bg-zinc-200/50 border-zinc-300/50'}`}>
-                                    <span className="text-[5px] md:text-[8px] font-black uppercase opacity-40 leading-none">{b.name}</span>
-                                    <span className={`text-[7px] md:text-xs font-bold leading-tight ${b.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                        {b.currency === 'USD' ? '$' : 'R$'} {formatMoney(b.balance)}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    <div className="flex items-center gap-1 md:gap-3 shrink-0">
-                        <button 
-                            onClick={() => setActiveTab('settings')}
-                            className={`relative group transition-all hover:scale-105 active:scale-95 ${activeTab === 'settings' ? 'ring-2 ring-[#6366f1] ring-offset-2 ring-offset-[#0f172a]' : ''}`}
-                            title="Configurações"
-                        >
-                            <div className="w-6 h-6 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-[#6366f1] flex items-center justify-center text-white font-black text-[8px] md:text-xs shadow-lg shadow-[#6366f1]/20">
-                                {user.username.slice(0, 2).toUpperCase()}
                             </div>
-                            {user.isAdmin && (
-                                <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-amber-500 rounded-full border-2 border-[#0f172a] flex items-center justify-center" title="Administrador">
-                                    <SparklesIcon className="w-1.5 h-1.5 md:w-2 md:h-2 text-white" />
-                                </div>
-                            )}
-                        </button>
+                            
+                            <div className="flex items-center gap-2 md:gap-3">
+                                <button 
+                                    onClick={() => setActiveTab('settings')}
+                                    className={`relative group transition-all hover:scale-105 active:scale-95 ${activeTab === 'settings' ? 'ring-2 ring-[#6366f1] ring-offset-2 ring-offset-[#0f172a]' : ''}`}
+                                    title="Configurações"
+                                >
+                                    <div className="w-7 h-7 md:w-9 md:h-9 rounded-lg md:rounded-xl bg-[#6366f1] flex items-center justify-center text-white font-black text-[8px] md:text-xs shadow-lg shadow-[#6366f1]/20">
+                                        {user.username.slice(0, 2).toUpperCase()}
+                                    </div>
+                                    {user.isAdmin && (
+                                        <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-amber-500 rounded-full border-2 border-[#0f172a] flex items-center justify-center" title="Administrador">
+                                            <SparklesIcon className="w-1.5 h-1.5 md:w-2 md:h-2 text-white" />
+                                        </div>
+                                    )}
+                                </button>
+                                <button 
+                                    onClick={onLogout}
+                                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all active:scale-95"
+                                    title="Sair"
+                                >
+                                    <LogoutIcon className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
                     </div>
+
+                    {/* Navigation Row */}
+                    <div className="h-12 md:h-14 flex items-center px-4 md:px-8 overflow-x-auto no-scrollbar gap-1 md:gap-2">
+                        {[
+                            { id: 'dashboard', label: 'Dashboard', icon: LayoutGridIcon },
+                            { id: 'ai-analysis', label: 'Análise IA', icon: CpuChipIcon },
+                            { id: 'compound', label: 'Juros Compostos', icon: ChartBarIcon },
+                            { id: 'history', label: 'Histórico', icon: ListBulletIcon },
+                            { id: 'soros', label: 'Calc Soros', icon: CalculatorIcon },
+                            { id: 'goals', label: 'Metas', icon: TargetIcon },
+                            { id: 'management-sheet', label: 'Planilha Gestão', icon: DocumentTextIcon },
+                            ...(user.isAdmin ? [{ id: 'admin', label: 'Admin', icon: UsersIcon }] : [])
+                        ].map((item) => (
+                            <button 
+                                key={item.id}
+                                onClick={() => setActiveTab(item.id)}
+                                className={`flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-xl font-bold text-[9px] md:text-[11px] uppercase tracking-wider transition-all whitespace-nowrap active:scale-95 ${
+                                    activeTab === item.id 
+                                        ? 'bg-[#6366f1] text-white shadow-lg shadow-[#6366f1]/20' 
+                                        : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                                }`}
+                            >
+                                <item.icon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                {item.label}
+                            </button>
+                        ))}
                     </div>
                 </header>
                 <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
