@@ -1,11 +1,11 @@
-import { db } from '@vercel/postgres';
+import { query } from '../services/db.js';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Brokerage } from '../types';
 import { randomUUID } from 'crypto';
 
-async function ensureTablesAndMigrate(client: any, userId?: number) {
+async function ensureTablesAndMigrate(userId?: number) {
     // 1. CREATE TABLES (idempotent)
-    await client.query(`
+    await query(`
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
             username VARCHAR(50) UNIQUE NOT NULL,
@@ -13,7 +13,7 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
             created_at TIMESTAMPTZ DEFAULT NOW()
         );
     `);
-    await client.query(`
+    await query(`
         CREATE TABLE IF NOT EXISTS operacoes_daytrade (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -26,7 +26,7 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
             data_operacao TIMESTAMPTZ DEFAULT NOW()
         );
     `);
-    await client.query(`
+    await query(`
         CREATE TABLE IF NOT EXISTS user_settings (
             user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
             settings_json JSONB
@@ -34,7 +34,7 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
     `);
 
     // 2. CHECK & ADD ALL POTENTIALLY MISSING COLUMNS
-    const { rows: userColumnsResult } = await client.query(`
+    const { rows: userColumnsResult } = await query(`
         SELECT column_name FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'users';
     `);
@@ -42,10 +42,10 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
     
     if (existingUserColumns.includes('email') && !existingUserColumns.includes('username')) {
         console.log("Applying migration: Renaming 'email' to 'username' in 'users' table.");
-        await client.query(`ALTER TABLE users RENAME COLUMN email TO username;`);
+        await query(`ALTER TABLE users RENAME COLUMN email TO username;`);
     }
 
-    const { rows: columnsResult } = await client.query(`
+    const { rows: columnsResult } = await query(`
         SELECT column_name FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'operacoes_daytrade';
     `);
@@ -53,44 +53,44 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
 
     if (!existingColumns.includes('user_id')) {
         console.log("Applying migration: Adding 'user_id' column.");
-        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN user_id INTEGER;`);
+        await query(`ALTER TABLE operacoes_daytrade ADD COLUMN user_id INTEGER;`);
     }
     if (!existingColumns.includes('record_id')) {
         console.log("Applying migration: Adding 'record_id' column.");
-        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN record_id VARCHAR(10);`);
+        await query(`ALTER TABLE operacoes_daytrade ADD COLUMN record_id VARCHAR(10);`);
     }
     if (!existingColumns.includes('brokerage_id')) {
         console.log("Applying migration: Adding 'brokerage_id' column.");
-        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN brokerage_id UUID;`);
+        await query(`ALTER TABLE operacoes_daytrade ADD COLUMN brokerage_id UUID;`);
     }
     if (!existingColumns.includes('payout_percentage')) {
         console.log("Applying migration: Adding 'payout_percentage' column.");
-        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN payout_percentage INTEGER;`);
+        await query(`ALTER TABLE operacoes_daytrade ADD COLUMN payout_percentage INTEGER;`);
     }
     
     // 3. POPULATE DATA FOR MIGRATED COLUMNS (if user context is available)
     if (userId) {
         // Populate user_id for any orphaned records
-        await client.query(`UPDATE operacoes_daytrade SET user_id = $1 WHERE user_id IS NULL`, [userId]);
+        await query(`UPDATE operacoes_daytrade SET user_id = $1 WHERE user_id IS NULL`, [userId]);
 
         // Populate record_id for any records missing it
-        await client.query(`UPDATE operacoes_daytrade SET record_id = TO_CHAR(data_operacao, 'YYYY-MM-DD') WHERE record_id IS NULL;`);
+        await query(`UPDATE operacoes_daytrade SET record_id = TO_CHAR(data_operacao, 'YYYY-MM-DD') WHERE record_id IS NULL;`);
 
         // Populate payout_percentage with a default value if missing
-        await client.query(`UPDATE operacoes_daytrade SET payout_percentage = 80 WHERE payout_percentage IS NULL;`);
+        await query(`UPDATE operacoes_daytrade SET payout_percentage = 80 WHERE payout_percentage IS NULL;`);
 
         // Populate brokerage_id for records belonging to this user that are missing it
-        const { rows: brokeragelessRows } = await client.query(
+        const { rows: brokeragelessRows } = await query(
             `SELECT 1 FROM operacoes_daytrade WHERE user_id = $1 AND brokerage_id IS NULL LIMIT 1`,
             [userId]
         );
         
         if (brokeragelessRows.length > 0) {
-            const { rows: settingsResult } = await client.query(
+            const { rows: settingsResult } = await query(
                 `SELECT settings_json FROM user_settings WHERE user_id = $1;`,
                 [userId]
             );
-            const settings = settingsResult[0]?.settings_json || {};
+            const settings = (settingsResult[0] as any)?.settings_json || {};
             let brokerages: Brokerage[] = settings.brokerages || [];
             let brokerageIdToUse: string;
 
@@ -101,14 +101,14 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
                 brokerageIdToUse = defaultBrokerage.id;
                 const goals = settings.goals || [];
                 const newSettings = { brokerages: [defaultBrokerage], goals };
-                await client.query(
+                await query(
                     `INSERT INTO user_settings (user_id, settings_json) VALUES ($1, $2)
                      ON CONFLICT (user_id) DO UPDATE SET settings_json = $2;`,
                     [userId, JSON.stringify(newSettings)]
                 );
             }
 
-            await client.query(
+            await query(
                 `UPDATE operacoes_daytrade SET brokerage_id = $1 WHERE user_id = $2 AND brokerage_id IS NULL;`,
                 [brokerageIdToUse, userId]
             );
@@ -120,14 +120,11 @@ export default async function handler(
     request: VercelRequest,
     response: VercelResponse,
 ) {
-    const client = await db.connect();
     try {
-        await ensureTablesAndMigrate(client);
+        await ensureTablesAndMigrate();
         return response.status(200).json({ message: 'Database tables created/verified successfully.' });
-    } catch (error) {
+    } catch (error: any) {
         console.error(error);
-        return response.status(500).json({ error: (error as Error).message });
-    } finally {
-        client.release();
+        return response.status(500).json({ error: error.message });
     }
 }

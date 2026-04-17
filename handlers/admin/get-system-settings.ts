@@ -1,4 +1,4 @@
-import { db } from '@vercel/postgres';
+import { query } from '../../services/db.js';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(
@@ -12,15 +12,14 @@ export default async function handler(
 
     const adminId = auth.userId;
 
-    const client = await db.connect();
     try {
         // Verify if requester is admin
-        const { rows: adminCheck } = await client.query('SELECT is_admin FROM users WHERE id = $1', [adminId]);
+        const { rows: adminCheck } = await query('SELECT is_admin FROM users WHERE id = $1', [adminId]);
         if (adminCheck.length === 0 || !adminCheck[0].is_admin) {
             return res.status(403).json({ error: 'Acesso negado. Apenas administradores podem acessar esta configuração.' });
         }
 
-        const { rows: settings } = await client.query('SELECT key, value FROM system_settings');
+        const { rows: settings } = await query('SELECT key, value FROM system_settings');
         const settingsMap = settings.reduce((acc: any, curr: any) => {
             acc[curr.key] = curr.value;
             return acc;
@@ -30,7 +29,5 @@ export default async function handler(
     } catch (error: any) {
         console.error('Get System Settings Error:', error);
         return res.status(500).json({ error: 'Erro ao buscar configurações do sistema' });
-    } finally {
-        client.release();
     }
 }

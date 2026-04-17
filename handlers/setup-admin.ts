@@ -1,4 +1,4 @@
-import { db } from '@vercel/postgres';
+import { query } from '../services/db.js';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
 
@@ -6,8 +6,6 @@ export default async function handler(
     req: VercelRequest,
     res: VercelResponse,
 ) {
-    const client = await db.connect();
-    
     const username = 'henrique';
     const password = '[@Manu9860]';
     
@@ -15,7 +13,7 @@ export default async function handler(
         console.log("--- ODIN: Executando Rota de Setup Admin ---");
 
         // Garantir que a tabela existe (com as colunas necessárias)
-        await client.query(`
+        await query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(50) UNIQUE NOT NULL,
@@ -28,7 +26,7 @@ export default async function handler(
         `);
 
         // Adicionar colunas caso a tabela já exista e não as tenha
-        await client.query(`
+        await query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS is_paused BOOLEAN DEFAULT FALSE;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
@@ -39,7 +37,7 @@ export default async function handler(
         const hash = await bcrypt.hash(password, salt);
 
         // Inserir ou atualizar o usuário administrador
-        const query = `
+        const sql = `
             INSERT INTO users (username, password_hash, is_admin)
             VALUES ($1, $2, $3)
             ON CONFLICT (username) 
@@ -50,7 +48,7 @@ export default async function handler(
             RETURNING id, username;
         `;
         
-        const result = await client.query(query, [username.toLowerCase(), hash, true]);
+        const result = await query(sql, [username.toLowerCase(), hash, true]);
         
         return res.status(200).json({ 
             status: "success",
@@ -69,7 +67,5 @@ export default async function handler(
             message: "Falha ao configurar administrador.",
             details: err.message 
         });
-    } finally {
-        client.release();
     }
 }

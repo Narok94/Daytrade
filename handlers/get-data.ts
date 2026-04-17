@@ -1,11 +1,10 @@
-
-import { db } from '@vercel/postgres';
+import { query } from '../services/db.js';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Brokerage, DailyRecord, Goal, Trade } from '../types';
 import { randomUUID } from 'crypto';
 
-async function ensureTablesAndMigrate(client: any, userId?: number) {
-    const { rows: tableCheck } = await client.query(`
+async function ensureTablesAndMigrate(userId?: number) {
+    const { rows: tableCheck } = await query(`
         SELECT column_name, data_type 
         FROM information_schema.columns 
         WHERE table_name = 'operacoes_daytrade';
@@ -22,11 +21,11 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
             (idCol && idCol.data_type !== 'uuid');
 
         if (needsNuke) {
-            await client.query(`DROP TABLE IF EXISTS operacoes_daytrade CASCADE;`);
+            await query(`DROP TABLE IF EXISTS operacoes_daytrade CASCADE;`);
         }
     }
 
-    await client.query(`
+    await query(`
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
             username VARCHAR(50) UNIQUE NOT NULL,
@@ -38,18 +37,18 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
     `);
 
     // Ensure columns exist if table was already created
-    await client.query(`
+    await query(`
         ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS is_paused BOOLEAN DEFAULT FALSE;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
     `);
 
     // Set Henrique as admin
-    await client.query(`
+    await query(`
         UPDATE users SET is_admin = TRUE WHERE LOWER(username) = 'henrique';
     `);
     
-    await client.query(`
+    await query(`
         CREATE TABLE IF NOT EXISTS operacoes_daytrade (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -63,7 +62,7 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
         );
     `);
 
-    await client.query(`
+    await query(`
         CREATE TABLE IF NOT EXISTS user_settings (
             user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
             settings_json JSONB
@@ -71,22 +70,22 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
     `);
 
     // 2. Ensure brokerage_id column exists and is UUID
-    const { rows: columnsResult } = await client.query(`
+    const { rows: columnsResult } = await query(`
         SELECT column_name, data_type FROM information_schema.columns
         WHERE table_name = 'operacoes_daytrade' AND column_name = 'brokerage_id';
     `);
     if (columnsResult.length === 0) {
-        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN brokerage_id UUID;`);
+        await query(`ALTER TABLE operacoes_daytrade ADD COLUMN brokerage_id UUID;`);
     } else if (columnsResult[0].data_type !== 'uuid') {
-        await client.query(`ALTER TABLE operacoes_daytrade ALTER COLUMN brokerage_id TYPE UUID USING brokerage_id::uuid;`);
+        await query(`ALTER TABLE operacoes_daytrade ALTER COLUMN brokerage_id TYPE UUID USING brokerage_id::uuid;`);
     }
 
     if (userId) {
-        const { rows: settingsExist } = await client.query(`SELECT 1 FROM user_settings WHERE user_id = $1`, [userId]);
+        const { rows: settingsExist } = await query(`SELECT 1 FROM user_settings WHERE user_id = $1`, [userId]);
         if (settingsExist.length === 0) {
              const defaultBrokerage: Brokerage = { id: randomUUID(), name: 'Gestão Principal', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD', dailyGoalMode: 'percentage', dailyGoalValue: 3 };
              const initialSettings = { brokerages: [defaultBrokerage], goals: [] };
-             await client.query(
+             await query(
                 `INSERT INTO user_settings (user_id, settings_json) VALUES ($1, $2)
                  ON CONFLICT (user_id) DO UPDATE SET settings_json = $2;`,
                 [userId, JSON.stringify(initialSettings)]
@@ -103,9 +102,7 @@ export default async function handler(
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const client = await db.connect();
     try {
-        // userId is now provided by the authenticate middleware in the req.auth property
         const auth = (req as any).auth;
         if (!auth || !auth.userId) {
             return res.status(401).json({ error: 'Sessão inválida ou expirada. Faça login novamente.' });
@@ -116,17 +113,17 @@ export default async function handler(
             return res.status(401).json({ error: 'Usuário não identificado.' });
         }
         
-        await ensureTablesAndMigrate(client, userId);
+        await ensureTablesAndMigrate(userId);
 
-        const { rows: settingsResult } = await client.query(
+        const { rows: settingsResult } = await query(
             `SELECT settings_json FROM user_settings WHERE user_id = $1;`,
             [userId]
         );
-        const settings = settingsResult[0]?.settings_json || {};
+        const settings = (settingsResult[0] as any)?.settings_json || {};
         const brokerages: Brokerage[] = settings.brokerages || [];
         const goals: Goal[] = settings.goals || [];
 
-        const { rows: operationsResult } = await client.query(
+        const { rows: operationsResult } = await query(
             `SELECT id, record_id, brokerage_id, tipo_operacao, valor_entrada, payout_percentage, resultado, data_operacao 
             FROM operacoes_daytrade WHERE user_id = $1 ORDER BY data_operacao ASC;`,
             [userId]
@@ -217,7 +214,5 @@ export default async function handler(
     } catch (error) {
         console.error('Error in get-data:', error);
         return res.status(500).json({ error: (error as Error).message });
-    } finally {
-        client.release();
     }
 }

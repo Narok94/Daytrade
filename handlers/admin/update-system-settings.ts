@@ -1,4 +1,4 @@
-import { db } from '@vercel/postgres';
+import { query } from '../../services/db.js';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(
@@ -21,15 +21,14 @@ export default async function handler(
         return res.status(400).json({ error: 'Chave e valor são obrigatórios.' });
     }
 
-    const client = await db.connect();
     try {
         // Verify if requester is admin
-        const { rows: adminCheck } = await client.query('SELECT is_admin FROM users WHERE id = $1', [adminId]);
+        const { rows: adminCheck } = await query('SELECT is_admin FROM users WHERE id = $1', [adminId]);
         if (adminCheck.length === 0 || !adminCheck[0].is_admin) {
             return res.status(403).json({ error: 'Acesso negado. Apenas administradores podem alterar esta configuração.' });
         }
 
-        await client.query(
+        await query(
             `INSERT INTO system_settings (key, value) VALUES ($1, $2)
              ON CONFLICT (key) DO UPDATE SET value = $2;`,
             [key, value]
@@ -39,7 +38,5 @@ export default async function handler(
     } catch (error: any) {
         console.error('Update System Settings Error:', error);
         return res.status(500).json({ error: 'Erro ao atualizar configuração do sistema' });
-    } finally {
-        client.release();
     }
 }

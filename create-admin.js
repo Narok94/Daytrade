@@ -1,12 +1,24 @@
-import { db } from '@vercel/postgres';
+import pg from 'pg';
+const { Pool } = pg;
 import bcrypt from 'bcryptjs';
 
 async function createAdmin() {
     console.log("--- ODIN: Gerando Acesso Administrativo ---");
     
+    const connectionString = process.env.POSTGRES_URL;
+    if (!connectionString) {
+        console.error("Erro: POSTGRES_URL não definida.");
+        return;
+    }
+
+    const pool = new Pool({
+        connectionString,
+        ssl: { rejectUnauthorized: false }
+    });
+
     let client;
     try {
-        client = await db.connect();
+        client = await pool.connect();
     } catch (err) {
         console.error("Erro ao conectar ao banco de dados. Verifique sua POSTGRES_URL.");
         console.error(err.message);
@@ -35,7 +47,7 @@ async function createAdmin() {
         const hash = await bcrypt.hash(password, salt);
 
         // Inserir ou atualizar o usuário administrador
-        const query = `
+        const sql = `
             INSERT INTO users (username, password_hash, is_admin)
             VALUES ($1, $2, $3)
             ON CONFLICT (username) 
@@ -46,7 +58,7 @@ async function createAdmin() {
             RETURNING id, username;
         `;
         
-        const res = await client.query(query, [username.toLowerCase(), hash, true]);
+        const res = await client.query(sql, [username.toLowerCase(), hash, true]);
         
         console.log("\n✅ Sucesso!");
         console.log(`👤 Usuário: ${res.rows[0].username}`);
@@ -58,6 +70,7 @@ async function createAdmin() {
         console.error("❌ Erro ao criar administrador:", err.message);
     } finally {
         if (client) client.release();
+        await pool.end();
     }
 }
 
