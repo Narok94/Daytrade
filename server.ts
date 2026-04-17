@@ -51,6 +51,7 @@ async function createServer() {
 
   // Helper to wrap Vercel handlers for Express
   const wrapHandler = (handler: any, requiresAuth: boolean = false) => async (req: any, res: any) => {
+    console.log(`[API START] ${req.method} ${req.url}`);
     try {
       if (requiresAuth && !req.user) {
         return res.status(401).json({ error: 'Não autorizado.' });
