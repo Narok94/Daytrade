@@ -1,8 +1,8 @@
-import { query, getPool } from '../services/db';
+import { query, getPool } from '../services/db.js';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { Brokerage } from '../types';
+import { Brokerage } from '../types.js';
 import { randomUUID } from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret-fallback-for-dev-only';
