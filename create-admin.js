@@ -5,15 +5,22 @@ import bcrypt from 'bcryptjs';
 async function createAdmin() {
     console.log("--- ODIN: Gerando Acesso Administrativo ---");
     
-    const connectionString = process.env.POSTGRES_URL;
+    let connectionString = (process.env.DATABASE_URL || process.env.POSTGRES_URL || '').trim();
     if (!connectionString) {
-        console.error("Erro: POSTGRES_URL não definida.");
+        console.error("Erro: DATABASE_URL ou POSTGRES_URL não definida.");
         return;
+    }
+
+    if (!connectionString.includes('sslmode=')) {
+        const separator = connectionString.includes('?') ? '&' : '?';
+        connectionString += `${separator}sslmode=require`;
     }
 
     const pool = new Pool({
         connectionString,
-        ssl: { rejectUnauthorized: false }
+        ssl: { rejectUnauthorized: false },
+        connectionTimeoutMillis: 3000,
+        keepAlive: true
     });
 
     let client;
