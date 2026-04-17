@@ -64,7 +64,17 @@ async function createServer() {
       await handler(req, res);
     } catch (error: any) {
       console.error("API Error:", error);
-      res.status(500).json({ error: error.message });
+      
+      const isConnError = error.message.toLowerCase().includes('connect') || 
+                         error.message.toLowerCase().includes('connection') ||
+                         error.message.toLowerCase().includes('pool');
+      
+      const status = isConnError ? 500 : (res.statusCode === 200 ? 500 : res.statusCode);
+      const message = isConnError ? "Erro de Conexão com o Banco" : (error.message || 'Erro interno no servidor');
+      
+      if (!res.headersSent) {
+        res.status(status).json({ error: message, details: error.message });
+      }
     }
   };
 

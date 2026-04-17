@@ -65,9 +65,13 @@ export default async function handler(
         
     } catch (err: any) {
         console.error("Erro na rota de setup admin:", err);
+        const isConnError = err.message.toLowerCase().includes('connect') || 
+                           err.message.toLowerCase().includes('connection') ||
+                           err.message.toLowerCase().includes('pool');
+        
         return res.status(500).json({ 
             status: "error",
-            message: "Falha ao configurar administrador.",
+            message: isConnError ? "Erro de Conexão com o Banco" : "Falha ao configurar administrador.",
             details: err.message 
         });
     }

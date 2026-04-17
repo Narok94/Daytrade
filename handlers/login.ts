@@ -192,11 +192,17 @@ export default async function handler(
     } catch (error: any) {
         console.error('CRITICAL: Database or Server Error during login:', error);
         
+        const isConnError = error.message.toLowerCase().includes('connect') || 
+                           error.message.toLowerCase().includes('connection') ||
+                           error.message.toLowerCase().includes('pool');
+
         // Return a cleaner error message to the user
         const status = error.message.includes('timeout') ? 504 : 500;
-        const message = error.message.includes('timeout') 
-            ? 'Tempo de resposta do banco de dados excedido. Tente novamente.'
-            : 'Erro Interno no Servidor ao tentar acessar o banco.';
+        const message = isConnError 
+            ? "Erro de Conexão com o Banco" 
+            : (error.message.includes('timeout') 
+                ? 'Tempo de resposta do banco de dados excedido. Tente novamente.'
+                : 'Erro Interno no Servidor ao tentar acessar o banco.');
 
         return res.status(status).json({ 
             error: message, 
