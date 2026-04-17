@@ -18,10 +18,11 @@ export function getPool() {
             ssl: {
                 rejectUnauthorized: false, // Required for Neon
             },
-            // statement_timeout: 5000, // 5 seconds timeout for queries
+            statement_timeout: 5000, // 5 seconds timeout for queries
+            query_timeout: 5000,
             connectionTimeoutMillis: 5000, // 5 seconds timeout for establishing connection
-            max: 10, // Limit number of concurrent connections
-            idleTimeoutMillis: 30000,
+            max: 5, // Keep it low for serverless
+            idleTimeoutMillis: 1000, // Release connections quickly
         });
 
         console.log('Database pool initialized successfully.');
@@ -33,20 +34,16 @@ export function getPool() {
  * Execute a query with a 5-second timeout
  */
 export async function query(text: string, params?: any[]) {
+    console.log(`[DB QUERY START] ${text.substring(0, 50)}...`);
     const client = await getPool().connect();
+    console.log(`[DB CLIENT ACQUIRED]`);
     try {
-        // Set a statement timeout specifically for this query execution if needed
-        // Or it can be set at the pool level
         await client.query('SET statement_timeout = 5000');
         const res = await client.query(text, params);
+        console.log(`[DB QUERY END] SUCCESS`);
         return res;
     } catch (error: any) {
-        console.error('Database Query Error:', {
-            text,
-            params,
-            errorMessage: error.message,
-            stack: error.stack
-        });
+        console.error('[DB QUERY ERROR] ', error.message);
         throw error;
     } finally {
         client.release();

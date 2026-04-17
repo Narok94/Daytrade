@@ -133,12 +133,8 @@ export default async function handler(
     }
     
     try {
-        console.log('Tentando conectar ao banco de dados...');
-        // Test connection
-        await getPool().connect().then(client => client.release());
-        console.log('Conexão com o banco estabelecida com sucesso.');
-
-        console.log('Dados recebidos no server:', { username: req.body?.username, passwordLength: req.body?.password?.length });
+        console.log('1. Iniciando processo de login...');
+        
         const { username, password } = req.body;
         const lowerUsername = username?.toLowerCase();
         console.log(`[AUTH] Tentando login para: ${lowerUsername}`);
@@ -147,12 +143,9 @@ export default async function handler(
             return res.status(400).json({ error: 'Usuário e senha são obrigatórios.' });
         }
         
-        // Run migration without user context first to ensure tables exist
-        await ensureTablesAndMigrate();
-
-        console.log('1. Iniciando busca no banco...');
+        console.log('2. Buscando usuário no banco...');
         const result = await query('SELECT * FROM users WHERE username = $1', [lowerUsername]);
-        console.log('2. Busca finalizada.');
+        console.log('3. Busca finalizada.');
         const rows = result.rows;
         
         if (rows.length === 0) {
@@ -175,9 +168,6 @@ export default async function handler(
 
         // Update last login
         await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
-
-        // Now that user is authenticated, we have the ID. Run migration again with user context to populate data.
-        await ensureTablesAndMigrate(user.id);
 
         // Generate JWT Token
         const token = jwt.sign(

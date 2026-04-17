@@ -101,6 +101,7 @@ async function createServer() {
     });
   }
 
+  console.log('--- Rotas mapeadas e servidor pronto para receber conexões ---');
   return app;
 }
 
