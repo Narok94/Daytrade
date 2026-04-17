@@ -6,13 +6,10 @@ export default async function handler(
     req: VercelRequest,
     res: VercelResponse,
 ) {
-    const username = 'henrique';
-    const password = '[@Manu9860]';
-    
     try {
-        console.log("--- ODIN: Executando Rota de Setup Admin ---");
+        console.log("--- ODIN: Executando Setup Admin SIMPLIFICADO ---");
 
-        // Garantir que a tabela existe (com as colunas necessárias)
+        // 1. Criar tabela básica se não existir
         await query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -25,54 +22,25 @@ export default async function handler(
             );
         `);
 
-        // Adicionar colunas caso a tabela já exista e não as tenha
+        // 2. Inserir 'admin' com senha 'admin' (texto puro para teste de conexão)
+        console.log("Inserindo usuário admin...");
         await query(`
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS is_paused BOOLEAN DEFAULT FALSE;
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
+            INSERT INTO users (username, password_hash, is_admin)
+            VALUES ('admin', 'admin', TRUE)
+            ON CONFLICT (username) DO UPDATE SET password_hash = 'admin';
         `);
 
-        // Gerar o hash da senha
-        const salt = await bcrypt.genSalt(10);
-        const hash = await bcrypt.hash(password, salt);
-
-        // Inserir ou atualizar o usuário administrador
-        const sql = `
-            INSERT INTO users (username, password_hash, is_admin)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (username) 
-            DO UPDATE SET 
-                password_hash = EXCLUDED.password_hash,
-                is_admin = TRUE,
-                is_paused = FALSE
-            RETURNING id, username;
-        `;
-        
-        const hashAdmin = await bcrypt.hash('admin', salt);
-        await query(sql, ['admin', hashAdmin, true]);
-
-        const result = await query(sql, [username.toLowerCase(), hash, true]);
-        
+        console.log("Setup admin concluído!");
         return res.status(200).json({ 
             status: "success",
-            message: "Administrador configurado com sucesso!",
-            user: {
-                id: result.rows[0].id,
-                username: result.rows[0].username,
-                role: "ADMINISTRADOR"
-            }
+            message: "Setup concluído com sucesso! Tente logar com admin/admin" 
         });
         
     } catch (err: any) {
-        console.error("Erro na rota de setup admin:", err);
-        const isConnError = err.message.toLowerCase().includes('connect') || 
-                           err.message.toLowerCase().includes('connection') ||
-                           err.message.toLowerCase().includes('pool');
-        
+        console.error("ERRO NO SETUP ADMIN:", err.message);
         return res.status(500).json({ 
             status: "error",
-            message: isConnError ? "Erro de Conexão com o Banco" : "Falha ao configurar administrador.",
-            details: err.message 
+            message: "Falha de proteção: " + err.message
         });
     }
 }

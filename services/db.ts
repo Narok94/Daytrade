@@ -44,15 +44,24 @@ export function getPool() {
 }
 
 /**
- * Executa uma query de forma direta e simplificada
+ * Executa uma query de forma direta, simplificada e com timeout de segurança
  */
 export async function query(text: string, params?: any[]) {
-    try {
-        console.log(`[DB] Executando query: ${text.substring(0, 40)}...`);
-        const res = await getPool().query(text, params);
-        return res;
-    } catch (error: any) {
-        console.error('FALHA NA QUERY NEON:', error.message);
-        throw error;
-    }
+    const queryPromise = (async () => {
+        try {
+            console.log(`[DB] Executando query: ${text.substring(0, 40)}...`);
+            const res = await getPool().query(text, params);
+            console.log(`[DB] Query concluída com sucesso.`);
+            return res;
+        } catch (error: any) {
+            console.error('FALHA NA QUERY NEON:', error.message);
+            throw error;
+        }
+    })();
+
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('DATABASE_QUERY_TIMEOUT')), 5000);
+    });
+
+    return Promise.race([queryPromise, timeoutPromise]) as Promise<pg.QueryResult>;
 }
