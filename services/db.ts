@@ -7,56 +7,42 @@ let pool: pg.Pool;
 
 export function getPool() {
     if (!pool) {
-        // Neon standard is DATABASE_URL, Vercel standard is often POSTGRES_URL
-        const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+        // Garantir que a DATABASE_URL seja lida como string pura
+        const rawUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+        const connectionString = rawUrl ? String(rawUrl).trim() : '';
         
         if (!connectionString) {
-            console.error('FALHA CRÍTICA: DATABASE_URL ou POSTGRES_URL não definida.');
-            throw new Error('Database connection string is not defined.');
+            console.error('FALHA CRÍTICA: DATABASE_URL não definida.');
+            throw new Error('Database connection string is missing.');
         }
 
-        console.log('Iniciando Pool de conexões com o banco...');
+        console.log('--- Conectando ao Banco Neon (SSL: rejectUnauthorized: false) ---');
         pool = new Pool({
-            connectionString,
+            connectionString: connectionString,
             ssl: {
-                rejectUnauthorized: false, // Required for Neon
+                rejectUnauthorized: false
             },
-            statement_timeout: 5000, 
-            query_timeout: 5000,
-            connectionTimeoutMillis: 5000, 
-            max: 5, 
-            idleTimeoutMillis: 1000, 
+            max: 10,
+            connectionTimeoutMillis: 10000, // Aumentar um pouco para o handshake
         });
 
         pool.on('error', (err) => {
-            console.error('FALHA DE CONEXÃO NEON (Pool Error):', err);
+            console.error('ERRO NO POOL NEON:', err);
         });
-
-        console.log('Pool do banco configurado.');
     }
     return pool;
 }
 
 /**
- * Execute a query with a 5-second timeout
+ * Executa uma query de forma direta e simplificada
  */
 export async function query(text: string, params?: any[]) {
-    console.log(`[DB QUERY START] ${text.substring(0, 50)}...`);
-    
-    let client;
     try {
-        // Timeout protection for the connection attempt itself
-        client = await getPool().connect();
-        console.log(`[DB CLIENT ACQUIRED]`);
-        
-        await client.query('SET statement_timeout = 5000');
-        const res = await client.query(text, params);
-        console.log(`[DB QUERY END] SUCCESS`);
+        console.log(`[DB] Executando query: ${text.substring(0, 40)}...`);
+        const res = await getPool().query(text, params);
         return res;
     } catch (error: any) {
-        console.error('FALHA DE CONEXÃO NEON:', error.message);
+        console.error('FALHA NA QUERY NEON:', error.message);
         throw error;
-    } finally {
-        if (client) client.release();
     }
 }
