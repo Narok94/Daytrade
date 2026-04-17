@@ -1,4 +1,4 @@
-import { query, getPool } from '../services/db.js';
+import { query, getPool } from '../services/db';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';

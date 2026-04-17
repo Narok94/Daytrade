@@ -1,4 +1,4 @@
-import { query } from '../../services/db.js';
+import { query } from '../../services/db';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(

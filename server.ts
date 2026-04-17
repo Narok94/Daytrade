@@ -6,21 +6,21 @@ import jwt from "jsonwebtoken";
 const JWT_SECRET = process.env.JWT_SECRET || 'secret-fallback-for-dev-only';
 
 // Import handlers
-import loginHandler from "./handlers/login.js";
-import registerHandler from "./handlers/register.js";
-import getDataHandler from "./handlers/get-data.js";
-import saveDataHandler from "./handlers/save-data.js";
-import healthCheckHandler from "./handlers/health-check.js";
-import setupHandler from "./handlers/setup.js";
-import aiAnalysisHandler from "./handlers/ai-analysis.js";
-import setupAdminHandler from "./handlers/setup-admin.js";
+import loginHandler from "./handlers/login";
+import registerHandler from "./handlers/register";
+import getDataHandler from "./handlers/get-data";
+import saveDataHandler from "./handlers/save-data";
+import healthCheckHandler from "./handlers/health-check";
+import setupHandler from "./handlers/setup";
+import aiAnalysisHandler from "./handlers/ai-analysis";
+import setupAdminHandler from "./handlers/setup-admin";
 
 // Admin handlers
-import getAdminUsersHandler from "./handlers/admin/get-users.js";
-import togglePauseHandler from "./handlers/admin/toggle-pause.js";
-import updateSystemSettingsHandler from "./handlers/admin/update-system-settings.js";
-import getSystemSettingsHandler from "./handlers/admin/get-system-settings.js";
-import resetPasswordHandler from "./handlers/admin/reset-password.js";
+import getAdminUsersHandler from "./handlers/admin/get-users";
+import togglePauseHandler from "./handlers/admin/toggle-pause";
+import updateSystemSettingsHandler from "./handlers/admin/update-system-settings";
+import getSystemSettingsHandler from "./handlers/admin/get-system-settings";
+import resetPasswordHandler from "./handlers/admin/reset-password";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -107,8 +107,9 @@ app.post("/api/admin/reset-password", authenticateToken, wrapHandler(resetPasswo
 const distPath = path.join(process.cwd(), "dist");
 app.use(express.static(distPath));
 
-// Support for local development
-if (process.env.NODE_ENV !== "production" || process.env.RUN_LOCAL === 'true') {
+// Support for local development (Only if not on Vercel)
+const isVercel = process.env.VERCEL === '1' || !!process.env.NOW_REGION;
+if (!isVercel && (process.env.NODE_ENV !== "production" || process.env.RUN_LOCAL === 'true')) {
   const PORT = 3000;
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Development server running on http://0.0.0.0:${PORT}`);
