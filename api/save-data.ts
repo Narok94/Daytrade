@@ -81,26 +81,13 @@ export default async function handler(
             goals: Goal[];
         };
         
-        const rawUserId = req.body.userId;
-        let userId: number;
-
-        if (rawUserId === null || rawUserId === undefined) {
-            return res.status(400).json({ error: 'User ID (userId) é obrigatório.' });
+        // userId is now provided by the authenticate middleware
+        const auth = (req as any).auth;
+        if (!auth || !auth.userId) {
+            return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
         }
 
-        // Validate userId is strictly an integer
-        if (typeof rawUserId === 'number' && Number.isInteger(rawUserId)) {
-            userId = rawUserId;
-        } else if (typeof rawUserId === 'string') {
-            const parsedId = parseInt(rawUserId, 10);
-            if (!isNaN(parsedId) && String(parsedId) === rawUserId) {
-                userId = parsedId;
-            } else {
-                return res.status(400).json({ error: `ID de usuário inválido. Esperava um número inteiro, recebeu: "${rawUserId}".` });
-            }
-        } else {
-            return res.status(400).json({ error: `Tipo de ID inválido: ${typeof rawUserId}` });
-        }
+        const userId = Number(auth.userId);
         
         await ensureTablesAndMigrate(client, userId);
         

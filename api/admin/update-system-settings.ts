@@ -9,10 +9,16 @@ export default async function handler(
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { adminId, key, value } = req.body;
+    const auth = (req as any).auth;
+    if (!auth || !auth.userId) {
+        return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
+    }
 
-    if (!adminId || !key || value === undefined) {
-        return res.status(400).json({ error: 'Admin ID, chave e valor são obrigatórios.' });
+    const adminId = auth.userId;
+    const { key, value } = req.body;
+
+    if (!key || value === undefined) {
+        return res.status(400).json({ error: 'Chave e valor são obrigatórios.' });
     }
 
     const client = await db.connect();

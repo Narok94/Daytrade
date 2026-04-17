@@ -12,10 +12,16 @@ export default async function handler(
 
     const client = await db.connect();
     try {
-        const { adminId, targetUserId, isPaused } = req.body;
+        const auth = (req as any).auth;
+        if (!auth || !auth.userId) {
+            return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
+        }
 
-        if (!adminId || !targetUserId) {
-            return res.status(400).json({ error: 'Admin ID e Target User ID são obrigatórios.' });
+        const adminId = auth.userId;
+        const { targetUserId, isPaused } = req.body;
+
+        if (!targetUserId) {
+            return res.status(400).json({ error: 'Target User ID é obrigatório.' });
         }
 
         // Verify if requester is admin

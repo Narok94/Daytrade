@@ -12,10 +12,12 @@ export default async function handler(
 
     const client = await db.connect();
     try {
-        const adminId = req.query.adminId as string;
-        if (!adminId) {
-            return res.status(400).json({ error: 'Admin ID é obrigatório.' });
+        const auth = (req as any).auth;
+        if (!auth || !auth.userId) {
+            return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
         }
+
+        const adminId = auth.userId;
 
         // Verify if requester is admin
         const { rows: adminCheck } = await client.query('SELECT is_admin FROM users WHERE id = $1', [adminId]);

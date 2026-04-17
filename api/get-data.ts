@@ -105,14 +105,15 @@ export default async function handler(
 
     const client = await db.connect();
     try {
-        const rawUserId = req.query.userId as string;
-        if (!rawUserId) {
-            return res.status(400).json({ error: 'User ID é obrigatório.' });
+        // userId is now provided by the authenticate middleware in the req.auth property
+        const auth = (req as any).auth;
+        if (!auth || !auth.userId) {
+            return res.status(401).json({ error: 'Sessão inválida ou expirada. Faça login novamente.' });
         }
         
-        const userId = Number(rawUserId);
+        const userId = Number(auth.userId);
         if (!Number.isInteger(userId)) {
-            return res.status(400).json({ error: `ID de usuário inválido: "${rawUserId}".` });
+            return res.status(401).json({ error: 'Usuário não identificado.' });
         }
         
         await ensureTablesAndMigrate(client, userId);

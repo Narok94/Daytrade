@@ -13,10 +13,16 @@ export default async function handler(
 
     const client = await db.connect();
     try {
-        const { adminId, targetUserId, newPassword } = req.body;
+        const auth = (req as any).auth;
+        if (!auth || !auth.userId) {
+            return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
+        }
 
-        if (!adminId || !targetUserId || !newPassword) {
-            return res.status(400).json({ error: 'Admin ID, Target User ID e Nova Senha são obrigatórios.' });
+        const adminId = auth.userId;
+        const { targetUserId, newPassword } = req.body;
+
+        if (!targetUserId || !newPassword) {
+            return res.status(400).json({ error: 'Target User ID e Nova Senha são obrigatórios.' });
         }
 
         if (newPassword.length < 4) {

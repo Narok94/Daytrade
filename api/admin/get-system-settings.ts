@@ -5,11 +5,12 @@ export default async function handler(
     req: VercelRequest,
     res: VercelResponse,
 ) {
-    const { adminId } = req.query;
-
-    if (!adminId) {
-        return res.status(400).json({ error: 'Admin ID é obrigatório.' });
+    const auth = (req as any).auth;
+    if (!auth || !auth.userId) {
+        return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
     }
+
+    const adminId = auth.userId;
 
     const client = await db.connect();
     try {

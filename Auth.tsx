@@ -49,16 +49,21 @@ const Auth: React.FC = () => {
 
             if (response.ok) {
                 const user: User = data.user;
+                const token: string = data.token;
+                
                 setCurrentUser(user);
                 
-                // Always set sessionStorage for the current session
+                // Set sessionStorage for the current session
                 sessionStorage.setItem('currentUser', JSON.stringify(user));
+                sessionStorage.setItem('authToken', token);
                 
                 // If rememberMe is checked, also set localStorage
                 if (rememberMe) {
                     localStorage.setItem('currentUser', JSON.stringify(user));
+                    localStorage.setItem('authToken', token);
                 } else {
                     localStorage.removeItem('currentUser');
+                    localStorage.removeItem('authToken');
                 }
                 
                 return true;
@@ -101,7 +106,9 @@ const Auth: React.FC = () => {
     const handleLogout = useCallback(() => {
         setCurrentUser(null);
         sessionStorage.removeItem('currentUser');
+        sessionStorage.removeItem('authToken');
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('authToken');
     }, []);
 
     if (!currentUser) {

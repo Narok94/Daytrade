@@ -1,8 +1,11 @@
 import { db } from '@vercel/postgres';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { Brokerage } from '../types';
 import { randomUUID } from 'crypto';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'secret-fallback-for-dev-only';
 
 async function ensureTablesAndMigrate(client: any, userId?: number) {
     // 1. CREATE TABLES (idempotent)
@@ -166,6 +169,13 @@ export default async function handler(
         // Now that user is authenticated, we have the ID. Run migration again with user context to populate data.
         await ensureTablesAndMigrate(client, user.id);
 
+        // Generate JWT Token
+        const token = jwt.sign(
+            { userId: user.id, username: user.username },
+            JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
         const userData = {
             id: user.id,
             username: user.username,
@@ -174,7 +184,11 @@ export default async function handler(
             lastLoginAt: new Date().toISOString(),
         };
 
-        return res.status(200).json({ message: 'Login realizado com sucesso.', user: userData });
+        return res.status(200).json({ 
+            message: 'Login realizado com sucesso.', 
+            user: userData,
+            token 
+        });
     } catch (error: any) {
         console.error('Login API Error:', error);
         return res.status(500).json({ 
