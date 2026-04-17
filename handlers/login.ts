@@ -134,6 +134,7 @@ export default async function handler(
     
     const client = await db.connect();
     try {
+        console.log('Dados recebidos no server:', req.body);
         const { username, password } = req.body;
         const lowerUsername = username?.toLowerCase();
 

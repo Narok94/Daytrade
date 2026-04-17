@@ -270,7 +270,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
 
                             <button
                                 type="submit"
-                                disabled={isLoading}
                                 onMouseEnter={() => setIsHoveringButton(true)}
                                 onMouseLeave={() => setIsHoveringButton(false)}
                                 className="w-full h-14 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-2xl uppercase text-[11px] tracking-[0.2em] shadow-[0_10px_30px_rgba(168,85,247,0.3)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] relative overflow-hidden group"

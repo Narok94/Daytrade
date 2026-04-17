@@ -39,17 +39,20 @@ const Auth: React.FC = () => {
     const handleLogin = useCallback(async (username: string, password: string, rememberMe: boolean = false): Promise<boolean> => {
         setAuthError('');
         try {
+            const data = { username, password };
+            console.log('Dados enviados:', data);
+            
             const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify(data),
             });
 
-            const data = await response.json();
+            const resData = await response.json();
 
             if (response.ok) {
-                const user: User = data.user;
-                const token: string = data.token;
+                const user: User = resData.user;
+                const token: string = resData.token;
                 
                 setCurrentUser(user);
                 
@@ -68,7 +71,7 @@ const Auth: React.FC = () => {
                 
                 return true;
             } else {
-                const errorMessage = data.details ? `${data.error}: ${data.details}` : (data.error || 'Falha ao fazer login.');
+                const errorMessage = resData.details ? `${resData.error}: ${resData.details}` : (resData.error || 'Falha ao fazer login.');
                 setAuthError(errorMessage);
                 return false;
             }
