@@ -6,29 +6,28 @@ import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret-fallback-for-dev-only';
 
-// Import Vercel handlers
-import loginHandler from "./api/login.js";
-import registerHandler from "./api/register.js";
-import getDataHandler from "./api/get-data.js";
-import saveDataHandler from "./api/save-data.js";
-import healthCheckHandler from "./api/health-check.js";
-import setupHandler from "./api/setup.js";
-import aiAnalysisHandler from "./api/ai-analysis.js";
-import setupAdminHandler from "./api/setup-admin.js";
+// Import handlers from /handlers
+import loginHandler from "./handlers/login.js";
+import registerHandler from "./handlers/register.js";
+import getDataHandler from "./handlers/get-data.js";
+import saveDataHandler from "./handlers/save-data.js";
+import healthCheckHandler from "./handlers/health-check.js";
+import setupHandler from "./handlers/setup.js";
+import aiAnalysisHandler from "./handlers/ai-analysis.js";
+import setupAdminHandler from "./handlers/setup-admin.js";
 
-// Admin handlers
-import getAdminUsersHandler from "./api/admin/get-users.js";
-import togglePauseHandler from "./api/admin/toggle-pause.js";
-import updateSystemSettingsHandler from "./api/admin/update-system-settings.js";
-import getSystemSettingsHandler from "./api/admin/get-system-settings.js";
-import resetPasswordHandler from "./api/admin/reset-password.js";
+// Admin handlers from /handlers/admin
+import getAdminUsersHandler from "./handlers/admin/get-users.js";
+import togglePauseHandler from "./handlers/admin/toggle-pause.js";
+import updateSystemSettingsHandler from "./handlers/admin/update-system-settings.js";
+import getSystemSettingsHandler from "./handlers/admin/get-system-settings.js";
+import resetPasswordHandler from "./handlers/admin/reset-password.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-async function startServer() {
+async function createServer() {
   const app = express();
-  const PORT = 3000;
 
   app.use(express.json());
 
@@ -53,16 +52,11 @@ async function startServer() {
   // Helper to wrap Vercel handlers for Express
   const wrapHandler = (handler: any, requiresAuth: boolean = false) => async (req: any, res: any) => {
     try {
-      // If auth is required, we expect the middleware to have populated req.user
       if (requiresAuth && !req.user) {
         return res.status(401).json({ error: 'Não autorizado.' });
       }
 
-      // Inject user into req query/body if it's there, to support the current handler logic
-      // but ideally we should update handlers to look at req.user directly.
-      // For now, let's inject it into req so handlers can find it easily if they expect it elsewhere.
       if (req.user) {
-        // We'll pass it in a custom property that Vercel handlers can access if they are modified
         (req as any).auth = req.user;
       }
 
@@ -83,14 +77,14 @@ async function startServer() {
   app.get("/api/setup", wrapHandler(setupHandler));
   app.get("/api/setup-admin", wrapHandler(setupAdminHandler));
   
-  // Admin routes (should also be protected)
+  // Admin routes
   app.get("/api/admin/get-users", authenticateToken, wrapHandler(getAdminUsersHandler, true));
   app.post("/api/admin/toggle-pause", authenticateToken, wrapHandler(togglePauseHandler, true));
   app.post("/api/admin/update-system-settings", authenticateToken, wrapHandler(updateSystemSettingsHandler, true));
   app.get("/api/admin/get-system-settings", authenticateToken, wrapHandler(getSystemSettingsHandler, true));
   app.post("/api/admin/reset-password", authenticateToken, wrapHandler(resetPasswordHandler, true));
 
-  // Vite middleware for development
+  // Vite/Static logic
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -98,16 +92,30 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // Serve static files in production
-    app.use(express.static(path.join(__dirname, "dist")));
+    const distPath = path.join(__dirname, "dist");
+    app.use(express.static(distPath));
     app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "dist", "index.html"));
+      res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
-  });
+  return app;
 }
 
-startServer();
+// Support for Vercel (Monolithic entry point)
+const appPromise = createServer();
+
+export default async (req: any, res: any) => {
+  const app = await appPromise;
+  return app(req, res);
+};
+
+// Support for local development
+if (process.env.NODE_ENV !== "production" || process.env.RUN_LOCAL === 'true') {
+  const PORT = 3000;
+  appPromise.then(app => {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://0.0.0.0:${PORT}`);
+    });
+  });
+}
