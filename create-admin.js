@@ -3,15 +3,11 @@ const { Pool } = pg;
 import bcrypt from 'bcryptjs';
 
 async function createAdmin() {
-    console.log("--- ODIN: Gerando Acesso Administrativo ---");
+    console.log("--- ODIN: Gerando Acesso Administrativo (DIRETO) ---");
     
-    let connectionString = (process.env.DATABASE_URL_UNPOOLED || '').trim();
+    const connectionString = (process.env.DATABASE_URL_UNPOOLED || '').trim();
     if (!connectionString) {
-        connectionString = (process.env.DATABASE_URL || process.env.POSTGRES_URL || '').trim();
-    }
-    
-    if (!connectionString) {
-        console.error("Erro: DATABASE_URL_UNPOOLED não definida.");
+        console.error("Erro: DATABASE_URL_UNPOOLED não definida no ambiente.");
         return;
     }
 

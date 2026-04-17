@@ -7,35 +7,32 @@ let pool: pg.Pool;
 
 export function getPool() {
     if (!pool) {
-        // Usar exclusivamente a variável UNPOOLED para evitar travas no pooler do Neon
-        let connectionString = (process.env.DATABASE_URL_UNPOOLED || '').trim();
+        // Usar ESTRITAMENTE a variável UNPOOLED (Conexão Direta) para evitar travas no pooler do Neon
+        const connectionString = (process.env.DATABASE_URL_UNPOOLED || '').trim();
         
         if (!connectionString) {
-            // Fallback apenas para não quebrar o build, mas o erro será logado
-            connectionString = (process.env.DATABASE_URL || process.env.POSTGRES_URL || '').trim();
-            if (!connectionString) {
-                console.error('FALHA CRÍTICA: DATABASE_URL_UNPOOLED não definida.');
-                throw new Error('Database connection string (UNPOOLED) is missing.');
-            }
+            console.error('FALHA CRÍTICA: DATABASE_URL_UNPOOLED não definida no ambiente.');
+            throw new Error('Database connection string (UNPOOLED) is missing.');
         }
 
-        // Adicionar sslmode=require se necessário
-        if (!connectionString.includes('sslmode=')) {
-            const separator = connectionString.includes('?') ? '&' : '?';
-            connectionString += `${separator}sslmode=require`;
+        // Garantir sslmode=require
+        let finalConnectionString = connectionString;
+        if (!finalConnectionString.includes('sslmode=')) {
+            const separator = finalConnectionString.includes('?') ? '&' : '?';
+            finalConnectionString += `${separator}sslmode=require`;
         }
 
-        console.log('--- Conexão Neon: USANDO DATABASE_URL_UNPOOLED ---');
+        console.log('--- Conexão Neon: USANDO ESTRITAMENTE DATABASE_URL_UNPOOLED (Direta) ---');
         pool = new Pool({
-            connectionString,
+            connectionString: finalConnectionString,
             ssl: {
                 rejectUnauthorized: false
             },
             max: 10,
-            connectionTimeoutMillis: 3000, // Timeout agressivo de 3 segundos para o handshake
+            connectionTimeoutMillis: 3000, 
             idleTimeoutMillis: 10000,
             allowExitOnIdle: true,
-            // @ts-ignore - 'keepAlive' pode não estar em algumas versões de tipagem, mas o pg suporta
+            // @ts-ignore
             keepAlive: true
         });
 
