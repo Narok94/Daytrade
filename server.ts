@@ -26,6 +26,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function createServer() {
+  console.log('Servidor iniciado com sucesso: Iniciando boot do app...');
   const app = express();
 
   app.use(express.json());
@@ -92,7 +93,7 @@ async function createServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(__dirname, "dist");
+    const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("(.*)", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
@@ -106,6 +107,7 @@ async function createServer() {
 const appPromise = createServer();
 
 export default async (req: any, res: any) => {
+  console.log(`Recebendo requisição: ${req.method} ${req.url}`);
   const app = await appPromise;
   return app(req, res);
 };
