@@ -7,21 +7,25 @@ let pool: pg.Pool;
 
 export function getPool() {
     if (!pool) {
-        // Garantir que a DATABASE_URL seja lida como string pura e contenha o sslmode correto
-        let connectionString = (process.env.DATABASE_URL || process.env.POSTGRES_URL || '').trim();
+        // Usar exclusivamente a variável UNPOOLED para evitar travas no pooler do Neon
+        let connectionString = (process.env.DATABASE_URL_UNPOOLED || '').trim();
         
         if (!connectionString) {
-            console.error('FALHA CRÍTICA: DATABASE_URL não definida.');
-            throw new Error('Database connection string is missing.');
+            // Fallback apenas para não quebrar o build, mas o erro será logado
+            connectionString = (process.env.DATABASE_URL || process.env.POSTGRES_URL || '').trim();
+            if (!connectionString) {
+                console.error('FALHA CRÍTICA: DATABASE_URL_UNPOOLED não definida.');
+                throw new Error('Database connection string (UNPOOLED) is missing.');
+            }
         }
 
-        // Adicionar sslmode=require se necessário e remover parâmetros problemáticos para o Neon
+        // Adicionar sslmode=require se necessário
         if (!connectionString.includes('sslmode=')) {
             const separator = connectionString.includes('?') ? '&' : '?';
             connectionString += `${separator}sslmode=require`;
         }
 
-        console.log('--- Conexão Neon: SSL Force + KeepAlive (Timeout 3s) ---');
+        console.log('--- Conexão Neon: USANDO DATABASE_URL_UNPOOLED ---');
         pool = new Pool({
             connectionString,
             ssl: {

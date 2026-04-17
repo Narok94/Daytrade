@@ -5,9 +5,13 @@ import bcrypt from 'bcryptjs';
 async function createAdmin() {
     console.log("--- ODIN: Gerando Acesso Administrativo ---");
     
-    let connectionString = (process.env.DATABASE_URL || process.env.POSTGRES_URL || '').trim();
+    let connectionString = (process.env.DATABASE_URL_UNPOOLED || '').trim();
     if (!connectionString) {
-        console.error("Erro: DATABASE_URL ou POSTGRES_URL não definida.");
+        connectionString = (process.env.DATABASE_URL || process.env.POSTGRES_URL || '').trim();
+    }
+    
+    if (!connectionString) {
+        console.error("Erro: DATABASE_URL_UNPOOLED não definida.");
         return;
     }
 
