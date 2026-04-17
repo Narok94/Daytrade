@@ -79,13 +79,13 @@ const Auth: React.FC = () => {
         }
     }, []);
 
-    const handleRegister = useCallback(async (username: string, password: string, keyword: string) => {
+    const handleRegister = useCallback(async (username: string, password: string) => {
         setAuthError('');
         try {
             const response = await fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password, keyword }),
+                body: JSON.stringify({ username, password }),
             });
 
             const data = await response.json();

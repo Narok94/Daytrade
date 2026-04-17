@@ -143,11 +143,11 @@ export default async function handler(
 
     const client = await db.connect();
     try {
-        const { username, password, keyword } = req.body;
+        const { username, password } = req.body;
         const lowerUsername = username?.toLowerCase();
 
-        if (!username || !password || !keyword) {
-            return res.status(400).json({ error: 'Usuário, senha e palavra-chave são obrigatórios.' });
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Usuário e senha são obrigatórios.' });
         }
         if (password.length < 4) {
             return res.status(400).json({ error: 'A senha deve ter pelo menos 4 caracteres.' });
@@ -155,14 +155,6 @@ export default async function handler(
 
         // Garante que as tabelas existam e migra se necessário
         await ensureTablesAndMigrate(client);
-
-        // Check keyword
-        const { rows: systemSettings } = await client.query("SELECT value FROM system_settings WHERE key = 'registration_keyword'");
-        const validKeyword = systemSettings[0]?.value || 'HRK2026';
-
-        if (keyword !== validKeyword) {
-            return res.status(403).json({ error: 'Palavra-chave de convite inválida.' });
-        }
 
         // Check if user already exists
         const { rows: existingUsers } = await client.query('SELECT * FROM users WHERE username = $1', [lowerUsername]);
