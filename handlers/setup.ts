@@ -34,6 +34,17 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
     `);
 
     // 2. CHECK & ADD ALL POTENTIALLY MISSING COLUMNS
+    const { rows: userColumnsResult } = await client.query(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'users';
+    `);
+    const existingUserColumns = userColumnsResult.map((c: { column_name: string }) => c.column_name);
+    
+    if (existingUserColumns.includes('email') && !existingUserColumns.includes('username')) {
+        console.log("Applying migration: Renaming 'email' to 'username' in 'users' table.");
+        await client.query(`ALTER TABLE users RENAME COLUMN email TO username;`);
+    }
+
     const { rows: columnsResult } = await client.query(`
         SELECT column_name FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'operacoes_daytrade';
