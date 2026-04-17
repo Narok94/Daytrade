@@ -14,6 +14,7 @@ import saveDataHandler from "./api/save-data.js";
 import healthCheckHandler from "./api/health-check.js";
 import setupHandler from "./api/setup.js";
 import aiAnalysisHandler from "./api/ai-analysis.js";
+import setupAdminHandler from "./api/setup-admin.js";
 
 // Admin handlers
 import getAdminUsersHandler from "./api/admin/get-users.js";
@@ -80,6 +81,7 @@ async function startServer() {
   app.post("/api/ai-analysis", authenticateToken, wrapHandler(aiAnalysisHandler, true));
   app.get("/api/health-check", wrapHandler(healthCheckHandler));
   app.get("/api/setup", wrapHandler(setupHandler));
+  app.get("/api/setup-admin", wrapHandler(setupAdminHandler));
   
   // Admin routes (should also be protected)
   app.get("/api/admin/get-users", authenticateToken, wrapHandler(getAdminUsersHandler, true));
