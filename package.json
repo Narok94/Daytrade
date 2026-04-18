@@ -8,12 +8,13 @@
     "build": "vite build",
     "lint": "tsc --noEmit",
     "preview": "vite preview",
-    "start": "node server.ts"
+    "start": "node api/server.js"
   },
   "dependencies": {
     "@google/genai": "^1.0.0",
     "@vercel/postgres": "^0.8.0",
     "bcryptjs": "^2.4.3",
+    "cors": "^2.8.6",
     "express": "^5.2.1",
     "framer-motion": "^12.37.0",
     "jsonwebtoken": "^9.0.3",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.1",
     "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/pg": "^8.20.0",

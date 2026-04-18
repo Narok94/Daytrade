@@ -2,12 +2,14 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import jwt from "jsonwebtoken";
+import cors from "cors";
 import { createServer as createViteServer } from "vite";
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret-fallback-for-dev-only';
 
-// Import AI handler
-import aiAnalysisHandler from "./handlers/ai-analysis";
+// Import Handlers with .js extension 
+import loginHandler from "./handlers/login.js";
+import aiAnalysisHandler from "./handlers/ai-analysis.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,6 +18,7 @@ async function startServer() {
   console.log('--- Iniciando Servidor MOCK (Sem Banco de Dados) ---');
   const app = express();
 
+  app.use(cors());
   app.use(express.json());
 
   // Middleware to authenticate JWT token
@@ -52,23 +55,7 @@ async function startServer() {
   // --- MOCK API ROUTES ---
 
   // Login Mock
-  app.post("/api/login", (req, res) => {
-      const { username, password } = req.body;
-      console.log(`[MOCK LOGIN] Tentativa de login: ${username}`);
-      
-      // Bypass total para admin/admin
-      if (username === 'admin' && password === 'admin') {
-          const user = { id: 'admin-id', username: 'admin', is_admin: true };
-          const token = jwt.sign({ id: user.id, username: user.username, is_admin: true }, JWT_SECRET, { expiresIn: '7d' });
-          return res.json({ 
-              message: 'Login realizado com sucesso!', 
-              token, 
-              user: { id: user.id, username: user.username, isAdmin: true } 
-          });
-      }
-
-      res.status(401).json({ error: 'Credenciais inválidas. Use admin/admin.' });
-  });
+  app.post("/api/login", wrapHandler(loginHandler));
 
   // Register Mock
   app.post("/api/register", (req, res) => {
