@@ -74,7 +74,7 @@ export interface AIAnalysisResult {
 export type AppRecord = DailyRecord | TransactionRecord;
 
 export interface User {
-  id: string | number;
+  id: number;
   username: string;
   isAdmin?: boolean;
   isPaused?: boolean;

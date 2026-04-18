@@ -13,7 +13,9 @@ export default defineConfig(({ mode }) => {
       tailwindcss()
     ],
     define: {
-      // Keys removed for security. Handled via backend proxy.
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || process.env.API_KEY),
+      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY),
+      'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY)
     }
   }
 })

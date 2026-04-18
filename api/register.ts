@@ -1,0 +1,193 @@
+import { db } from '@vercel/postgres';
+import { VercelRequest, VercelResponse } from '@vercel/node';
+import bcrypt from 'bcryptjs';
+import { Brokerage } from '../types';
+import { randomUUID } from 'crypto';
+
+async function ensureTablesAndMigrate(client: any, userId?: number) {
+    // 1. CREATE TABLES (idempotent)
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(50) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            is_admin BOOLEAN DEFAULT FALSE,
+            is_paused BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+    `);
+
+    // Ensure columns exist if table was already created
+    await client.query(`
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS is_paused BOOLEAN DEFAULT FALSE;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
+    `);
+
+    // Set Henrique as admin
+    await client.query(`
+        UPDATE users SET is_admin = TRUE WHERE LOWER(username) = 'henrique';
+    `);
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS operacoes_daytrade (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            record_id VARCHAR(10) NOT NULL,
+            brokerage_id UUID NOT NULL,
+            tipo_operacao TEXT NOT NULL,
+            valor_entrada DECIMAL(10, 2) NOT NULL,
+            payout_percentage INTEGER NOT NULL,
+            resultado DECIMAL(10, 2) NOT NULL,
+            data_operacao TIMESTAMPTZ DEFAULT NOW()
+        );
+    `);
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS user_settings (
+            user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            settings_json JSONB
+        );
+    `);
+
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS system_settings (
+            key VARCHAR(50) PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+    `);
+
+    // Initialize default registration keyword if not exists
+    const { rows: keywordExists } = await client.query("SELECT 1 FROM system_settings WHERE key = 'registration_keyword'");
+    if (keywordExists.length === 0) {
+        await client.query("INSERT INTO system_settings (key, value) VALUES ('registration_keyword', 'HRK2026')");
+    }
+
+    // 2. CHECK & ADD ALL POTENTIALLY MISSING COLUMNS
+    const { rows: columnsResult } = await client.query(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'operacoes_daytrade';
+    `);
+    const existingColumns = columnsResult.map((c: { column_name: string }) => c.column_name);
+
+    if (!existingColumns.includes('user_id')) {
+        console.log("Applying migration: Adding 'user_id' column.");
+        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN user_id INTEGER;`);
+    }
+    if (!existingColumns.includes('record_id')) {
+        console.log("Applying migration: Adding 'record_id' column.");
+        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN record_id VARCHAR(10);`);
+    }
+    if (!existingColumns.includes('brokerage_id')) {
+        console.log("Applying migration: Adding 'brokerage_id' column.");
+        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN brokerage_id UUID;`);
+    }
+    if (!existingColumns.includes('payout_percentage')) {
+        console.log("Applying migration: Adding 'payout_percentage' column.");
+        await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN payout_percentage INTEGER;`);
+    }
+    
+    // 3. POPULATE DATA FOR MIGRATED COLUMNS (if user context is available)
+    if (userId) {
+        // Populate user_id for any orphaned records
+        await client.query(`UPDATE operacoes_daytrade SET user_id = $1 WHERE user_id IS NULL`, [userId]);
+
+        // Populate record_id for any records missing it
+        await client.query(`UPDATE operacoes_daytrade SET record_id = TO_CHAR(data_operacao, 'YYYY-MM-DD') WHERE record_id IS NULL;`);
+        
+        // Populate payout_percentage with a default value if missing
+        await client.query(`UPDATE operacoes_daytrade SET payout_percentage = 80 WHERE payout_percentage IS NULL;`);
+
+        // Populate brokerage_id for records belonging to this user that are missing it
+        const { rows: brokeragelessRows } = await client.query(
+            `SELECT 1 FROM operacoes_daytrade WHERE user_id = $1 AND brokerage_id IS NULL LIMIT 1`,
+            [userId]
+        );
+        
+        if (brokeragelessRows.length > 0) {
+            const { rows: settingsResult } = await client.query(
+                `SELECT settings_json FROM user_settings WHERE user_id = $1;`,
+                [userId]
+            );
+            const settings = settingsResult[0]?.settings_json || {};
+            let brokerages: Brokerage[] = settings.brokerages || [];
+            let brokerageIdToUse: string;
+
+            if (brokerages.length > 0 && brokerages[0].id) {
+                brokerageIdToUse = brokerages[0].id;
+            } else {
+                const defaultBrokerage: Brokerage = { id: randomUUID(), name: 'Gestão Principal', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD', dailyGoalMode: 'percentage', dailyGoalValue: 3 };
+                brokerageIdToUse = defaultBrokerage.id;
+                const goals = settings.goals || [];
+                const newSettings = { brokerages: [defaultBrokerage], goals };
+                await client.query(
+                    `INSERT INTO user_settings (user_id, settings_json) VALUES ($1, $2)
+                     ON CONFLICT (user_id) DO UPDATE SET settings_json = $2;`,
+                    [userId, JSON.stringify(newSettings)]
+                );
+            }
+
+            await client.query(
+                `UPDATE operacoes_daytrade SET brokerage_id = $1 WHERE user_id = $2 AND brokerage_id IS NULL;`,
+                [brokerageIdToUse, userId]
+            );
+        }
+    }
+}
+
+export default async function handler(
+    req: VercelRequest,
+    res: VercelResponse,
+) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    const client = await db.connect();
+    try {
+        const { username, password, keyword } = req.body;
+        const lowerUsername = username?.toLowerCase();
+
+        if (!username || !password || !keyword) {
+            return res.status(400).json({ error: 'Usuário, senha e palavra-chave são obrigatórios.' });
+        }
+        if (password.length < 4) {
+            return res.status(400).json({ error: 'A senha deve ter pelo menos 4 caracteres.' });
+        }
+
+        // Garante que as tabelas existam e migra se necessário
+        await ensureTablesAndMigrate(client);
+
+        // Check keyword
+        const { rows: systemSettings } = await client.query("SELECT value FROM system_settings WHERE key = 'registration_keyword'");
+        const validKeyword = systemSettings[0]?.value || 'HRK2026';
+
+        if (keyword !== validKeyword) {
+            return res.status(403).json({ error: 'Palavra-chave de convite inválida.' });
+        }
+
+        // Check if user already exists
+        const { rows: existingUsers } = await client.query('SELECT * FROM users WHERE username = $1', [lowerUsername]);
+        if (existingUsers.length > 0) {
+            return res.status(409).json({ error: 'Este nome de usuário já existe.' });
+        }
+
+        // Hash password
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+
+        // Insert new user
+        await client.query(
+            'INSERT INTO users (username, password_hash) VALUES ($1, $2)',
+            [lowerUsername, passwordHash]
+        );
+
+        return res.status(201).json({ message: 'Usuário registrado com sucesso.' });
+    } catch (error: any) {
+        console.error('Register API Error:', error);
+        return res.status(500).json({ 
+            error: 'Erro ao registrar usuário', 
+            details: error.message 
+        });
+    } finally {
+        client.release();
+    }
+}
