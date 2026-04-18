@@ -1,14 +1,10 @@
 import express from "express";
-import path from "path";
-import { fileURLToPath } from "url";
 import cors from "cors";
+import path from "path";
 
 // Import Handlers with .js extension as requested for ESM
 import loginHandler from "../handlers/login.js";
 import aiAnalysisHandler from "../handlers/ai-analysis.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -16,7 +12,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Helper to wrap handlers (since they are usually Vercel-style (req, res))
+// Helper to wrap handlers
 const wrapHandler = (handler: any) => async (req: any, res: any) => {
     try {
         await handler(req, res);
@@ -32,7 +28,7 @@ const wrapHandler = (handler: any) => async (req: any, res: any) => {
 app.post("/api/login", wrapHandler(loginHandler));
 app.post("/api/ai-analysis", wrapHandler(aiAnalysisHandler));
 
-// Mock Data Routes (Para manter o sistema funcionando sem DB)
+// Mock Data Routes
 app.get("/api/get-data", (req, res) => res.json({ brokerages: [], records: [], goals: [] }));
 app.post("/api/save-data", (req, res) => res.json({ message: 'Dados salvos (Mock).' }));
 app.get("/api/health-check", (req, res) => res.json({ status: 'online', database: 'disconnected' }));
@@ -52,13 +48,5 @@ app.get("*", (req: any, res: any, next: any) => {
     if (req.url.startsWith('/api/')) return next();
     res.sendFile(path.join(distPath, "index.html"));
 });
-
-// Apenas escuta se não estiver na Vercel (ou se for chamado diretamente)
-if (process.env.NODE_ENV !== "production") {
-    const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => {
-        console.log(`Server (Production Style) running on http://localhost:${PORT}`);
-    });
-}
 
 export default app;
