@@ -45,7 +45,7 @@ app.use(express.static(distPath));
 app.use(express.static('public')); // Ensure public is served if needed
 
 // Fallback para SPA (index.html)
-app.get("/:path*", (req: any, res: any, next: any) => {
+app.get("/(.*)", (req: any, res: any, next: any) => {
     if (req.url.startsWith('/api/')) return next();
     res.sendFile(path.join(distPath, "index.html"));
 });

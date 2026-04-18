@@ -103,7 +103,7 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("/:path*", (req: any, res: any, next: any) => {
+    app.get("/(.*)", (req: any, res: any, next: any) => {
       if (req.url.startsWith('/api/')) return next();
       res.sendFile(path.join(distPath, "index.html"));
     });
