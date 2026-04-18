@@ -1,61 +1,137 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import jwt from "jsonwebtoken";
 
-// Import Vercel handlers
-import loginHandler from "./api/login";
-import registerHandler from "./api/register";
-import getDataHandler from "./api/get-data";
-import saveDataHandler from "./api/save-data";
-import healthCheckHandler from "./api/health-check";
-import setupHandler from "./api/setup";
+const JWT_SECRET = process.env.JWT_SECRET || 'secret-fallback-for-dev-only';
+
+// Import AI handler
+import aiAnalysisHandler from "./handlers/ai-analysis";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+console.log('--- Iniciando Servidor MOCK (Sem Banco de Dados) ---');
+const app = express();
 
-  app.use(express.json());
+app.use(express.json());
 
-  // Helper to wrap Vercel handlers for Express
-  const wrapHandler = (handler: any) => async (req: any, res: any) => {
-    try {
-      await handler(req, res);
-    } catch (error: any) {
-      console.error("API Error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  };
+// Middleware to authenticate JWT token
+const authenticateToken = (req: any, res: any, next: any) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
 
-  // API routes
-  app.post("/api/login", wrapHandler(loginHandler));
-  app.post("/api/register", wrapHandler(registerHandler));
-  app.get("/api/get-data", wrapHandler(getDataHandler));
-  app.post("/api/save-data", wrapHandler(saveDataHandler));
-  app.get("/api/health-check", wrapHandler(healthCheckHandler));
-  app.get("/api/setup", wrapHandler(setupHandler));
-
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    // Serve static files in production
-    app.use(express.static(path.join(__dirname, "dist")));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "dist", "index.html"));
-    });
+  if (!token) {
+    return res.status(401).json({ error: 'Token de autenticação não fornecido.' });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+    if (err) {
+      return res.status(403).json({ error: 'Token inválido ou expirado.' });
+    }
+    req.user = user;
+    next();
   });
-}
+};
 
-startServer();
+// Helper to wrap Vercel handlers for Express
+const wrapHandler = (handler: any) => async (req: any, res: any) => {
+  console.log(`[API REQUEST] ${req.method} ${req.url}`);
+  try {
+    await handler(req, res);
+  } catch (error: any) {
+    console.error("API ERROR:", error.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message || 'Erro interno no servidor' });
+    }
+  }
+};
+
+// --- MOCK API ROUTES ---
+
+// Login Mock
+app.post("/api/login", (req, res) => {
+    const { username, password } = req.body;
+    console.log(`[MOCK LOGIN] Tentativa de login: ${username}`);
+    
+    // Bypass total para admin/admin
+    if (username === 'admin' && password === 'admin') {
+        const user = { id: 'admin-id', username: 'admin', is_admin: true };
+        const token = jwt.sign({ id: user.id, username: user.username, is_admin: true }, JWT_SECRET, { expiresIn: '7d' });
+        return res.json({ 
+            message: 'Login realizado com sucesso!', 
+            token, 
+            user: { id: user.id, username: user.username, isAdmin: true } 
+        });
+    }
+
+    // Para outros usuários, vamos apenas permitir por enquanto se a senha for "admin" (para facilitar testes)
+    // Mas a instrução diz: usuário admin senha admin.
+    res.status(401).json({ error: 'Credenciais inválidas. Use admin/admin.' });
+});
+
+// Register Mock
+app.post("/api/register", (req, res) => {
+    res.status(400).json({ error: 'O registro está desativado temporariamente. Use o login admin/admin.' });
+});
+
+// Get Data Mock (Returns empty or handled by frontend localStorage)
+app.get("/api/get-data", authenticateToken, (req, res) => {
+    res.json({ brokerages: [], records: [], goals: [] });
+});
+
+// Save Data Mock (Success only)
+app.post("/api/save-data", authenticateToken, (req, res) => {
+    res.json({ message: 'Dados salvos localmente (Mock).' });
+});
+
+// Health Check Mock
+app.get("/api/health-check", (req, res) => {
+    res.json({ status: 'online', database: 'disconnected (mock mode)' });
+});
+
+// AI Analysis (Keep real functionality)
+app.post("/api/ai-analysis", authenticateToken, wrapHandler(aiAnalysisHandler));
+
+// Admin Mocks
+app.get("/api/admin/get-users", authenticateToken, (req: any, res) => {
+    if (!req.user?.is_admin) return res.status(403).json({ error: 'Acesso negado.' });
+    res.json([{ id: 'admin-id', username: 'admin', isAdmin: true, isPaused: false, createdAt: new Date(), lastLoginAt: new Date() }]);
+});
+
+app.post("/api/admin/toggle-pause", authenticateToken, (req: any, res) => {
+    res.json({ message: 'Status alterado (Mock).' });
+});
+
+app.post("/api/admin/update-system-settings", authenticateToken, (req: any, res) => {
+    res.json({ message: 'Configurações atualizadas (Mock).' });
+});
+
+app.get("/api/admin/get-system-settings", authenticateToken, (req: any, res) => {
+    res.json({ registrationKeyword: 'ADMIN_BYPASS' });
+});
+
+app.post("/api/admin/reset-password", authenticateToken, (req: any, res) => {
+    res.json({ message: 'Senha resetada (Mock).' });
+});
+
+// Production dist
+const distPath = path.join(process.cwd(), "dist");
+app.use(express.static(distPath));
+
+// SPA fallback
+app.get("*", (req: any, res: any, next: any) => {
+  if (req.url.startsWith('/api/')) return next();
+  res.sendFile(path.join(distPath, "index.html"), (err: any) => {
+      if (err) {
+          if (!res.headersSent) res.status(404).send("Not Found");
+      }
+  });
+});
+
+const PORT = 3000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Mock server running on http://0.0.0.0:${PORT}`);
+});
+
+export default app;

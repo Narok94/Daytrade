@@ -18,14 +18,6 @@ const Auth: React.FC = () => {
 
             const savedUser = JSON.parse(savedUserJSON);
 
-            // FIX: Validate the user object.
-            if (savedUser && (typeof savedUser.id !== 'number' || !Number.isInteger(savedUser.id))) {
-                console.warn('Corrupt user session found. Clearing session to force re-authentication.');
-                sessionStorage.removeItem('currentUser');
-                localStorage.removeItem('currentUser');
-                return null; 
-            }
-            
             return savedUser;
         } catch (error) {
             console.error("Failed to parse user from storage. Clearing...", error);
@@ -39,31 +31,39 @@ const Auth: React.FC = () => {
     const handleLogin = useCallback(async (username: string, password: string, rememberMe: boolean = false): Promise<boolean> => {
         setAuthError('');
         try {
+            const data = { username, password };
+            console.log('Dados enviados:', data);
+            
             const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify(data),
             });
 
-            const data = await response.json();
+            const resData = await response.json();
 
             if (response.ok) {
-                const user: User = data.user;
+                const user: User = resData.user;
+                const token: string = resData.token;
+                
                 setCurrentUser(user);
                 
-                // Always set sessionStorage for the current session
+                // Set sessionStorage for the current session
                 sessionStorage.setItem('currentUser', JSON.stringify(user));
+                sessionStorage.setItem('authToken', token);
                 
                 // If rememberMe is checked, also set localStorage
                 if (rememberMe) {
                     localStorage.setItem('currentUser', JSON.stringify(user));
+                    localStorage.setItem('authToken', token);
                 } else {
                     localStorage.removeItem('currentUser');
+                    localStorage.removeItem('authToken');
                 }
                 
                 return true;
             } else {
-                const errorMessage = data.details ? `${data.error}: ${data.details}` : (data.error || 'Falha ao fazer login.');
+                const errorMessage = resData.details ? `${resData.error}: ${resData.details}` : (resData.error || 'Falha ao fazer login.');
                 setAuthError(errorMessage);
                 return false;
             }
@@ -74,13 +74,13 @@ const Auth: React.FC = () => {
         }
     }, []);
 
-    const handleRegister = useCallback(async (username: string, password: string, keyword: string) => {
+    const handleRegister = useCallback(async (username: string, password: string) => {
         setAuthError('');
         try {
             const response = await fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password, keyword }),
+                body: JSON.stringify({ username, password }),
             });
 
             const data = await response.json();
@@ -101,7 +101,9 @@ const Auth: React.FC = () => {
     const handleLogout = useCallback(() => {
         setCurrentUser(null);
         sessionStorage.removeItem('currentUser');
+        sessionStorage.removeItem('authToken');
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('authToken');
     }, []);
 
     if (!currentUser) {

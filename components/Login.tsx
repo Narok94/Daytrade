@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface LoginProps {
     onLogin: (username: string, password: string, rememberMe: boolean) => Promise<boolean>;
-    onRegister: (username: string, password: string, keyword: string) => Promise<void>;
+    onRegister: (username: string, password: string) => Promise<void>;
     error: string;
     setError: (error: string) => void;
 }
@@ -70,7 +70,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [keyword, setKeyword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
     const [isRegistering, setIsRegistering] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -87,12 +86,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                     setIsLoading(false);
                     return;
                 }
-                if (!keyword) {
-                    setError('A palavra-chave de convite é obrigatória.');
-                    setIsLoading(false);
-                    return;
-                }
-                await onRegister(username, password, keyword);
+                await onRegister(username, password);
             } else {
                 await onLogin(username, password, rememberMe);
             }
@@ -106,7 +100,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
         setUsername('');
         setPassword('');
         setConfirmPassword('');
-        setKeyword('');
         setError('');
     };
 
@@ -217,14 +210,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                                     icon={LockClosedIcon}
                                     required
                                 />
-                                <FloatingInput 
-                                    label="Palavra-Chave de Convite"
-                                    type="text"
-                                    value={keyword}
-                                    onChange={(e) => setKeyword(e.target.value)}
-                                    icon={SparklesIcon}
-                                    required
-                                />
                             </motion.div>
                         )}
 
@@ -285,7 +270,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
 
                             <button
                                 type="submit"
-                                disabled={isLoading}
                                 onMouseEnter={() => setIsHoveringButton(true)}
                                 onMouseLeave={() => setIsHoveringButton(false)}
                                 className="w-full h-14 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-2xl uppercase text-[11px] tracking-[0.2em] shadow-[0_10px_30px_rgba(168,85,247,0.3)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] relative overflow-hidden group"
