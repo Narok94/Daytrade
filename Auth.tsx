@@ -39,64 +39,37 @@ const Auth: React.FC = () => {
     const handleLogin = useCallback(async (username: string, password: string, rememberMe: boolean = false): Promise<boolean> => {
         setAuthError('');
         try {
-            const response = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                const user: User = data.user;
+            // LOGIN FIXO: admin / admin
+            if (username === 'admin' && password === 'admin') {
+                const user: User = {
+                    id: 1,
+                    username: 'admin',
+                    isAdmin: true,
+                    isPaused: false
+                };
                 setCurrentUser(user);
                 
-                // Always set sessionStorage for the current session
                 sessionStorage.setItem('currentUser', JSON.stringify(user));
-                
-                // If rememberMe is checked, also set localStorage
                 if (rememberMe) {
                     localStorage.setItem('currentUser', JSON.stringify(user));
                 } else {
                     localStorage.removeItem('currentUser');
                 }
-                
                 return true;
             } else {
-                const errorMessage = data.details ? `${data.error}: ${data.details}` : (data.error || 'Falha ao fazer login.');
-                setAuthError(errorMessage);
+                setAuthError('Usuário ou senha inválidos.');
                 return false;
             }
         } catch (error) {
             console.error(error);
-            setAuthError('Erro de conexão. Verifique sua internet e tente novamente.');
+            setAuthError('Erro ao tentar logar.');
             return false;
         }
     }, []);
 
     const handleRegister = useCallback(async (username: string, password: string, keyword: string) => {
-        setAuthError('');
-        try {
-            const response = await fetch('/api/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password, keyword }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                // Automatically log in the new user
-                await handleLogin(username, password);
-            } else {
-                const errorMessage = data.details ? `${data.error}: ${data.details}` : (data.error || 'Falha ao registrar.');
-                setAuthError(errorMessage);
-            }
-        } catch (error) {
-            console.error(error);
-            setAuthError('Erro de conexão ao tentar registrar.');
-        }
-    }, [handleLogin]);
+        setAuthError('Registro desativado. Use admin/admin para acessar.');
+    }, []);
 
     const handleLogout = useCallback(() => {
         setCurrentUser(null);

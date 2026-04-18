@@ -605,22 +605,59 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`/api/get-data?userId=${user.id}&_=${Date.now()}`);
-            if (response.ok) {
-                const data = await response.json();
+            const savedData = localStorage.getItem(`app_data_v2_${user.id}`);
+            if (savedData) {
+                const data = JSON.parse(savedData);
                 const loadedBrokerages = data.brokerages?.length ? data.brokerages : [{ id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD', dailyGoalMode: 'percentage', dailyGoalValue: 3 }];
                 const recalibratedRecords = recalibrateAll(data.records || [], loadedBrokerages);
                 setBrokerages(loadedBrokerages); 
                 setRecords(recalibratedRecords); 
                 setGoals(data.goals || []);
-                
-                // Load trash from localStorage as a local safety net
-                const localTrash = localStorage.getItem(`trash_${user.id}`);
-                if (localTrash) {
-                    try { setTrash(JSON.parse(localTrash)); } catch(e) {}
-                }
+            } else {
+                // Default data if none exists
+                const defaultBrokerage: Brokerage = { 
+                    id: crypto.randomUUID(), 
+                    name: 'Gestão Profissional', 
+                    initialBalance: 10, 
+                    entryMode: 'percentage', 
+                    entryValue: 10, 
+                    payoutPercentage: 80, 
+                    stopGainTrades: 3, 
+                    stopLossTrades: 2, 
+                    currency: 'USD', 
+                    dailyGoalMode: 'percentage', 
+                    dailyGoalValue: 3 
+                };
+                setBrokerages([defaultBrokerage]);
+                setRecords([]);
+                setGoals([]);
             }
-        } catch (e) { console.error(e); } finally { setIsLoading(false); }
+
+            // Load trash
+            const localTrash = localStorage.getItem(`trash_${user.id}`);
+            if (localTrash) {
+                try { setTrash(JSON.parse(localTrash)); } catch(e) {}
+            }
+        } catch (e) {
+            console.error(e);
+            // On error, reset to defaults
+            const defaultBrokerage: Brokerage = { 
+                id: crypto.randomUUID(), 
+                name: 'Gestão Profissional', 
+                initialBalance: 10, 
+                entryMode: 'percentage', 
+                entryValue: 10, 
+                payoutPercentage: 80, 
+                stopGainTrades: 3, 
+                stopLossTrades: 2, 
+                currency: 'USD', 
+                dailyGoalMode: 'percentage', 
+                dailyGoalValue: 3 
+            };
+            setBrokerages([defaultBrokerage]);
+        } finally {
+            setIsLoading(false);
+        }
     }, [user.id, recalibrateAll]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
@@ -628,11 +665,20 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     const saveData = useCallback(async () => {
         setSavingStatus('saving');
         try {
-            const payload = { userId: latestDataRef.current.userId, brokerages: latestDataRef.current.brokerages, records: latestDataRef.current.records, goals: latestDataRef.current.goals };
-            const response = await fetch('/api/save-data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (response.ok) { setSavingStatus('saved'); setTimeout(() => setSavingStatus('idle'), 2000); }
-        } catch (error: any) { setSavingStatus('error'); }
-    }, []);
+            const payload = { 
+                userId: latestDataRef.current.userId, 
+                brokerages: latestDataRef.current.brokerages, 
+                records: latestDataRef.current.records, 
+                goals: latestDataRef.current.goals 
+            };
+            localStorage.setItem(`app_data_v2_${user.id}`, JSON.stringify(payload));
+            setSavingStatus('saved'); 
+            setTimeout(() => setSavingStatus('idle'), 2000);
+        } catch (error: any) { 
+            console.error("Save error:", error);
+            setSavingStatus('error'); 
+        }
+    }, [user.id]);
 
     const debouncedSave = useDebouncedCallback(saveData, 1000);
 

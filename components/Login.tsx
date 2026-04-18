@@ -297,24 +297,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                     </form>
 
                     <div className="mt-8 text-center">
-                        <button
-                            type="button"
-                            onClick={toggleView}
-                            disabled={isLoading}
-                            className="text-[11px] font-black uppercase tracking-widest text-slate-500 transition-all group"
-                        >
-                            {isRegistering ? (
-                                <>Já tem uma conta? <span className="text-purple-400 group-hover:text-purple-300 relative inline-block">
-                                    Login
-                                    <span className="absolute bottom-0 left-0 w-full h-[1px] bg-purple-400 scale-x-0 group-hover:scale-x-100 transition-transform origin-center" />
-                                </span></>
-                            ) : (
-                                <>Novo por aqui? <span className="text-purple-400 group-hover:text-purple-300 relative inline-block">
-                                    Crie uma conta
-                                    <span className="absolute bottom-0 left-0 w-full h-[1px] bg-purple-400 scale-x-0 group-hover:scale-x-100 transition-transform origin-center" />
-                                </span></>
-                            )}
-                        </button>
+                        <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                            Acesso Restrito ao Administrador
+                        </p>
                     </div>
                 </div>
             </div>
