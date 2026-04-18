@@ -88,7 +88,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.8 }}
-                        src="/logo-odin.png" 
+                        src="/logo-odin.png.png" 
                         className="w-56 h-auto mb-6" 
                         alt="Logo ODIN"
                         referrerPolicy="no-referrer"

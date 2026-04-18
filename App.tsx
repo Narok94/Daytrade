@@ -105,11 +105,11 @@ const useThemeClasses = (isDarkMode: boolean) => {
 
 // --- Components ---
 const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
-    <div className={`animate-pulse bg-white/5 rounded-none ${className}`} />
+    <div className={`animate-pulse bg-white/5 rounded-xl ${className}`} />
 );
 
 const GlassCard: React.FC<{ children: React.ReactNode; className?: string; theme: any }> = ({ children, className = '', theme }) => (
-    <div className={`p-6 lg:p-8 rounded-none border border-white/10 backdrop-blur-xl ${theme.card} ${className}`}>
+    <div className={`p-6 lg:p-8 rounded-2xl border border-white/10 backdrop-blur-xl ${theme.card} ${className}`}>
         {children}
     </div>
 );
@@ -144,7 +144,7 @@ const ActionButton: React.FC<{
             onClick={onClick}
             disabled={disabled}
             className={`
-                flex items-center justify-center gap-2 px-6 py-4 rounded-none font-black text-[10px] uppercase tracking-[0.2em]
+                flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-[0.2em]
                 transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
                 ${variants[variant]} ${className}
             `}
@@ -334,7 +334,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                 <GlassCard theme={theme} className="animate-pulse">
                     <SectionTitle title="Análise Neural" subtitle="Insights baseados em IA" icon={CpuChipIcon} theme={theme} />
                     <div className="space-y-6">
-                        <div className="flex items-center justify-between p-4 rounded-none bg-white/5 border border-white/10">
+                        <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
                             <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Status do Motor</span>
                             <span className="text-xs font-black text-electric uppercase tracking-[0.2em] animate-pulse">Processando...</span>
                         </div>
@@ -350,7 +350,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                                         <span>{p.label}</span>
                                         <span>{p.val}%</span>
                                     </div>
-                                    <div className="h-1 bg-white/5 rounded-none overflow-hidden border border-white/5">
+                                    <div className="h-1 bg-white/5 rounded-full overflow-hidden border border-white/5">
                                         <div className="h-full bg-electric transition-all duration-500 shadow-[0_0_15px_rgba(0,243,255,0.5)]" style={{ width: `${p.val}%` }} />
                                     </div>
                                 </div>
@@ -374,7 +374,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                     </div>
 
                     <div className="space-y-8">
-                        <div className="p-8 rounded-none bg-electric/5 border border-electric/20 text-center relative overflow-hidden">
+                        <div className="p-8 rounded-2xl bg-electric/5 border border-electric/20 text-center relative overflow-hidden">
                             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-electric/40 to-transparent animate-pulse" />
                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Recomendação</p>
                             <h3 className={`text-7xl font-black tracking-tighter mb-2 ${
@@ -401,7 +401,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                             <div className="p-6 rounded-none bg-white/5 border border-white/10 text-center font-display">
                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Confiança</p>
                                 <p className="text-4xl font-black text-[#00ff88]">{analysisResult.confidence}%</p>
-                                <div className="w-full h-1 bg-white/5 rounded-none overflow-hidden mt-3 border border-white/5">
+                                <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden mt-3 border border-white/5">
                                     <div className="h-full bg-[#00ff88]" style={{ width: `${analysisResult.confidence}%` }} />
                                 </div>
                             </div>
@@ -410,13 +410,13 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                         <div className="space-y-4">
                             <button 
                                 onClick={() => setShowDetailed(!showDetailed)}
-                                className="w-full p-5 bg-white/5 border border-white/10 rounded-none flex items-center justify-between hover:bg-white/10 transition-all active:scale-[0.98]"
+                                className="w-full p-5 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between hover:bg-white/10 transition-all active:scale-[0.98]"
                             >
                                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Logs Técnicos</span>
                                 <ChevronDownIcon className={`w-5 h-5 text-slate-500 transition-transform duration-300 ${showDetailed ? 'rotate-180' : ''}`} />
                             </button>
                             {showDetailed && (
-                                <div className="p-6 bg-white/5 rounded-none text-xs text-slate-400 leading-relaxed font-black uppercase tracking-widest border border-white/10 animate-in slide-in-from-top-2 duration-300">
+                                <div className="p-6 bg-white/5 rounded-xl text-xs text-slate-400 leading-relaxed font-black uppercase tracking-widest border border-white/10 animate-in slide-in-from-top-2 duration-300">
                                     <div className="flex gap-2 mb-3">
                                         <span className="text-electric font-black tracking-[0.2em]">[IA_CORE]</span>
                                         <span className="text-slate-300">Analisando padrões de price action...</span>
@@ -442,10 +442,10 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                 
                 {!selectedImage ? (
                     <div className="space-y-8">
-                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 rounded-none p-12 bg-white/5 backdrop-blur-md space-y-10 relative overflow-hidden group">
+                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 rounded-2xl p-12 bg-white/5 backdrop-blur-md space-y-10 relative overflow-hidden group">
                             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-electric/40 to-transparent animate-pulse" />
                             
-                            <div className="w-28 h-28 rounded-none bg-electric/5 border border-electric/20 flex items-center justify-center text-electric shadow-[0_0_50px_rgba(0,243,255,0.1)] group-hover:scale-110 transition-transform duration-500">
+                            <div className="w-28 h-28 rounded-2xl bg-electric/5 border border-electric/20 flex items-center justify-center text-electric shadow-[0_0_50px_rgba(0,243,255,0.1)] group-hover:scale-110 transition-transform duration-500">
                                 <PhotoIcon className="w-14 h-14" />
                             </div>
                             
@@ -455,19 +455,19 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                             </div>
                             
                             <div className="w-full grid grid-cols-2 gap-4">
-                                <label className="py-6 bg-electric hover:brightness-110 text-charcoal rounded-none flex flex-col items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest cursor-pointer transition-all shadow-xl active:scale-95">
+                                <label className="py-6 bg-electric hover:brightness-110 text-charcoal rounded-xl flex flex-col items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest cursor-pointer transition-all shadow-xl active:scale-95">
                                     <CameraIcon className="w-7 h-7" /> Câmera
                                     <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                                 </label>
-                                <label className="py-6 bg-white/5 hover:bg-white/10 text-white rounded-none flex flex-col items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest cursor-pointer transition-all border border-white/10 active:scale-95">
+                                <label className="py-6 bg-white/5 hover:bg-white/10 text-white rounded-xl flex flex-col items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest cursor-pointer transition-all border border-white/10 active:scale-95">
                                     <PhotoIcon className="w-7 h-7" /> Galeria
                                     <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                                 </label>
                             </div>
                         </div>
 
-                        <div className="p-6 rounded-none bg-white/5 border border-white/10 flex items-start gap-4">
-                            <div className="w-10 h-10 rounded-none bg-electric/10 flex items-center justify-center text-electric shrink-0 border border-electric/20">
+                        <div className="p-6 rounded-xl bg-white/5 border border-white/10 flex items-start gap-4">
+                            <div className="w-10 h-10 rounded-lg bg-electric/10 flex items-center justify-center text-electric shrink-0 border border-electric/20">
                                 <InformationCircleIcon className="w-6 h-6" />
                             </div>
                             <p className="text-[10px] text-slate-400 leading-relaxed uppercase tracking-widest font-black">
@@ -477,10 +477,10 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                     </div>
                 ) : (
                     <div className="space-y-8">
-                        <div className="relative aspect-video rounded-none overflow-hidden border border-electric/30 bg-white/5 shadow-2xl group">
+                        <div className="relative aspect-video rounded-2xl overflow-hidden border border-electric/30 bg-white/5 shadow-2xl group">
                             <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
                             <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 to-transparent pointer-events-none" />
-                            <button onClick={() => setSelectedImage(null)} className="absolute top-4 right-4 p-3 bg-black/50 backdrop-blur-md rounded-none text-white hover:bg-red-500 transition-all active:scale-90">
+                            <button onClick={() => setSelectedImage(null)} className="absolute top-4 right-4 p-3 bg-black/50 backdrop-blur-md rounded-xl text-white hover:bg-red-500 transition-all active:scale-90">
                                 <XMarkIcon className="w-5 h-5" />
                             </button>
                         </div>
@@ -783,7 +783,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     }, [brokerages, records]);
 
     const theme = useThemeClasses(isDarkMode);
-    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-electric border-t-transparent rounded-none animate-spin" /></div>;
+    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-electric border-t-transparent rounded-full animate-spin" /></div>;
 
     const dateStr = getLocalDateString(selectedDate);
     const brokerageRecords = records.filter(r => r.brokerageId === activeBrokerage?.id);
@@ -883,9 +883,9 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                                         transition={{ duration: 3, repeat: Infinity }}
                                         className="absolute inset-0 bg-purple-500 rounded-full blur-xl"
                                     />
-                                    <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-none bg-electric p-0.5 flex items-center justify-center shadow-lg shadow-electric/20">
-                                        <div className="w-full h-full rounded-none bg-charcoal flex items-center justify-center p-1.5">
-                                            <img src="/logo-odin.png" className="w-full h-auto opacity-90" alt="" referrerPolicy="no-referrer" />
+                                    <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-xl bg-electric p-0.5 flex items-center justify-center shadow-lg shadow-electric/20">
+                                        <div className="w-full h-full rounded-[0.6rem] bg-charcoal flex items-center justify-center p-1.5">
+                                            <img src="/logo-odin.png.png" className="w-full h-auto opacity-90" alt="" referrerPolicy="no-referrer" />
                                         </div>
                                     </div>
                                 </div>
@@ -900,7 +900,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                                 </div>
                             </div>
 
-                            <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-none bg-white/5 border border-white/10 text-[7px] font-black uppercase tracking-[0.2em] text-gold">
+                            <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[7px] font-black uppercase tracking-[0.2em] text-gold">
                                 <div className="w-1 h-1 rounded-full bg-electric animate-pulse" />
                                 Market: Active
                             </div>
@@ -937,18 +937,18 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                                     className={`relative group transition-all hover:scale-105 active:scale-95 ${activeTab === 'settings' ? 'ring-2 ring-electric ring-offset-2 ring-offset-charcoal' : ''}`}
                                     title="Configurações"
                                 >
-                                    <div className="w-7 h-7 md:w-9 md:h-9 rounded-none bg-electric flex items-center justify-center text-charcoal font-black text-[8px] md:text-xs shadow-lg shadow-electric/20">
+                                    <div className="w-7 h-7 md:w-9 md:h-9 rounded-xl bg-electric flex items-center justify-center text-charcoal font-black text-[8px] md:text-xs shadow-lg shadow-electric/20">
                                         {user.username.slice(0, 2).toUpperCase()}
                                     </div>
                                     {user.isAdmin && (
-                                        <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-gold rounded-none border border-charcoal flex items-center justify-center" title="Administrador">
+                                        <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-gold rounded-full border border-charcoal flex items-center justify-center" title="Administrador">
                                             <SparklesIcon className="w-1.5 h-1.5 md:w-2 md:h-2 text-charcoal" />
                                         </div>
                                     )}
                                 </button>
                                 <button 
                                     onClick={onLogout}
-                                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-none transition-all active:scale-95"
+                                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-all active:scale-95"
                                     title="Sair"
                                 >
                                     <LogoutIcon className="w-5 h-5" />
@@ -974,7 +974,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                                 <button 
                                     key={item.id}
                                     onClick={() => setActiveTab(item.id)}
-                                    className={`flex items-center gap-2 px-3 md:px-6 py-2 rounded-none font-black text-[8px] md:text-[10px] uppercase tracking-[0.2em] transition-all whitespace-nowrap active:scale-95 ${
+                                    className={`flex items-center gap-2 px-3 md:px-6 py-2 rounded-xl font-black text-[8px] md:text-[10px] uppercase tracking-[0.2em] transition-all whitespace-nowrap active:scale-95 ${
                                         activeTab === item.id 
                                             ? 'bg-gold text-charcoal shadow-lg shadow-gold/20' 
                                             : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'
@@ -1167,13 +1167,13 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
                     <h2 className={`text-2xl md:text-3xl font-black uppercase tracking-tight text-white font-display`}>Painel Admin<span className="text-electric">.</span></h2>
                     <p className="text-[10px] uppercase text-slate-500 font-black tracking-[0.2em]">Gerenciamento de usuários e sistema</p>
                 </div>
-                <button onClick={fetchUsers} className="p-3 rounded-none bg-white/5 text-electric hover:bg-white/10 transition-all active:scale-90 border border-white/10">
+                <button onClick={fetchUsers} className="p-3 rounded-xl bg-white/5 text-electric hover:bg-white/10 transition-all active:scale-90 border border-white/10">
                     <ArrowPathIcon className={`w-6 h-6 ${isLoading ? 'animate-spin' : ''}`} />
                 </button>
             </div>
 
             {message && (
-                <div className={`p-4 rounded-none flex items-center gap-3 border animate-in zoom-in-95 duration-300 ${message.type === 'success' ? 'bg-[#00ff88]/10 text-[#00ff88] border-[#00ff88]/20' : 'bg-[#ff4444]/10 text-[#ff4444] border-[#ff4444]/20'}`}>
+                <div className={`p-4 rounded-xl flex items-center gap-3 border animate-in zoom-in-95 duration-300 ${message.type === 'success' ? 'bg-[#00ff88]/10 text-[#00ff88] border-[#00ff88]/20' : 'bg-[#ff4444]/10 text-[#ff4444] border-[#ff4444]/20'}`}>
                     {message.type === 'success' ? <CheckCircleIcon className="w-5 h-5" /> : <ExclamationTriangleIcon className="w-5 h-5" />}
                     <span className="text-sm font-black uppercase tracking-widest">{message.text}</span>
                     <button onClick={() => setMessage(null)} className="ml-auto opacity-50 hover:opacity-100 transition-opacity"><XMarkIcon className="w-4 h-4" /></button>
@@ -1201,7 +1201,7 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
                             variant="primary"
                             onClick={updateRegistrationKeyword}
                             disabled={isUpdatingKeyword}
-                            className="w-full h-14 rounded-none"
+                            className="w-full h-14 rounded-xl"
                             icon={CheckCircleIcon}
                         >
                             {isUpdatingKeyword ? 'Atualizando...' : 'Atualizar Chave'}
@@ -1230,19 +1230,19 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
                                     <tr key={u.id} className="hover:bg-white/5 transition-colors group">
                                         <td className="px-6 py-5">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-none bg-electric/10 flex items-center justify-center text-electric font-black text-xs border border-electric/20 uppercase">
+                                                <div className="w-10 h-10 rounded-xl bg-electric/10 flex items-center justify-center text-electric font-black text-xs border border-electric/20 uppercase">
                                                     {u.username.slice(0, 2).toUpperCase()}
                                                 </div>
                                                 <span className="font-black text-slate-200 uppercase tracking-widest text-xs">{u.username}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-5">
-                                            <span className={`px-3 py-1 rounded-none text-[10px] font-black uppercase tracking-widest ${u.isPaused ? 'bg-[#ff4444]/10 text-[#ff4444] border border-[#ff4444]/20' : 'bg-[#00ff88]/10 text-[#00ff88] border border-[#00ff88]/20'}`}>
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${u.isPaused ? 'bg-[#ff4444]/10 text-[#ff4444] border border-[#ff4444]/20' : 'bg-[#00ff88]/10 text-[#00ff88] border border-[#00ff88]/20'}`}>
                                                 {u.isPaused ? 'Pausado' : 'Ativo'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-5">
-                                            <span className={`px-3 py-1 rounded-none text-[10px] font-black uppercase tracking-widest ${u.isAdmin ? 'bg-gold/10 text-gold border border-gold/20' : 'bg-slate-500/10 text-slate-500 border border-white/5'}`}>
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${u.isAdmin ? 'bg-gold/10 text-gold border border-gold/20' : 'bg-slate-500/10 text-slate-500 border border-white/5'}`}>
                                                 {u.isAdmin ? 'Admin' : 'User'}
                                             </span>
                                         </td>
@@ -1264,14 +1264,14 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
                                                 <button 
                                                     onClick={() => togglePause(u.id, !!u.isPaused)}
                                                     title={u.isPaused ? 'Despausar' : 'Pausar'}
-                                                    className={`p-2.5 rounded-none transition-all active:scale-90 ${u.isPaused ? 'bg-[#00ff88]/10 text-[#00ff88] hover:bg-[#00ff88]/20' : 'bg-[#ff4444]/10 text-[#ff4444] hover:bg-[#ff4444]/20'}`}
+                                                    className={`p-2.5 rounded-lg transition-all active:scale-90 ${u.isPaused ? 'bg-[#00ff88]/10 text-[#00ff88] hover:bg-[#00ff88]/20' : 'bg-[#ff4444]/10 text-[#ff4444] hover:bg-[#ff4444]/20'}`}
                                                 >
                                                     {u.isPaused ? <PlayIcon className="w-5 h-5" /> : <PauseIcon className="w-5 h-5" />}
                                                 </button>
                                                 <button 
                                                     onClick={() => setResettingUserId(u.id)}
                                                     title="Resetar Senha"
-                                                    className="p-2.5 rounded-none bg-gold/10 text-gold hover:bg-gold/20 transition-all active:scale-90"
+                                                    className="p-2.5 rounded-lg bg-gold/10 text-gold hover:bg-gold/20 transition-all active:scale-90"
                                                 >
                                                     <KeyIcon className="w-5 h-5" />
                                                 </button>
@@ -1287,9 +1287,9 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
 
             {resettingUserId && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-charcoal/90 backdrop-blur-xl animate-in fade-in duration-300">
-                    <GlassCard theme={theme} className="w-full max-w-md !p-8 border-electric/30 animate-in zoom-in-95 duration-300 rounded-none">
+                    <GlassCard theme={theme} className="w-full max-w-md !p-8 border-electric/30 animate-in zoom-in-95 duration-300 rounded-3xl">
                         <div className="flex items-center gap-4 mb-8">
-                            <div className="w-14 h-14 rounded-none bg-gold/10 flex items-center justify-center text-gold border border-gold/20">
+                            <div className="w-14 h-14 rounded-xl bg-gold/10 flex items-center justify-center text-gold border border-gold/20">
                                 <KeyIcon className="w-7 h-7" />
                             </div>
                             <div>
@@ -1457,7 +1457,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                     type="date" 
                     value={selectedDateString} 
                     onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} 
-                    className={`w-full md:w-auto border rounded-none px-6 py-3 text-sm font-black uppercase tracking-widest focus:outline-none ${theme.input} border-white/10`} 
+                    className={`w-full md:w-auto border rounded-lg px-6 py-3 text-sm font-black uppercase tracking-widest focus:outline-none ${theme.input} border-white/10`} 
                 />
             </div>
 
@@ -1492,7 +1492,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                         <span>Progresso</span>
                                         <span className={dailyGoalPercent >= 100 ? 'text-[#00ff88]' : 'text-electric'}>{dailyGoalPercent.toFixed(1)}%</span>
                                     </div>
-                                    <div className="w-full bg-white/5 h-1 rounded-none overflow-hidden border border-white/5">
+                                    <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden border border-white/5">
                                         <motion.div 
                                             initial={{ width: 0 }}
                                             animate={{ width: `${Math.min(100, dailyGoalPercent)}%` }}
@@ -1511,16 +1511,16 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                 <GlassCard theme={theme} className="flex flex-col h-full">
                     <SectionTitle title="Nova Operação" subtitle="Registre seu resultado" icon={CalculatorIcon} theme={theme} />
                     
-                    <div className="flex bg-white/5 p-1 rounded-none border border-white/10 mb-6 font-display">
+                    <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 mb-6 font-display">
                         <button 
                             onClick={() => setEntryMode('fixed')}
-                            className={`flex-1 py-3 rounded-none text-[10px] font-black uppercase tracking-widest transition-all ${entryMode === 'fixed' ? 'bg-electric text-charcoal shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${entryMode === 'fixed' ? 'bg-electric text-charcoal shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
                             Fixo
                         </button>
                         <button 
                             onClick={() => setEntryMode('percentage')}
-                            className={`flex-1 py-3 rounded-none text-[10px] font-black uppercase tracking-widest transition-all ${entryMode === 'percentage' ? 'bg-electric text-charcoal shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${entryMode === 'percentage' ? 'bg-electric text-charcoal shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
                             % Banca
                         </button>
@@ -1535,7 +1535,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                         type="number" 
                                         value={customEntryValue}
                                         onChange={(e) => setCustomEntryValue(e.target.value)}
-                                        className={`w-full px-4 py-3 rounded-none font-black text-sm uppercase tracking-widest ${theme.input} border border-white/10`}
+                                        className={`w-full px-4 py-3 rounded-lg font-black text-sm uppercase tracking-widest ${theme.input} border border-white/10`}
                                     />
                                 </div>
                                 <div>
@@ -1544,15 +1544,15 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                         type="number" 
                                         value={customPayout}
                                         onChange={(e) => handlePayoutChange(e.target.value)}
-                                        className={`w-full px-4 py-3 rounded-none font-black text-sm uppercase tracking-widest ${theme.input} border border-white/10`}
+                                        className={`w-full px-4 py-3 rounded-lg font-black text-sm uppercase tracking-widest ${theme.input} border border-white/10`}
                                     />
                                 </div>
                             </div>
 
-                            <div className="p-4 rounded-none bg-white/5 border border-white/10">
+                            <div className="p-4 rounded-xl bg-white/5 border border-white/10">
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Estimativa</span>
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-gold bg-gold/10 px-2 py-0.5 rounded-none border border-gold/20">Soros Ativo: {isNextTradeSoros ? 'Sim' : 'Não'}</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-gold bg-gold/10 px-2 py-0.5 rounded-full border border-gold/20">Soros Ativo: {isNextTradeSoros ? 'Sim' : 'Não'}</span>
                                 </div>
                                 <div className="flex justify-between items-end">
                                     <div>
@@ -1597,7 +1597,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                             </ActionButton>
 
                             {(stopWinReached || stopLossReached) && (
-                                <div className={`p-4 rounded-none border-2 ${stopWinReached ? 'bg-[#00ff88]/10 border-[#00ff88]/50 text-[#00ff88]' : 'bg-[#ff4444]/10 border-[#ff4444]/50 text-[#ff4444]'} text-center font-black uppercase tracking-[0.22em] text-[10px]`}>
+                                <div className={`p-4 rounded-xl border-2 ${stopWinReached ? 'bg-[#00ff88]/10 border-[#00ff88]/50 text-[#00ff88]' : 'bg-[#ff4444]/10 border-[#ff4444]/50 text-[#ff4444]'} text-center font-black uppercase tracking-[0.22em] text-[10px]`}>
                                     <p className="text-[10px] font-black uppercase tracking-widest">
                                         {stopWinReached ? 'Meta Batida! Pare por hoje.' : 'Stop Loss Atingido! Volte amanhã.'}
                                     </p>
@@ -1775,7 +1775,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                     <div className="flex flex-col items-start gap-1">
                                         <span>Meta</span>
                                         <div className="flex items-center gap-1">
-                                            <input type="number" value={projMetaPercent} onChange={e => setProjMetaPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded-none border text-[10px] text-center font-black outline-none ${theme.input} border-white/10`} />
+                                            <input type="number" value={projMetaPercent} onChange={e => setProjMetaPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded-sm border text-[10px] text-center font-black outline-none ${theme.input} border-white/10`} />
                                             <span className="opacity-30 font-black">%</span>
                                         </div>
                                     </div>
@@ -1786,7 +1786,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                     <div className="flex flex-col items-start gap-1">
                                         <span>Stop</span>
                                         <div className="flex items-center gap-1">
-                                            <input type="number" value={projStopPercent} onChange={e => setProjStopPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded-none border text-[10px] text-center font-black outline-none ${theme.input} border-white/10`} />
+                                            <input type="number" value={projStopPercent} onChange={e => setProjStopPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded-sm border text-[10px] text-center font-black outline-none ${theme.input} border-white/10`} />
                                             <span className="opacity-30 font-black">%</span>
                                         </div>
                                     </div>
@@ -1795,7 +1795,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                     <div className="flex flex-col items-end gap-1">
                                         <span>Entrada</span>
                                         <div className="flex items-center gap-1">
-                                            <input type="number" value={projEntryPercent} onChange={e => setProjEntryPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded-none border text-[10px] text-center font-black outline-none ${theme.input} border-white/10`} />
+                                            <input type="number" value={projEntryPercent} onChange={e => setProjEntryPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded-sm border text-[10px] text-center font-black outline-none ${theme.input} border-white/10`} />
                                             <span className="opacity-30 font-black">%</span>
                                         </div>
                                     </div>
@@ -1812,7 +1812,7 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                     <td className="py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">{row.metaPercent}%</td>
                                     <td className="py-4 text-sm font-black text-electric uppercase tracking-widest">{currencySymbol} {formatMoney(row.targetProfit)}</td>
                                     <td className="py-4">
-                                        <span className={`px-3 py-1 rounded-none text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' ? 'bg-[#00ff88]/20 text-[#00ff88]' : row.status === 'STOP-LOSS' ? 'bg-[#ff4444]/20 text-[#ff4444]' : 'bg-slate-500/20 text-slate-500'}`}>
+                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' ? 'bg-[#00ff88]/20 text-[#00ff88]' : row.status === 'STOP-LOSS' ? 'bg-[#ff4444]/20 text-[#ff4444]' : 'bg-slate-500/20 text-slate-500'}`}>
                                             {row.status}
                                         </span>
                                     </td>
@@ -1862,9 +1862,9 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
     return (
         <GlassCard theme={theme} className="w-full max-w-xl mx-auto">
             <div className="flex items-center justify-between mb-6">
-                <button onClick={prevMonth} className="p-2 hover:bg-white/5 rounded-none transition-all active:scale-90"><ChevronLeftIcon className="w-5 h-5" /></button>
+                <button onClick={prevMonth} className="p-2 hover:bg-white/5 rounded-lg transition-all active:scale-90"><ChevronLeftIcon className="w-5 h-5" /></button>
                 <h3 className="text-sm md:text-base font-black uppercase tracking-[0.2em] text-electric">{monthName}</h3>
-                <button onClick={nextMonth} className="p-2 hover:bg-white/5 rounded-none transition-all active:scale-90"><ChevronRightIcon className="w-5 h-5" /></button>
+                <button onClick={nextMonth} className="p-2 hover:bg-white/5 rounded-lg transition-all active:scale-90"><ChevronRightIcon className="w-5 h-5" /></button>
             </div>
 
             <div className="grid grid-cols-7 gap-1 md:gap-2">
@@ -1879,7 +1879,7 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
                     const isToday = getLocalDateString() === dateId;
 
                     return (
-                        <div key={dateId} className={`aspect-square rounded-none border border-white/5 flex flex-col items-center justify-center p-1 relative transition-all hover:brightness-125 cursor-default ${isToday ? 'ring-1 ring-electric' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-[#00ff88]/10' : 'bg-[#ff4444]/10') : 'bg-white/5'}`}>
+                        <div key={dateId} className={`aspect-square rounded-lg border border-white/5 flex flex-col items-center justify-center p-1 relative transition-all hover:brightness-125 cursor-default ${isToday ? 'ring-1 ring-electric' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-[#00ff88]/10' : 'bg-[#ff4444]/10') : 'bg-white/5'}`}>
                             <span className="text-[8px] font-black opacity-30 mb-1">{day}</span>
                             {profit !== undefined && (
                                 <span className={`text-[8px] font-black ${profit >= 0 ? 'text-[#00ff88]' : 'text-[#ff4444]'}`}>
@@ -2219,21 +2219,21 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
             <div><h2 className="text-xl lg:text-3xl font-black uppercase font-display">Calculadora de Soros<span className="text-electric">.</span></h2><p className={`text-[10px] lg:text-xs font-black uppercase tracking-[0.2em] ${theme.textMuted}`}>Planejamento de alavancagem progressiva.</p></div>
-            <div className={`p-4 lg:p-8 rounded-none border ${theme.card} border-white/10 space-y-6`}>
+            <div className={`p-4 lg:p-8 rounded-2xl border ${theme.card} border-white/10 space-y-6`}>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Valor Inicial</label><input type="number" value={initialValue} onChange={e => setInitialValue(e.target.value)} className={`w-full h-12 px-4 rounded-none border outline-none font-black text-sm uppercase ${theme.input} border-white/10 focus:border-electric`} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Valor Inicial</label><input type="number" value={initialValue} onChange={e => setInitialValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-black text-sm uppercase ${theme.input} border-white/10 focus:border-electric`} /></div>
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Payout</label>
                         <div className="relative">
-                            <input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full h-12 px-4 pr-8 rounded-none border outline-none font-black text-sm uppercase ${theme.input} border-white/10 focus:border-electric`} />
+                            <input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full h-12 px-4 pr-8 rounded-xl border outline-none font-black text-sm uppercase ${theme.input} border-white/10 focus:border-electric`} />
                             <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-black">%</span>
                         </div>
                     </div>
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Níveis</label><input type="number" value={levels} onChange={e => setLevels(e.target.value)} className={`w-full h-12 px-4 rounded-none border outline-none font-black text-sm uppercase ${theme.input} border-white/10 focus:border-electric`} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Níveis</label><input type="number" value={levels} onChange={e => setLevels(e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-black text-sm uppercase ${theme.input} border-white/10 focus:border-electric`} /></div>
                 </div>
                 <div className="space-y-2 lg:space-y-3">
                     {results.map(r => (
-                        <div key={r.level} className="flex items-center justify-between p-3 lg:p-4 rounded-none bg-slate-950/20 border border-white/10">
+                        <div key={r.level} className="flex items-center justify-between p-3 lg:p-4 rounded-xl bg-slate-950/20 border border-white/10">
                             <div><p className="text-[8px] lg:text-[10px] font-black uppercase text-slate-500 tracking-widest">Nível {r.level}</p><p className="text-xs lg:text-sm font-black uppercase tracking-widest">Entrada: {currencySymbol} {formatMoney(r.entry)}</p></div>
                             <div className="text-right"><p className="text-[8px] lg:text-[10px] font-black uppercase text-[#00ff88] tracking-widest">Lucro Estimado</p><p className="text-xs lg:text-sm font-black text-[#00ff88] uppercase tracking-widest">+{currencySymbol} {formatMoney(r.profit)}</p></div>
                         </div>
@@ -2317,17 +2317,17 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
                 </div>
             </div>
 
-            <GlassCard theme={theme} className="rounded-none border-white/10">
+            <GlassCard theme={theme} className="rounded-2xl border-white/10">
                 <SectionTitle title="Nova Meta" subtitle="Defina um novo objetivo financeiro" icon={TargetIcon} theme={theme} />
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Nome da Meta</label>
-                            <input type="text" placeholder="Ex: Viagem, Carro..." value={newGoalName} onChange={e => setNewGoalName(e.target.value)} className={`w-full h-12 px-4 rounded-none border focus:ring-1 focus:ring-electric outline-none font-black text-sm uppercase ${theme.input} border-white/10`} />
+                            <input type="text" placeholder="Ex: Viagem, Carro..." value={newGoalName} onChange={e => setNewGoalName(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-electric outline-none font-black text-sm uppercase ${theme.input} border-white/10`} />
                         </div>
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Tipo</label>
-                            <select value={newGoalType} onChange={e => setNewGoalType(e.target.value as any)} className={`w-full h-12 px-4 rounded-none border focus:ring-1 focus:ring-electric outline-none font-black text-sm uppercase ${theme.input} border-white/10`}>
+                            <select value={newGoalType} onChange={e => setNewGoalType(e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-electric outline-none font-black text-sm uppercase ${theme.input} border-white/10`}>
                                 <option value="weekly">Semanal</option>
                                 <option value="monthly">Mensal</option>
                                 <option value="custom">Até certa data</option>
@@ -2337,16 +2337,16 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Valor Alvo ({currencySymbol})</label>
-                            <input type="number" placeholder="0.00" value={newGoalAmount} onChange={e => setNewGoalAmount(e.target.value)} className={`w-full h-12 px-4 rounded-none border focus:ring-1 focus:ring-electric outline-none font-black text-sm uppercase ${theme.input} border-white/10`} />
+                            <input type="number" placeholder="0.00" value={newGoalAmount} onChange={e => setNewGoalAmount(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-electric outline-none font-black text-sm uppercase ${theme.input} border-white/10`} />
                         </div>
                         {newGoalType === 'custom' && (
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Data Limite</label>
-                                <input type="date" value={newGoalDeadline} onChange={e => setNewGoalDeadline(e.target.value)} className={`w-full h-12 px-4 rounded-none border focus:ring-1 focus:ring-electric outline-none font-black text-sm uppercase ${theme.input} border-white/10`} />
+                                <input type="date" value={newGoalDeadline} onChange={e => setNewGoalDeadline(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-electric outline-none font-black text-sm uppercase ${theme.input} border-white/10`} />
                             </div>
                         )}
                     </div>
-                    <ActionButton variant="primary" className="w-full h-14 rounded-none" onClick={addGoal} icon={PlusIcon}>
+                    <ActionButton variant="primary" className="w-full h-14 rounded-xl" onClick={addGoal} icon={PlusIcon}>
                         Adicionar Meta
                     </ActionButton>
                 </div>
@@ -2364,7 +2364,7 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
                                     <h4 className="text-2xl font-black text-white font-display">{currencySymbol} {formatMoney(goal.targetAmount)}</h4>
                                     <p className="text-xs font-black uppercase text-slate-500 mt-1">Atual: <span className={isCompleted ? 'text-[#00ff88]' : 'text-electric'}>{currencySymbol} {formatMoney(current)}</span></p>
                                 </div>
-                                <button onClick={() => deleteGoal(goal.id)} className="p-2 hover:bg-red-500/10 rounded-none transition-all text-red-500/50 hover:text-red-500 active:scale-90"><TrashIcon className="w-5 h-5" /></button>
+                                <button onClick={() => deleteGoal(goal.id)} className="p-2 hover:bg-red-500/10 rounded-lg transition-all text-red-500/50 hover:text-red-500 active:scale-90"><TrashIcon className="w-5 h-5" /></button>
                             </div>
                             
                             <div className="space-y-3">
@@ -2372,7 +2372,7 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
                                     <span className="text-slate-500">{label}</span>
                                     <span className={isCompleted ? 'text-[#00ff88]' : 'text-electric'}>{percentage.toFixed(1)}%</span>
                                 </div>
-                                <div className="w-full h-2 bg-white/5 rounded-none overflow-hidden border border-white/10">
+                                <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-white/10">
                                     <div className={`h-full transition-all duration-1000 ease-out ${isCompleted ? 'bg-[#00ff88] shadow-[0_0_15px_rgba(0,255,136,0.3)]' : 'bg-electric shadow-[0_0_15px_rgba(0,243,255,0.3)]'}`} style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }} />
                                 </div>
                             </div>
@@ -2474,9 +2474,9 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                         placeholder="Nova Corretora" 
                         value={newBrokerageName}
                         onChange={e => setNewBrokerageName(e.target.value)}
-                        className={`flex-1 h-12 px-4 rounded-none border focus:ring-1 focus:ring-electric outline-none font-black text-xs uppercase ${theme.input} border-white/10`}
+                        className={`flex-1 h-12 px-4 rounded-xl border focus:ring-1 focus:ring-electric outline-none font-black text-xs uppercase ${theme.input} border-white/10`}
                     />
-                    <ActionButton variant="primary" onClick={addNewBrokerage} icon={PlusIcon} className="rounded-none">
+                    <ActionButton variant="primary" onClick={addNewBrokerage} icon={PlusIcon} className="rounded-xl">
                         Nova
                     </ActionButton>
                 </div>
@@ -2576,16 +2576,16 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                     <SectionTitle title="Parâmetros de VEX" subtitle="Movimentação de capital" icon={ArrowPathIcon} theme={theme} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-4">
-                            <div className="flex bg-white/5 p-1 rounded-none border border-white/10">
+                            <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
                                 <button 
                                     onClick={() => setTransType('deposit')}
-                                    className={`flex-1 py-3 rounded-none text-[10px] font-black uppercase tracking-widest transition-all ${transType === 'deposit' ? 'bg-[#00ff88] text-charcoal shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                    className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${transType === 'deposit' ? 'bg-[#00ff88] text-charcoal shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                                 >
                                     Depósito
                                 </button>
                                 <button 
                                     onClick={() => setTransType('withdrawal')}
-                                    className={`flex-1 py-3 rounded-none text-[10px] font-black uppercase tracking-widest transition-all ${transType === 'withdrawal' ? 'bg-[#ff4444] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                    className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${transType === 'withdrawal' ? 'bg-[#ff4444] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                                 >
                                     Saque
                                 </button>
@@ -2596,7 +2596,7 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                                     type="number" 
                                     value={transAmount}
                                     onChange={(e) => setTransAmount(e.target.value)}
-                                    className={`w-full h-12 px-4 rounded-none border focus:ring-1 focus:ring-electric outline-none font-black text-sm uppercase ${theme.input} border-white/10`}
+                                    className={`w-full h-12 px-4 rounded-xl border focus:ring-1 focus:ring-electric outline-none font-black text-sm uppercase ${theme.input} border-white/10`}
                                     placeholder="0,00"
                                 />
                             </div>
@@ -2609,8 +2609,8 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                                 Confirmar {transType === 'deposit' ? 'Depósito' : 'Saque'}
                             </ActionButton>
                         </div>
-                        <div className="bg-white/5 rounded-none p-6 border border-white/10 flex flex-col justify-center items-center text-center">
-                            <div className="w-12 h-12 rounded-none bg-electric/10 flex items-center justify-center text-electric mb-4 border border-electric/20">
+                        <div className="bg-white/5 rounded-2xl p-6 border border-white/10 flex flex-col justify-center items-center text-center">
+                            <div className="w-12 h-12 rounded-xl bg-electric/10 flex items-center justify-center text-electric mb-4 border border-electric/20">
                                 <ShieldCheckIcon className="w-6 h-6" />
                             </div>
                             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] mb-2">Segurança VEX</h4>
@@ -2640,9 +2640,9 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                     </div>
                     <button 
                         onClick={() => setIsDarkMode(!isDarkMode)}
-                        className={`w-12 h-6 rounded-none transition-all relative ${isDarkMode ? 'bg-electric' : 'bg-white/10 border border-white/10'}`}
+                        className={`w-12 h-6 rounded-full transition-all relative ${isDarkMode ? 'bg-electric' : 'bg-white/10 border border-white/10'}`}
                     >
-                        <div className={`absolute top-1 w-4 h-4 rounded-none bg-white transition-all ${isDarkMode ? 'right-1' : 'left-1'}`} />
+                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${isDarkMode ? 'right-1' : 'left-1'}`} />
                     </button>
                 </div>
             </GlassCard>
