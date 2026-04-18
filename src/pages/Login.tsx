@@ -78,11 +78,9 @@ const LoginPage: React.FC = () => {
 
             if (response.ok) {
                 const user: User = resData.user;
-                const token: string = resData.token;
                 
                 setCurrentUser(user);
                 sessionStorage.setItem('currentUser', JSON.stringify(user));
-                sessionStorage.setItem('authToken', token);
             } else {
                 setError(resData.error || 'Credenciais inválidas. Use admin/admin.');
             }

@@ -1,11 +1,8 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import jwt from "jsonwebtoken";
 import cors from "cors";
 import { createServer as createViteServer } from "vite";
-
-const JWT_SECRET = process.env.JWT_SECRET || 'secret-fallback-for-dev-only';
 
 // Import Handlers with .js extension 
 import loginHandler from "./handlers/login.js";
@@ -21,23 +18,11 @@ async function startServer() {
   app.use(cors());
   app.use(express.json());
 
-  // Middleware to authenticate JWT token
-  const authenticateToken = (req: any, res: any, next: any) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-      return res.status(401).json({ error: 'Token de autenticação não fornecido.' });
-    }
-
-    jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-      if (err) {
-        return res.status(403).json({ error: 'Token inválido ou expirado.' });
-      }
-      req.user = user;
-      next();
-    });
-  };
+  // Support req.user for backward compatibility if needed, but set it as admin by default or remove
+  app.use((req: any, res, next) => {
+    req.user = { id: 'admin-id', username: 'admin', is_admin: true };
+    next();
+  });
 
   // Helper to wrap Vercel handlers for Express
   const wrapHandler = (handler: any) => async (req: any, res: any) => {
@@ -63,12 +48,12 @@ async function startServer() {
   });
 
   // Get Data Mock (Returns empty or handled by frontend localStorage)
-  app.get("/api/get-data", authenticateToken, (req, res) => {
+  app.get("/api/get-data", (req, res) => {
       res.json({ brokerages: [], records: [], goals: [] });
   });
 
   // Save Data Mock (Success only)
-  app.post("/api/save-data", authenticateToken, (req, res) => {
+  app.post("/api/save-data", (req, res) => {
       res.json({ message: 'Dados salvos localmente (Mock).' });
   });
 
@@ -78,27 +63,26 @@ async function startServer() {
   });
 
   // AI Analysis (Keep real functionality)
-  app.post("/api/ai-analysis", authenticateToken, wrapHandler(aiAnalysisHandler));
+  app.post("/api/ai-analysis", wrapHandler(aiAnalysisHandler));
 
   // Admin Mocks
-  app.get("/api/admin/get-users", authenticateToken, (req: any, res) => {
-      if (!req.user?.is_admin) return res.status(403).json({ error: 'Acesso negado.' });
+  app.get("/api/admin/get-users", (req: any, res) => {
       res.json([{ id: 'admin-id', username: 'admin', isAdmin: true, isPaused: false, createdAt: new Date(), lastLoginAt: new Date() }]);
   });
 
-  app.post("/api/admin/toggle-pause", authenticateToken, (req: any, res) => {
+  app.post("/api/admin/toggle-pause", (req: any, res) => {
       res.json({ message: 'Status alterado (Mock).' });
   });
 
-  app.post("/api/admin/update-system-settings", authenticateToken, (req: any, res) => {
+  app.post("/api/admin/update-system-settings", (req: any, res) => {
       res.json({ message: 'Configurações atualizadas (Mock).' });
   });
 
-  app.get("/api/admin/get-system-settings", authenticateToken, (req: any, res) => {
+  app.get("/api/admin/get-system-settings", (req: any, res) => {
       res.json({ registrationKeyword: 'ADMIN_BYPASS' });
   });
 
-  app.post("/api/admin/reset-password", authenticateToken, (req: any, res) => {
+  app.post("/api/admin/reset-password", (req: any, res) => {
       res.json({ message: 'Senha resetada (Mock).' });
   });
 

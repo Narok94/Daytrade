@@ -212,7 +212,6 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
         simulateProgress();
 
         try {
-            const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
             const compressed = await compressImage(selectedImage, 1000);
             
             const now = new Date();
@@ -248,8 +247,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                 const res = await fetch('/api/ai-analysis', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         imageData: compressed,
@@ -594,12 +592,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             }
 
             // Fallback to API if no local data (minimal implementation)
-            const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-            const response = await fetch(`/api/get-data?_=${Date.now()}`, {
-                headers: { 
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            const response = await fetch(`/api/get-data?_=${Date.now()}`);
             if (response.ok) {
                 const data = await response.json();
                 const loadedBrokerages = data.brokerages?.length ? data.brokerages : [{ id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD', dailyGoalMode: 'percentage', dailyGoalValue: 3 }];
@@ -632,12 +625,10 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             localStorage.setItem(`app_data_${user.id}`, JSON.stringify(payload));
 
             // Optional: Keep API call for sync test (non-blocking)
-            const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
             fetch('/api/save-data', { 
                 method: 'POST', 
                 headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 }, 
                 body: JSON.stringify(payload) 
             }).catch(e => console.warn("API Save failed (Mock Mode):", e));
@@ -935,10 +926,7 @@ const AdminPanel: React.FC<{ theme: any, adminId: string | number }> = ({ theme,
 
     const fetchSystemSettings = async () => {
         try {
-            const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-            const res = await fetch(`/api/admin/get-system-settings`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await fetch(`/api/admin/get-system-settings`);
             const data = await res.json();
             if (data.registrationKeyword) setRegistrationKeyword(data.registrationKeyword);
         } catch (error) {
@@ -949,10 +937,7 @@ const AdminPanel: React.FC<{ theme: any, adminId: string | number }> = ({ theme,
     const fetchUsers = async () => {
         setIsLoading(true);
         try {
-            const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-            const res = await fetch(`/api/admin/get-users`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await fetch(`/api/admin/get-users`);
             const data = await res.json();
             if (Array.isArray(data)) setUsers(data);
             else if (data.users) setUsers(data.users);
@@ -975,12 +960,10 @@ const AdminPanel: React.FC<{ theme: any, adminId: string | number }> = ({ theme,
         }
         setIsUpdatingKeyword(true);
         try {
-            const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
             const res = await fetch('/api/admin/update-system-settings', {
                 method: 'POST',
                 headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ key: 'registration_keyword', value: registrationKeyword })
             });
@@ -999,12 +982,10 @@ const AdminPanel: React.FC<{ theme: any, adminId: string | number }> = ({ theme,
 
     const togglePause = async (targetUserId: string | number, currentPaused: boolean) => {
         try {
-            const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
             const res = await fetch('/api/admin/toggle-pause', {
                 method: 'POST',
                 headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ targetUserId, isPaused: !currentPaused })
             });
@@ -1026,12 +1007,10 @@ const AdminPanel: React.FC<{ theme: any, adminId: string | number }> = ({ theme,
             return;
         }
         try {
-            const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
             const res = await fetch('/api/admin/reset-password', {
                 method: 'POST',
                 headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ targetUserId, newPassword })
             });
