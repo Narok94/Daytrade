@@ -4,9 +4,9 @@ import { fileURLToPath } from "url";
 import cors from "cors";
 import { createServer as createViteServer } from "vite";
 
-// Import Handlers with .js extension 
-import loginHandler from "./handlers/login.js";
-import aiAnalysisHandler from "./handlers/ai-analysis.js";
+// Import Handlers - Use direct imports for tsx compatibility
+import loginHandler from "./handlers/login";
+import aiAnalysisHandler from "./handlers/ai-analysis";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -68,14 +68,20 @@ const LoginPage: React.FC = () => {
         setError('');
         setIsLoading(true);
         try {
-            const targetUrl = window.location.origin + '/api/login';
-            const response = await fetch(targetUrl, {
+            const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password }),
             });
 
-            const resData = await response.json();
+            const text = await response.text();
+            let resData;
+            try {
+                resData = JSON.parse(text);
+            } catch (e) {
+                console.error("Non-JSON response:", text);
+                throw new Error(text.includes('Server Error') ? 'O servidor encontrou um erro interno.' : `Resposta inválida: ${text.substring(0, 40)}`);
+            }
 
             if (response.ok) {
                 const user: User = resData.user;
@@ -109,15 +115,27 @@ const LoginPage: React.FC = () => {
             <div className="w-full max-w-[400px] flex flex-col items-center">
                 {/* Fixed Logo Section */}
                 <div className="mb-10 text-center">
-                    <img 
-                        src="/logo-odin.png" 
-                        onError={(e) => {
-                            (e.target as HTMLImageElement).src = "https://picsum.photos/seed/odin-logo/400/400";
-                        }}
-                        alt="ODIN Logo" 
-                        className="w-32 h-auto mb-6 mx-auto filter brightness-110 rounded-lg shadow-[0_0_20px_rgba(0,255,255,0.2)]"
-                        referrerPolicy="no-referrer"
-                    />
+                    <div className="relative inline-block">
+                        <img 
+                            src="/logo-odin.png" 
+                            onError={(e) => {
+                                // Hide image if it fails and show the text fallback
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                const fallback = document.getElementById('logo-fallback');
+                                if (fallback) fallback.style.display = 'flex';
+                            }}
+                            alt="ODIN Logo" 
+                            className="w-32 h-auto mb-6 mx-auto filter brightness-110 rounded-lg shadow-[0_0_20px_rgba(0,255,255,0.2)]"
+                            referrerPolicy="no-referrer"
+                        />
+                        <div 
+                            id="logo-fallback" 
+                            style={{ display: 'none' }}
+                            className="w-32 h-32 mb-6 mx-auto bg-gradient-to-br from-[#00FFFF]/20 to-[#00FFFF]/5 border border-[#00FFFF]/30 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(0,255,255,0.1)]"
+                        >
+                            <span className="text-4xl font-black text-[#00FFFF] tracking-tighter">O<span className="text-[#FFD700]">P</span></span>
+                        </div>
+                    </div>
                     
                     <h1 className="text-3xl font-black text-white tracking-[0.1em] uppercase">
                         ODIN PERFORMANCE

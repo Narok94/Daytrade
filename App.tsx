@@ -244,7 +244,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
             const config = {};
 
             const result = await withRetry(async () => {
-                const res = await fetch(window.location.origin + '/api/ai-analysis', {
+                const res = await fetch('/api/ai-analysis', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -557,7 +557,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     useEffect(() => {
         const checkStatus = async () => {
             try {
-                const res = await fetch(window.location.origin + '/api/health-check');
+                const res = await fetch('/api/health-check');
                 if (res.ok) setServerStatus('online');
                 else setServerStatus('offline');
             } catch (e) {
@@ -592,7 +592,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             }
 
             // Fallback to API if no local data (minimal implementation)
-            const response = await fetch(window.location.origin + `/api/get-data?_=${Date.now()}`);
+            const response = await fetch(`/api/get-data?_=${Date.now()}`);
             if (response.ok) {
                 const data = await response.json();
                 const loadedBrokerages = data.brokerages?.length ? data.brokerages : [{ id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD', dailyGoalMode: 'percentage', dailyGoalValue: 3 }];
@@ -625,7 +625,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
             localStorage.setItem(`app_data_${user.id}`, JSON.stringify(payload));
 
             // Optional: Keep API call for sync test (non-blocking)
-            fetch(window.location.origin + '/api/save-data', { 
+            fetch('/api/save-data', { 
                 method: 'POST', 
                 headers: { 
                     'Content-Type': 'application/json'

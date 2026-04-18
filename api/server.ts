@@ -12,6 +12,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Fallback for logo
+app.get("/logo-odin.png", (req, res) => {
+    res.redirect("https://picsum.photos/seed/odin-logo/400/400");
+});
+
 // Helper to wrap handlers
 const wrapHandler = (handler: any) => async (req: any, res: any) => {
     try {
