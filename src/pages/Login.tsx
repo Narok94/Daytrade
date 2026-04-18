@@ -68,7 +68,8 @@ const LoginPage: React.FC = () => {
         setError('');
         setIsLoading(true);
         try {
-            const response = await fetch('/api/login', {
+            const targetUrl = window.location.origin + '/api/login';
+            const response = await fetch(targetUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password }),
@@ -84,8 +85,9 @@ const LoginPage: React.FC = () => {
             } else {
                 setError(resData.error || 'Credenciais inválidas. Use admin/admin.');
             }
-        } catch (err) {
-            setError('Falha na comunicação com o servidor.');
+        } catch (err: any) {
+            console.error('Login Error:', err);
+            setError(`Erro de conexão: ${err.message || 'Falha na comunicação'}`);
         } finally {
             setIsLoading(false);
         }
@@ -109,8 +111,11 @@ const LoginPage: React.FC = () => {
                 <div className="mb-10 text-center">
                     <img 
                         src="/logo-odin.png" 
+                        onError={(e) => {
+                            (e.target as HTMLImageElement).src = "https://picsum.photos/seed/odin-logo/400/400";
+                        }}
                         alt="ODIN Logo" 
-                        className="w-32 h-auto mb-6 mx-auto filter brightness-110"
+                        className="w-32 h-auto mb-6 mx-auto filter brightness-110 rounded-lg shadow-[0_0_20px_rgba(0,255,255,0.2)]"
                         referrerPolicy="no-referrer"
                     />
                     
