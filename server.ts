@@ -44,12 +44,6 @@ async function startServer() {
     next();
   });
 
-  // Fallback for logo if it's not being served from public yet
-  app.get("/logo-odin.png", (req, res) => {
-    console.log("[SERVER] Serving logo fallback redirect");
-    res.redirect("https://picsum.photos/seed/odin-logo/400/400");
-  });
-
   // --- MOCK API ROUTES ---
 
   // Login Mock
@@ -109,7 +103,7 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*", (req: any, res: any, next: any) => {
+    app.get("(.*)", (req: any, res: any, next: any) => {
       if (req.url.startsWith('/api/')) return next();
       res.sendFile(path.join(distPath, "index.html"));
     });

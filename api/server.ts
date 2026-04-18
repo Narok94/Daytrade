@@ -12,11 +12,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Fallback for logo
-app.get("/logo-odin.png", (req, res) => {
-    res.redirect("https://picsum.photos/seed/odin-logo/400/400");
-});
-
 // Helper to wrap handlers
 const wrapHandler = (handler: any) => async (req: any, res: any) => {
     try {
@@ -47,9 +42,10 @@ app.get("/api/admin/get-system-settings", (req, res) => res.json({ registrationK
 // Servindo arquivos estáticos em Produção
 const distPath = path.join(process.cwd(), "dist");
 app.use(express.static(distPath));
+app.use(express.static('public')); // Ensure public is served if needed
 
 // Fallback para SPA (index.html)
-app.get("*", (req: any, res: any, next: any) => {
+app.get("(.*)", (req: any, res: any, next: any) => {
     if (req.url.startsWith('/api/')) return next();
     res.sendFile(path.join(distPath, "index.html"));
 });
