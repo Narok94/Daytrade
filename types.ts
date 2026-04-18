@@ -78,5 +78,4 @@ export interface User {
   username: string;
   isAdmin?: boolean;
   isPaused?: boolean;
-  lastLoginAt?: string;
 }

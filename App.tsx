@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { GoogleGenAI, Type } from "@google/genai";
 import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Trade, User, Goal, AIAnalysisResult } from './types';
 import { useDebouncedCallback } from './hooks/useDebouncedCallback';
 import { 
@@ -19,8 +20,6 @@ import {
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { motion } from 'motion/react';
 import CountUp from 'react-countup';
-import { Header } from './components/Header';
-import { NeuralAnalysis } from './components/NeuralAnalysis';
 import toast, { Toaster } from 'react-hot-toast';
 
 // --- Helper Functions ---
@@ -212,8 +211,12 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
         simulateProgress();
 
         try {
-            const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
+            const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
+            if (!apiKey) throw new Error("Chave de API não encontrada.");
+
+            const ai = new GoogleGenAI({ apiKey });
             const compressed = await compressImage(selectedImage, 1000);
+            const base64Data = compressed.split(',')[1];
             
             const now = new Date();
             const timeString = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -242,29 +245,45 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
             9. timeframe: M1.
             10. candleRemainingSeconds: Segundos para fechar a vela atual.`;
 
-            const config = {};
-
-            const result = await withRetry(async () => {
-                const res = await fetch('/api/ai-analysis', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+            const config = {
+                systemInstruction: "Você é um especialista em escalpamento agressivo em M1. Sua função é dar sinais constantes de CALL ou PUT. Não tenha medo de errar, foque em encontrar a direção provável da próxima vela. Se o gráfico tem uma leve inclinação para cima, dê CALL. Se tem uma leve inclinação para baixo, dê PUT. NUNCA recomende aguardar. Retorne APENAS JSON.",
+                temperature: 0.8,
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        asset: { type: Type.STRING },
+                        recommendation: { type: Type.STRING, enum: ['CALL', 'PUT'] },
+                        confidence: { type: Type.NUMBER },
+                        reasoning: { type: Type.STRING },
+                        expiration: { type: Type.STRING },
+                        trend: { type: Type.STRING, enum: ['ALTA', 'BAIXA'] },
+                        precision: { type: Type.STRING },
+                        volume: { type: Type.STRING },
+                        timeframe: { type: Type.STRING },
+                        candleRemainingSeconds: { type: Type.NUMBER }
                     },
-                    body: JSON.stringify({
-                        imageData: compressed,
-                        prompt,
-                        systemInstruction: "Você é um especialista em escalpamento agressivo em M1. Retorne APENAS JSON."
-                    })
-                });
-
-                if (!res.ok) {
-                    const errorData = await res.json();
-                    throw new Error(errorData.error || "Erro na análise de IA.");
+                    required: ['asset', 'recommendation', 'confidence', 'reasoning', 'expiration', 'trend', 'precision', 'volume', 'timeframe', 'candleRemainingSeconds']
                 }
+            };
 
-                return await res.json();
-            });
+            let response;
+            try {
+                response = await withRetry(() => ai.models.generateContent({
+                    model: 'gemini-3-flash-preview',
+                    contents: { parts: [{ inlineData: { mimeType: 'image/jpeg', data: base64Data } }, { text: prompt }] },
+                    config
+                }));
+            } catch (flashErr) {
+                response = await withRetry(() => ai.models.generateContent({
+                    model: 'gemini-3.1-pro-preview',
+                    contents: { parts: [{ inlineData: { mimeType: 'image/jpeg', data: base64Data } }, { text: prompt }] },
+                    config
+                }));
+            }
+
+            if (!response.text) throw new Error("Resposta inválida da IA.");
+            const result = JSON.parse(response.text.trim());
             
             const entryDate = new Date(now);
             // Se faltar menos de 15 segundos, pegamos a vela seguinte à próxima para dar tempo do usuário agir
@@ -280,11 +299,9 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
             setProgress(p => ({ ...p, result: 100 }));
             await new Promise(r => setTimeout(r, 500));
             setAnalysisResult(result);
-            toast.success("Análise concluída com sucesso!");
         } catch (err: any) {
             console.error("AI Analysis Error:", err);
-            setError(err.message || "Erro na análise de IA. Verifique sua conexão.");
-            toast.error(err.message || "Falha na análise de IA.");
+            setError("Erro na análise. Tente novamente.");
         } finally {
             setIsAnalyzing(false);
         }
@@ -312,7 +329,37 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
     }, [analysisResult]);
 
     if (isAnalyzing) {
-        return <NeuralAnalysis progress={progress} theme={theme} />;
+        return (
+            <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-8">
+                <GlassCard theme={theme} className="animate-pulse">
+                    <SectionTitle title="Análise Neural" subtitle="Insights baseados em IA" icon={CpuChipIcon} theme={theme} />
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Status do Motor</span>
+                            <span className="text-xs font-black text-[#6366f1] uppercase tracking-widest animate-pulse">Processando...</span>
+                        </div>
+                        <div className="space-y-4">
+                            {[
+                                { label: 'UPLOAD_IMAGE', val: progress.upload },
+                                { label: 'EXTRACT_DATA', val: progress.data },
+                                { label: 'PATTERN_MATCH', val: progress.patterns },
+                                { label: 'FINAL_COMPUTE', val: progress.result }
+                            ].map((p, i) => (
+                                <div key={i} className="space-y-2">
+                                    <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-500">
+                                        <span>{p.label}</span>
+                                        <span>{p.val}%</span>
+                                    </div>
+                                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                                        <div className="h-full bg-[#6366f1] transition-all duration-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: `${p.val}%` }} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </GlassCard>
+            </div>
+        );
     }
 
     if (analysisResult) {
@@ -327,18 +374,18 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                     </div>
 
                     <div className="space-y-8">
-                        <div className="p-8 rounded-[2.5rem] bg-[#00D1FF]/10 border border-[#00D1FF]/20 text-center relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#00D1FF]/40 to-transparent animate-pulse" />
+                        <div className="p-8 rounded-[2.5rem] bg-[#6366f1]/10 border border-[#6366f1]/20 text-center relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#6366f1]/40 to-transparent animate-pulse" />
                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Recomendação</p>
                             <h3 className={`text-7xl font-black tracking-tighter mb-2 ${
-                                analysisResult.recommendation === 'CALL' ? 'text-[#00D1FF] drop-shadow-[0_0_15px_rgba(0,209,255,0.5)]' : 
+                                analysisResult.recommendation === 'CALL' ? 'text-[#6366f1] drop-shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 
                                 analysisResult.recommendation === 'PUT' ? 'text-[#ef4444] drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'text-slate-400'
                             }`}>
                                 {analysisResult.recommendation === 'CALL' ? 'COMPRA' : analysisResult.recommendation === 'PUT' ? 'VENDA' : 'AGUARDAR'}
                             </h3>
                             <div className="flex items-center justify-center gap-2">
                                 <span className="text-xs font-black uppercase text-white tracking-widest">{analysisResult.asset}</span>
-                                <div className="w-1.5 h-1.5 bg-[#00D1FF] rounded-full animate-pulse" />
+                                <div className="w-1.5 h-1.5 bg-[#6366f1] rounded-full animate-pulse" />
                                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{analysisResult.timeframe}</span>
                             </div>
                         </div>
@@ -348,7 +395,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Horário de Entrada</p>
                                 <p className="text-4xl font-black text-white tracking-widest">{analysisResult.entryTime}</p>
                                 {countdown !== null && (
-                                    <p className="text-[10px] font-black text-[#00D1FF] animate-pulse mt-2 uppercase tracking-widest">Entre em: {countdown}s</p>
+                                    <p className="text-[10px] font-black text-[#6366f1] animate-pulse mt-2 uppercase tracking-widest">Entre em: {countdown}s</p>
                                 )}
                             </div>
                             <div className="p-6 rounded-3xl bg-white/5 border border-white/5 text-center">
@@ -371,7 +418,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                             {showDetailed && (
                                 <div className="p-6 bg-white/5 rounded-2xl text-xs text-slate-400 leading-relaxed font-medium border border-white/5 animate-in slide-in-from-top-2 duration-300">
                                     <div className="flex gap-2 mb-3">
-                                        <span className="text-[#00D1FF] font-black tracking-widest">[IA_CORE]</span>
+                                        <span className="text-[#6366f1] font-black tracking-widest">[IA_CORE]</span>
                                         <span className="text-slate-300">Analisando padrões de price action...</span>
                                     </div>
                                     <p className="italic opacity-80">{analysisResult.reasoning}</p>
@@ -396,9 +443,9 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                 {!selectedImage ? (
                     <div className="space-y-8">
                         <div className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 rounded-[3rem] p-12 bg-white/5 backdrop-blur-md space-y-10 relative overflow-hidden group">
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#00D1FF]/40 to-transparent animate-pulse" />
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#6366f1]/40 to-transparent animate-pulse" />
                             
-                            <div className="w-28 h-28 rounded-[2rem] bg-[#00D1FF]/10 border border-[#00D1FF]/20 flex items-center justify-center text-[#00D1FF] shadow-[0_0_50px_rgba(0,209,255,0.1)] group-hover:scale-110 transition-transform duration-500">
+                            <div className="w-28 h-28 rounded-[2rem] bg-[#6366f1]/10 border border-[#6366f1]/20 flex items-center justify-center text-[#6366f1] shadow-[0_0_50px_rgba(99,102,241,0.1)] group-hover:scale-110 transition-transform duration-500">
                                 <PhotoIcon className="w-14 h-14" />
                             </div>
                             
@@ -408,7 +455,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                             </div>
                             
                             <div className="w-full grid grid-cols-2 gap-4">
-                                <label className="py-6 bg-gradient-to-br from-[#00D1FF] to-[#00A3FF] hover:brightness-110 text-[#050a1f] rounded-2xl flex flex-col items-center justify-center gap-3 font-black text-[10px] uppercase cursor-pointer transition-all shadow-[0_0_20px_rgba(0,209,255,0.3)] active:scale-95">
+                                <label className="py-6 bg-gradient-to-br from-[#6366f1] to-[#4f46e5] hover:brightness-110 text-white rounded-2xl flex flex-col items-center justify-center gap-3 font-black text-[10px] uppercase cursor-pointer transition-all shadow-xl active:scale-95">
                                     <CameraIcon className="w-7 h-7" /> Câmera
                                     <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                                 </label>
@@ -420,7 +467,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                         </div>
 
                         <div className="p-6 rounded-2xl bg-white/5 border border-white/5 flex items-start gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-[#00D1FF]/10 flex items-center justify-center text-[#00D1FF] shrink-0">
+                            <div className="w-10 h-10 rounded-xl bg-[#6366f1]/10 flex items-center justify-center text-[#6366f1] shrink-0">
                                 <InformationCircleIcon className="w-6 h-6" />
                             </div>
                             <p className="text-[10px] text-slate-400 leading-relaxed uppercase tracking-widest font-black">
@@ -430,7 +477,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                     </div>
                 ) : (
                     <div className="space-y-8">
-                        <div className="relative aspect-video rounded-[2.5rem] overflow-hidden border border-[#00D1FF]/30 bg-white/5 shadow-2xl group">
+                        <div className="relative aspect-video rounded-[2.5rem] overflow-hidden border border-[#6366f1]/30 bg-white/5 shadow-2xl group">
                             <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
                             <div className="absolute inset-0 bg-gradient-to-t from-[#0b0e14]/80 to-transparent pointer-events-none" />
                             <button onClick={() => setSelectedImage(null)} className="absolute top-4 right-4 p-3 bg-black/50 backdrop-blur-md rounded-2xl text-white hover:bg-red-500 transition-all active:scale-90">
@@ -439,7 +486,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                         </div>
 
                         <div className="flex flex-col gap-4">
-                            <ActionButton variant="primary" className="w-full h-16 bg-[#00D1FF] text-[#050a1f] shadow-[0_0_30px_rgba(0,209,255,0.4)] hover:bg-[#00A3FF]" onClick={runAIAnalysis} icon={SparklesIcon}>
+                            <ActionButton variant="primary" className="w-full h-16" onClick={runAIAnalysis} icon={SparklesIcon}>
                                 Iniciar Análise Neural
                             </ActionButton>
                             <ActionButton variant="ghost" className="w-full h-16" onClick={() => setSelectedImage(null)} icon={ArrowPathIcon}>
@@ -457,7 +504,6 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
 // --- App Root Logic ---
 const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout }) => {
     const [activeTab, setActiveTab] = useState<string>('dashboard');
-    const [serverStatus, setServerStatus] = useState<'online' | 'offline' | 'checking'>('checking');
     const [isDarkMode, setIsDarkMode] = useState(() => {
         const saved = localStorage.getItem('hrk_isDarkMode');
         return saved !== null ? JSON.parse(saved) : true;
@@ -556,30 +602,10 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
         setBrokerages(prev => prev.map(b => b.id === id ? { ...b, [field]: value } : b));
     }, []);
 
-    useEffect(() => {
-        const checkStatus = async () => {
-            try {
-                const res = await fetch('/api/health-check');
-                if (res.ok) setServerStatus('online');
-                else setServerStatus('offline');
-            } catch (e) {
-                setServerStatus('offline');
-            }
-        };
-        checkStatus();
-        const interval = setInterval(checkStatus, 30000);
-        return () => clearInterval(interval);
-    }, []);
-
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-            const response = await fetch(`/api/get-data?_=${Date.now()}`, {
-                headers: { 
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            const response = await fetch(`/api/get-data?userId=${user.id}&_=${Date.now()}`);
             if (response.ok) {
                 const data = await response.json();
                 const loadedBrokerages = data.brokerages?.length ? data.brokerages : [{ id: crypto.randomUUID(), name: 'Gestão Profissional', initialBalance: 10, entryMode: 'percentage', entryValue: 10, payoutPercentage: 80, stopGainTrades: 3, stopLossTrades: 2, currency: 'USD', dailyGoalMode: 'percentage', dailyGoalValue: 3 }];
@@ -593,37 +619,20 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 if (localTrash) {
                     try { setTrash(JSON.parse(localTrash)); } catch(e) {}
                 }
-            } else if (response.status === 401 || response.status === 403) {
-                onLogout(); 
             }
         } catch (e) { console.error(e); } finally { setIsLoading(false); }
-    }, [user.id, recalibrateAll, onLogout]);
+    }, [user.id, recalibrateAll]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
     const saveData = useCallback(async () => {
         setSavingStatus('saving');
         try {
-            const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-            const payload = { 
-                brokerages: latestDataRef.current.brokerages, 
-                records: latestDataRef.current.records, 
-                goals: latestDataRef.current.goals 
-            };
-            const response = await fetch('/api/save-data', { 
-                method: 'POST', 
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }, 
-                body: JSON.stringify(payload) 
-            });
+            const payload = { userId: latestDataRef.current.userId, brokerages: latestDataRef.current.brokerages, records: latestDataRef.current.records, goals: latestDataRef.current.goals };
+            const response = await fetch('/api/save-data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (response.ok) { setSavingStatus('saved'); setTimeout(() => setSavingStatus('idle'), 2000); }
-            else if (response.status === 401 || response.status === 403) {
-                onLogout();
-            }
         } catch (error: any) { setSavingStatus('error'); }
-    }, [onLogout]);
+    }, []);
 
     const debouncedSave = useDebouncedCallback(saveData, 1000);
 
@@ -816,21 +825,119 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 } 
             }} />
             <main className="flex-1 flex flex-col overflow-hidden">
-                <Header 
-                    user={user}
-                    serverStatus={serverStatus}
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                    onLogout={onLogout}
-                    brokerages={brokerages}
-                    activeBrokerageId={activeBrokerageId}
-                    setActiveBrokerageId={setActiveBrokerageId}
-                    brokerageBalances={brokerageBalances}
-                    formatMoney={formatMoney}
-                    theme={theme}
-                    savingStatus={savingStatus}
-                    isDarkMode={isDarkMode}
-                />
+                <header className={`flex-none flex flex-col border-b ${theme.border} ${theme.header}`}>
+                    {/* Top Row */}
+                    <div className="h-14 md:h-16 flex items-center justify-between px-4 md:px-8 border-b border-white/5">
+                        <div className="flex items-center gap-2 md:gap-6">
+                            {/* Professionalized Logo */}
+                            <div className="flex items-center gap-3">
+                                <div className="relative group">
+                                    <motion.div 
+                                        animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.5, 0.2] }}
+                                        transition={{ duration: 3, repeat: Infinity }}
+                                        className="absolute inset-0 bg-purple-500 rounded-full blur-xl"
+                                    />
+                                    <div className="relative w-7 h-7 md:w-9 md:h-9 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 p-0.5 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                                        <div className="w-full h-full rounded-[10px] bg-[#050a1f] flex items-center justify-center">
+                                            <SparklesIcon className="w-3.5 h-3.5 md:w-4 md:h-4 text-purple-400" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="relative overflow-hidden">
+                                    <span className="text-base md:text-lg font-black tracking-tighter text-white">HRK<span className="text-purple-500">.</span></span>
+                                    <motion.div 
+                                        initial={{ x: '-100%' }}
+                                        animate={{ x: '200%' }}
+                                        transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
+                                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e293b]/30 border border-white/5 text-[7px] font-black uppercase tracking-widest text-[#6366f1]/60">
+                                <div className="w-1 h-1 rounded-full bg-[#6366f1] animate-pulse" />
+                                Market: Active
+                            </div>
+                            <SavingStatusIndicator status={savingStatus} />
+                            
+                            <div className="flex items-center gap-1 md:gap-2 ml-1 md:ml-4">
+                                <select 
+                                    value={activeBrokerageId || ''} 
+                                    onChange={(e) => setActiveBrokerageId(e.target.value)}
+                                    className={`text-[8px] md:text-xs font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 cursor-pointer truncate ${theme.text}`}
+                                >
+                                    {brokerages.map(b => (
+                                        <option key={b.id} value={b.id} className={isDarkMode ? 'bg-slate-900' : 'bg-white'}>{b.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 md:gap-6">
+                            <div className="hidden sm:flex items-center gap-2 md:gap-4 overflow-x-auto no-scrollbar py-1">
+                                {brokerageBalances.map((b, i) => (
+                                    <div key={i} className={`flex flex-col items-end px-2 md:px-3 py-0.5 md:py-1 rounded-lg md:rounded-xl border shrink-0 ${isDarkMode ? 'bg-slate-900/40 border-slate-800/50' : 'bg-zinc-200/50 border-zinc-300/50'}`}>
+                                        <span className="text-[5px] md:text-[7px] font-black uppercase opacity-40 leading-none">{b.name}</span>
+                                        <span className={`text-[7px] md:text-xs font-bold leading-tight ${b.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                            {b.currency === 'USD' ? '$' : 'R$'} {formatMoney(b.balance)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <div className="flex items-center gap-2 md:gap-3">
+                                <button 
+                                    onClick={() => setActiveTab('settings')}
+                                    className={`relative group transition-all hover:scale-105 active:scale-95 ${activeTab === 'settings' ? 'ring-2 ring-[#6366f1] ring-offset-2 ring-offset-[#0f172a]' : ''}`}
+                                    title="Configurações"
+                                >
+                                    <div className="w-7 h-7 md:w-9 md:h-9 rounded-lg md:rounded-xl bg-[#6366f1] flex items-center justify-center text-white font-black text-[8px] md:text-xs shadow-lg shadow-[#6366f1]/20">
+                                        {user.username.slice(0, 2).toUpperCase()}
+                                    </div>
+                                    {user.isAdmin && (
+                                        <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-amber-500 rounded-full border-2 border-[#0f172a] flex items-center justify-center" title="Administrador">
+                                            <SparklesIcon className="w-1.5 h-1.5 md:w-2 md:h-2 text-white" />
+                                        </div>
+                                    )}
+                                </button>
+                                <button 
+                                    onClick={onLogout}
+                                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all active:scale-95"
+                                    title="Sair"
+                                >
+                                    <LogoutIcon className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Navigation Row */}
+                    <div className="h-12 md:h-14 flex items-center justify-center px-4 md:px-8 overflow-x-auto no-scrollbar gap-1 md:gap-2">
+                        {[
+                            { id: 'dashboard', label: 'Dashboard', icon: LayoutGridIcon },
+                            { id: 'ai-analysis', label: 'Análise IA', icon: CpuChipIcon },
+                            { id: 'compound', label: 'Juros Compostos', icon: ChartBarIcon },
+                            { id: 'history', label: 'Histórico', icon: ListBulletIcon },
+                            { id: 'soros', label: 'Calc Soros', icon: CalculatorIcon },
+                            { id: 'goals', label: 'Metas', icon: TargetIcon },
+                            { id: 'management-sheet', label: 'Planilha Gestão', icon: DocumentTextIcon },
+                            ...(user.isAdmin ? [{ id: 'admin', label: 'Admin', icon: UsersIcon }] : [])
+                        ].map((item) => (
+                            <button 
+                                key={item.id}
+                                onClick={() => setActiveTab(item.id)}
+                                className={`flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-xl font-bold text-[9px] md:text-[11px] uppercase tracking-wider transition-all whitespace-nowrap active:scale-95 ${
+                                    activeTab === item.id 
+                                        ? 'bg-[#6366f1] text-white shadow-lg shadow-[#6366f1]/20' 
+                                        : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                                }`}
+                            >
+                                <item.icon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
+                </header>
                 <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
                     {activeTab === 'dashboard' && (
                         <DashboardPanel 
@@ -910,10 +1017,7 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
 
     const fetchSystemSettings = async () => {
         try {
-            const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-            const res = await fetch(`/api/admin/get-system-settings`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await fetch(`/api/admin/get-system-settings?adminId=${adminId}`);
             const data = await res.json();
             if (data.registration_keyword) setRegistrationKeyword(data.registration_keyword);
         } catch (error) {
@@ -924,10 +1028,7 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
     const fetchUsers = async () => {
         setIsLoading(true);
         try {
-            const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-            const res = await fetch(`/api/admin/get-users`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await fetch(`/api/admin/get-users?adminId=${adminId}`);
             const data = await res.json();
             if (data.users) setUsers(data.users);
         } catch (error) {
@@ -949,14 +1050,10 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
         }
         setIsUpdatingKeyword(true);
         try {
-            const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
             const res = await fetch('/api/admin/update-system-settings', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ key: 'registration_keyword', value: registrationKeyword })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminId, key: 'registration_keyword', value: registrationKeyword })
             });
             const data = await res.json();
             if (res.ok) {
@@ -973,14 +1070,10 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
 
     const togglePause = async (targetUserId: number, currentPaused: boolean) => {
         try {
-            const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
             const res = await fetch('/api/admin/toggle-pause', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ targetUserId, isPaused: !currentPaused })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminId, targetUserId, isPaused: !currentPaused })
             });
             const data = await res.json();
             if (res.ok) {
@@ -1000,14 +1093,10 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
             return;
         }
         try {
-            const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
             const res = await fetch('/api/admin/reset-password', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ targetUserId, newPassword })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminId, targetUserId, newPassword })
             });
             const data = await res.json();
             if (res.ok) {
@@ -1083,7 +1172,6 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Role</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Criado em</th>
-                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Último Acesso</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</th>
                                 </tr>
                             </thead>
@@ -1110,16 +1198,6 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
                                         </td>
                                         <td className="px-6 py-5 text-xs text-slate-500 font-bold">
                                             {new Date((u as any).createdAt || Date.now()).toLocaleDateString('pt-BR')}
-                                        </td>
-                                        <td className="px-6 py-5 text-xs text-[#a5b4fc] font-bold">
-                                            {u.lastLoginAt ? (
-                                                <div className="flex flex-col">
-                                                    <span>{new Date(u.lastLoginAt).toLocaleDateString('pt-BR')}</span>
-                                                    <span className="text-[9px] opacity-70">{new Date(u.lastLoginAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-                                                </div>
-                                            ) : (
-                                                <span className="opacity-30">---</span>
-                                            )}
                                         </td>
                                         <td className="px-6 py-5 text-right">
                                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

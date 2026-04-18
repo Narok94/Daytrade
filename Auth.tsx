@@ -39,39 +39,31 @@ const Auth: React.FC = () => {
     const handleLogin = useCallback(async (username: string, password: string, rememberMe: boolean = false): Promise<boolean> => {
         setAuthError('');
         try {
-            const data = { username, password };
-            console.log('Dados enviados:', data);
-            
             const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
+                body: JSON.stringify({ username, password }),
             });
 
-            const resData = await response.json();
+            const data = await response.json();
 
             if (response.ok) {
-                const user: User = resData.user;
-                const token: string = resData.token;
-                
+                const user: User = data.user;
                 setCurrentUser(user);
                 
-                // Set sessionStorage for the current session
+                // Always set sessionStorage for the current session
                 sessionStorage.setItem('currentUser', JSON.stringify(user));
-                sessionStorage.setItem('authToken', token);
                 
                 // If rememberMe is checked, also set localStorage
                 if (rememberMe) {
                     localStorage.setItem('currentUser', JSON.stringify(user));
-                    localStorage.setItem('authToken', token);
                 } else {
                     localStorage.removeItem('currentUser');
-                    localStorage.removeItem('authToken');
                 }
                 
                 return true;
             } else {
-                const errorMessage = resData.details ? `${resData.error}: ${resData.details}` : (resData.error || 'Falha ao fazer login.');
+                const errorMessage = data.details ? `${data.error}: ${data.details}` : (data.error || 'Falha ao fazer login.');
                 setAuthError(errorMessage);
                 return false;
             }
@@ -82,13 +74,13 @@ const Auth: React.FC = () => {
         }
     }, []);
 
-    const handleRegister = useCallback(async (username: string, password: string) => {
+    const handleRegister = useCallback(async (username: string, password: string, keyword: string) => {
         setAuthError('');
         try {
             const response = await fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({ username, password, keyword }),
             });
 
             const data = await response.json();
@@ -109,9 +101,7 @@ const Auth: React.FC = () => {
     const handleLogout = useCallback(() => {
         setCurrentUser(null);
         sessionStorage.removeItem('currentUser');
-        sessionStorage.removeItem('authToken');
         localStorage.removeItem('currentUser');
-        localStorage.removeItem('authToken');
     }, []);
 
     if (!currentUser) {

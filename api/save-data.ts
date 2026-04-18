@@ -1,6 +1,7 @@
+
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { getPool } from '../services/db.js';
-import { Brokerage, AppRecord, Goal } from '../types';
+import { db } from '@vercel/postgres';
+import { Brokerage, DailyRecord, TransactionRecord, AppRecord, Goal } from '../types';
 import { randomUUID } from 'crypto';
 
 async function ensureTablesAndMigrate(client: any, userId?: number) {
@@ -43,6 +44,8 @@ async function ensureTablesAndMigrate(client: any, userId?: number) {
     if (columnsResult.length === 0) {
         await client.query(`ALTER TABLE operacoes_daytrade ADD COLUMN brokerage_id UUID;`);
     } else if (columnsResult[0].data_type !== 'uuid') {
+        // If it exists but is not UUID, we need to convert it. 
+        // This might fail if data is not valid UUID, so we use a cast.
         await client.query(`ALTER TABLE operacoes_daytrade ALTER COLUMN brokerage_id TYPE UUID USING brokerage_id::uuid;`);
     }
 
@@ -69,7 +72,7 @@ export default async function handler(
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const client = await getPool().connect();
+    const client = await db.connect();
 
     try {
         const { brokerages, records, goals } = req.body as {
@@ -78,18 +81,30 @@ export default async function handler(
             goals: Goal[];
         };
         
-        // userId is now provided by the authenticate middleware
-        const auth = (req as any).auth;
-        if (!auth || !auth.userId) {
-            return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
+        const rawUserId = req.body.userId;
+        let userId: number;
+
+        if (rawUserId === null || rawUserId === undefined) {
+            return res.status(400).json({ error: 'User ID (userId) é obrigatório.' });
         }
 
-        const userId = Number(auth.userId);
+        // Validate userId is strictly an integer
+        if (typeof rawUserId === 'number' && Number.isInteger(rawUserId)) {
+            userId = rawUserId;
+        } else if (typeof rawUserId === 'string') {
+            const parsedId = parseInt(rawUserId, 10);
+            if (!isNaN(parsedId) && String(parsedId) === rawUserId) {
+                userId = parsedId;
+            } else {
+                return res.status(400).json({ error: `ID de usuário inválido. Esperava um número inteiro, recebeu: "${rawUserId}".` });
+            }
+        } else {
+            return res.status(400).json({ error: `Tipo de ID inválido: ${typeof rawUserId}` });
+        }
         
         await ensureTablesAndMigrate(client, userId);
         
         await client.query('BEGIN');
-        await client.query('SET statement_timeout = 5000');
 
         const settings_json = { brokerages, goals };
         await client.query(
@@ -149,10 +164,10 @@ export default async function handler(
         await client.query('COMMIT');
         return res.status(200).json({ message: 'Dados salvos com sucesso.' });
 
-    } catch (error: any) {
+    } catch (error) {
         await client.query('ROLLBACK');
         console.error('Save Error:', error);
-        return res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: (error as Error).message });
     } finally {
         client.release();
     }
