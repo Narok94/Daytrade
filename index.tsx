@@ -2,7 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
-import Auth from './Auth';
+import Login from './src/pages/Login';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -12,6 +12,6 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <Auth />
+    <Login />
   </React.StrictMode>
 );
