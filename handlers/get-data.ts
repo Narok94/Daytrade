@@ -1,4 +1,4 @@
-import { query } from '../services/db';
+import { query } from '../services/db.js';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Brokerage, DailyRecord, Goal, Trade } from '../types';
 import { randomUUID } from 'crypto';

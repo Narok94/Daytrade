@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { getPool } from '../services/db';
+import { getPool } from '../services/db.js';
 import { Brokerage, AppRecord, Goal } from '../types';
 import { randomUUID } from 'crypto';
 

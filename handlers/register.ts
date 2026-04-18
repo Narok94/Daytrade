@@ -1,4 +1,4 @@
-import { query } from '../services/db';
+import { query } from '../services/db.js';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
 import { Brokerage } from '../types';

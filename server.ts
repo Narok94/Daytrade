@@ -6,21 +6,21 @@ import jwt from "jsonwebtoken";
 const JWT_SECRET = process.env.JWT_SECRET || 'secret-fallback-for-dev-only';
 
 // Import handlers
-import loginHandler from "../handlers/login.js";
-import registerHandler from "../handlers/register.js";
-import getDataHandler from "../handlers/get-data.js";
-import saveDataHandler from "../handlers/save-data.js";
-import healthCheckHandler from "../handlers/health-check.js";
-import setupHandler from "../handlers/setup.js";
-import aiAnalysisHandler from "../handlers/ai-analysis.js";
-import setupAdminHandler from "../handlers/setup-admin.js";
+import loginHandler from "./handlers/login.js";
+import registerHandler from "./handlers/register.js";
+import getDataHandler from "./handlers/get-data.js";
+import saveDataHandler from "./handlers/save-data.js";
+import healthCheckHandler from "./handlers/health-check.js";
+import setupHandler from "./handlers/setup.js";
+import aiAnalysisHandler from "./handlers/ai-analysis.js";
+import setupAdminHandler from "./handlers/setup-admin.js";
 
 // Admin handlers
-import getAdminUsersHandler from "../handlers/admin/get-users.js";
-import togglePauseHandler from "../handlers/admin/toggle-pause.js";
-import updateSystemSettingsHandler from "../handlers/admin/update-system-settings.js";
-import getSystemSettingsHandler from "../handlers/admin/get-system-settings.js";
-import resetPasswordHandler from "../handlers/admin/reset-password.js";
+import getAdminUsersHandler from "./handlers/admin/get-users.js";
+import togglePauseHandler from "./handlers/admin/toggle-pause.js";
+import updateSystemSettingsHandler from "./handlers/admin/update-system-settings.js";
+import getSystemSettingsHandler from "./handlers/admin/get-system-settings.js";
+import resetPasswordHandler from "./handlers/admin/reset-password.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
