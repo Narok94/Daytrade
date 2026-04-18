@@ -87,29 +87,29 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 5, initialDelay =
 
 const useThemeClasses = (isDarkMode: boolean) => {
     return useMemo(() => ({
-        bg: isDarkMode ? 'bg-[#0b0e14]' : 'bg-zinc-100',
+        bg: isDarkMode ? 'bg-charcoal' : 'bg-zinc-100',
         text: isDarkMode ? 'text-slate-50' : 'text-zinc-900',
-        textMuted: isDarkMode ? 'text-slate-400' : 'text-zinc-500',
-        card: isDarkMode ? 'bg-white/5 backdrop-blur-md border border-white/10 shadow-2xl' : 'bg-white border-zinc-200 shadow-sm',
-        input: isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-[#6366f1]/50 focus:ring-1 focus:ring-[#6366f1]/50' : 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400',
-        border: isDarkMode ? 'border-white/10' : 'border-zinc-200',
-        sidebar: isDarkMode ? 'bg-[#0b0e14] border-r border-white/10' : 'bg-zinc-50 border-r border-zinc-200',
-        header: isDarkMode ? 'bg-[#0b0e14]/80 backdrop-blur-md' : 'bg-zinc-50/80 backdrop-blur-md',
-        navActive: isDarkMode ? 'bg-[#6366f1]/20 text-[#6366f1] shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'bg-indigo-50 text-indigo-600',
-        navInactive: isDarkMode ? 'text-slate-400 hover:text-[#6366f1] hover:bg-white/5' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50',
-        accentSuccess: 'text-[#22c55e] drop-shadow-[0_0_8px_rgba(34,197,94,0.3)]',
-        accentError: 'text-[#ef4444] drop-shadow-[0_0_8px_rgba(239,68,68,0.3)]',
-        accentAction: 'bg-[#6366f1] hover:bg-[#4f46e5] shadow-[0_0_20px_rgba(99,102,241,0.3)]',
+        textMuted: isDarkMode ? 'text-slate-500' : 'text-zinc-500',
+        card: isDarkMode ? 'bg-card/40 backdrop-blur-xl border border-white/5 shadow-[0_10px_40px_rgba(0,0,0,0.4)]' : 'bg-white border-zinc-200 shadow-sm',
+        input: isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder-slate-600 focus:border-electric/50 focus:ring-1 focus:ring-electric/50' : 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400',
+        border: isDarkMode ? 'border-white/5' : 'border-zinc-200',
+        sidebar: isDarkMode ? 'bg-charcoal border-r border-white/5' : 'bg-zinc-50 border-r border-zinc-200',
+        header: isDarkMode ? 'bg-charcoal/80 backdrop-blur-md border-b border-white/5' : 'bg-zinc-50/80 backdrop-blur-md',
+        navActive: isDarkMode ? 'bg-electric/10 text-gold border-r-2 border-gold' : 'bg-indigo-50 text-indigo-600',
+        navInactive: isDarkMode ? 'text-slate-500 hover:text-electric hover:bg-white/5' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50',
+        accentSuccess: 'text-[#00ff88] drop-shadow-[0_0_8px_rgba(0,255,136,0.3)]',
+        accentError: 'text-[#ff4444] drop-shadow-[0_0_8px_rgba(255,68,68,0.3)]',
+        accentAction: 'bg-electric hover:brightness-110 text-charcoal shadow-[0_0_20px_rgba(0,209,255,0.3)]',
     }), [isDarkMode]);
 };
 
 // --- Components ---
 const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
-    <div className={`animate-pulse bg-white/5 rounded-2xl ${className}`} />
+    <div className={`animate-pulse bg-white/5 rounded-none ${className}`} />
 );
 
 const GlassCard: React.FC<{ children: React.ReactNode; className?: string; theme: any }> = ({ children, className = '', theme }) => (
-    <div className={`p-6 rounded-3xl ${theme.card} ${className}`}>
+    <div className={`p-6 lg:p-8 rounded-none border border-white/10 backdrop-blur-xl ${theme.card} ${className}`}>
         {children}
     </div>
 );
@@ -117,10 +117,10 @@ const GlassCard: React.FC<{ children: React.ReactNode; className?: string; theme
 const SectionTitle: React.FC<{ title: string; subtitle?: string; icon?: any; theme: any }> = ({ title, subtitle, icon: Icon, theme }) => (
     <div className="mb-6">
         <div className="flex items-center gap-3 mb-1">
-            {Icon && <Icon className="w-5 h-5 text-[#6366f1]" />}
-            <h3 className={`text-sm font-black uppercase tracking-[0.2em] opacity-80 ${theme.text}`}>{title}</h3>
+            {Icon && <Icon className="w-5 h-5 text-gold" />}
+            <h3 className={`text-xs font-black uppercase tracking-[0.3em] text-gold font-display`}>{title}</h3>
         </div>
-        {subtitle && <p className={`text-[10px] font-medium ${theme.textMuted}`}>{subtitle}</p>}
+        {subtitle && <p className={`text-[10px] font-bold uppercase tracking-widest opacity-60 ${theme.textMuted}`}>{subtitle}</p>}
     </div>
 );
 
@@ -133,10 +133,10 @@ const ActionButton: React.FC<{
     icon?: any;
 }> = ({ children, onClick, className = '', variant = 'primary', disabled, icon: Icon }) => {
     const variants = {
-        primary: 'bg-[#6366f1] text-white shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:bg-[#4f46e5]',
-        success: 'bg-[#22c55e] text-white shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:bg-[#16a34a]',
-        danger: 'bg-[#ef4444] text-white shadow-[0_0_20px_rgba(239,68,68,0.3)] hover:bg-[#dc2626]',
-        ghost: 'bg-white/5 text-slate-300 hover:bg-white/10 border border-white/10'
+        primary: 'bg-electric text-charcoal shadow-[0_5px_15px_rgba(0,209,255,0.2)] hover:brightness-110',
+        success: 'bg-[#00ff88] text-[#0b0c10] shadow-[0_5px_15px_rgba(0,255,136,0.2)] hover:brightness-110',
+        danger: 'bg-[#ff4444] text-white shadow-[0_5px_15px_rgba(255,68,68,0.2)] hover:brightness-110',
+        ghost: 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5'
     };
 
     return (
@@ -144,8 +144,8 @@ const ActionButton: React.FC<{
             onClick={onClick}
             disabled={disabled}
             className={`
-                flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest
-                transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
+                flex items-center justify-center gap-2 px-6 py-4 rounded-none font-black text-[10px] uppercase tracking-[0.2em]
+                transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
                 ${variants[variant]} ${className}
             `}
         >
@@ -334,9 +334,9 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                 <GlassCard theme={theme} className="animate-pulse">
                     <SectionTitle title="Análise Neural" subtitle="Insights baseados em IA" icon={CpuChipIcon} theme={theme} />
                     <div className="space-y-6">
-                        <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Status do Motor</span>
-                            <span className="text-xs font-black text-[#6366f1] uppercase tracking-widest animate-pulse">Processando...</span>
+                        <div className="flex items-center justify-between p-4 rounded-none bg-white/5 border border-white/10">
+                            <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Status do Motor</span>
+                            <span className="text-xs font-black text-electric uppercase tracking-[0.2em] animate-pulse">Processando...</span>
                         </div>
                         <div className="space-y-4">
                             {[
@@ -346,12 +346,12 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                                 { label: 'FINAL_COMPUTE', val: progress.result }
                             ].map((p, i) => (
                                 <div key={i} className="space-y-2">
-                                    <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-500">
+                                    <div className="flex justify-between text-[8px] font-black uppercase tracking-[0.2em] text-slate-500">
                                         <span>{p.label}</span>
                                         <span>{p.val}%</span>
                                     </div>
-                                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                                        <div className="h-full bg-[#6366f1] transition-all duration-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: `${p.val}%` }} />
+                                    <div className="h-1 bg-white/5 rounded-none overflow-hidden border border-white/5">
+                                        <div className="h-full bg-electric transition-all duration-500 shadow-[0_0_15px_rgba(0,243,255,0.5)]" style={{ width: `${p.val}%` }} />
                                     </div>
                                 </div>
                             ))}
@@ -374,35 +374,35 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                     </div>
 
                     <div className="space-y-8">
-                        <div className="p-8 rounded-[2.5rem] bg-[#6366f1]/10 border border-[#6366f1]/20 text-center relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#6366f1]/40 to-transparent animate-pulse" />
+                        <div className="p-8 rounded-none bg-electric/5 border border-electric/20 text-center relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-electric/40 to-transparent animate-pulse" />
                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Recomendação</p>
                             <h3 className={`text-7xl font-black tracking-tighter mb-2 ${
-                                analysisResult.recommendation === 'CALL' ? 'text-[#6366f1] drop-shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 
-                                analysisResult.recommendation === 'PUT' ? 'text-[#ef4444] drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'text-slate-400'
+                                analysisResult.recommendation === 'CALL' ? 'text-electric drop-shadow-[0_0_15px_rgba(0,243,255,0.5)]' : 
+                                analysisResult.recommendation === 'PUT' ? 'text-[#ff4444] drop-shadow-[0_0_15px_rgba(255,68,68,0.5)]' : 'text-slate-400'
                             }`}>
                                 {analysisResult.recommendation === 'CALL' ? 'COMPRA' : analysisResult.recommendation === 'PUT' ? 'VENDA' : 'AGUARDAR'}
                             </h3>
                             <div className="flex items-center justify-center gap-2">
-                                <span className="text-xs font-black uppercase text-white tracking-widest">{analysisResult.asset}</span>
-                                <div className="w-1.5 h-1.5 bg-[#6366f1] rounded-full animate-pulse" />
-                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{analysisResult.timeframe}</span>
+                                <span className="text-xs font-black uppercase text-white tracking-[0.2em]">{analysisResult.asset}</span>
+                                <div className="w-1.5 h-1.5 bg-electric rounded-full animate-pulse" />
+                                <span className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em]">{analysisResult.timeframe}</span>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="p-6 rounded-3xl bg-white/5 border border-white/5 text-center">
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Horário de Entrada</p>
+                            <div className="p-6 rounded-none bg-white/5 border border-white/10 text-center font-display">
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Horário de Entrada</p>
                                 <p className="text-4xl font-black text-white tracking-widest">{analysisResult.entryTime}</p>
                                 {countdown !== null && (
-                                    <p className="text-[10px] font-black text-[#6366f1] animate-pulse mt-2 uppercase tracking-widest">Entre em: {countdown}s</p>
+                                    <p className="text-[10px] font-black text-electric animate-pulse mt-2 uppercase tracking-[0.2em]">Entre em: {countdown}s</p>
                                 )}
                             </div>
-                            <div className="p-6 rounded-3xl bg-white/5 border border-white/5 text-center">
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Confiança</p>
-                                <p className="text-4xl font-black text-[#22c55e]">{analysisResult.confidence}%</p>
-                                <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden mt-3">
-                                    <div className="h-full bg-[#22c55e]" style={{ width: `${analysisResult.confidence}%` }} />
+                            <div className="p-6 rounded-none bg-white/5 border border-white/10 text-center font-display">
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Confiança</p>
+                                <p className="text-4xl font-black text-[#00ff88]">{analysisResult.confidence}%</p>
+                                <div className="w-full h-1 bg-white/5 rounded-none overflow-hidden mt-3 border border-white/5">
+                                    <div className="h-full bg-[#00ff88]" style={{ width: `${analysisResult.confidence}%` }} />
                                 </div>
                             </div>
                         </div>
@@ -410,15 +410,15 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                         <div className="space-y-4">
                             <button 
                                 onClick={() => setShowDetailed(!showDetailed)}
-                                className="w-full p-5 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between hover:bg-white/10 transition-all active:scale-[0.98]"
+                                className="w-full p-5 bg-white/5 border border-white/10 rounded-none flex items-center justify-between hover:bg-white/10 transition-all active:scale-[0.98]"
                             >
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Logs Técnicos</span>
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Logs Técnicos</span>
                                 <ChevronDownIcon className={`w-5 h-5 text-slate-500 transition-transform duration-300 ${showDetailed ? 'rotate-180' : ''}`} />
                             </button>
                             {showDetailed && (
-                                <div className="p-6 bg-white/5 rounded-2xl text-xs text-slate-400 leading-relaxed font-medium border border-white/5 animate-in slide-in-from-top-2 duration-300">
+                                <div className="p-6 bg-white/5 rounded-none text-xs text-slate-400 leading-relaxed font-black uppercase tracking-widest border border-white/10 animate-in slide-in-from-top-2 duration-300">
                                     <div className="flex gap-2 mb-3">
-                                        <span className="text-[#6366f1] font-black tracking-widest">[IA_CORE]</span>
+                                        <span className="text-electric font-black tracking-[0.2em]">[IA_CORE]</span>
                                         <span className="text-slate-300">Analisando padrões de price action...</span>
                                     </div>
                                     <p className="italic opacity-80">{analysisResult.reasoning}</p>
@@ -442,32 +442,32 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                 
                 {!selectedImage ? (
                     <div className="space-y-8">
-                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 rounded-[3rem] p-12 bg-white/5 backdrop-blur-md space-y-10 relative overflow-hidden group">
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#6366f1]/40 to-transparent animate-pulse" />
+                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 rounded-none p-12 bg-white/5 backdrop-blur-md space-y-10 relative overflow-hidden group">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-electric/40 to-transparent animate-pulse" />
                             
-                            <div className="w-28 h-28 rounded-[2rem] bg-[#6366f1]/10 border border-[#6366f1]/20 flex items-center justify-center text-[#6366f1] shadow-[0_0_50px_rgba(99,102,241,0.1)] group-hover:scale-110 transition-transform duration-500">
+                            <div className="w-28 h-28 rounded-none bg-electric/5 border border-electric/20 flex items-center justify-center text-electric shadow-[0_0_50px_rgba(0,243,255,0.1)] group-hover:scale-110 transition-transform duration-500">
                                 <PhotoIcon className="w-14 h-14" />
                             </div>
                             
                             <div className="text-center space-y-4">
-                                <h3 className="text-3xl font-black uppercase tracking-tight text-white">Análise IA</h3>
+                                <h3 className="text-4xl font-black uppercase tracking-tighter text-white font-display">Análise IA<span className="text-electric">.</span></h3>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Envie um print do seu gráfico para análise</p>
                             </div>
                             
                             <div className="w-full grid grid-cols-2 gap-4">
-                                <label className="py-6 bg-gradient-to-br from-[#6366f1] to-[#4f46e5] hover:brightness-110 text-white rounded-2xl flex flex-col items-center justify-center gap-3 font-black text-[10px] uppercase cursor-pointer transition-all shadow-xl active:scale-95">
+                                <label className="py-6 bg-electric hover:brightness-110 text-charcoal rounded-none flex flex-col items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest cursor-pointer transition-all shadow-xl active:scale-95">
                                     <CameraIcon className="w-7 h-7" /> Câmera
                                     <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                                 </label>
-                                <label className="py-6 bg-white/5 hover:bg-white/10 text-white rounded-2xl flex flex-col items-center justify-center gap-3 font-black text-[10px] uppercase cursor-pointer transition-all border border-white/10 active:scale-95">
+                                <label className="py-6 bg-white/5 hover:bg-white/10 text-white rounded-none flex flex-col items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest cursor-pointer transition-all border border-white/10 active:scale-95">
                                     <PhotoIcon className="w-7 h-7" /> Galeria
                                     <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                                 </label>
                             </div>
                         </div>
 
-                        <div className="p-6 rounded-2xl bg-white/5 border border-white/5 flex items-start gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-[#6366f1]/10 flex items-center justify-center text-[#6366f1] shrink-0">
+                        <div className="p-6 rounded-none bg-white/5 border border-white/10 flex items-start gap-4">
+                            <div className="w-10 h-10 rounded-none bg-electric/10 flex items-center justify-center text-electric shrink-0 border border-electric/20">
                                 <InformationCircleIcon className="w-6 h-6" />
                             </div>
                             <p className="text-[10px] text-slate-400 leading-relaxed uppercase tracking-widest font-black">
@@ -477,10 +477,10 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                     </div>
                 ) : (
                     <div className="space-y-8">
-                        <div className="relative aspect-video rounded-[2.5rem] overflow-hidden border border-[#6366f1]/30 bg-white/5 shadow-2xl group">
+                        <div className="relative aspect-video rounded-none overflow-hidden border border-electric/30 bg-white/5 shadow-2xl group">
                             <img src={selectedImage} alt="Preview" className="w-full h-full object-contain" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-[#0b0e14]/80 to-transparent pointer-events-none" />
-                            <button onClick={() => setSelectedImage(null)} className="absolute top-4 right-4 p-3 bg-black/50 backdrop-blur-md rounded-2xl text-white hover:bg-red-500 transition-all active:scale-90">
+                            <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 to-transparent pointer-events-none" />
+                            <button onClick={() => setSelectedImage(null)} className="absolute top-4 right-4 p-3 bg-black/50 backdrop-blur-md rounded-none text-white hover:bg-red-500 transition-all active:scale-90">
                                 <XMarkIcon className="w-5 h-5" />
                             </button>
                         </div>
@@ -783,7 +783,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
     }, [brokerages, records]);
 
     const theme = useThemeClasses(isDarkMode);
-    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-[#6366f1] border-t-transparent rounded-full animate-spin" /></div>;
+    if (isLoading) return <div className={`h-screen flex items-center justify-center ${theme.bg}`}><div className="w-10 h-10 border-4 border-electric border-t-transparent rounded-none animate-spin" /></div>;
 
     const dateStr = getLocalDateString(selectedDate);
     const brokerageRecords = records.filter(r => r.brokerageId === activeBrokerage?.id);
@@ -883,14 +883,14 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                                         transition={{ duration: 3, repeat: Infinity }}
                                         className="absolute inset-0 bg-purple-500 rounded-full blur-xl"
                                     />
-                                    <div className="relative w-7 h-7 md:w-9 md:h-9 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 p-0.5 flex items-center justify-center shadow-lg shadow-purple-500/20">
-                                        <div className="w-full h-full rounded-[10px] bg-[#050a1f] flex items-center justify-center">
-                                            <SparklesIcon className="w-3.5 h-3.5 md:w-4 md:h-4 text-purple-400" />
+                                    <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-none bg-electric p-0.5 flex items-center justify-center shadow-lg shadow-electric/20">
+                                        <div className="w-full h-full rounded-none bg-charcoal flex items-center justify-center p-1.5">
+                                            <img src="/logo-odin.png" className="w-full h-auto opacity-90" alt="" referrerPolicy="no-referrer" />
                                         </div>
                                     </div>
                                 </div>
                                 <div className="relative overflow-hidden">
-                                    <span className="text-base md:text-lg font-black tracking-tighter text-white">HRK<span className="text-purple-500">.</span></span>
+                                    <span className="text-xl md:text-2xl font-black tracking-tighter text-white font-display uppercase">ODIN<span className="text-electric">.</span></span>
                                     <motion.div 
                                         initial={{ x: '-100%' }}
                                         animate={{ x: '200%' }}
@@ -900,8 +900,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                                 </div>
                             </div>
 
-                            <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e293b]/30 border border-white/5 text-[7px] font-black uppercase tracking-widest text-[#6366f1]/60">
-                                <div className="w-1 h-1 rounded-full bg-[#6366f1] animate-pulse" />
+                            <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-none bg-white/5 border border-white/10 text-[7px] font-black uppercase tracking-[0.2em] text-gold">
+                                <div className="w-1 h-1 rounded-full bg-electric animate-pulse" />
                                 Market: Active
                             </div>
                             <SavingStatusIndicator status={savingStatus} />
@@ -934,21 +934,21 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             <div className="flex items-center gap-2 md:gap-3">
                                 <button 
                                     onClick={() => setActiveTab('settings')}
-                                    className={`relative group transition-all hover:scale-105 active:scale-95 ${activeTab === 'settings' ? 'ring-2 ring-[#6366f1] ring-offset-2 ring-offset-[#0f172a]' : ''}`}
+                                    className={`relative group transition-all hover:scale-105 active:scale-95 ${activeTab === 'settings' ? 'ring-2 ring-electric ring-offset-2 ring-offset-charcoal' : ''}`}
                                     title="Configurações"
                                 >
-                                    <div className="w-7 h-7 md:w-9 md:h-9 rounded-lg md:rounded-xl bg-[#6366f1] flex items-center justify-center text-white font-black text-[8px] md:text-xs shadow-lg shadow-[#6366f1]/20">
+                                    <div className="w-7 h-7 md:w-9 md:h-9 rounded-none bg-electric flex items-center justify-center text-charcoal font-black text-[8px] md:text-xs shadow-lg shadow-electric/20">
                                         {user.username.slice(0, 2).toUpperCase()}
                                     </div>
                                     {user.isAdmin && (
-                                        <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-amber-500 rounded-full border-2 border-[#0f172a] flex items-center justify-center" title="Administrador">
-                                            <SparklesIcon className="w-1.5 h-1.5 md:w-2 md:h-2 text-white" />
+                                        <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-gold rounded-none border border-charcoal flex items-center justify-center" title="Administrador">
+                                            <SparklesIcon className="w-1.5 h-1.5 md:w-2 md:h-2 text-charcoal" />
                                         </div>
                                     )}
                                 </button>
                                 <button 
                                     onClick={onLogout}
-                                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all active:scale-95"
+                                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-none transition-all active:scale-95"
                                     title="Sair"
                                 >
                                     <LogoutIcon className="w-5 h-5" />
@@ -968,20 +968,23 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                             { id: 'goals', label: 'Metas', icon: TargetIcon },
                             { id: 'management-sheet', label: 'Planilha Gestão', icon: DocumentTextIcon },
                             ...(user.isAdmin ? [{ id: 'admin', label: 'Admin', icon: UsersIcon }] : [])
-                        ].map((item) => (
-                            <button 
-                                key={item.id}
-                                onClick={() => setActiveTab(item.id)}
-                                className={`flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-xl font-bold text-[9px] md:text-[11px] uppercase tracking-wider transition-all whitespace-nowrap active:scale-95 ${
-                                    activeTab === item.id 
-                                        ? 'bg-[#6366f1] text-white shadow-lg shadow-[#6366f1]/20' 
-                                        : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
-                                }`}
-                            >
-                                <item.icon className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                                {item.label}
-                            </button>
-                        ))}
+                        ].map((item) => {
+                            const Icon = item.icon;
+                            return (
+                                <button 
+                                    key={item.id}
+                                    onClick={() => setActiveTab(item.id)}
+                                    className={`flex items-center gap-2 px-3 md:px-6 py-2 rounded-none font-black text-[8px] md:text-[10px] uppercase tracking-[0.2em] transition-all whitespace-nowrap active:scale-95 ${
+                                        activeTab === item.id 
+                                            ? 'bg-gold text-charcoal shadow-lg shadow-gold/20' 
+                                            : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'
+                                    }`}
+                                >
+                                    <Icon className={`w-3.5 h-3.5 md:w-4 md:h-4 ${activeTab === item.id ? 'text-charcoal' : 'text-gold'}`} />
+                                    {item.label}
+                                </button>
+                            );
+                        })}
                     </div>
                 </header>
                 <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
@@ -1161,19 +1164,19 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
         <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-8">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl md:text-3xl font-black italic tracking-tight text-white">Painel Admin</h2>
-                    <p className="text-xs md:text-sm text-slate-400 font-medium">Gerenciamento de usuários e sistema</p>
+                    <h2 className={`text-2xl md:text-3xl font-black uppercase tracking-tight text-white font-display`}>Painel Admin<span className="text-electric">.</span></h2>
+                    <p className="text-[10px] uppercase text-slate-500 font-black tracking-[0.2em]">Gerenciamento de usuários e sistema</p>
                 </div>
-                <button onClick={fetchUsers} className="p-3 rounded-2xl bg-white/5 text-[#6366f1] hover:bg-white/10 transition-all active:scale-90 border border-white/5">
+                <button onClick={fetchUsers} className="p-3 rounded-none bg-white/5 text-electric hover:bg-white/10 transition-all active:scale-90 border border-white/10">
                     <ArrowPathIcon className={`w-6 h-6 ${isLoading ? 'animate-spin' : ''}`} />
                 </button>
             </div>
 
             {message && (
-                <div className={`p-4 rounded-2xl flex items-center gap-3 border animate-in zoom-in-95 duration-300 ${message.type === 'success' ? 'bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]/20' : 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]/20'}`}>
+                <div className={`p-4 rounded-none flex items-center gap-3 border animate-in zoom-in-95 duration-300 ${message.type === 'success' ? 'bg-[#00ff88]/10 text-[#00ff88] border-[#00ff88]/20' : 'bg-[#ff4444]/10 text-[#ff4444] border-[#ff4444]/20'}`}>
                     {message.type === 'success' ? <CheckCircleIcon className="w-5 h-5" /> : <ExclamationTriangleIcon className="w-5 h-5" />}
-                    <span className="text-sm font-bold">{message.text}</span>
-                    <button onClick={() => setMessage(null)} className="ml-auto opacity-50 hover:opacity-100"><XMarkIcon className="w-4 h-4" /></button>
+                    <span className="text-sm font-black uppercase tracking-widest">{message.text}</span>
+                    <button onClick={() => setMessage(null)} className="ml-auto opacity-50 hover:opacity-100 transition-opacity"><XMarkIcon className="w-4 h-4" /></button>
                 </div>
             )}
 
@@ -1185,20 +1188,20 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
                     </p>
                     <div className="space-y-6">
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Palavra-chave</label>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Palavra-chave</label>
                             <input
                                 type="text"
                                 value={registrationKeyword}
                                 onChange={(e) => setRegistrationKeyword(e.target.value)}
                                 placeholder="Ex: CONVITE2024"
-                                className={`w-full h-14 px-5 rounded-2xl border outline-none font-bold text-sm transition-all ${theme.input}`}
+                                className={`w-full h-14 px-5 rounded-none border outline-none font-black text-xs uppercase transition-all ${theme.input} border-white/10 focus:border-electric`}
                             />
                         </div>
                         <ActionButton
                             variant="primary"
                             onClick={updateRegistrationKeyword}
                             disabled={isUpdatingKeyword}
-                            className="w-full h-14"
+                            className="w-full h-14 rounded-none"
                             icon={CheckCircleIcon}
                         >
                             {isUpdatingKeyword ? 'Atualizando...' : 'Atualizar Chave'}
@@ -1227,33 +1230,33 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
                                     <tr key={u.id} className="hover:bg-white/5 transition-colors group">
                                         <td className="px-6 py-5">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-[#6366f1]/10 flex items-center justify-center text-[#6366f1] font-black text-xs border border-[#6366f1]/20">
+                                                <div className="w-10 h-10 rounded-none bg-electric/10 flex items-center justify-center text-electric font-black text-xs border border-electric/20 uppercase">
                                                     {u.username.slice(0, 2).toUpperCase()}
                                                 </div>
-                                                <span className="font-bold text-slate-200">{u.username}</span>
+                                                <span className="font-black text-slate-200 uppercase tracking-widest text-xs">{u.username}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-5">
-                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${u.isPaused ? 'bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/20' : 'bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20'}`}>
+                                            <span className={`px-3 py-1 rounded-none text-[10px] font-black uppercase tracking-widest ${u.isPaused ? 'bg-[#ff4444]/10 text-[#ff4444] border border-[#ff4444]/20' : 'bg-[#00ff88]/10 text-[#00ff88] border border-[#00ff88]/20'}`}>
                                                 {u.isPaused ? 'Pausado' : 'Ativo'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-5">
-                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${u.isAdmin ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-slate-500/10 text-slate-400 border border-white/5'}`}>
+                                            <span className={`px-3 py-1 rounded-none text-[10px] font-black uppercase tracking-widest ${u.isAdmin ? 'bg-gold/10 text-gold border border-gold/20' : 'bg-slate-500/10 text-slate-500 border border-white/5'}`}>
                                                 {u.isAdmin ? 'Admin' : 'User'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-5 text-xs text-slate-500 font-bold">
+                                        <td className="px-6 py-5 text-[10px] text-slate-500 font-black uppercase tracking-widest">
                                             {new Date((u as any).createdAt || Date.now()).toLocaleDateString('pt-BR')}
                                         </td>
-                                        <td className="px-6 py-5 text-xs text-[#a5b4fc] font-bold">
+                                        <td className="px-6 py-5 text-[10px] text-electric font-black uppercase tracking-widest">
                                             {u.lastLoginAt ? (
                                                 <div className="flex flex-col">
                                                     <span>{new Date(u.lastLoginAt).toLocaleDateString('pt-BR')}</span>
-                                                    <span className="text-[9px] opacity-70">{new Date(u.lastLoginAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                    <span className="text-[9px] opacity-70 tracking-widest">{new Date(u.lastLoginAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
                                                 </div>
                                             ) : (
-                                                <span className="opacity-30">---</span>
+                                                <span className="opacity-30 tracking-widest">---</span>
                                             )}
                                         </td>
                                         <td className="px-6 py-5 text-right">
@@ -1261,14 +1264,14 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
                                                 <button 
                                                     onClick={() => togglePause(u.id, !!u.isPaused)}
                                                     title={u.isPaused ? 'Despausar' : 'Pausar'}
-                                                    className={`p-2.5 rounded-xl transition-all active:scale-90 ${u.isPaused ? 'bg-[#22c55e]/10 text-[#22c55e] hover:bg-[#22c55e]/20' : 'bg-[#ef4444]/10 text-[#ef4444] hover:bg-[#ef4444]/20'}`}
+                                                    className={`p-2.5 rounded-none transition-all active:scale-90 ${u.isPaused ? 'bg-[#00ff88]/10 text-[#00ff88] hover:bg-[#00ff88]/20' : 'bg-[#ff4444]/10 text-[#ff4444] hover:bg-[#ff4444]/20'}`}
                                                 >
                                                     {u.isPaused ? <PlayIcon className="w-5 h-5" /> : <PauseIcon className="w-5 h-5" />}
                                                 </button>
                                                 <button 
                                                     onClick={() => setResettingUserId(u.id)}
                                                     title="Resetar Senha"
-                                                    className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-all active:scale-90"
+                                                    className="p-2.5 rounded-none bg-gold/10 text-gold hover:bg-gold/20 transition-all active:scale-90"
                                                 >
                                                     <KeyIcon className="w-5 h-5" />
                                                 </button>
@@ -1283,39 +1286,39 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
             </div>
 
             {resettingUserId && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-                    <GlassCard theme={theme} className="w-full max-w-md !p-8 border-[#6366f1]/30 animate-in zoom-in-95 duration-300">
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-charcoal/90 backdrop-blur-xl animate-in fade-in duration-300">
+                    <GlassCard theme={theme} className="w-full max-w-md !p-8 border-electric/30 animate-in zoom-in-95 duration-300 rounded-none">
                         <div className="flex items-center gap-4 mb-8">
-                            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
+                            <div className="w-14 h-14 rounded-none bg-gold/10 flex items-center justify-center text-gold border border-gold/20">
                                 <KeyIcon className="w-7 h-7" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-black italic text-white">Resetar Senha</h3>
-                                <p className="text-xs text-slate-400 font-medium">Defina uma nova senha para o usuário</p>
+                                <h3 className="text-xl font-black uppercase text-white font-display">Resetar Senha</h3>
+                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Defina uma nova senha para o usuário</p>
                             </div>
                         </div>
                         <div className="space-y-6">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nova Senha</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Nova Senha</label>
                                 <input 
                                     type="password" 
                                     value={newPassword}
                                     onChange={(e) => setNewPassword(e.target.value)}
                                     placeholder="Mínimo 4 caracteres"
-                                    className={`w-full h-14 px-5 rounded-2xl border outline-none font-bold text-sm transition-all ${theme.input}`}
+                                    className={`w-full h-14 px-5 rounded-none border outline-none font-black text-xs uppercase transition-all ${theme.input} border-white/10 focus:border-electric`}
                                 />
                             </div>
                             <div className="flex gap-4 pt-4">
                                 <button 
                                     onClick={() => {setResettingUserId(null); setNewPassword('');}}
-                                    className="flex-1 h-14 rounded-2xl font-black uppercase text-[10px] tracking-widest text-slate-400 hover:text-white transition-all"
+                                    className="flex-1 h-14 rounded-none font-black uppercase text-[10px] tracking-widest text-slate-500 hover:text-white transition-all"
                                 >
                                     Cancelar
                                 </button>
                                 <ActionButton 
                                     variant="primary"
                                     onClick={() => handleResetPassword(resettingUserId)}
-                                    className="flex-1 h-14"
+                                    className="flex-1 h-14 rounded-none"
                                     icon={CheckCircleIcon}
                                 >
                                     Confirmar
@@ -1410,9 +1413,9 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
 
     const kpis = [
         { label: 'Banca Atual', val: currentBalance, isCurrency: true, icon: PieChartIcon, color: 'text-white' },
-        { label: 'Lucro Diário', val: currentProfit, isCurrency: true, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]' },
-        { label: 'Meta Diária', val: dailyGoalTarget, isCurrency: true, subVal: `${Math.min(100, dailyGoalPercent).toFixed(0)}% Alcançado`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-[#22c55e]' : 'text-[#6366f1]' },
-        { label: 'Win Rate', val: parseFloat(winRate), isPercent: true, icon: TrophyIcon, color: 'text-purple-400' },
+        { label: 'Lucro Diário', val: currentProfit, isCurrency: true, icon: TrendingUpIcon, color: currentProfit >= 0 ? 'text-[#00ff88]' : 'text-[#ff4444]' },
+        { label: 'Meta Diária', val: dailyGoalTarget, isCurrency: true, subVal: `${Math.min(100, dailyGoalPercent).toFixed(0)}% Alcançado`, icon: TargetIcon, color: dailyGoalPercent >= 100 ? 'text-[#00ff88]' : 'text-electric' },
+        { label: 'Win Rate', val: parseFloat(winRate), isPercent: true, icon: TrophyIcon, color: 'text-gold' },
     ];
 
     // Chart Data
@@ -1439,12 +1442,12 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div className="flex items-center gap-4">
                     <div>
-                        <h2 className={`text-2xl lg:text-3xl font-black tracking-tight ${theme.text}`}>Dashboard</h2>
-                        <p className={`text-xs font-medium ${theme.textMuted}`}>Operações e gestão em tempo real.</p>
+                        <h2 className={`text-2xl lg:text-4xl font-black tracking-tight ${theme.text} uppercase font-display`}>Dashboard<span className="text-electric">.</span></h2>
+                        <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${theme.textMuted}`}>Operações e gestão em tempo real.</p>
                     </div>
                     <button 
                         onClick={() => setIsPrivacyMode(!isPrivacyMode)}
-                        className={`p-2 rounded-xl border transition-all ${isPrivacyMode ? 'bg-[#6366f1] text-white border-[#6366f1]' : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'}`}
+                        className={`p-2 rounded-none border transition-all ${isPrivacyMode ? 'bg-electric text-charcoal border-electric' : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'}`}
                         title={isPrivacyMode ? "Mostrar Saldo" : "Ocultar Saldo"}
                     >
                         {isPrivacyMode ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
@@ -1454,7 +1457,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                     type="date" 
                     value={selectedDateString} 
                     onChange={(e) => setSelectedDate(new Date(e.target.value + 'T12:00:00'))} 
-                    className={`w-full md:w-auto border rounded-2xl px-6 py-3 text-sm font-bold focus:outline-none ${theme.input}`} 
+                    className={`w-full md:w-auto border rounded-none px-6 py-3 text-sm font-black uppercase tracking-widest focus:outline-none ${theme.input} border-white/10`} 
                 />
             </div>
 
@@ -1463,15 +1466,15 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                     [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32" />)
                 ) : (
                     kpis.map((kpi, i) => (
-                        <GlassCard key={i} theme={theme} className="flex flex-col justify-between group hover:border-[#6366f1]/30 transition-all duration-300 relative overflow-hidden">
+                        <GlassCard key={i} theme={theme} className="flex flex-col justify-between group hover:border-electric/30 transition-all duration-300 relative overflow-hidden">
                             <div className="flex justify-between items-start mb-2">
                                 <p className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em]">{kpi.label}</p>
-                                <kpi.icon className={`w-4 h-4 ${kpi.color} opacity-50 group-hover:opacity-100 transition-opacity`} />
+                                <kpi.icon className={`w-4 h-4 ${kpi.color} opacity-30 group-hover:opacity-100 transition-opacity`} />
                             </div>
                             
-                            <div className={`text-xl md:text-2xl font-black ${kpi.color} truncate tracking-tight transition-all duration-500 ${isPrivacyMode && kpi.label === 'Banca Atual' ? 'blur-md select-none opacity-50' : ''}`}>
+                            <div className={`text-xl md:text-3xl font-black ${kpi.color} truncate tracking-tighter transition-all duration-500 ${isPrivacyMode && kpi.label === 'Banca Atual' ? 'blur-md select-none opacity-50' : ''}`}>
                                 {kpi.isCurrency && (
-                                    <span className="mr-1">{kpi.val >= 0 ? '' : '-'}{currencySymbol}</span>
+                                    <span className="mr-1 opacity-50 text-[0.6em]">{kpi.val >= 0 ? '' : '-'}{currencySymbol}</span>
                                 )}
                                 <CountUp 
                                     end={Math.abs(kpi.val)} 
@@ -1480,21 +1483,21 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                     separator="." 
                                     decimal="," 
                                 />
-                                {kpi.isPercent && '%'}
+                                {kpi.isPercent && <span className="text-[0.6em] opacity-50 ml-1">%</span>}
                             </div>
 
                             {kpi.label === 'Meta Diária' && (
                                 <div className="mt-4 space-y-2">
-                                    <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-500">
+                                    <div className="flex justify-between text-[8px] font-black uppercase tracking-[0.2em] text-slate-500">
                                         <span>Progresso</span>
-                                        <span className={dailyGoalPercent >= 100 ? 'text-[#22c55e]' : 'text-[#6366f1]'}>{dailyGoalPercent.toFixed(1)}%</span>
+                                        <span className={dailyGoalPercent >= 100 ? 'text-[#00ff88]' : 'text-electric'}>{dailyGoalPercent.toFixed(1)}%</span>
                                     </div>
-                                    <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/5">
+                                    <div className="w-full bg-white/5 h-1 rounded-none overflow-hidden border border-white/5">
                                         <motion.div 
                                             initial={{ width: 0 }}
                                             animate={{ width: `${Math.min(100, dailyGoalPercent)}%` }}
                                             transition={{ duration: 1.5, ease: "easeOut" }}
-                                            className={`h-full transition-all duration-1000 shadow-[0_0_10px_rgba(99,102,241,0.3)] ${dailyGoalPercent >= 100 ? 'bg-[#22c55e]' : 'bg-[#6366f1]'}`}
+                                            className={`h-full transition-all duration-1000 shadow-[0_0_15px_rgba(30,215,96,0.3)] ${dailyGoalPercent >= 100 ? 'bg-[#00ff88]' : 'bg-electric'}`}
                                         />
                                     </div>
                                 </div>
@@ -1508,16 +1511,16 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                 <GlassCard theme={theme} className="flex flex-col h-full">
                     <SectionTitle title="Nova Operação" subtitle="Registre seu resultado" icon={CalculatorIcon} theme={theme} />
                     
-                    <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 mb-6">
+                    <div className="flex bg-white/5 p-1 rounded-none border border-white/10 mb-6 font-display">
                         <button 
                             onClick={() => setEntryMode('fixed')}
-                            className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${entryMode === 'fixed' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`flex-1 py-3 rounded-none text-[10px] font-black uppercase tracking-widest transition-all ${entryMode === 'fixed' ? 'bg-electric text-charcoal shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
                             Fixo
                         </button>
                         <button 
                             onClick={() => setEntryMode('percentage')}
-                            className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${entryMode === 'percentage' ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`flex-1 py-3 rounded-none text-[10px] font-black uppercase tracking-widest transition-all ${entryMode === 'percentage' ? 'bg-electric text-charcoal shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
                             % Banca
                         </button>
@@ -1532,7 +1535,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                         type="number" 
                                         value={customEntryValue}
                                         onChange={(e) => setCustomEntryValue(e.target.value)}
-                                        className={`w-full px-4 py-3 rounded-2xl font-bold text-sm ${theme.input}`}
+                                        className={`w-full px-4 py-3 rounded-none font-black text-sm uppercase tracking-widest ${theme.input} border border-white/10`}
                                     />
                                 </div>
                                 <div>
@@ -1541,24 +1544,24 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                         type="number" 
                                         value={customPayout}
                                         onChange={(e) => handlePayoutChange(e.target.value)}
-                                        className={`w-full px-4 py-3 rounded-2xl font-bold text-sm ${theme.input}`}
+                                        className={`w-full px-4 py-3 rounded-none font-black text-sm uppercase tracking-widest ${theme.input} border border-white/10`}
                                     />
                                 </div>
                             </div>
 
-                            <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                            <div className="p-4 rounded-none bg-white/5 border border-white/10">
                                 <div className="flex justify-between items-center mb-2">
-                                    <span className="text-[10px] font-black uppercase text-slate-500">Estimativa</span>
-                                    <span className="text-[10px] font-black uppercase text-[#6366f1]">Soros Ativo: {isNextTradeSoros ? 'Sim' : 'Não'}</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Estimativa</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-gold bg-gold/10 px-2 py-0.5 rounded-none border border-gold/20">Soros Ativo: {isNextTradeSoros ? 'Sim' : 'Não'}</span>
                                 </div>
                                 <div className="flex justify-between items-end">
                                     <div>
-                                        <p className="text-[8px] font-black text-slate-500 uppercase">Se Win</p>
-                                        <p className="text-lg font-black text-[#22c55e]">+{currencySymbol} {formatMoney(estimatedProfit)}</p>
+                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest leading-none">Se Win</p>
+                                        <p className="text-xl font-black text-[#00ff88] tracking-widest leading-none">+{currencySymbol} {formatMoney(estimatedProfit)}</p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-[8px] font-black text-slate-500 uppercase">Se Loss</p>
-                                        <p className="text-lg font-black text-[#ef4444]">-{currencySymbol} {formatMoney(estimatedLoss)}</p>
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Se Loss</p>
+                                        <p className="text-xl font-black text-[#ff4444] tracking-widest leading-none">-{currencySymbol} {formatMoney(estimatedLoss)}</p>
                                     </div>
                                 </div>
                             </div>
@@ -1594,7 +1597,7 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                             </ActionButton>
 
                             {(stopWinReached || stopLossReached) && (
-                                <div className={`p-4 rounded-2xl border ${stopWinReached ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'} text-center`}>
+                                <div className={`p-4 rounded-none border-2 ${stopWinReached ? 'bg-[#00ff88]/10 border-[#00ff88]/50 text-[#00ff88]' : 'bg-[#ff4444]/10 border-[#ff4444]/50 text-[#ff4444]'} text-center font-black uppercase tracking-[0.22em] text-[10px]`}>
                                     <p className="text-[10px] font-black uppercase tracking-widest">
                                         {stopWinReached ? 'Meta Batida! Pare por hoje.' : 'Stop Loss Atingido! Volte amanhã.'}
                                     </p>
@@ -1623,16 +1626,16 @@ const DashboardPanel: React.FC<any> = ({ activeBrokerage, updateBrokerageSetting
                                             {new Date(trade.timestamp || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                         </td>
                                         <td className="py-4">
-                                            <span className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest ${
+                                            <span className={`px-2 py-1 rounded-none text-[8px] font-black uppercase tracking-widest ${
                                                 trade.result === 'win' 
-                                                    ? 'bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20' 
-                                                    : 'bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/20'
+                                                    ? 'bg-[#00ff88]/10 text-[#00ff88] border border-[#00ff88]/20' 
+                                                    : 'bg-[#ff4444]/10 text-[#ff4444] border border-[#ff4444]/20'
                                             }`}>
                                                 {trade.result === 'win' ? 'WIN' : 'LOSS'}
                                             </span>
                                         </td>
                                         <td className="py-4">
-                                            <span className={`text-[10px] font-black ${trade.result === 'win' ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                                            <span className={`text-[10px] font-black uppercase tracking-widest ${trade.result === 'win' ? 'text-[#00ff88]' : 'text-[#ff4444]'}`}>
                                                 {trade.result === 'win' ? '+' : '-'}{currencySymbol}{trade.result === 'win' ? (trade.entryValue * (trade.payoutPercentage / 100)).toFixed(2) : trade.entryValue.toFixed(2)}
                                             </span>
                                         </td>
@@ -1756,8 +1759,8 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
         <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div>
-                    <h2 className={`text-2xl lg:text-3xl font-black tracking-tight ${theme.text}`}>Juros Compostos</h2>
-                    <p className={`text-xs font-medium ${theme.textMuted}`}>Projeção baseada no histórico real e metas futuras.</p>
+                    <h2 className={`text-2xl lg:text-4xl font-black tracking-tight ${theme.text} uppercase font-display`}>Juros Compostos<span className="text-electric">.</span></h2>
+                    <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${theme.textMuted}`}>Projeção baseada no histórico real e metas futuras.</p>
                 </div>
             </div>
 
@@ -1772,8 +1775,8 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                     <div className="flex flex-col items-start gap-1">
                                         <span>Meta</span>
                                         <div className="flex items-center gap-1">
-                                            <input type="number" value={projMetaPercent} onChange={e => setProjMetaPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
-                                            <span className="opacity-30">%</span>
+                                            <input type="number" value={projMetaPercent} onChange={e => setProjMetaPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded-none border text-[10px] text-center font-black outline-none ${theme.input} border-white/10`} />
+                                            <span className="opacity-30 font-black">%</span>
                                         </div>
                                     </div>
                                 </th>
@@ -1783,8 +1786,8 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                     <div className="flex flex-col items-start gap-1">
                                         <span>Stop</span>
                                         <div className="flex items-center gap-1">
-                                            <input type="number" value={projStopPercent} onChange={e => setProjStopPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
-                                            <span className="opacity-30">%</span>
+                                            <input type="number" value={projStopPercent} onChange={e => setProjStopPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded-none border text-[10px] text-center font-black outline-none ${theme.input} border-white/10`} />
+                                            <span className="opacity-30 font-black">%</span>
                                         </div>
                                     </div>
                                 </th>
@@ -1792,8 +1795,8 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                                     <div className="flex flex-col items-end gap-1">
                                         <span>Entrada</span>
                                         <div className="flex items-center gap-1">
-                                            <input type="number" value={projEntryPercent} onChange={e => setProjEntryPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded border text-[10px] text-center font-black outline-none ${theme.input}`} />
-                                            <span className="opacity-30">%</span>
+                                            <input type="number" value={projEntryPercent} onChange={e => setProjEntryPercent(parseFloat(e.target.value) || 0)} className={`w-12 h-6 px-1 rounded-none border text-[10px] text-center font-black outline-none ${theme.input} border-white/10`} />
+                                            <span className="opacity-30 font-black">%</span>
                                         </div>
                                     </div>
                                 </th>
@@ -1801,20 +1804,20 @@ const CompoundInterestPanel: React.FC<any> = ({ isDarkMode, activeBrokerage, rec
                         </thead>
                         <tbody className="divide-y divide-white/5">
                             {tableData.map((row) => (
-                                <tr key={row.dateId} className={`group transition-colors hover:bg-white/5 ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : row.status === 'STOP-LOSS' ? 'bg-[#ef4444]/5' : ''}`}>
-                                    <td className="py-4 text-xs font-bold text-slate-400">
+                                <tr key={row.dateId} className={`group transition-colors hover:bg-white/5 ${row.isProjection ? 'opacity-40 grayscale-[0.5]' : row.status === 'STOP-LOSS' ? 'bg-[#ff4444]/5' : ''}`}>
+                                    <td className="py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">
                                         {row.hasOperation ? row.dateDisplay : ''}
                                     </td>
-                                    <td className="py-4 text-xs font-bold text-slate-300">{currencySymbol} {formatMoney(row.initial)}</td>
-                                    <td className="py-4 text-xs font-bold text-slate-500">{row.metaPercent}%</td>
-                                    <td className="py-4 text-sm font-black text-[#6366f1]">{currencySymbol} {formatMoney(row.targetProfit)}</td>
+                                    <td className="py-4 text-[10px] font-black uppercase tracking-widest text-slate-300">{currencySymbol} {formatMoney(row.initial)}</td>
+                                    <td className="py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">{row.metaPercent}%</td>
+                                    <td className="py-4 text-sm font-black text-electric uppercase tracking-widest">{currencySymbol} {formatMoney(row.targetProfit)}</td>
                                     <td className="py-4">
-                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' ? 'bg-[#22c55e]/20 text-[#22c55e]' : row.status === 'STOP-LOSS' ? 'bg-[#ef4444]/20 text-[#ef4444]' : 'bg-slate-500/20 text-slate-500'}`}>
+                                        <span className={`px-3 py-1 rounded-none text-[10px] font-black tracking-widest ${row.status === 'META BATIDA' ? 'bg-[#00ff88]/20 text-[#00ff88]' : row.status === 'STOP-LOSS' ? 'bg-[#ff4444]/20 text-[#ff4444]' : 'bg-slate-500/20 text-slate-500'}`}>
                                             {row.status}
                                         </span>
                                     </td>
-                                    <td className="py-4 text-xs font-bold text-[#ef4444]/80">{currencySymbol} {formatMoney(row.stopValue)}</td>
-                                    <td className="py-4 text-right text-xs font-bold text-slate-400">{currencySymbol} {formatMoney(row.entryValue)}</td>
+                                    <td className="py-4 text-[10px] font-black uppercase tracking-widest text-[#ff4444]/80">{currencySymbol} {formatMoney(row.stopValue)}</td>
+                                    <td className="py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-500">{currencySymbol} {formatMoney(row.entryValue)}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -1859,14 +1862,14 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
     return (
         <GlassCard theme={theme} className="w-full max-w-xl mx-auto">
             <div className="flex items-center justify-between mb-6">
-                <button onClick={prevMonth} className="p-2 hover:bg-white/5 rounded-xl transition-colors active:scale-90"><ChevronLeftIcon className="w-5 h-5" /></button>
-                <h3 className="text-sm md:text-base font-black uppercase tracking-[0.2em] text-[#6366f1]">{monthName}</h3>
-                <button onClick={nextMonth} className="p-2 hover:bg-white/5 rounded-xl transition-colors active:scale-90"><ChevronRightIcon className="w-5 h-5" /></button>
+                <button onClick={prevMonth} className="p-2 hover:bg-white/5 rounded-none transition-all active:scale-90"><ChevronLeftIcon className="w-5 h-5" /></button>
+                <h3 className="text-sm md:text-base font-black uppercase tracking-[0.2em] text-electric">{monthName}</h3>
+                <button onClick={nextMonth} className="p-2 hover:bg-white/5 rounded-none transition-all active:scale-90"><ChevronRightIcon className="w-5 h-5" /></button>
             </div>
 
             <div className="grid grid-cols-7 gap-1 md:gap-2">
                 {dayNames.map(day => (
-                    <div key={day} className="text-center text-[10px] font-black uppercase text-slate-500 py-2">{day}</div>
+                    <div key={day} className="text-center text-[8px] font-black uppercase text-slate-500 py-2 tracking-widest">{day}</div>
                 ))}
                 {calendarDays.map((day, idx) => {
                     if (day === null) return <div key={`empty-${idx}`} className="aspect-square" />;
@@ -1876,10 +1879,10 @@ const CalendarHistory: React.FC<any> = ({ isDarkMode, activeBrokerage, records }
                     const isToday = getLocalDateString() === dateId;
 
                     return (
-                        <div key={dateId} className={`aspect-square rounded-xl border ${isDarkMode ? 'border-white/5' : 'border-zinc-200'} flex flex-col items-center justify-center p-1 relative transition-all hover:scale-105 cursor-default ${isToday ? 'ring-2 ring-[#6366f1]/50' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-[#22c55e]/10' : 'bg-[#ef4444]/10') : 'bg-white/5'}`}>
-                            <span className="text-[10px] font-black opacity-30 mb-1">{day}</span>
+                        <div key={dateId} className={`aspect-square rounded-none border border-white/5 flex flex-col items-center justify-center p-1 relative transition-all hover:brightness-125 cursor-default ${isToday ? 'ring-1 ring-electric' : ''} ${profit !== undefined ? (profit >= 0 ? 'bg-[#00ff88]/10' : 'bg-[#ff4444]/10') : 'bg-white/5'}`}>
+                            <span className="text-[8px] font-black opacity-30 mb-1">{day}</span>
                             {profit !== undefined && (
-                                <span className={`text-[8px] md:text-[10px] font-black ${profit >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                                <span className={`text-[8px] font-black ${profit >= 0 ? 'text-[#00ff88]' : 'text-[#ff4444]'}`}>
                                     {profit >= 0 ? '+' : ''}{formatMoney(profit)}
                                 </span>
                             )}
@@ -2027,22 +2030,22 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerag
         <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div>
-                    <h2 className={`text-2xl lg:text-3xl font-black tracking-tight ${theme.text}`}>Histórico</h2>
-                    <p className={`text-xs font-medium ${theme.textMuted}`}>Análise detalhada de performance.</p>
+                    <h2 className={`text-2xl lg:text-4xl font-black tracking-tight ${theme.text} uppercase font-display`}>Histórico<span className="text-electric">.</span></h2>
+                    <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${theme.textMuted}`}>Análise detalhada de performance.</p>
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
-                    <ActionButton variant="ghost" onClick={() => setShowFilters(!showFilters)} icon={FunnelIcon}>
+                    <ActionButton variant="ghost" onClick={() => setShowFilters(!showFilters)} icon={FunnelIcon} className="rounded-none">
                         Filtros
                     </ActionButton>
                 </div>
             </div>
 
-            <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 max-w-md mx-auto">
+            <div className="flex bg-white/5 p-1 rounded-none border border-white/10 max-w-md mx-auto font-display">
                 {(['calendar', 'daily', 'weekly', 'monthly'] as const).map((mode) => (
                     <button 
                         key={mode}
                         onClick={() => setViewMode(mode)}
-                        className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${viewMode === mode ? 'bg-[#6366f1] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                        className={`flex-1 py-3 rounded-none text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === mode ? 'bg-electric text-charcoal shadow-lg shadow-electric/20' : 'text-slate-500 hover:text-slate-300'}`}
                     >
                         {mode === 'calendar' ? 'Cal' : mode === 'daily' ? 'Dia' : mode === 'weekly' ? 'Sem' : 'Mês'}
                     </button>
@@ -2053,20 +2056,20 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerag
                 <GlassCard theme={theme} className="animate-in slide-in-from-top-4 duration-300">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Início</label>
-                            <input type="date" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} className={`w-full h-10 px-4 rounded-xl border focus:ring-1 focus:ring-[#6366f1] outline-none font-bold text-xs ${theme.input}`} />
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Início</label>
+                            <input type="date" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} className={`w-full h-10 px-4 rounded-none border focus:ring-1 focus:ring-electric outline-none font-black text-xs uppercase ${theme.input} border-white/10`} />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Fim</label>
-                            <input type="date" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} className={`w-full h-10 px-4 rounded-xl border focus:ring-1 focus:ring-[#6366f1] outline-none font-bold text-xs ${theme.input}`} />
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Fim</label>
+                            <input type="date" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} className={`w-full h-10 px-4 rounded-none border focus:ring-1 focus:ring-electric outline-none font-black text-xs uppercase ${theme.input} border-white/10`} />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Lucro Mín</label>
-                            <input type="number" value={filterMinProfit} onChange={e => setFilterMinProfit(e.target.value)} placeholder="0.00" className={`w-full h-10 px-4 rounded-xl border focus:ring-1 focus:ring-[#6366f1] outline-none font-bold text-xs ${theme.input}`} />
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Lucro Mín</label>
+                            <input type="number" value={filterMinProfit} onChange={e => setFilterMinProfit(e.target.value)} placeholder="0.00" className={`w-full h-10 px-4 rounded-none border focus:ring-1 focus:ring-electric outline-none font-black text-xs uppercase ${theme.input} border-white/10`} />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Lucro Máx</label>
-                            <input type="number" value={filterMaxProfit} onChange={e => setFilterMaxProfit(e.target.value)} placeholder="0.00" className={`w-full h-10 px-4 rounded-xl border focus:ring-1 focus:ring-[#6366f1] outline-none font-bold text-xs ${theme.input}`} />
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Lucro Máx</label>
+                            <input type="number" value={filterMaxProfit} onChange={e => setFilterMaxProfit(e.target.value)} placeholder="0.00" className={`w-full h-10 px-4 rounded-none border focus:ring-1 focus:ring-electric outline-none font-black text-xs uppercase ${theme.input} border-white/10`} />
                         </div>
                     </div>
                 </GlassCard>
@@ -2079,8 +2082,8 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerag
                         <div className="flex items-center justify-between mb-6">
                             <SectionTitle title={`Relatório ${viewMode === 'daily' ? 'Diário' : viewMode === 'weekly' ? 'Semanal' : 'Mensal'}`} subtitle="Performance consolidada" icon={ChartBarIcon} theme={theme} />
                             <div className="flex gap-2">
-                                <button onClick={() => handleExport('json')} className="p-2 hover:bg-white/5 rounded-xl transition-colors text-slate-400 hover:text-white" title="Exportar JSON"><DocumentTextIcon className="w-5 h-5" /></button>
-                                <button onClick={() => handleExport('csv')} className="p-2 hover:bg-white/5 rounded-xl transition-colors text-slate-400 hover:text-white" title="Exportar CSV"><ListBulletIcon className="w-5 h-5" /></button>
+                                <button onClick={() => handleExport('json')} className="p-2 hover:bg-white/5 rounded-none transition-colors text-slate-400 hover:text-white" title="Exportar JSON"><DocumentTextIcon className="w-5 h-5" /></button>
+                                <button onClick={() => handleExport('csv')} className="p-2 hover:bg-white/5 rounded-none transition-colors text-slate-400 hover:text-white" title="Exportar CSV"><ListBulletIcon className="w-5 h-5" /></button>
                             </div>
                         </div>
                         <div className="overflow-x-auto custom-scrollbar">
@@ -2106,24 +2109,24 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerag
                                             <React.Fragment key={i}>
                                                 {showSeparator && (i === 0 || stats[i-1].id !== s.id) && (
                                                     <tr className="bg-white/5">
-                                                        <td colSpan={4} className="py-2 px-4 text-[8px] font-black uppercase tracking-[0.2em] text-[#6366f1]">
+                                                        <td colSpan={4} className="py-2 px-4 text-[8px] font-black uppercase tracking-[0.2em] text-electric">
                                                             {isToday ? 'Hoje' : 'Ontem'}
                                                         </td>
                                                     </tr>
                                                 )}
-                                                <tr className="group hover:bg-white/5 transition-colors">
-                                                    <td className="py-4 text-xs font-bold text-slate-400">{s.label}</td>
-                                                    <td className={`py-4 text-sm font-black ${s.profit >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'} ${isPrivacyMode ? 'blur-sm select-none opacity-50' : ''}`}>
+                                                <tr className="group hover:bg-white/10 transition-colors border-l-4 border-transparent hover:border-electric">
+                                                    <td className="py-4 text-xs font-black uppercase tracking-widest text-slate-500">{s.label}</td>
+                                                    <td className={`py-4 text-sm font-black ${s.profit >= 0 ? 'text-[#00ff88]' : 'text-[#ff4444]'} ${isPrivacyMode ? 'blur-sm select-none opacity-50' : ''}`}>
                                                         {s.profit >= 0 ? '+' : '-'}{currencySymbol}
                                                         <CountUp end={Math.abs(s.profit)} decimals={2} duration={1} separator="." decimal="," />
                                                     </td>
-                                                    <td className="py-4 text-right text-xs font-bold">
-                                                        <span className="text-[#22c55e]">{s.wins}</span>
+                                                    <td className="py-4 text-right text-xs font-black tracking-widest">
+                                                        <span className="text-[#00ff88]">{s.wins}</span>
                                                         <span className="mx-1 opacity-20">/</span>
-                                                        <span className="text-[#ef4444]">{s.losses}</span>
+                                                        <span className="text-[#ff4444]">{s.losses}</span>
                                                     </td>
                                                     <td className="py-4 text-right">
-                                                        <span className="text-xs font-black text-white">{s.winRate.toFixed(1)}%</span>
+                                                        <span className="text-xs font-black text-white tracking-widest">{s.winRate.toFixed(1)}%</span>
                                                     </td>
                                                 </tr>
                                             </React.Fragment>
@@ -2150,8 +2153,8 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerag
                                 <AreaChart data={chartData}>
                                     <defs>
                                         <linearGradient id="colorBalHistory" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                            <stop offset="5%" stopColor="#00f3ff" stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor="#00f3ff" stopOpacity={0}/>
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
@@ -2215,24 +2218,24 @@ const SorosCalculatorPanel: React.FC<any> = ({ theme, activeBrokerage }) => {
     const results = calculateSoros();
     return (
         <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
-            <div><h2 className="text-xl lg:text-2xl font-black">Calculadora de Soros</h2><p className={`text-[10px] lg:text-xs ${theme.textMuted}`}>Planejamento de alavancagem progressiva.</p></div>
-            <div className={`p-4 lg:p-8 rounded-3xl border ${theme.card} space-y-6`}>
+            <div><h2 className="text-xl lg:text-3xl font-black uppercase font-display">Calculadora de Soros<span className="text-electric">.</span></h2><p className={`text-[10px] lg:text-xs font-black uppercase tracking-[0.2em] ${theme.textMuted}`}>Planejamento de alavancagem progressiva.</p></div>
+            <div className={`p-4 lg:p-8 rounded-none border ${theme.card} border-white/10 space-y-6`}>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Valor Inicial</label><input type="number" value={initialValue} onChange={e => setInitialValue(e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Valor Inicial</label><input type="number" value={initialValue} onChange={e => setInitialValue(e.target.value)} className={`w-full h-12 px-4 rounded-none border outline-none font-black text-sm uppercase ${theme.input} border-white/10 focus:border-electric`} /></div>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-500 uppercase">Payout</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Payout</label>
                         <div className="relative">
-                            <input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full h-12 px-4 pr-8 rounded-xl border outline-none font-bold ${theme.input}`} />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-bold">%</span>
+                            <input type="number" value={payout} onChange={e => setPayout(e.target.value)} className={`w-full h-12 px-4 pr-8 rounded-none border outline-none font-black text-sm uppercase ${theme.input} border-white/10 focus:border-electric`} />
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 font-black">%</span>
                         </div>
                     </div>
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase">Níveis</label><input type="number" value={levels} onChange={e => setLevels(e.target.value)} className={`w-full h-12 px-4 rounded-xl border outline-none font-bold ${theme.input}`} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Níveis</label><input type="number" value={levels} onChange={e => setLevels(e.target.value)} className={`w-full h-12 px-4 rounded-none border outline-none font-black text-sm uppercase ${theme.input} border-white/10 focus:border-electric`} /></div>
                 </div>
                 <div className="space-y-2 lg:space-y-3">
                     {results.map(r => (
-                        <div key={r.level} className="flex items-center justify-between p-3 lg:p-4 rounded-2xl bg-slate-950/20 border border-slate-800/50">
-                            <div><p className="text-[8px] lg:text-[10px] font-black uppercase text-slate-500">Nível {r.level}</p><p className="text-xs lg:text-sm font-bold">Entrada: {currencySymbol} {formatMoney(r.entry)}</p></div>
-                            <div className="text-right"><p className="text-[8px] lg:text-[10px] font-black uppercase text-green-500">Lucro Estimado</p><p className="text-xs lg:text-sm font-black text-green-500">+{currencySymbol} {formatMoney(r.profit)}</p></div>
+                        <div key={r.level} className="flex items-center justify-between p-3 lg:p-4 rounded-none bg-slate-950/20 border border-white/10">
+                            <div><p className="text-[8px] lg:text-[10px] font-black uppercase text-slate-500 tracking-widest">Nível {r.level}</p><p className="text-xs lg:text-sm font-black uppercase tracking-widest">Entrada: {currencySymbol} {formatMoney(r.entry)}</p></div>
+                            <div className="text-right"><p className="text-[8px] lg:text-[10px] font-black uppercase text-[#00ff88] tracking-widest">Lucro Estimado</p><p className="text-xs lg:text-sm font-black text-[#00ff88] uppercase tracking-widest">+{currencySymbol} {formatMoney(r.profit)}</p></div>
                         </div>
                     ))}
                 </div>
@@ -2309,22 +2312,22 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
         <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto">
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4">
                 <div>
-                    <h2 className={`text-2xl lg:text-3xl font-black tracking-tight ${theme.text}`}>Metas</h2>
-                    <p className={`text-xs font-medium ${theme.textMuted}`}>Acompanhamento de objetivos a longo prazo.</p>
+                    <h2 className={`text-2xl lg:text-4xl font-black tracking-tight ${theme.text} uppercase font-display`}>Metas<span className="text-electric">.</span></h2>
+                    <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${theme.textMuted}`}>Acompanhamento de objetivos a longo prazo.</p>
                 </div>
             </div>
 
-            <GlassCard theme={theme}>
+            <GlassCard theme={theme} className="rounded-none border-white/10">
                 <SectionTitle title="Nova Meta" subtitle="Defina um novo objetivo financeiro" icon={TargetIcon} theme={theme} />
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Nome da Meta</label>
-                            <input type="text" placeholder="Ex: Viagem, Carro..." value={newGoalName} onChange={e => setNewGoalName(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`} />
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Nome da Meta</label>
+                            <input type="text" placeholder="Ex: Viagem, Carro..." value={newGoalName} onChange={e => setNewGoalName(e.target.value)} className={`w-full h-12 px-4 rounded-none border focus:ring-1 focus:ring-electric outline-none font-black text-sm uppercase ${theme.input} border-white/10`} />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Tipo</label>
-                            <select value={newGoalType} onChange={e => setNewGoalType(e.target.value as any)} className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`}>
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Tipo</label>
+                            <select value={newGoalType} onChange={e => setNewGoalType(e.target.value as any)} className={`w-full h-12 px-4 rounded-none border focus:ring-1 focus:ring-electric outline-none font-black text-sm uppercase ${theme.input} border-white/10`}>
                                 <option value="weekly">Semanal</option>
                                 <option value="monthly">Mensal</option>
                                 <option value="custom">Até certa data</option>
@@ -2333,17 +2336,17 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor Alvo ({currencySymbol})</label>
-                            <input type="number" placeholder="0.00" value={newGoalAmount} onChange={e => setNewGoalAmount(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`} />
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Valor Alvo ({currencySymbol})</label>
+                            <input type="number" placeholder="0.00" value={newGoalAmount} onChange={e => setNewGoalAmount(e.target.value)} className={`w-full h-12 px-4 rounded-none border focus:ring-1 focus:ring-electric outline-none font-black text-sm uppercase ${theme.input} border-white/10`} />
                         </div>
                         {newGoalType === 'custom' && (
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Data Limite</label>
-                                <input type="date" value={newGoalDeadline} onChange={e => setNewGoalDeadline(e.target.value)} className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`} />
+                                <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Data Limite</label>
+                                <input type="date" value={newGoalDeadline} onChange={e => setNewGoalDeadline(e.target.value)} className={`w-full h-12 px-4 rounded-none border focus:ring-1 focus:ring-electric outline-none font-black text-sm uppercase ${theme.input} border-white/10`} />
                             </div>
                         )}
                     </div>
-                    <ActionButton variant="primary" className="w-full h-14" onClick={addGoal} icon={PlusIcon}>
+                    <ActionButton variant="primary" className="w-full h-14 rounded-none" onClick={addGoal} icon={PlusIcon}>
                         Adicionar Meta
                     </ActionButton>
                 </div>
@@ -2358,34 +2361,34 @@ const GoalsPanel: React.FC<any> = ({ theme, goals, setGoals, records, activeBrok
                             <div className="flex justify-between items-start mb-6">
                                 <div>
                                     <p className="text-[10px] font-black uppercase text-slate-500 mb-1 tracking-widest">{goal.name}</p>
-                                    <h4 className="text-2xl font-black text-white">{currencySymbol} {formatMoney(goal.targetAmount)}</h4>
-                                    <p className="text-xs font-bold text-slate-400 mt-1">Atual: <span className={isCompleted ? 'text-[#22c55e]' : 'text-[#6366f1]'}>{currencySymbol} {formatMoney(current)}</span></p>
+                                    <h4 className="text-2xl font-black text-white font-display">{currencySymbol} {formatMoney(goal.targetAmount)}</h4>
+                                    <p className="text-xs font-black uppercase text-slate-500 mt-1">Atual: <span className={isCompleted ? 'text-[#00ff88]' : 'text-electric'}>{currencySymbol} {formatMoney(current)}</span></p>
                                 </div>
-                                <button onClick={() => deleteGoal(goal.id)} className="p-2 hover:bg-red-500/10 rounded-xl transition-colors text-red-500/50 hover:text-red-500 active:scale-90"><TrashIcon className="w-5 h-5" /></button>
+                                <button onClick={() => deleteGoal(goal.id)} className="p-2 hover:bg-red-500/10 rounded-none transition-all text-red-500/50 hover:text-red-500 active:scale-90"><TrashIcon className="w-5 h-5" /></button>
                             </div>
                             
                             <div className="space-y-3">
-                                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                                <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em]">
                                     <span className="text-slate-500">{label}</span>
-                                    <span className={isCompleted ? 'text-[#22c55e]' : 'text-[#6366f1]'}>{percentage.toFixed(1)}%</span>
+                                    <span className={isCompleted ? 'text-[#00ff88]' : 'text-electric'}>{percentage.toFixed(1)}%</span>
                                 </div>
-                                <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                                    <div className={`h-full transition-all duration-1000 ease-out ${isCompleted ? 'bg-[#22c55e] shadow-[0_0_15px_rgba(34,197,94,0.3)]' : 'bg-[#6366f1] shadow-[0_0_15px_rgba(99,102,241,0.3)]'}`} style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }} />
+                                <div className="w-full h-2 bg-white/5 rounded-none overflow-hidden border border-white/10">
+                                    <div className={`h-full transition-all duration-1000 ease-out ${isCompleted ? 'bg-[#00ff88] shadow-[0_0_15px_rgba(0,255,136,0.3)]' : 'bg-electric shadow-[0_0_15px_rgba(0,243,255,0.3)]'}`} style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }} />
                                 </div>
                             </div>
                             
-                            <div className="grid grid-cols-3 gap-4 pt-6 mt-6 border-t border-white/5">
+                            <div className="grid grid-cols-3 gap-4 pt-6 mt-6 border-t border-white/10">
                                 <div className="text-center">
-                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-1">Meta Diária</p>
-                                    <p className="text-xs font-black text-[#6366f1]">{currencySymbol} {formatMoney(goal.targetAmount / (goal.type === 'monthly' ? 22 : goal.type === 'weekly' ? 5 : 30))}</p>
+                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-1 tracking-widest">Meta Diária</p>
+                                    <p className="text-xs font-black text-electric uppercase tracking-widest">{currencySymbol} {formatMoney(goal.targetAmount / (goal.type === 'monthly' ? 22 : goal.type === 'weekly' ? 5 : 30))}</p>
                                 </div>
-                                <div className="text-center border-x border-white/5">
-                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-1">Meta Semanal</p>
-                                    <p className="text-xs font-black text-[#6366f1]">{currencySymbol} {formatMoney(goal.type === 'weekly' ? goal.targetAmount : goal.targetAmount / (goal.type === 'monthly' ? 4 : 4))}</p>
+                                <div className="text-center border-x border-white/10">
+                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-1 tracking-widest">Meta Semanal</p>
+                                    <p className="text-xs font-black text-electric uppercase tracking-widest">{currencySymbol} {formatMoney(goal.type === 'weekly' ? goal.targetAmount : goal.targetAmount / (goal.type === 'monthly' ? 4 : 4))}</p>
                                 </div>
                                 <div className="text-center">
-                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-1">Meta Mensal</p>
-                                    <p className="text-xs font-black text-[#6366f1]">{currencySymbol} {formatMoney(goal.type === 'monthly' ? goal.targetAmount : goal.targetAmount * (goal.type === 'weekly' ? 4 : 1))}</p>
+                                    <p className="text-[8px] font-black uppercase text-slate-500 mb-1 tracking-widest">Meta Mensal</p>
+                                    <p className="text-xs font-black text-electric uppercase tracking-widest">{currencySymbol} {formatMoney(goal.type === 'monthly' ? goal.targetAmount : goal.targetAmount * (goal.type === 'weekly' ? 4 : 1))}</p>
                                 </div>
                             </div>
                         </GlassCard>
@@ -2462,8 +2465,8 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
         <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className={`text-2xl lg:text-3xl font-black tracking-tight ${theme.text}`}>Configurações</h2>
-                    <p className={`text-xs font-medium ${theme.textMuted}`}>Gestão de capital e limites de risco.</p>
+                    <h2 className={`text-2xl lg:text-4xl font-black tracking-tight ${theme.text} uppercase font-display`}>Configurações<span className="text-electric">.</span></h2>
+                    <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${theme.textMuted}`}>Gestão de capital e limites de risco.</p>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
                     <input 
@@ -2471,9 +2474,9 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                         placeholder="Nova Corretora" 
                         value={newBrokerageName}
                         onChange={e => setNewBrokerageName(e.target.value)}
-                        className={`flex-1 h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-xs ${theme.input}`}
+                        className={`flex-1 h-12 px-4 rounded-none border focus:ring-1 focus:ring-electric outline-none font-black text-xs uppercase ${theme.input} border-white/10`}
                     />
-                    <ActionButton variant="primary" onClick={addNewBrokerage} icon={PlusIcon}>
+                    <ActionButton variant="primary" onClick={addNewBrokerage} icon={PlusIcon} className="rounded-none">
                         Nova
                     </ActionButton>
                 </div>
@@ -2573,45 +2576,45 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
                     <SectionTitle title="Parâmetros de VEX" subtitle="Movimentação de capital" icon={ArrowPathIcon} theme={theme} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-4">
-                            <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5">
+                            <div className="flex bg-white/5 p-1 rounded-none border border-white/10">
                                 <button 
                                     onClick={() => setTransType('deposit')}
-                                    className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${transType === 'deposit' ? 'bg-green-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                    className={`flex-1 py-3 rounded-none text-[10px] font-black uppercase tracking-widest transition-all ${transType === 'deposit' ? 'bg-[#00ff88] text-charcoal shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                                 >
                                     Depósito
                                 </button>
                                 <button 
                                     onClick={() => setTransType('withdrawal')}
-                                    className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${transType === 'withdrawal' ? 'bg-red-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                    className={`flex-1 py-3 rounded-none text-[10px] font-black uppercase tracking-widest transition-all ${transType === 'withdrawal' ? 'bg-[#ff4444] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                                 >
                                     Saque
                                 </button>
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Valor ({brokerage.currency === 'USD' ? '$' : 'R$'})</label>
+                                <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Valor ({brokerage.currency === 'USD' ? '$' : 'R$'})</label>
                                 <input 
                                     type="number" 
                                     value={transAmount}
                                     onChange={(e) => setTransAmount(e.target.value)}
-                                    className={`w-full h-12 px-4 rounded-xl border focus:ring-2 focus:ring-[#6366f1]/50 outline-none font-bold text-sm ${theme.input}`}
+                                    className={`w-full h-12 px-4 rounded-none border focus:ring-1 focus:ring-electric outline-none font-black text-sm uppercase ${theme.input} border-white/10`}
                                     placeholder="0,00"
                                 />
                             </div>
                             <ActionButton 
                                 variant="primary" 
-                                className="w-full h-12" 
+                                className="w-full h-12 rounded-none" 
                                 onClick={handleTransaction}
                                 icon={ArrowPathIcon}
                             >
                                 Confirmar {transType === 'deposit' ? 'Depósito' : 'Saque'}
                             </ActionButton>
                         </div>
-                        <div className="bg-white/5 rounded-2xl p-6 border border-white/5 flex flex-col justify-center items-center text-center">
-                            <div className="w-12 h-12 rounded-full bg-[#6366f1]/20 flex items-center justify-center text-[#6366f1] mb-4">
+                        <div className="bg-white/5 rounded-none p-6 border border-white/10 flex flex-col justify-center items-center text-center">
+                            <div className="w-12 h-12 rounded-none bg-electric/10 flex items-center justify-center text-electric mb-4 border border-electric/20">
                                 <ShieldCheckIcon className="w-6 h-6" />
                             </div>
-                            <h4 className="text-sm font-black uppercase tracking-widest mb-2">Segurança VEX</h4>
-                            <p className="text-[10px] font-medium text-slate-500 leading-relaxed">
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] mb-2">Segurança VEX</h4>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-relaxed">
                                 Todas as movimentações são registradas no histórico para auditoria e controle de banca.
                             </p>
                         </div>
@@ -2630,16 +2633,16 @@ const SettingsPanel: React.FC<any> = ({ theme, brokerage, setBrokerages, onReset
 
             <GlassCard theme={theme}>
                 <SectionTitle title="Aparência" subtitle="Personalize sua interface" icon={SparklesIcon} theme={theme} />
-                <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
+                <div className="flex items-center justify-between p-4 rounded-none bg-white/5 border border-white/10">
                     <div className="flex items-center gap-3">
-                        {isDarkMode ? <MoonIcon className="w-5 h-5 text-[#6366f1]" /> : <SunIcon className="w-5 h-5 text-amber-500" />}
-                        <span className="text-sm font-bold">Modo Escuro</span>
+                        {isDarkMode ? <MoonIcon className="w-5 h-5 text-electric" /> : <SunIcon className="w-5 h-5 text-gold" />}
+                        <span className="text-[10px] font-black uppercase tracking-widest">Modo Escuro</span>
                     </div>
                     <button 
                         onClick={() => setIsDarkMode(!isDarkMode)}
-                        className={`w-12 h-6 rounded-full transition-all relative ${isDarkMode ? 'bg-[#6366f1]' : 'bg-slate-300'}`}
+                        className={`w-12 h-6 rounded-none transition-all relative ${isDarkMode ? 'bg-electric' : 'bg-white/10 border border-white/10'}`}
                     >
-                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${isDarkMode ? 'right-1' : 'left-1'}`} />
+                        <div className={`absolute top-1 w-4 h-4 rounded-none bg-white transition-all ${isDarkMode ? 'right-1' : 'left-1'}`} />
                     </button>
                 </div>
             </GlassCard>

@@ -21,20 +21,15 @@ const FloatingInput: React.FC<{
     const isFloating = isFocused || value.length > 0;
 
     return (
-        <div className={`relative group transition-all duration-300 rounded-2xl border ${isFocused ? 'border-purple-500/50 bg-purple-500/5 shadow-[0_0_15px_rgba(111,66,193,0.4)]' : 'border-white/5 bg-white/5'} overflow-hidden`}>
+        <div className={`relative group transition-all duration-300 border ${isFocused ? 'border-electric bg-electric/5 shadow-[0_0_20px_rgba(0,209,255,0.2)]' : 'border-white/10 bg-white/5'} overflow-hidden`}>
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
-                <motion.div
-                    animate={isFocused ? { rotate: [0, -10, 10, 0], scale: 1.1 } : { rotate: 0, scale: 1 }}
-                    transition={{ duration: 0.4 }}
-                >
-                    <Icon className={`w-5 h-5 transition-colors duration-300 ${isFocused ? 'text-purple-400' : 'text-slate-500'}`} />
-                </motion.div>
+                <Icon className={`w-5 h-5 transition-colors duration-300 ${isFocused ? 'text-electric' : 'text-slate-500'}`} />
             </div>
             
             <label 
-                className={`absolute left-12 transition-all duration-300 pointer-events-none z-10 ${
+                className={`absolute left-11 transition-all duration-300 pointer-events-none z-10 ${
                     isFloating 
-                        ? 'top-2 text-[10px] font-black uppercase tracking-widest text-purple-400' 
+                        ? 'top-2 text-[9px] font-black uppercase tracking-widest text-electric' 
                         : 'top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500'
                 }`}
             >
@@ -47,18 +42,18 @@ const FloatingInput: React.FC<{
                 onChange={onChange}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
-                className={`w-full h-14 pl-12 pr-4 bg-transparent text-white outline-none transition-all ${isFloating ? 'pt-4' : ''}`}
+                className={`w-full h-16 pl-12 pr-4 bg-transparent text-white outline-none transition-all font-sans font-medium ${isFloating ? 'pt-4' : ''}`}
                 required={required}
             />
             
-            {/* Focus Glow Line */}
+            {/* Animated focus line */}
             <AnimatePresence>
                 {isFocused && (
                     <motion.div 
-                        initial={{ x: '-100%' }}
-                        animate={{ x: '100%' }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                        className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500 to-transparent opacity-50"
+                        initial={{ scaleX: 0 }}
+                        animate={{ scaleX: 1 }}
+                        exit={{ scaleX: 0 }}
+                        className="absolute bottom-0 left-0 w-full h-[2px] bg-electric origin-left"
                     />
                 )}
             </AnimatePresence>
@@ -69,124 +64,54 @@ const FloatingInput: React.FC<{
 const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [keyword, setKeyword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
-    const [isRegistering, setIsRegistering] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [isHoveringButton, setIsHoveringButton] = useState(false);
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
         try {
-            if (isRegistering) {
-                if (password !== confirmPassword) {
-                    setError('As senhas não coincidem.');
-                    setIsLoading(false);
-                    return;
-                }
-                if (!keyword) {
-                    setError('A palavra-chave de convite é obrigatória.');
-                    setIsLoading(false);
-                    return;
-                }
-                await onRegister(username, password, keyword);
-            } else {
-                await onLogin(username, password, rememberMe);
-            }
+            await onLogin(username, password, rememberMe);
         } finally {
             setIsLoading(false);
         }
     };
     
-    const toggleView = () => {
-        setIsRegistering(!isRegistering);
-        setUsername('');
-        setPassword('');
-        setConfirmPassword('');
-        setKeyword('');
-        setError('');
-    };
-
     return (
-        <div className="min-h-screen w-full flex items-center justify-center p-6 bg-black relative overflow-hidden font-sans">
-            {/* Radial Gradient Background */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#1e0a3c_0%,_#000000_100%)] opacity-80"></div>
+        <div className="min-h-screen w-full flex items-center justify-center p-6 bg-charcoal relative overflow-hidden font-sans">
+            {/* Smooth Radial Gradient Background */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#12141d_0%,_#0b0c10_100%)]"></div>
 
-            {/* Background Decorative Elements */}
-            <div className="absolute inset-0 opacity-20 pointer-events-none">
-                {[...Array(6)].map((_, i) => (
-                    <motion.div 
-                        key={i}
-                        animate={{ 
-                            y: [0, Math.random() * 40 - 20, 0],
-                            x: [0, Math.random() * 40 - 20, 0],
-                            opacity: [0.1, 0.4, 0.1]
-                        }}
-                        transition={{ 
-                            duration: 5 + Math.random() * 5, 
-                            repeat: Infinity, 
-                            ease: "easeInOut",
-                            delay: Math.random() * 5
-                        }}
-                        className="absolute w-1 h-1 bg-purple-400 rounded-full shadow-[0_0_10px_#a855f7]"
-                        style={{ 
-                            top: `${Math.random() * 100}%`, 
-                            left: `${Math.random() * 100}%` 
-                        }}
-                    />
-                ))}
-            </div>
-            
-            <div className="w-full max-w-[440px] relative z-10 flex flex-col items-center">
+            <div className="w-full max-w-[420px] relative z-10 flex flex-col items-center">
                 {/* Logo Section */}
-                <div className="flex flex-col items-center mb-8">
-                    <div className="relative">
-                        {/* Neon Aura */}
-                        <motion.div 
-                            animate={{ 
-                                scale: [1, 1.1, 1],
-                                opacity: [0.3, 0.6, 0.3]
-                            }}
-                            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                            className="absolute inset-0 bg-purple-600 rounded-full blur-2xl"
-                        />
-                        
-                        <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 p-0.5 shadow-[0_0_30px_rgba(168,85,247,0.4)] mb-4 flex items-center justify-center overflow-hidden">
-                            <div className="w-full h-full rounded-full bg-[#050a1f] flex items-center justify-center">
-                                <div className="w-16 h-16 rounded-full bg-purple-500/20 flex items-center justify-center">
-                                    <svg className="w-10 h-10 text-purple-400" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M12 2L14.59 9.41L22 12L14.59 14.59L12 22L9.41 14.59L2 12L9.41 9.41L12 2Z" fill="currentColor"/>
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <div className="flex flex-col items-center mb-10">
+                    <motion.img 
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8, ease: "easeOut" }}
+                        src="/logo-odin.png" 
+                        className="w-40 h-auto mb-6 drop-shadow-[0_0_20px_rgba(0,209,255,0.2)]" 
+                        alt="Logo ODIN"
+                        referrerPolicy="no-referrer"
+                    />
 
-                    <div className="relative overflow-hidden">
-                        <h1 className="text-4xl font-black text-white tracking-tighter flex items-center">
-                            HRK<span className="text-purple-500">.</span>
-                        </h1>
-                        {/* Scan Animation */}
-                        <motion.div 
-                            initial={{ x: '-100%' }}
-                            animate={{ x: '200%' }}
-                            transition={{ duration: 2, repeat: Infinity, repeatDelay: 3, ease: "easeInOut" }}
-                            className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-400/30 to-transparent skew-x-12"
-                        />
-                    </div>
-                    
-                    <p className="text-slate-400 text-[10px] font-black tracking-[0.3em] uppercase mt-2">Binary Operations Management</p>
-                    <p className="text-slate-500 text-[9px] font-medium mt-1">Otimize sua gestão de banca com a HRK</p>
+                    <h1 className="text-sm font-black text-gold tracking-[0.4em] uppercase text-center mb-1 font-display">
+                        High Performance Trading
+                    </h1>
+                    <div className="w-12 h-0.5 bg-gradient-to-r from-transparent via-gold to-transparent opacity-50"></div>
                 </div>
 
-                {/* Login Card - Glassmorphism */}
-                <div className="w-full bg-black/40 border border-white/5 p-8 md:p-10 rounded-[2.5rem] backdrop-blur-md shadow-2xl relative overflow-hidden">
-                    <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Login Card - Ultra Minimalist Glassmorphism */}
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.2 }}
+                    className="w-full bg-card/40 border border-white/5 p-8 md:p-12 rounded-sm backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden"
+                >
+                    <form onSubmit={handleSubmit} className="space-y-6">
                         <FloatingInput 
-                            label="Usuário"
+                            label="USUÁRIO"
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
@@ -195,7 +120,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                         />
                         
                         <FloatingInput 
-                            label="Senha"
+                            label="SENHA"
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -203,105 +128,55 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                             required
                         />
                         
-                        {isRegistering && (
-                            <motion.div 
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                className="space-y-5"
-                            >
-                                <FloatingInput 
-                                    label="Confirmar Senha"
-                                    type="password"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    icon={LockClosedIcon}
-                                    required
+                        <div className="flex items-center px-1">
+                            <label className="flex items-center cursor-pointer group">
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    className="sr-only"
                                 />
-                                <FloatingInput 
-                                    label="Palavra-Chave de Convite"
-                                    type="text"
-                                    value={keyword}
-                                    onChange={(e) => setKeyword(e.target.value)}
-                                    icon={SparklesIcon}
-                                    required
-                                />
-                            </motion.div>
-                        )}
-
-                        {!isRegistering && (
-                            <div className="flex items-center px-1">
-                                <label className="flex items-center cursor-pointer group">
-                                    <input
-                                        type="checkbox"
-                                        checked={rememberMe}
-                                        onChange={(e) => setRememberMe(e.target.checked)}
-                                        className="sr-only"
-                                    />
-                                    <div className={`w-5 h-5 rounded-lg border transition-all flex items-center justify-center ${rememberMe ? 'bg-purple-600 border-purple-600 shadow-[0_0_10px_rgba(168,85,247,0.4)]' : 'bg-white/5 border-white/10 group-hover:border-purple-500/50'}`}>
-                                        {rememberMe && (
-                                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                            </svg>
-                                        )}
-                                    </div>
-                                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-3 group-hover:text-slate-300 transition-colors">Lembrar acesso</span>
-                                </label>
-                            </div>
-                        )}
+                                <div className={`w-4 h-4 rounded-none border transition-all flex items-center justify-center ${rememberMe ? 'bg-electric border-electric' : 'bg-transparent border-white/20 group-hover:border-electric'}`}>
+                                    {rememberMe && (
+                                        <svg className="w-3 h-3 text-charcoal" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    )}
+                                </div>
+                                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 ml-3 group-hover:text-slate-300 transition-colors">Lembrar acesso</span>
+                            </label>
+                        </div>
 
                         {error && (
                             <motion.div 
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl"
+                                className="p-4 bg-red-500/10 border border-red-500/20"
                             >
                                  <p className="text-[10px] text-red-500 text-center font-black uppercase tracking-widest">{error}</p>
                             </motion.div>
                         )}
                         
-                        <div className="relative">
-                            {/* Particle Effect on Hover */}
-                            <AnimatePresence>
-                                {isHoveringButton && !isLoading && (
-                                    <div className="absolute inset-0 pointer-events-none">
-                                        {[...Array(8)].map((_, i) => (
-                                            <motion.div 
-                                                key={i}
-                                                initial={{ opacity: 0, scale: 0 }}
-                                                animate={{ 
-                                                    opacity: [0, 1, 0],
-                                                    scale: [0, 1.5, 0],
-                                                    x: (Math.random() - 0.5) * 100,
-                                                    y: (Math.random() - 0.5) * 60
-                                                }}
-                                                exit={{ opacity: 0 }}
-                                                transition={{ duration: 1, repeat: Infinity, delay: i * 0.1 }}
-                                                className="absolute top-1/2 left-1/2 w-1 h-1 bg-purple-400 rounded-full"
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-                            </AnimatePresence>
-
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                onMouseEnter={() => setIsHoveringButton(true)}
-                                onMouseLeave={() => setIsHoveringButton(false)}
-                                className="w-full h-14 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-2xl uppercase text-[11px] tracking-[0.2em] shadow-[0_10px_30px_rgba(168,85,247,0.3)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] relative overflow-hidden group"
-                            >
-                                <span className="relative z-10">{isLoading ? 'PROCESSANDO...' : isRegistering ? 'CRIAR CONTA' : 'ENTRAR NO DASHBOARD'}</span>
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                            </button>
-                        </div>
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full h-14 bg-electric text-charcoal font-black rounded-none uppercase text-xs tracking-[0.25em] transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_5px_15px_rgba(0,209,255,0.3)]"
+                        >
+                            {isLoading ? 'PROCESSANDO...' : 'ENTRAR NO DASHBOARD'}
+                        </button>
                     </form>
 
-                    <div className="mt-8 text-center">
-                        <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                            Acesso Restrito ao Administrador
+                    <div className="mt-10 text-center">
+                        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 opacity-60">
+                            Authorized Access Only • Restricted
                         </p>
                     </div>
-                </div>
+                </motion.div>
+                
+                {/* Footer Copy */}
+                <p className="mt-10 text-[10px] text-slate-600 font-medium uppercase tracking-widest">
+                    &copy; 2026 ODIN SYSTEMS
+                </p>
             </div>
         </div>
     );
