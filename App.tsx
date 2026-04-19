@@ -332,7 +332,17 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
         return (
             <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-8">
                 <GlassCard theme={theme} className="animate-pulse">
-                    <SectionTitle title="Análise Neural" subtitle="Insights baseados em IA" icon={CpuChipIcon} theme={theme} />
+                    <div className="flex justify-center -mt-4 mb-6">
+                        <div className="relative w-24 h-24 rounded-3xl bg-electric/10 p-1 flex items-center justify-center border border-electric/20 shadow-[0_0_50px_rgba(0,243,255,0.2)]">
+                            <motion.div 
+                                animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
+                                transition={{ duration: 4, repeat: Infinity }}
+                            >
+                                <img src="/logo-odin.png.png" className="w-20 h-20 opacity-90" alt="Olho de Odin" referrerPolicy="no-referrer" />
+                            </motion.div>
+                        </div>
+                    </div>
+                    <SectionTitle title="Olho de Odin" subtitle="Visão Neural Ativa" icon={SparklesIcon} theme={theme} />
                     <div className="space-y-6">
                         <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
                             <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Status do Motor</span>
@@ -340,13 +350,14 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                         </div>
                         <div className="space-y-4">
                             {[
-                                { label: 'UPLOAD_IMAGE', val: progress.upload },
-                                { label: 'EXTRACT_DATA', val: progress.data },
-                                { label: 'PATTERN_MATCH', val: progress.patterns },
-                                { label: 'FINAL_COMPUTE', val: progress.result }
+                                { label: 'Sintonizando Frequência Rúnica', val: progress.upload },
+                                { label: 'Invocando Sabedoria de Ansuz', val: progress.data },
+                                { label: 'Traçando Caminho de Sowilo', val: progress.patterns },
+                                { label: 'Decifrando Padrões de Asgard', val: progress.result > 0 ? Math.min(progress.result, 90) : 0 },
+                                { label: 'Manifestando Visão do Olho de Odin', val: progress.result === 100 ? 100 : 0 }
                             ].map((p, i) => (
                                 <div key={i} className="space-y-2">
-                                    <div className="flex justify-between text-[8px] font-black uppercase tracking-[0.2em] text-slate-500">
+                                    <div className="flex justify-between text-[8px] font-black uppercase tracking-[0.2em] text-gold">
                                         <span>{p.label}</span>
                                         <span>{p.val}%</span>
                                     </div>
