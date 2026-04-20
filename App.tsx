@@ -338,7 +338,7 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
                                 animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
                                 transition={{ duration: 4, repeat: Infinity }}
                             >
-                                <img src="/logo-odin.png.png" className="w-20 h-20 opacity-90" alt="Olho de Odin" referrerPolicy="no-referrer" />
+                                <img src="/logo-odin.PNG" className="w-20 h-20 opacity-90" alt="Olho de Odin" referrerPolicy="no-referrer" />
                             </motion.div>
                         </div>
                     </div>
@@ -896,7 +896,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                                     />
                                     <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-xl bg-electric p-0.5 flex items-center justify-center shadow-lg shadow-electric/20">
                                         <div className="w-full h-full rounded-[0.6rem] bg-charcoal flex items-center justify-center p-1.5">
-                                            <img src="/logo-odin.png.png" className="w-full h-auto opacity-90" alt="" referrerPolicy="no-referrer" />
+                                            <img src="/logo-odin.PNG" className="w-full h-auto opacity-90" alt="" referrerPolicy="no-referrer" />
                                         </div>
                                     </div>
                                 </div>
