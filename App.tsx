@@ -332,13 +332,25 @@ const AIAnalysisPanel: React.FC<any> = ({ theme, isDarkMode, records, selectedDa
         return (
             <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-8">
                 <GlassCard theme={theme} className="animate-pulse">
-                    <div className="flex justify-center -mt-4 mb-6">
-                        <div className="relative w-24 h-24 rounded-3xl bg-electric/10 p-1 flex items-center justify-center border border-electric/20 shadow-[0_0_50px_rgba(0,243,255,0.2)]">
+                    <div className="flex justify-center -mt-8 mb-6">
+                        <div className="relative w-28 h-28 flex items-center justify-center">
+                            {/* Organic Aura */}
+                            <motion.div 
+                                animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
+                                transition={{ duration: 4, repeat: Infinity }}
+                                className="absolute inset-0 bg-electric rounded-full blur-[40px]"
+                            />
                             <motion.div 
                                 animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
                                 transition={{ duration: 4, repeat: Infinity }}
+                                className="relative z-10"
                             >
-                                <img src="/logo-odin.png" className="w-20 h-20 opacity-90" alt="Olho de Odin" referrerPolicy="no-referrer" />
+                                <img 
+                                    src="/logo-odin.png" 
+                                    className="w-24 h-24 filter brightness-110 drop-shadow-[0_0_30px_rgba(251,191,36,0.3)]" 
+                                    alt="Olho de Odin" 
+                                    referrerPolicy="no-referrer" 
+                                />
                             </motion.div>
                         </div>
                     </div>
@@ -882,7 +894,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                 } 
             }} />
             <main className="flex-1 flex flex-col overflow-hidden">
-                <header className={`flex-none flex flex-col border-b ${theme.border} ${theme.header}`}>
+                <header className={`flex-none flex flex-col border-b ${theme.border} ${theme.header} sticky top-0 z-50`}>
                     {/* Top Row */}
                     <div className="h-14 md:h-16 flex items-center justify-between px-4 md:px-8 border-b border-white/5">
                         <div className="flex items-center gap-2 md:gap-6">
@@ -894,14 +906,22 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                                         transition={{ duration: 3, repeat: Infinity }}
                                         className="absolute inset-0 bg-purple-500 rounded-full blur-xl"
                                     />
-                                    <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-xl bg-electric p-0.5 flex items-center justify-center shadow-lg shadow-electric/20">
-                                        <div className="w-full h-full rounded-[0.6rem] bg-charcoal flex items-center justify-center p-1.5">
-                                            <img src="/logo-odin.png" className="w-full h-auto opacity-90" alt="" referrerPolicy="no-referrer" />
-                                        </div>
+                                    <div className="relative w-10 h-10 flex items-center justify-center">
+                                        <img 
+                                            src="/logo-odin.png" 
+                                            className="w-full h-auto drop-shadow-[0_5px_15px_rgba(251,191,36,0.2)] filter brightness-110" 
+                                            alt="" 
+                                            referrerPolicy="no-referrer" 
+                                        />
                                     </div>
                                 </div>
-                                <div className="relative overflow-hidden">
-                                    <span className="text-xl md:text-2xl font-black tracking-tighter text-white font-display uppercase">ODIN<span className="text-electric">.</span></span>
+                                <div className="relative overflow-hidden flex flex-col">
+                                    <span className="text-xl md:text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-gold via-yellow-200 to-amber-600 font-display uppercase leading-none">
+                                        ODIN<span className="text-electric">.</span>
+                                    </span>
+                                    <span className="text-[6px] md:text-[7px] font-black uppercase tracking-[0.4em] text-electric/80 mt-0.5 drop-shadow-[0_0_5px_rgba(0,243,255,0.5)]">
+                                        Performance
+                                    </span>
                                     <motion.div 
                                         initial={{ x: '-100%' }}
                                         animate={{ x: '200%' }}

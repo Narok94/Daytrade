@@ -147,7 +147,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                         className="relative"
                     >
                         {/* Glow effect behind logo */}
-                        <div className="absolute inset-0 bg-electric/20 blur-3xl rounded-full scale-150" />
+                        {/* Subtle depth layer */}
+                        <div className="absolute inset-0 bg-electric/5 blur-[100px] rounded-full scale-150 pointer-events-none" />
                         
                         {/* Lightning Effects */}
                         <LightningStrike delay={0} />
@@ -157,7 +158,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                         
                         <img 
                             src="/logo-odin.png" 
-                            className="w-48 sm:w-64 h-auto mb-6 relative z-10 drop-shadow-[0_0_30px_rgba(0,243,255,0.3)]" 
+                            className="w-48 sm:w-64 h-auto mb-8 relative z-10 drop-shadow-[0_15px_40px_rgba(251,191,36,0.3)] filter brightness-110 contrast-110" 
                             alt="Logo ODIN"
                             referrerPolicy="no-referrer"
                         />
@@ -167,12 +168,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.5 }}
-                        className="space-y-1"
+                        className="space-y-3 relative"
                     >
-                        <p className="text-[9px] sm:text-[10px] font-black text-slate-400 tracking-[0.4em] uppercase">
-                            Premium Performance Daytrade
-                        </p>
-                        <div className="h-[1px] w-12 bg-gold/50 mx-auto mt-2" />
+                        <div className="relative inline-block">
+                            <div className="absolute inset-0 bg-electric/20 blur-xl scale-125 rounded-full" />
+                            <p className="relative text-[9px] sm:text-[10px] font-black text-white/90 tracking-[0.5em] uppercase drop-shadow-[0_0_10px_rgba(0,243,255,0.8)]">
+                                Performance Daytrade
+                            </p>
+                        </div>
+                        <div className="h-[2px] w-24 bg-gradient-to-r from-transparent via-gold/40 to-transparent mx-auto" />
                     </motion.div>
                 </div>
 
