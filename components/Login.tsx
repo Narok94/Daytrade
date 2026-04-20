@@ -156,7 +156,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, error, setError }) =
                         <LightningStrike delay={4.5} />
                         
                         <img 
-                            src="/logo-odin.PNG" 
+                            src="/logo-odin.png" 
                             className="w-48 sm:w-64 h-auto mb-6 relative z-10 drop-shadow-[0_0_30px_rgba(0,243,255,0.3)]" 
                             alt="Logo ODIN"
                             referrerPolicy="no-referrer"
