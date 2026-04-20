@@ -968,8 +968,8 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                         </div>
                     </div>
 
-                    {/* Navigation Row */}
-                    <div className="h-12 md:h-14 flex items-center justify-center px-4 md:px-8 overflow-x-auto no-scrollbar gap-1 md:gap-2">
+            {/* Navigation Row - Hidden on small mobile, visible on tablet/desktop */}
+                    <div className="hidden md:flex h-12 md:h-14 items-center justify-center px-4 md:px-8 overflow-x-auto no-scrollbar gap-1 md:gap-2">
                         {[
                             { id: 'dashboard', label: 'Dashboard', icon: LayoutGridIcon },
                             { id: 'ai-analysis', label: 'Análise IA', icon: CpuChipIcon },
@@ -998,7 +998,7 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                         })}
                     </div>
                 </header>
-                <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pb-20 md:pb-0">
                     {activeTab === 'dashboard' && (
                         <DashboardPanel 
                             activeBrokerage={activeBrokerage} 
@@ -1054,6 +1054,50 @@ const App: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout })
                         addTransaction={addTransaction}
                     />
                 )}
+                </div>
+
+                {/* Mobile Bottom Navigation */}
+                <div className={`md:hidden fixed bottom-0 left-0 right-0 h-16 border-t ${theme.border} ${theme.header} backdrop-blur-xl z-50 px-2 flex items-center justify-around shadow-[0_-10px_30px_rgba(0,0,0,0.3)]`}>
+                    {[
+                        { id: 'dashboard', icon: LayoutGridIcon, label: 'Dash' },
+                        { id: 'ai-analysis', icon: CpuChipIcon, label: 'IA' },
+                        { id: 'compound', icon: ChartBarIcon, label: 'Juros' },
+                        { id: 'management-sheet', icon: DocumentTextIcon, label: 'Gestão' },
+                        { id: 'goals', icon: TargetIcon, label: 'Metas' }
+                    ].map((item) => {
+                        const Icon = item.icon;
+                        const isActive = activeTab === item.id;
+                        return (
+                            <button
+                                key={item.id}
+                                onClick={() => setActiveTab(item.id)}
+                                className={`flex flex-col items-center justify-center gap-1 transition-all flex-1 h-full relative ${isActive ? 'text-electric' : 'text-slate-500'}`}
+                            >
+                                {isActive && (
+                                    <motion.div 
+                                        layoutId="activeTabGlow"
+                                        className="absolute -top-[1px] w-8 h-[2px] bg-electric shadow-[0_0_10px_#00f3ff]" 
+                                    />
+                                )}
+                                <Icon className={`w-5 h-5 ${isActive ? 'text-electric' : 'text-slate-500'}`} />
+                                <span className={`text-[7.5px] font-black uppercase tracking-widest ${isActive ? 'text-electric' : 'text-slate-500'}`}>
+                                    {item.label}
+                                </span>
+                            </button>
+                        );
+                    })}
+                    <button
+                        onClick={() => setActiveTab('settings')}
+                        className={`flex flex-col items-center justify-center gap-1 transition-all flex-1 h-full relative ${activeTab === 'settings' ? 'text-electric' : 'text-slate-500'}`}
+                    >
+                        {activeTab === 'settings' && (
+                            <motion.div layoutId="activeTabGlow" className="absolute -top-[1px] w-8 h-[2px] bg-electric shadow-[0_0_10px_#00f3ff]" />
+                        )}
+                        <div className={`w-5 h-5 rounded-[4px] border flex items-center justify-center font-black text-[7px] ${activeTab === 'settings' ? 'border-electric text-electric' : 'border-slate-500 text-slate-500'}`}>
+                            {user.username.slice(0, 2).toUpperCase()}
+                        </div>
+                        <span className="text-[7.5px] font-black uppercase tracking-widest">Ajustes</span>
+                    </button>
                 </div>
             </main>
         </div>
@@ -1229,10 +1273,10 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
                             <thead>
                                 <tr className="bg-white/5">
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Usuário</th>
-                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
-                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Role</th>
-                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Criado em</th>
-                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Último Acesso</th>
+                                    <th className="hidden sm:table-cell px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
+                                    <th className="hidden md:table-cell px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Role</th>
+                                    <th className="hidden lg:table-cell px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Criado em</th>
+                                    <th className="hidden xl:table-cell px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Último Acesso</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</th>
                                 </tr>
                             </thead>
@@ -1241,26 +1285,29 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
                                     <tr key={u.id} className="hover:bg-white/5 transition-colors group">
                                         <td className="px-6 py-5">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-electric/10 flex items-center justify-center text-electric font-black text-xs border border-electric/20 uppercase">
+                                                <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-electric/10 flex items-center justify-center text-electric font-black text-[10px] md:text-xs border border-electric/20 uppercase">
                                                     {u.username.slice(0, 2).toUpperCase()}
                                                 </div>
-                                                <span className="font-black text-slate-200 uppercase tracking-widest text-xs">{u.username}</span>
+                                                <div className="flex flex-col">
+                                                    <span className="font-black text-slate-200 uppercase tracking-widest text-[10px] md:text-xs">{u.username}</span>
+                                                    <span className="sm:hidden text-[8px] font-black uppercase tracking-widest text-slate-500">{u.isPaused ? 'Pausado' : 'Ativo'}</span>
+                                                </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-5">
+                                        <td className="hidden sm:table-cell px-6 py-5">
                                             <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${u.isPaused ? 'bg-[#ff4444]/10 text-[#ff4444] border border-[#ff4444]/20' : 'bg-[#00ff88]/10 text-[#00ff88] border border-[#00ff88]/20'}`}>
                                                 {u.isPaused ? 'Pausado' : 'Ativo'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-5">
+                                        <td className="hidden md:table-cell px-6 py-5">
                                             <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${u.isAdmin ? 'bg-gold/10 text-gold border border-gold/20' : 'bg-slate-500/10 text-slate-500 border border-white/5'}`}>
                                                 {u.isAdmin ? 'Admin' : 'User'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-5 text-[10px] text-slate-500 font-black uppercase tracking-widest">
+                                        <td className="hidden lg:table-cell px-6 py-5 text-[10px] text-slate-500 font-black uppercase tracking-widest">
                                             {new Date((u as any).createdAt || Date.now()).toLocaleDateString('pt-BR')}
                                         </td>
-                                        <td className="px-6 py-5 text-[10px] text-electric font-black uppercase tracking-widest">
+                                        <td className="hidden xl:table-cell px-6 py-5 text-[10px] text-electric font-black uppercase tracking-widest">
                                             {u.lastLoginAt ? (
                                                 <div className="flex flex-col">
                                                     <span>{new Date(u.lastLoginAt).toLocaleDateString('pt-BR')}</span>
@@ -1271,20 +1318,20 @@ const AdminPanel: React.FC<{ theme: any, adminId: number }> = ({ theme, adminId 
                                             )}
                                         </td>
                                         <td className="px-6 py-5 text-right">
-                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex items-center justify-end gap-2 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button 
                                                     onClick={() => togglePause(u.id, !!u.isPaused)}
                                                     title={u.isPaused ? 'Despausar' : 'Pausar'}
-                                                    className={`p-2.5 rounded-lg transition-all active:scale-90 ${u.isPaused ? 'bg-[#00ff88]/10 text-[#00ff88] hover:bg-[#00ff88]/20' : 'bg-[#ff4444]/10 text-[#ff4444] hover:bg-[#ff4444]/20'}`}
+                                                    className={`p-2 rounded-lg transition-all active:scale-90 ${u.isPaused ? 'bg-[#00ff88]/10 text-[#00ff88] hover:bg-[#00ff88]/20' : 'bg-[#ff4444]/10 text-[#ff4444] hover:bg-[#ff4444]/20'}`}
                                                 >
-                                                    {u.isPaused ? <PlayIcon className="w-5 h-5" /> : <PauseIcon className="w-5 h-5" />}
+                                                    {u.isPaused ? <PlayIcon className="w-4 h-4 md:w-5 md:h-5" /> : <PauseIcon className="w-4 h-4 md:w-5 md:h-5" />}
                                                 </button>
                                                 <button 
                                                     onClick={() => setResettingUserId(u.id)}
                                                     title="Resetar Senha"
-                                                    className="p-2.5 rounded-lg bg-gold/10 text-gold hover:bg-gold/20 transition-all active:scale-90"
+                                                    className="p-2 rounded-lg bg-gold/10 text-gold hover:bg-gold/20 transition-all active:scale-90"
                                                 >
-                                                    <KeyIcon className="w-5 h-5" />
+                                                    <KeyIcon className="w-4 h-4 md:w-5 md:h-5" />
                                                 </button>
                                             </div>
                                         </td>
@@ -2125,19 +2172,19 @@ const HistoryPanel: React.FC<any> = ({ isDarkMode, isPrivacyMode, activeBrokerag
                                                         </td>
                                                     </tr>
                                                 )}
-                                                <tr className="group hover:bg-white/10 transition-colors border-l-4 border-transparent hover:border-electric">
-                                                    <td className="py-4 text-xs font-black uppercase tracking-widest text-slate-500">{s.label}</td>
-                                                    <td className={`py-4 text-sm font-black ${s.profit >= 0 ? 'text-[#00ff88]' : 'text-[#ff4444]'} ${isPrivacyMode ? 'blur-sm select-none opacity-50' : ''}`}>
+                                <tr className="group hover:bg-white/10 transition-colors border-l-4 border-transparent hover:border-electric">
+                                                    <td className="py-4 text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-500">{s.label}</td>
+                                                    <td className={`py-4 text-xs md:text-sm font-black ${s.profit >= 0 ? 'text-[#00ff88]' : 'text-[#ff4444]'} ${isPrivacyMode ? 'blur-sm select-none opacity-50' : ''}`}>
                                                         {s.profit >= 0 ? '+' : '-'}{currencySymbol}
                                                         <CountUp end={Math.abs(s.profit)} decimals={2} duration={1} separator="." decimal="," />
                                                     </td>
-                                                    <td className="py-4 text-right text-xs font-black tracking-widest">
+                                                    <td className="hidden sm:table-cell py-4 text-right text-xs font-black tracking-widest">
                                                         <span className="text-[#00ff88]">{s.wins}</span>
                                                         <span className="mx-1 opacity-20">/</span>
                                                         <span className="text-[#ff4444]">{s.losses}</span>
                                                     </td>
                                                     <td className="py-4 text-right">
-                                                        <span className="text-xs font-black text-white tracking-widest">{s.winRate.toFixed(1)}%</span>
+                                                        <span className="text-[10px] md:text-xs font-black text-white tracking-widest">{s.winRate.toFixed(1)}%</span>
                                                     </td>
                                                 </tr>
                                             </React.Fragment>

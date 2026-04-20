@@ -39,8 +39,9 @@ const Auth: React.FC = () => {
     const handleLogin = useCallback(async (username: string, password: string, rememberMe: boolean = false): Promise<boolean> => {
         setAuthError('');
         try {
+            const cleanUsername = username.toLowerCase().trim();
             // LOGIN FIXO: admin / admin
-            if (username === 'admin' && password === 'admin') {
+            if (cleanUsername === 'admin' && password === 'admin') {
                 const user: User = {
                     id: 1,
                     username: 'admin',
